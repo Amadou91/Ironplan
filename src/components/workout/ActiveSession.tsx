@@ -1,145 +1,295 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { createClient } from '@/lib/supabase/client';
 import { SetLogger } from './SetLogger';
 import { Plus, Save, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { SessionExercise, WorkoutSet } from '@/types/domain';
+import { SessionExercise, WorkoutSession, WorkoutSet } from '@/types/domain';
+import { toMuscleLabel } from '@/lib/muscle-utils';
 
-export default function ActiveSession() {
-  const { activeSession, addSet, removeSet, updateSet, endSession } = useWorkoutStore();
+type ActiveSessionProps = {
+  sessionId?: string | null;
+};
+
+type SessionPayload = {
+  id: string;
+  name: string;
+  workout_id: string | null;
+  started_at: string;
+  ended_at: string | null;
+  status: string | null;
+  session_exercises: Array<{
+    id: string;
+    exercise_name: string;
+    primary_muscle: string | null;
+    secondary_muscles: string[] | null;
+    order_index: number | null;
+    sets: Array<{
+      id: string;
+      set_number: number | null;
+      reps: number | null;
+      weight: number | null;
+      rpe: number | null;
+      rir: number | null;
+      notes: string | null;
+      completed: boolean | null;
+      performed_at: string | null;
+    }>;
+  }>;
+};
+
+export default function ActiveSession({ sessionId }: ActiveSessionProps) {
+  const { activeSession, addSet, removeSet, updateSet, endSession, startSession } = useWorkoutStore();
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
-  if (!activeSession) return null;
+  const mapSession = useCallback((payload: SessionPayload): WorkoutSession => {
+    return {
+      id: payload.id,
+      userId: '',
+      workoutId: payload.workout_id ?? undefined,
+      name: payload.name,
+      startedAt: payload.started_at,
+      endedAt: payload.ended_at ?? undefined,
+      status: (payload.status as WorkoutSession['status']) ?? 'active',
+      exercises: payload.session_exercises
+        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+        .map((exercise, idx) => ({
+          id: exercise.id,
+          sessionId: payload.id,
+          name: exercise.exercise_name,
+          primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
+          secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
+          orderIndex: exercise.order_index ?? idx,
+          sets: (exercise.sets ?? [])
+            .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
+            .map((set, setIdx) => ({
+              id: set.id,
+              setNumber: set.set_number ?? setIdx + 1,
+              reps: set.reps ?? '',
+              weight: set.weight ?? '',
+              rpe: set.rpe ?? '',
+              rir: set.rir ?? '',
+              notes: set.notes ?? '',
+              performedAt: set.performed_at ?? undefined,
+              completed: set.completed ?? false
+            }))
+        }))
+    };
+  }, []);
 
-  const handleFinishWorkout = async () => {
-    if (!confirm('Are you sure you want to finish this workout?')) return;
-    setIsSaving(true);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      // 1. Create Session
-      const { data: sessionData, error: sessionError } = await supabase
+  useEffect(() => {
+    if (activeSession || !sessionId) return;
+    setIsLoading(true);
+    const fetchSession = async () => {
+      const { data, error } = await supabase
         .from('sessions')
-        .insert({
-            user_id: user.id,
-            plan_id: activeSession.planId,
-            name: activeSession.name,
-            started_at: activeSession.startedAt,
-            ended_at: new Date().toISOString()
-        })
-        .select()
+        .select(
+          'id, name, workout_id, started_at, ended_at, status, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
+        )
+        .eq('id', sessionId)
         .single();
 
-      if (sessionError) throw sessionError;
-      if (!sessionData) throw new Error('Failed to create session record');
+      if (error) {
+        console.error('Failed to load session', error);
+        setErrorMessage('Unable to load the active session. Please try again.');
+      } else if (data) {
+        startSession(mapSession(data as SessionPayload));
+      }
+      setIsLoading(false);
+    };
+    fetchSession();
+  }, [activeSession, mapSession, sessionId, startSession, supabase]);
 
-      // 2. Process Exercises & Sets
-      for (const ex of activeSession.exercises) {
-        const { data: exData, error: exError } = await supabase
-            .from('session_exercises')
-            .insert({
-                session_id: sessionData.id,
-                exercise_name: ex.name,
-                primary_muscle: ex.primaryMuscle,
-                secondary_muscles: ex.secondaryMuscles,
-                order_index: ex.orderIndex
-            })
-            .select()
-            .single();
-        
-        if (exError) throw exError;
-        if (!exData) throw new Error('Failed to create exercise record');
+  const persistSet = useCallback(
+    async (exercise: SessionExercise, set: WorkoutSet, exerciseIndex: number) => {
+      if (!exercise.id) return;
 
-        // Insert Sets
-        const validSets = ex.sets.filter((s: WorkoutSet) => s.completed || (s.reps && s.weight));
-        
-        if (validSets.length > 0) {
-            const setsPayload = validSets.map((s: WorkoutSet) => ({
-                session_exercise_id: exData.id,
-                set_number: s.setNumber,
-                reps: Number(s.reps),
-                weight: Number(s.weight),
-                rpe: s.rpe ? Number(s.rpe) : null,
-                completed: true
-            }));
+      const payload = {
+        session_exercise_id: exercise.id,
+        set_number: set.setNumber,
+        reps: typeof set.reps === 'number' ? set.reps : null,
+        weight: typeof set.weight === 'number' ? set.weight : null,
+        rpe: typeof set.rpe === 'number' ? set.rpe : null,
+        rir: typeof set.rir === 'number' ? set.rir : null,
+        notes: set.notes ?? null,
+        completed: set.completed,
+        performed_at: set.performedAt ?? new Date().toISOString()
+      };
 
-            const { error: setError } = await supabase.from('sets').insert(setsPayload);
-            if (setError) throw setError;
+      if (set.id && !set.id.startsWith('temp-')) {
+        const { error } = await supabase.from('sets').update(payload).eq('id', set.id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from('sets').insert(payload).select('id, performed_at').single();
+        if (error) throw error;
+        if (data?.id) {
+          updateSet(exerciseIndex, set.setNumber - 1, 'id', data.id);
+          updateSet(exerciseIndex, set.setNumber - 1, 'performedAt', data.performed_at ?? new Date().toISOString());
         }
       }
+    },
+    [supabase, updateSet]
+  );
 
+  const handleSetUpdate = async (exIdx: number, setIdx: number, field: keyof WorkoutSet, value: string | number | boolean) => {
+    if (!activeSession) return;
+    const exercise = activeSession.exercises[exIdx];
+    const currentSet = exercise.sets[setIdx];
+
+    const normalizedValue = (() => {
+      if (typeof value === 'number') {
+        if (Number.isNaN(value)) return 0;
+        if (value < 0) return 0;
+        if (field === 'rpe' || field === 'rir') return Math.min(10, value);
+      }
+      return value;
+    })();
+
+    updateSet(exIdx, setIdx, field, normalizedValue);
+
+    try {
+      await persistSet(exercise, { ...currentSet, [field]: normalizedValue } as WorkoutSet, exIdx);
+    } catch (error) {
+      console.error('Failed to save set', error);
+      setErrorMessage('Unable to save this set. Please retry.');
+    }
+  };
+
+  const handleAddSet = async (exIdx: number) => {
+    if (!activeSession) return;
+    const newSet = addSet(exIdx);
+    if (!newSet) return;
+    const exercise = activeSession.exercises[exIdx];
+    try {
+      await persistSet(
+        exercise,
+        {
+          ...newSet,
+          performedAt: new Date().toISOString()
+        },
+        exIdx
+      );
+    } catch (error) {
+      console.error('Failed to add set', error);
+      setErrorMessage('Unable to add set. Please try again.');
+    }
+  };
+
+  const handleDeleteSet = async (exIdx: number, setIdx: number) => {
+    if (!activeSession) return;
+    const set = activeSession.exercises[exIdx].sets[setIdx];
+    removeSet(exIdx, setIdx);
+    if (set.id && !set.id.startsWith('temp-')) {
+      const { error } = await supabase.from('sets').delete().eq('id', set.id);
+      if (error) {
+        console.error('Failed to delete set', error);
+        setErrorMessage('Unable to delete set. Please refresh and try again.');
+      }
+    }
+  };
+
+  const handleFinishWorkout = async () => {
+    if (!activeSession) return;
+    if (!confirm('Are you sure you want to finish this workout?')) return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('sessions')
+        .update({ ended_at: new Date().toISOString(), status: 'completed' })
+        .eq('id', activeSession.id);
+
+      if (error) throw error;
       endSession();
       router.push('/dashboard');
     } catch (error) {
-      console.error('Failed to save workout:', error);
-      alert('Failed to save workout. Please try again.');
+      console.error('Failed to finish workout:', error);
+      setErrorMessage('Failed to finish workout. Please try again.');
     } finally {
       setIsSaving(false);
     }
   };
 
+  const heading = useMemo(() => {
+    if (!activeSession) return 'Session Active';
+    return activeSession.name;
+  }, [activeSession]);
+
+  if (isLoading) {
+    return <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-gray-400">Loading active session...</div>;
+  }
+
+  if (!activeSession) return null;
+
   return (
     <div className="space-y-8 pb-24">
-      <div className="bg-white sticky top-0 z-10 p-4 border-b border-gray-100 shadow-sm flex justify-between items-center rounded-xl mb-6">
-        <div>
-            <h2 className="text-xl font-bold text-gray-900">{activeSession.name}</h2>
+      <div className="bg-white sticky top-0 z-10 p-4 border-b border-gray-100 shadow-sm flex flex-col gap-3 rounded-xl mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">{heading}</h2>
             <div className="flex items-center text-sm text-gray-500 gap-1">
-                <Clock size={14} />
-                <span>Started at {new Date(activeSession.startedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+              <Clock size={14} />
+              <span>Started at {new Date(activeSession.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
-        </div>
-        <button 
+          </div>
+          <button
             onClick={handleFinishWorkout}
             disabled={isSaving}
             className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 flex items-center gap-2"
-        >
-            {isSaving ? 'Saving...' : <><Save size={18} /> Finish</>}
-        </button>
+          >
+            {isSaving ? 'Saving...' : (
+              <>
+                <Save size={18} /> Finish
+              </>
+            )}
+          </button>
+        </div>
+        {errorMessage && (
+          <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">{errorMessage}</div>
+        )}
       </div>
 
       <div className="space-y-6">
         {activeSession.exercises.map((exercise: SessionExercise, exIdx: number) => (
           <div key={`${exercise.name}-${exIdx}`} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
             <div className="flex justify-between items-start mb-4">
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{exercise.name}</h3>
-                    <div className="flex gap-2 mt-1">
-                        <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
-                            {exercise.primaryMuscle}
-                        </span>
-                        {exercise.secondaryMuscles?.map((m: string) => (
-                             <span key={m} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                             {m}
-                         </span>
-                        ))}
-                    </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{exercise.name}</h3>
+                <div className="flex gap-2 mt-1 flex-wrap">
+                  <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+                    {exercise.primaryMuscle}
+                  </span>
+                  {exercise.secondaryMuscles?.map((m: string) => (
+                    <span key={m} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                      {m}
+                    </span>
+                  ))}
                 </div>
+              </div>
             </div>
 
             <div className="space-y-1">
-                {exercise.sets.map((set: WorkoutSet, setIdx: number) => (
-                    <SetLogger 
-                        key={set.id}
-                        set={set}
-                        onUpdate={(field, val) => updateSet(exIdx, setIdx, field, val)}
-                        onDelete={() => removeSet(exIdx, setIdx)}
-                        onToggleComplete={() => updateSet(exIdx, setIdx, 'completed', !set.completed)}
-                    />
-                ))}
+              {exercise.sets.map((set: WorkoutSet, setIdx: number) => (
+                <SetLogger
+                  key={set.id}
+                  set={set}
+                  onUpdate={(field, val) => handleSetUpdate(exIdx, setIdx, field, val)}
+                  onDelete={() => handleDeleteSet(exIdx, setIdx)}
+                  onToggleComplete={() => handleSetUpdate(exIdx, setIdx, 'completed', !set.completed)}
+                />
+              ))}
             </div>
 
-            <button 
-                onClick={() => addSet(exIdx)}
-                className="w-full mt-3 py-2 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 font-medium hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all flex justify-center items-center gap-2"
+            <button
+              onClick={() => handleAddSet(exIdx)}
+              className="w-full mt-3 py-2 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 font-medium hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all flex justify-center items-center gap-2"
             >
-                <Plus size={18} /> Add Set
+              <Plus size={18} /> Add Set
             </button>
           </div>
         ))}

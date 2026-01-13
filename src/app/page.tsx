@@ -79,7 +79,7 @@ export default function Home() {
               <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
             <Link
-              href="/auth/login"
+              href={user ? '/dashboard' : '/auth/login'}
               className="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700 transition-colors md:text-lg"
             >
               View Dashboard

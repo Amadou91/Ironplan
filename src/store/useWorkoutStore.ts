@@ -7,7 +7,7 @@ interface WorkoutState {
   startSession: (session: WorkoutSession) => void;
   endSession: () => void;
   updateSet: (exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: string | number | boolean) => void;
-  addSet: (exerciseIndex: number) => void;
+  addSet: (exerciseIndex: number) => WorkoutSet | null;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
 }
 
@@ -20,18 +20,25 @@ export const useWorkoutStore = create<WorkoutState>()(
       
       endSession: () => set({ activeSession: null }),
 
-      addSet: (exerciseIndex) => set((state) => {
+      addSet: (exerciseIndex) => {
+        let createdSet: WorkoutSet | null = null;
+        set((state) => {
         if (!state.activeSession) return state;
         const exercises = [...state.activeSession.exercises];
         const exercise = exercises[exerciseIndex];
         
         const newSet: WorkoutSet = {
-          id: crypto.randomUUID(),
+          id: `temp-${crypto.randomUUID()}`,
           setNumber: exercise.sets.length + 1,
           reps: '',
           weight: '',
+          rpe: '',
+          rir: '',
+          notes: '',
+          performedAt: new Date().toISOString(),
           completed: false
         };
+        createdSet = newSet;
 
         exercises[exerciseIndex] = {
           ...exercise,
@@ -39,7 +46,9 @@ export const useWorkoutStore = create<WorkoutState>()(
         };
 
         return { activeSession: { ...state.activeSession, exercises } };
-      }),
+      });
+      return createdSet;
+      },
 
       removeSet: (exerciseIdx, setIdx) => set((state) => {
         if (!state.activeSession) return state;
