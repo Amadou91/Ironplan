@@ -1,11 +1,37 @@
 export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'general_fitness'
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced'
 export type Intensity = 'low' | 'moderate' | 'high'
-export type Equipment = 'gym' | 'dumbbells' | 'bodyweight' | 'bands' | 'kettlebell'
+export type EquipmentKind = 'bodyweight' | 'dumbbell' | 'kettlebell' | 'band' | 'barbell' | 'machine'
+export type EquipmentPreset = 'home_minimal' | 'full_gym' | 'hotel'
+export type BandResistance = 'light' | 'medium' | 'heavy'
+export type MachineType = 'cable' | 'leg_press' | 'treadmill' | 'rower'
+export type LoadUnit = 'lb'
 export type TimeWindow = 'morning' | 'afternoon' | 'evening'
 export type FocusArea = 'upper' | 'lower' | 'full_body' | 'core' | 'cardio' | 'mobility'
 export type RestPreference = 'balanced' | 'high_recovery' | 'minimal_rest'
 export type GoalPriority = 'primary' | 'balanced' | 'secondary'
+
+export interface EquipmentRequirement {
+  kind: EquipmentKind
+  machineType?: MachineType
+}
+
+export interface EquipmentInventory {
+  bodyweight: boolean
+  dumbbells: number[]
+  kettlebells: number[]
+  bands: BandResistance[]
+  barbell: {
+    available: boolean
+    plates: number[]
+  }
+  machines: Record<MachineType, boolean>
+}
+
+export interface EquipmentProfile {
+  preset: EquipmentPreset | 'custom'
+  inventory: EquipmentInventory
+}
 
 export interface TimeConstraint {
   minutesPerSession: number
@@ -33,10 +59,16 @@ export interface PlanInput {
   }
   experienceLevel: ExperienceLevel
   intensity: Intensity
-  equipment: Equipment[]
+  equipment: EquipmentProfile
   time: TimeConstraint
   schedule: ScheduleConstraint
   preferences: PlanPreferences
+}
+
+export interface ExerciseLoad {
+  value: number
+  unit: LoadUnit
+  label: string
 }
 
 export interface Exercise {
@@ -45,8 +77,10 @@ export interface Exercise {
   sets: number
   reps: string
   rpe: number
-  equipment: Equipment[]
+  equipment: EquipmentRequirement[]
   durationMinutes: number
+  load?: ExerciseLoad
+  restSeconds?: number
   notes?: string
 }
 
@@ -71,5 +105,15 @@ export interface GeneratedPlan {
     sessionsPerWeek: number
     totalMinutes: number
     focusDistribution: Record<FocusArea, number>
+    impact: WorkoutImpact
+  }
+}
+
+export interface WorkoutImpact {
+  score: number
+  breakdown: {
+    volume: number
+    intensity: number
+    density: number
   }
 }

@@ -1,4 +1,5 @@
 import type { PlanInput } from '@/types/domain'
+import { hasEquipment } from './equipment'
 
 export const isMinutesPerSessionValid = (minutes: number) => minutes >= 20 && minutes <= 120
 
@@ -7,7 +8,7 @@ export const isTotalMinutesPerWeekValid = (minutes?: number) =>
 
 export const isDaysAvailableValid = (days: number[]) => days.length > 0
 
-export const isEquipmentValid = (equipment: PlanInput['equipment']) => equipment.length > 0
+export const isEquipmentValid = (equipment: PlanInput['equipment']) => hasEquipment(equipment.inventory)
 
 export const getFlowCompletion = (input: PlanInput) => {
   const goalStepComplete = Boolean(input.goals.primary) && Boolean(input.experienceLevel)

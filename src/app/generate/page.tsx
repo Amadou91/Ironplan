@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
@@ -8,9 +8,11 @@ import { CheckCircle2, ChevronLeft, Loader2, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { generatePlan, normalizePlanInput } from '@/lib/generator'
+import { bandLabels, cloneInventory, equipmentPresets, formatWeightList, machineLabels, parseWeightList } from '@/lib/equipment'
+import { buildWorkoutHistoryEntry, loadWorkoutHistory, saveWorkoutHistoryEntry } from '@/lib/workoutHistory'
 import { getFlowCompletion, isDaysAvailableValid, isEquipmentValid, isMinutesPerSessionValid, isTotalMinutesPerWeekValid } from '@/lib/generationFlow'
 import { logEvent } from '@/lib/logger'
-import type { Goal, PlanInput } from '@/types/domain'
+import type { BandResistance, EquipmentPreset, Goal, MachineType, PlanInput } from '@/types/domain'
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -24,6 +26,8 @@ export default function GeneratePage() {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [historyError, setHistoryError] = useState<string | null>(null)
+  const [historyEntries, setHistoryEntries] = useState<ReturnType<typeof loadWorkoutHistory>>([])
   const [activeStep, setActiveStep] = useState<StepId>('goal')
 
   const [formData, setFormData] = useState<PlanInput>(() =>
@@ -31,7 +35,7 @@ export default function GeneratePage() {
       goals: { primary: 'strength', priority: 'primary' },
       experienceLevel: 'intermediate',
       intensity: 'moderate',
-      equipment: ['gym'],
+      equipment: { preset: 'full_gym', inventory: cloneInventory(equipmentPresets.full_gym) },
       time: { minutesPerSession: 45 },
       schedule: { daysAvailable: [1, 3, 5], timeWindows: ['evening'], minRestDays: 1 },
       preferences: { focusAreas: [], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
@@ -51,6 +55,7 @@ export default function GeneratePage() {
   const clearFeedback = () => {
     if (errors.length > 0) setErrors([])
     if (saveError) setSaveError(null)
+    if (historyError) setHistoryError(null)
   }
 
   const updateFormData = (updater: (prev: PlanInput) => PlanInput) => {
@@ -74,6 +79,68 @@ export default function GeneratePage() {
   const toggleArrayValue = <T,>(values: T[], value: T) =>
     values.includes(value) ? values.filter(item => item !== value) : [...values, value]
 
+  const handlePresetChange = (preset: EquipmentPreset | 'custom') => {
+    updateFormData(prev => {
+      const inventory = preset === 'custom' ? prev.equipment.inventory : cloneInventory(equipmentPresets[preset])
+      return {
+        ...prev,
+        equipment: {
+          preset,
+          inventory
+        }
+      }
+    })
+  }
+
+  const setInventoryWeights = (field: 'dumbbells' | 'kettlebells' | 'plates', value: string) => {
+    updateFormData(prev => {
+      const weights = parseWeightList(value)
+      if (field === 'plates') {
+        return {
+          ...prev,
+          equipment: {
+            ...prev.equipment,
+            preset: 'custom',
+            inventory: {
+              ...prev.equipment.inventory,
+              barbell: {
+                ...prev.equipment.inventory.barbell,
+                plates: weights
+              }
+            }
+          }
+        }
+      }
+      return {
+        ...prev,
+        equipment: {
+          ...prev.equipment,
+          preset: 'custom',
+          inventory: {
+            ...prev.equipment.inventory,
+            [field]: weights
+          }
+        }
+      }
+    })
+  }
+
+  const handleHistoryLoad = (entry: (typeof historyEntries)[number]) => {
+    updateFormData(() => normalizePlanInput(entry.plan.inputs))
+    setActiveStep('review')
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const history = loadWorkoutHistory(window.localStorage)
+      setHistoryEntries(history)
+    } catch (error) {
+      console.error('Failed to load history', error)
+      setHistoryError('Unable to load workout history.')
+    }
+  }, [])
+
   const generatePlanHandler = async () => {
     if (!user) return
     setLoading(true)
@@ -95,6 +162,19 @@ export default function GeneratePage() {
       goals: plan.inputs.goals,
       equipment: plan.inputs.equipment
     })
+
+    let historyEntry: ReturnType<typeof buildWorkoutHistoryEntry> | null = null
+    if (typeof window !== 'undefined') {
+      try {
+        historyEntry = buildWorkoutHistoryEntry(plan)
+        saveWorkoutHistoryEntry(historyEntry, window.localStorage)
+        setHistoryEntries((prev) => [historyEntry!, ...prev.filter(item => item.id !== historyEntry!.id)])
+      } catch (error) {
+        console.error('Failed to store workout history', error)
+        setHistoryError('Unable to save workout history locally.')
+      }
+    }
+
     const newPlan = {
       user_id: user.id,
       title: plan.title,
@@ -124,6 +204,11 @@ export default function GeneratePage() {
       }
 
       if (data) {
+        if (typeof window !== 'undefined') {
+          const entry = historyEntry ? { ...historyEntry, remoteId: data.id } : buildWorkoutHistoryEntry(plan, data.id)
+          saveWorkoutHistoryEntry(entry, window.localStorage)
+          setHistoryEntries((prev) => [entry, ...prev.filter(item => item.id !== entry.id)])
+        }
         router.push(`/workout/${data.id}`)
       } else {
         console.error('Failed to save plan', { error: 'No data returned from insert.' })
@@ -162,6 +247,22 @@ export default function GeneratePage() {
   const invalidTotalMinutes = !isTotalMinutesPerWeekValid(formData.time.totalMinutesPerWeek)
   const invalidDays = !isDaysAvailableValid(formData.schedule.daysAvailable)
   const invalidEquipment = !isEquipmentValid(formData.equipment)
+
+  const inventory = formData.equipment.inventory
+
+  const equipmentSummary = [
+    inventory.bodyweight ? 'Bodyweight' : null,
+    inventory.dumbbells.length > 0 ? `Dumbbells (${formatWeightList(inventory.dumbbells)} lb)` : null,
+    inventory.kettlebells.length > 0 ? `Kettlebells (${formatWeightList(inventory.kettlebells)} lb)` : null,
+    inventory.bands.length > 0 ? `Bands (${inventory.bands.map(band => bandLabels[band]).join(', ')})` : null,
+    inventory.barbell.available
+      ? `Barbell${inventory.barbell.plates.length ? ` + Plates (${formatWeightList(inventory.barbell.plates)} lb)` : ''}`
+      : null,
+    Object.entries(inventory.machines)
+      .filter(([, available]) => available)
+      .map(([machine]) => machineLabels[machine as MachineType])
+      .join(', ') || null
+  ].filter(Boolean) as string[]
 
   const statusContent = () => {
     if (loading) {
@@ -430,29 +531,177 @@ export default function GeneratePage() {
             {activeStep === 'equipment' && (
               <div id="step-equipment" className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-3">Equipment Options</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-3">Equipment Preset</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(['gym', 'dumbbells', 'bodyweight', 'bands', 'kettlebell'] as PlanInput['equipment']).map(opt => (
-                      <label key={opt} className="flex items-center gap-2 text-sm text-slate-300">
+                    {([
+                      { key: 'home_minimal', label: 'Home Minimal' },
+                      { key: 'full_gym', label: 'Full Gym' },
+                      { key: 'hotel', label: 'Hotel' },
+                      { key: 'custom', label: 'Custom' }
+                    ] as { key: EquipmentPreset | 'custom'; label: string }[]).map(preset => (
+                      <button
+                        key={preset.key}
+                        type="button"
+                        onClick={() => handlePresetChange(preset.key)}
+                        className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all ${
+                          formData.equipment.preset === preset.key
+                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-200'
+                            : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500'
+                        }`}
+                        aria-pressed={formData.equipment.preset === preset.key}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Dumbbell Weights (lb)</label>
+                    <input
+                      type="text"
+                      value={formatWeightList(inventory.dumbbells)}
+                      onChange={(e) => setInventoryWeights('dumbbells', e.target.value)}
+                      placeholder="e.g. 10, 15, 20"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Kettlebell Weights (lb)</label>
+                    <input
+                      type="text"
+                      value={formatWeightList(inventory.kettlebells)}
+                      onChange={(e) => setInventoryWeights('kettlebells', e.target.value)}
+                      placeholder="e.g. 20, 35"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Bands (Resistance Levels)</label>
+                    <div className="flex flex-wrap gap-3">
+                      {(['light', 'medium', 'heavy'] as BandResistance[]).map(level => (
+                        <label key={level} className="flex items-center gap-2 text-sm text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={inventory.bands.includes(level)}
+                            onChange={() =>
+                              updateFormData(prev => ({
+                                ...prev,
+                                equipment: {
+                                  ...prev.equipment,
+                                  preset: 'custom',
+                                  inventory: {
+                                    ...prev.equipment.inventory,
+                                    bands: toggleArrayValue(prev.equipment.inventory.bands, level)
+                                  }
+                                }
+                              }))
+                            }
+                            className="accent-emerald-500"
+                          />
+                          {bandLabels[level]}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Barbell + Plates</label>
+                    <label className="flex items-center gap-2 text-sm text-slate-300 mb-2">
+                      <input
+                        type="checkbox"
+                        checked={inventory.barbell.available}
+                        onChange={() =>
+                          updateFormData(prev => ({
+                            ...prev,
+                            equipment: {
+                              ...prev.equipment,
+                              preset: 'custom',
+                              inventory: {
+                                ...prev.equipment.inventory,
+                                barbell: {
+                                  ...prev.equipment.inventory.barbell,
+                                  available: !prev.equipment.inventory.barbell.available
+                                }
+                              }
+                            }
+                          }))
+                        }
+                        className="accent-emerald-500"
+                      />
+                      Barbell available
+                    </label>
+                    <input
+                      type="text"
+                      value={formatWeightList(inventory.barbell.plates)}
+                      onChange={(e) => setInventoryWeights('plates', e.target.value)}
+                      placeholder="e.g. 10, 25, 45"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      disabled={!inventory.barbell.available}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Machine Availability</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(Object.keys(machineLabels) as MachineType[]).map(machine => (
+                      <label key={machine} className="flex items-center gap-2 text-sm text-slate-300">
                         <input
                           type="checkbox"
-                          checked={formData.equipment.includes(opt)}
+                          checked={inventory.machines[machine]}
                           onChange={() =>
                             updateFormData(prev => ({
                               ...prev,
-                              equipment: toggleArrayValue(prev.equipment, opt)
+                              equipment: {
+                                ...prev.equipment,
+                                preset: 'custom',
+                                inventory: {
+                                  ...prev.equipment.inventory,
+                                  machines: {
+                                    ...prev.equipment.inventory.machines,
+                                    [machine]: !prev.equipment.inventory.machines[machine]
+                                  }
+                                }
+                              }
                             }))
                           }
                           className="accent-emerald-500"
                         />
-                        {opt.replace('_', ' ').replace(/\b\w/g, char => char.toUpperCase())}
+                        {machineLabels[machine]}
                       </label>
                     ))}
                   </div>
-                  {invalidEquipment && (
-                    <p className="mt-2 text-xs text-rose-200">Choose at least one equipment option.</p>
-                  )}
                 </div>
+
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={inventory.bodyweight}
+                    onChange={() =>
+                      updateFormData(prev => ({
+                        ...prev,
+                        equipment: {
+                          ...prev.equipment,
+                          preset: 'custom',
+                          inventory: {
+                            ...prev.equipment.inventory,
+                            bodyweight: !prev.equipment.inventory.bodyweight
+                          }
+                        }
+                      }))
+                    }
+                    className="accent-emerald-500"
+                  />
+                  Bodyweight movements available
+                </label>
+
+                {invalidEquipment && (
+                  <p className="text-xs text-rose-200">Choose at least one equipment option.</p>
+                )}
 
                 <div className="flex justify-end">
                   <Button
@@ -729,7 +978,7 @@ export default function GeneratePage() {
                     </div>
                     <div>
                       <dt className="text-slate-400">Equipment</dt>
-                      <dd className="text-white">{formData.equipment.map(item => item.replace('_', ' ')).join(', ')}</dd>
+                      <dd className="text-white">{equipmentSummary.length ? equipmentSummary.join(', ') : 'Not set'}</dd>
                     </div>
                     <div>
                       <dt className="text-slate-400">Secondary Goal</dt>
@@ -814,6 +1063,61 @@ export default function GeneratePage() {
             )}
           </div>
         </div>
+      </Card>
+
+      <Card className="bg-slate-900 border-slate-800 p-6 mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Saved Workouts</h2>
+            <p className="text-xs text-slate-400">Quickly reload or open a recently generated plan.</p>
+          </div>
+        </div>
+
+        {historyError && <p className="text-sm text-rose-200 mb-3">{historyError}</p>}
+
+        {historyEntries.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-700 p-6 text-sm text-slate-400">
+            No saved workouts yet. Generate a plan to start building your history.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {historyEntries.map(entry => (
+              <div
+                key={entry.id}
+                className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-white">{entry.title}</p>
+                  <p className="text-xs text-slate-400">
+                    {new Date(entry.createdAt).toLocaleString()} · Score {entry.plan.summary.impact.score}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {entry.plan.summary.sessionsPerWeek} sessions · {entry.plan.summary.totalMinutes} min · Focus on{' '}
+                    {entry.plan.goal.replace('_', ' ')}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => handleHistoryLoad(entry)}
+                    className="px-3 py-2 text-xs"
+                  >
+                    Reload Setup
+                  </Button>
+                  {entry.remoteId ? (
+                    <Button
+                      type="button"
+                      onClick={() => router.push(`/workout/${entry.remoteId}`)}
+                      className="px-3 py-2 text-xs bg-slate-700 hover:bg-slate-600"
+                    >
+                      Quick View
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   )
