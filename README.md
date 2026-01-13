@@ -1,4 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Ironplan is a constraint-driven workout planner that builds personalized programs from time, schedule, and preference inputs.
+
+## What Ironplan Generates
+
+Ironplan produces a weekly schedule with exercises, duration estimates, and rationale strings that explain why each day looks the way it does.
+
+## Configuration Inputs
+
+The generator accepts a structured input object with defaults for every field:
+
+### Core Inputs
+
+- **Primary goal**: `strength`, `hypertrophy`, `endurance`, `general_fitness`
+- **Experience level**: `beginner`, `intermediate`, `advanced`
+- **Intensity**: `low`, `moderate`, `high`
+- **Available time**:
+  - `minutesPerSession` (20-120)
+  - `totalMinutesPerWeek` (optional)
+- **Schedule**:
+  - `daysAvailable` (0-6 for Sun-Sat)
+  - `timeWindows` (`morning`, `afternoon`, `evening`)
+  - `minRestDays` (0-2)
+- **Equipment**: `gym`, `dumbbells`, `bodyweight`, `bands`, `kettlebell`
+
+### Advanced Preferences
+
+- **Secondary goal** + **priority** (`primary`, `balanced`, `secondary`)
+- **Focus areas**: `upper`, `lower`, `full_body`, `core`, `cardio`, `mobility`
+- **Disliked activities**: free-form strings used for filtering
+- **Accessibility constraints**: `low-impact`, `joint-friendly`, `no-floor-work`
+- **Rest preference**: `balanced`, `high_recovery`, `minimal_rest`
+
+## Example Input
+
+```json
+{
+  "goals": { "primary": "endurance", "secondary": "strength", "priority": "balanced" },
+  "experienceLevel": "intermediate",
+  "intensity": "moderate",
+  "equipment": ["bodyweight", "bands"],
+  "time": { "minutesPerSession": 40, "totalMinutesPerWeek": 160 },
+  "schedule": { "daysAvailable": [1, 3, 5, 6], "timeWindows": ["morning"], "minRestDays": 1 },
+  "preferences": {
+    "focusAreas": ["cardio", "core"],
+    "dislikedActivities": ["running"],
+    "accessibilityConstraints": ["low-impact"],
+    "restPreference": "balanced"
+  }
+}
+```
+
+## Extending Constraints
+
+1. Add new constraint fields to `src/types/domain.ts`.
+2. Update validation in `src/lib/generator.ts`.
+3. Add selection controls in `src/app/generate/page.tsx`.
+4. Adjust exercise filtering or schedule-building logic in the generator.
 
 ## Getting Started
 
@@ -15,6 +71,12 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+Run generator tests with the Node test runner:
+
+```bash
+node --test tests/generator.test.js
+```
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
