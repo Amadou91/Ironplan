@@ -1,119 +1,71 @@
-export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'general_fitness'
-export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced'
-export type Intensity = 'low' | 'moderate' | 'high'
-export type EquipmentKind = 'bodyweight' | 'dumbbell' | 'kettlebell' | 'band' | 'barbell' | 'machine'
-export type EquipmentPreset = 'home_minimal' | 'full_gym' | 'hotel'
-export type BandResistance = 'light' | 'medium' | 'heavy'
-export type MachineType = 'cable' | 'leg_press' | 'treadmill' | 'rower'
-export type LoadUnit = 'lb'
-export type TimeWindow = 'morning' | 'afternoon' | 'evening'
-export type FocusArea = 'upper' | 'lower' | 'full_body' | 'core' | 'cardio' | 'mobility'
-export type RestPreference = 'balanced' | 'high_recovery' | 'minimal_rest'
-export type GoalPriority = 'primary' | 'balanced' | 'secondary'
-
-export interface EquipmentRequirement {
-  kind: EquipmentKind
-  machineType?: MachineType
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
 }
 
-export interface EquipmentInventory {
-  bodyweight: boolean
-  dumbbells: number[]
-  kettlebells: number[]
-  bands: BandResistance[]
-  barbell: {
-    available: boolean
-    plates: number[]
-  }
-  machines: Record<MachineType, boolean>
-}
-
-export interface EquipmentProfile {
-  preset: EquipmentPreset | 'custom'
-  inventory: EquipmentInventory
-}
-
-export interface TimeConstraint {
-  minutesPerSession: number
-  totalMinutesPerWeek?: number
-}
-
-export interface ScheduleConstraint {
-  daysAvailable: number[]
-  timeWindows: TimeWindow[]
-  minRestDays: number
-}
-
-export interface PlanPreferences {
-  focusAreas: FocusArea[]
-  dislikedActivities: string[]
-  accessibilityConstraints: string[]
-  restPreference: RestPreference
-}
-
-export interface PlanInput {
-  goals: {
-    primary: Goal
-    secondary?: Goal
-    priority: GoalPriority
-  }
-  experienceLevel: ExperienceLevel
-  intensity: Intensity
-  equipment: EquipmentProfile
-  time: TimeConstraint
-  schedule: ScheduleConstraint
-  preferences: PlanPreferences
-}
-
-export interface ExerciseLoad {
-  value: number
-  unit: LoadUnit
-  label: string
-}
+export type MuscleGroup = 
+  | 'Chest' | 'Back' | 'Legs' | 'Shoulders' | 'Arms' | 'Core' | 'Full Body' | 'Cardio';
 
 export interface Exercise {
-  name: string
-  focus: FocusArea
-  sets: number
-  reps: string
-  rpe: number
-  equipment: EquipmentRequirement[]
-  durationMinutes: number
-  load?: ExerciseLoad
-  restSeconds?: number
-  notes?: string
+  id: string;
+  name: string;
+  primaryMuscle: MuscleGroup | string;
+  secondaryMuscles?: string[];
+  equipment?: string;
+  videoUrl?: string;
+  instructions?: string[];
+  // Plan specific fields
+  sets?: number; 
+  reps?: string; 
 }
 
-export interface PlanDay {
-  dayOfWeek: number
-  timeWindow: TimeWindow
-  focus: FocusArea
-  durationMinutes: number
-  exercises: Exercise[]
-  rationale: string
+// Alias for components that might use strict naming
+export type WorkoutExercise = Exercise;
+
+export interface WorkoutPlan {
+  id: string;
+  userId: string;
+  name: string; // e.g., "4 Day Split"
+  goal: string;
+  days: WorkoutDay[];
+  createdAt: string;
 }
 
-export interface GeneratedPlan {
-  title: string
-  description: string
-  goal: Goal
-  level: ExperienceLevel
-  tags: string[]
-  schedule: PlanDay[]
-  inputs: PlanInput
-  summary: {
-    sessionsPerWeek: number
-    totalMinutes: number
-    focusDistribution: Record<FocusArea, number>
-    impact: WorkoutImpact
-  }
+export interface WorkoutDay {
+  id: string;
+  name: string; // e.g., "Upper Body A"
+  exercises: Exercise[];
 }
 
-export interface WorkoutImpact {
-  score: number
-  breakdown: {
-    volume: number
-    intensity: number
-    density: number
-  }
+// --- TRACKING TYPES ---
+
+export interface WorkoutSession {
+  id: string;
+  userId: string;
+  planId?: string;
+  name: string;
+  startedAt: string;
+  endedAt?: string;
+  exercises: SessionExercise[];
+}
+
+export interface SessionExercise {
+  id: string; // UUID
+  sessionId: string;
+  exerciseId?: string;
+  name: string;
+  primaryMuscle: string;
+  secondaryMuscles: string[];
+  sets: WorkoutSet[];
+  orderIndex: number;
+}
+
+export interface WorkoutSet {
+  id: string; // UUID
+  setNumber: number;
+  reps: number | '' | null;
+  weight: number | '' | null;
+  rpe?: number | '' | null;
+  completed: boolean;
 }
