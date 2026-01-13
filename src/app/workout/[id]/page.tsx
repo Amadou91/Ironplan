@@ -21,7 +21,7 @@ type Workout = {
   description: string
   goal: string
   level: string
-  exercises: Exercise[]
+  exercises: { schedule?: { exercises?: Exercise[] }[] } | Exercise[] | null
   created_at: string
 }
 
@@ -54,6 +54,10 @@ export default function WorkoutDetailPage() {
   if (loading) return <div className="p-10 text-center text-slate-400">Loading workout...</div>
   if (!workout) return <div className="p-10 text-center text-slate-400">Workout not found.</div>
 
+  const exercises = Array.isArray(workout.exercises)
+    ? workout.exercises
+    : workout.exercises?.schedule?.flatMap((day) => day.exercises ?? []) ?? []
+
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
       <button onClick={() => router.back()} className="text-slate-400 hover:text-white flex items-center text-sm mb-6">
@@ -79,7 +83,7 @@ export default function WorkoutDetailPage() {
               Regimen
             </h3>
             <div className="space-y-3">
-              {workout.exercises && workout.exercises.map((ex, idx) => (
+              {exercises.map((ex, idx) => (
                 <div key={idx} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 flex items-center justify-between">
                    <div className="flex items-center gap-4">
                       <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-white">
