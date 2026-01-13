@@ -1,7 +1,9 @@
 export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'general_fitness'
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced'
 export type Intensity = 'low' | 'moderate' | 'high'
-export type Equipment = 'gym' | 'dumbbells' | 'bodyweight' | 'bands' | 'kettlebell'
+export type Equipment = 'bodyweight' | 'dumbbells' | 'barbell' | 'kettlebell' | 'bands' | 'machines'
+export type MachineType = 'bench' | 'lat_pulldown' | 'cable' | 'assault_bike' | 'leg_press'
+export type LoadType = 'bodyweight' | 'dumbbell' | 'barbell' | 'kettlebell' | 'band' | 'machine' | 'none'
 export type TimeWindow = 'morning' | 'afternoon' | 'evening'
 export type FocusArea = 'upper' | 'lower' | 'full_body' | 'core' | 'cardio' | 'mobility'
 export type RestPreference = 'balanced' | 'high_recovery' | 'minimal_rest'
@@ -25,6 +27,19 @@ export interface PlanPreferences {
   restPreference: RestPreference
 }
 
+export interface EquipmentInventory {
+  bodyweight: boolean
+  dumbbells: number[]
+  kettlebells: number[]
+  bands: string[]
+  barbell: {
+    available: boolean
+    barWeight: number
+    plates: number[]
+  }
+  machines: Record<MachineType, boolean>
+}
+
 export interface PlanInput {
   goals: {
     primary: Goal
@@ -33,7 +48,7 @@ export interface PlanInput {
   }
   experienceLevel: ExperienceLevel
   intensity: Intensity
-  equipment: Equipment[]
+  equipment: EquipmentInventory
   time: TimeConstraint
   schedule: ScheduleConstraint
   preferences: PlanPreferences
@@ -47,6 +62,9 @@ export interface Exercise {
   rpe: number
   equipment: Equipment[]
   durationMinutes: number
+  machineRequirement?: MachineType[]
+  loadType?: LoadType
+  suggestedLoad?: string
   notes?: string
 }
 
@@ -71,5 +89,13 @@ export interface GeneratedPlan {
     sessionsPerWeek: number
     totalMinutes: number
     focusDistribution: Record<FocusArea, number>
+    workoutScore: {
+      total: number
+      breakdown: {
+        volume: number
+        intensity: number
+        density: number
+      }
+    }
   }
 }
