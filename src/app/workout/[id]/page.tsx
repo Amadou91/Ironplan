@@ -13,6 +13,8 @@ type Exercise = {
   sets: number
   reps: string | number
   rpe: number
+  suggestedLoad?: string
+  notes?: string
 }
 
 type Workout = {
@@ -21,7 +23,7 @@ type Workout = {
   description: string
   goal: string
   level: string
-  exercises: { schedule?: { exercises?: Exercise[] }[] } | Exercise[] | null
+  exercises: { schedule?: { exercises?: Exercise[] }[]; summary?: { workoutScore?: { total: number; breakdown: { volume: number; intensity: number; density: number } } } } | Exercise[] | null
   created_at: string
 }
 
@@ -57,6 +59,7 @@ export default function WorkoutDetailPage() {
   const exercises = Array.isArray(workout.exercises)
     ? workout.exercises
     : workout.exercises?.schedule?.flatMap((day) => day.exercises ?? []) ?? []
+  const workoutScore = !Array.isArray(workout.exercises) ? workout.exercises?.summary?.workoutScore : null
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
@@ -94,10 +97,15 @@ export default function WorkoutDetailPage() {
                         <p className="text-xs text-slate-400">Target: General</p>
                       </div>
                    </div>
-                   <div className="flex gap-4 text-sm text-slate-300 font-mono">
-                      <span>{ex.sets} sets</span>
-                      <span className="text-slate-600">|</span>
-                      <span>{ex.reps} reps</span>
+                   <div className="flex flex-col items-end gap-1 text-sm text-slate-300">
+                      <div className="flex gap-3 text-sm text-slate-300 font-mono">
+                        <span>{ex.sets} sets</span>
+                        <span className="text-slate-600">|</span>
+                        <span>{ex.reps} reps</span>
+                      </div>
+                      {ex.suggestedLoad && (
+                        <span className="text-xs text-slate-500">Load: {ex.suggestedLoad}</span>
+                      )}
                    </div>
                 </div>
               ))}
@@ -128,6 +136,19 @@ export default function WorkoutDetailPage() {
                    </div>
                    <span className="text-white font-medium capitalize">{workout.level}</span>
                 </div>
+                {workoutScore && (
+                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs uppercase text-emerald-200">Workout Score</span>
+                      <span className="text-lg font-semibold text-white">{workoutScore.total}</span>
+                    </div>
+                    <div className="mt-2 text-xs text-emerald-200 flex flex-wrap gap-2">
+                      <span>Volume +{workoutScore.breakdown.volume}</span>
+                      <span>Intensity +{workoutScore.breakdown.intensity}</span>
+                      <span>Density +{workoutScore.breakdown.density}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <Button className="w-full mt-6">
                 Start Session
