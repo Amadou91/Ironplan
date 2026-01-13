@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import { GeneratedWorkout } from '@/types/domain';
+import type { GeneratedPlan } from '@/types/domain';
 
 interface WorkoutState {
-  currentWorkout: GeneratedWorkout | null;
-  setWorkout: (workout: GeneratedWorkout) => void;
+  currentWorkout: GeneratedPlan | null;
+  setWorkout: (workout: GeneratedPlan) => void;
   clearWorkout: () => void;
 }
 

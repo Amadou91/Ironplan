@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ChevronLeft, Activity, Clock, Flame, Trophy } from 'lucide-react'
+import { ChevronLeft, Activity, Clock, Flame, Trophy, Gauge } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import type { PlanInput, WorkoutImpact } from '@/types/domain'
 
 // Define types based on your DB schema
 type Exercise = {
@@ -13,6 +14,7 @@ type Exercise = {
   sets: number
   reps: string | number
   rpe: number
+  load?: { label: string }
 }
 
 type Workout = {
@@ -21,7 +23,10 @@ type Workout = {
   description: string
   goal: string
   level: string
-  exercises: { schedule?: { exercises?: Exercise[] }[] } | Exercise[] | null
+  exercises:
+    | { schedule?: { exercises?: Exercise[] }[]; summary?: { totalMinutes?: number; impact?: WorkoutImpact }; inputs?: PlanInput }
+    | Exercise[]
+    | null
   created_at: string
 }
 
@@ -57,6 +62,9 @@ export default function WorkoutDetailPage() {
   const exercises = Array.isArray(workout.exercises)
     ? workout.exercises
     : workout.exercises?.schedule?.flatMap((day) => day.exercises ?? []) ?? []
+  const summary = !Array.isArray(workout.exercises) ? workout.exercises?.summary : undefined
+  const impact = summary?.impact
+  const inputs = !Array.isArray(workout.exercises) ? workout.exercises?.inputs : undefined
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
@@ -91,7 +99,7 @@ export default function WorkoutDetailPage() {
                       </div>
                       <div>
                         <h4 className="font-medium text-white">{ex.name}</h4>
-                        <p className="text-xs text-slate-400">Target: General</p>
+                        <p className="text-xs text-slate-400">{ex.load?.label ?? 'Target: General'}</p>
                       </div>
                    </div>
                    <div className="flex gap-4 text-sm text-slate-300 font-mono">
@@ -114,13 +122,13 @@ export default function WorkoutDetailPage() {
                    <div className="flex items-center text-slate-300">
                      <Clock className="w-4 h-4 mr-2 text-slate-500" /> Duration
                    </div>
-                   <span className="text-white font-medium">~60 min</span>
+                   <span className="text-white font-medium">{summary?.totalMinutes ?? '~60'} min</span>
                 </div>
                 <div className="flex items-center justify-between pb-3 border-b border-slate-700/50">
                    <div className="flex items-center text-slate-300">
                      <Flame className="w-4 h-4 mr-2 text-slate-500" /> Intensity
                    </div>
-                   <span className="text-white font-medium">High</span>
+                   <span className="text-white font-medium capitalize">{inputs?.intensity ?? 'Moderate'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                    <div className="flex items-center text-slate-300">
@@ -132,6 +140,25 @@ export default function WorkoutDetailPage() {
               <Button className="w-full mt-6">
                 Start Session
               </Button>
+           </Card>
+
+           <Card className="bg-slate-800 border-slate-700 p-6">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Workout Impact</h3>
+              {impact ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center text-slate-300">
+                      <Gauge className="w-4 h-4 mr-2 text-slate-500" /> Score
+                    </div>
+                    <span className="text-white font-semibold">{impact.score}</span>
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    Volume +{impact.breakdown.volume}, Intensity +{impact.breakdown.intensity}, Density +{impact.breakdown.density}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400">Impact score will appear after generation.</p>
+              )}
            </Card>
         </div>
       </div>
