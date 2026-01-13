@@ -33,6 +33,19 @@ export default function GeneratePage() {
     })
   )
 
+  const getSavePlanHint = (error: { code?: string } | null) => {
+    switch (error?.code) {
+      case '42P01':
+        return 'Missing workouts table. Run the SQL in supabase/schema.sql or create the table in Supabase.'
+      case '42501':
+        return 'Insert blocked by Row Level Security. Add an insert policy for the workouts table.'
+      case '23502':
+        return 'A required column is missing. Confirm workouts.user_id, title, and exercises are provided.'
+      default:
+        return null
+    }
+  }
+
   const toggleArrayValue = <T,>(values: T[], value: T) =>
     values.includes(value) ? values.filter(item => item !== value) : [...values, value]
 
@@ -77,10 +90,18 @@ export default function GeneratePage() {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        const hint = getSavePlanHint(error)
+        console.error('Failed to save plan', { error, hint })
+        alert(`Failed to generate plan: ${error.message}${hint ? `\n\n${hint}` : ''}`)
+        return
+      }
 
       if (data) {
         router.push(`/workout/${data.id}`)
+      } else {
+        console.error('Failed to save plan', { error: 'No data returned from insert.' })
+        alert('Failed to generate plan. No data returned from insert.')
       }
     } catch (err) {
       console.error('Failed to save plan', err)
