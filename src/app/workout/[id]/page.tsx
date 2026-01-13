@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ChevronLeft, Activity, Clock, Flame, Trophy, Gauge } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -14,6 +14,11 @@ type Exercise = {
   sets: number
   reps: string | number
   rpe: number
+  focus?: string
+  primaryBodyParts?: string[]
+  secondaryBodyParts?: string[]
+  durationMinutes?: number
+  restSeconds?: number
   load?: { label: string }
 }
 
@@ -33,9 +38,12 @@ type Workout = {
 export default function WorkoutDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [loading, setLoading] = useState(true)
+  const [startingSession, setStartingSession] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchWorkout = async () => {
@@ -65,6 +73,61 @@ export default function WorkoutDetailPage() {
   const summary = !Array.isArray(workout.exercises) ? workout.exercises?.summary : undefined
   const impact = summary?.impact
   const inputs = !Array.isArray(workout.exercises) ? workout.exercises?.inputs : undefined
+  const sessionActive = searchParams.get('session') === 'active'
+
+  // Per-workout metrics are computed here from each exercise's sets/reps/RPE data.
+  // Assumptions: reps ranges are averaged, RPE is on a 1–10 scale, and density uses a
+  // default 2 minutes per set when duration/rest data is missing.
+  // Missing data is handled by returning null and rendering a "—" placeholder.
+  const parseReps = (reps: Exercise['reps']) => {
+    if (typeof reps === 'number' && Number.isFinite(reps)) return reps
+    if (typeof reps !== 'string') return null
+    const matches = reps.match(/\d+/g)
+    if (!matches?.length) return null
+    const numbers = matches.map((value) => Number.parseInt(value, 10)).filter(Number.isFinite)
+    if (!numbers.length) return null
+    if (numbers.length === 1) return numbers[0]
+    return Math.round(numbers.reduce((sum, value) => sum + value, 0) / numbers.length)
+  }
+
+  const computeMetrics = (exercise: Exercise) => {
+    const repsValue = parseReps(exercise.reps)
+    const volume = repsValue && exercise.sets ? repsValue * exercise.sets : null
+    const estimatedMinutes =
+      exercise.durationMinutes ??
+      (exercise.restSeconds ? (exercise.restSeconds * exercise.sets) / 60 : exercise.sets * 2)
+    const density = volume && estimatedMinutes ? Number((volume / estimatedMinutes).toFixed(1)) : null
+    const intensity = Number.isFinite(exercise.rpe) ? exercise.rpe : null
+    return { volume, density, intensity }
+  }
+
+  const formatBodyParts = (parts: string[] | undefined, fallback?: string) => {
+    const rawParts = parts?.length ? parts : fallback ? [fallback] : []
+    if (!rawParts.length) return null
+    return rawParts
+      .map((part) => part.replace(/_/g, ' '))
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(', ')
+  }
+
+  const handleStartSession = async () => {
+    setStartError(null)
+    setStartingSession(true)
+    try {
+      if (!workout?.id) throw new Error('Missing workout id.')
+      const payload = {
+        workoutId: workout.id,
+        startedAt: new Date().toISOString()
+      }
+      localStorage.setItem(`ironplan.session.${workout.id}`, JSON.stringify(payload))
+      router.push(`/workout/${workout.id}?session=active`)
+    } catch (error) {
+      console.error('Failed to start session', error)
+      setStartError('Unable to start the session. Please try again.')
+    } finally {
+      setStartingSession(false)
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
@@ -91,24 +154,44 @@ export default function WorkoutDetailPage() {
               Regimen
             </h3>
             <div className="space-y-3">
-              {exercises.map((ex, idx) => (
-                <div key={idx} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 flex items-center justify-between">
-                   <div className="flex items-center gap-4">
-                      <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-white">
-                        {idx + 1}
+              {exercises.map((ex, idx) => {
+                const metrics = computeMetrics(ex)
+                const primaryParts = formatBodyParts(ex.primaryBodyParts, ex.focus)
+                const secondaryParts = formatBodyParts(ex.secondaryBodyParts)
+
+                return (
+                  <div key={idx} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-start gap-4">
+                        <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-white">
+                          {idx + 1}
+                        </div>
+                        <div className="space-y-2">
+                          <div>
+                            <h4 className="font-medium text-white">{ex.name}</h4>
+                            <p className="text-xs text-slate-400">{ex.load?.label ?? 'Target: General'}</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-[11px] text-slate-300">
+                            <span className="rounded-full border border-slate-600/60 bg-slate-900/40 px-2 py-0.5">
+                              Primary: {primaryParts ?? '—'}
+                            </span>
+                            <span className="rounded-full border border-slate-600/60 bg-slate-900/40 px-2 py-0.5">
+                              Secondary: {secondaryParts ?? '—'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-medium text-white">{ex.name}</h4>
-                        <p className="text-xs text-slate-400">{ex.load?.label ?? 'Target: General'}</p>
+                      <div className="flex flex-wrap gap-3 text-xs text-slate-300 font-mono">
+                        <span>{ex.sets} sets</span>
+                        <span>{ex.reps} reps</span>
+                        <span>Vol {metrics.volume ?? '—'}</span>
+                        <span>Int {metrics.intensity ?? '—'}</span>
+                        <span>Den {metrics.density ?? '—'}</span>
                       </div>
-                   </div>
-                   <div className="flex gap-4 text-sm text-slate-300 font-mono">
-                      <span>{ex.sets} sets</span>
-                      <span className="text-slate-600">|</span>
-                      <span>{ex.reps} reps</span>
-                   </div>
-                </div>
-              ))}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -137,8 +220,18 @@ export default function WorkoutDetailPage() {
                    <span className="text-white font-medium capitalize">{workout.level}</span>
                 </div>
               </div>
-              <Button className="w-full mt-6">
-                Start Session
+              {sessionActive && (
+                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                  Session active. Log your sets below to track progress.
+                </div>
+              )}
+              {startError && (
+                <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                  {startError}
+                </div>
+              )}
+              <Button className="w-full mt-6" onClick={handleStartSession} disabled={startingSession}>
+                {startingSession ? 'Starting…' : 'Start Session'}
               </Button>
            </Card>
 
