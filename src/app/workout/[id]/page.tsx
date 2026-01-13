@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ChevronLeft, Activity, Clock, Flame, Trophy, Gauge } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import type { PlanInput, WorkoutImpact } from '@/types/domain'
+import { enhanceExerciseData, toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
+import ActiveSession from '@/components/workout/ActiveSession'
+import { useWorkoutStore } from '@/store/useWorkoutStore'
 
 // Define types based on your DB schema
 type Exercise = {
@@ -17,6 +20,8 @@ type Exercise = {
   focus?: string
   primaryBodyParts?: string[]
   secondaryBodyParts?: string[]
+  primaryMuscle?: string
+  secondaryMuscles?: string[]
   durationMinutes?: number
   restSeconds?: number
   load?: { label: string }
@@ -44,6 +49,8 @@ export default function WorkoutDetailPage() {
   const [loading, setLoading] = useState(true)
   const [startingSession, setStartingSession] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+  const startSession = useWorkoutStore((state) => state.startSession)
+  const activeSession = useWorkoutStore((state) => state.activeSession)
 
   useEffect(() => {
     const fetchWorkout = async () => {
@@ -74,6 +81,17 @@ export default function WorkoutDetailPage() {
   const impact = summary?.impact
   const inputs = !Array.isArray(workout.exercises) ? workout.exercises?.inputs : undefined
   const sessionActive = searchParams.get('session') === 'active'
+  const sessionId = searchParams.get('sessionId')
+  const enrichedExercises = useMemo(
+    () =>
+      exercises.map((exercise) =>
+        enhanceExerciseData({
+          ...exercise,
+          primaryMuscle: exercise.primaryBodyParts?.[0] ?? exercise.focus ?? ''
+        })
+      ),
+    [exercises]
+  )
 
   // Per-workout metrics are computed here from each exercise's sets/reps/RPE data.
   // Assumptions: reps ranges are averaged, RPE is on a 1–10 scale, and density uses a
@@ -101,26 +119,68 @@ export default function WorkoutDetailPage() {
     return { volume, density, intensity }
   }
 
-  const formatBodyParts = (parts: string[] | undefined, fallback?: string) => {
-    const rawParts = parts?.length ? parts : fallback ? [fallback] : []
-    if (!rawParts.length) return null
-    return rawParts
-      .map((part) => part.replace(/_/g, ' '))
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(', ')
-  }
-
   const handleStartSession = async () => {
     setStartError(null)
     setStartingSession(true)
     try {
       if (!workout?.id) throw new Error('Missing workout id.')
-      const payload = {
-        workoutId: workout.id,
-        startedAt: new Date().toISOString()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/auth/login')
+        return
       }
-      localStorage.setItem(`ironplan.session.${workout.id}`, JSON.stringify(payload))
-      router.push(`/workout/${workout.id}?session=active`)
+
+      const startedAt = new Date().toISOString()
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('sessions')
+        .insert({
+          user_id: user.id,
+          workout_id: workout.id,
+          name: workout.title,
+          started_at: startedAt,
+          status: 'active'
+        })
+        .select()
+        .single()
+
+      if (sessionError) throw sessionError
+      if (!sessionData) throw new Error('Failed to create session.')
+
+      const exercisePayload = enrichedExercises.map((exercise, index) => ({
+        session_id: sessionData.id,
+        exercise_name: exercise.name,
+        primary_muscle: toMuscleSlug(exercise.primaryMuscle ?? 'Full Body'),
+        secondary_muscles: (exercise.secondaryMuscles ?? []).map((muscle) => toMuscleSlug(muscle)),
+        order_index: index
+      }))
+
+      const { data: sessionExercises, error: exerciseError } = await supabase
+        .from('session_exercises')
+        .insert(exercisePayload)
+        .select('id, exercise_name, primary_muscle, secondary_muscles, order_index')
+        .order('order_index', { ascending: true })
+
+      if (exerciseError) throw exerciseError
+
+      startSession({
+        id: sessionData.id,
+        userId: user.id,
+        workoutId: workout.id,
+        name: workout.title,
+        startedAt,
+        status: 'active',
+        exercises: (sessionExercises ?? []).map((exercise, idx) => ({
+          id: exercise.id,
+          sessionId: sessionData.id,
+          name: exercise.exercise_name,
+          primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
+          secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
+          sets: [],
+          orderIndex: exercise.order_index ?? idx
+        }))
+      })
+
+      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionData.id}`)
     } catch (error) {
       console.error('Failed to start session', error)
       setStartError('Unable to start the session. Please try again.')
@@ -138,6 +198,7 @@ export default function WorkoutDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
+          {sessionActive && (activeSession || sessionId) && <ActiveSession sessionId={sessionId} />}
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold text-white mb-2">{workout.title}</h1>
@@ -154,10 +215,10 @@ export default function WorkoutDetailPage() {
               Regimen
             </h3>
             <div className="space-y-3">
-              {exercises.map((ex, idx) => {
+              {enrichedExercises.map((ex, idx) => {
                 const metrics = computeMetrics(ex)
-                const primaryParts = formatBodyParts(ex.primaryBodyParts, ex.focus)
-                const secondaryParts = formatBodyParts(ex.secondaryBodyParts)
+                const primaryParts = ex.primaryMuscle ? toMuscleLabel(ex.primaryMuscle) : '—'
+                const secondaryParts = ex.secondaryMuscles?.length ? ex.secondaryMuscles.map((muscle) => toMuscleLabel(muscle)).join(', ') : '—'
 
                 return (
                   <div key={idx} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">

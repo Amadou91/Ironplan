@@ -7,12 +7,22 @@ export interface User {
 export type MuscleGroup =
   | 'Chest'
   | 'Back'
-  | 'Legs'
   | 'Shoulders'
-  | 'Arms'
+  | 'Biceps'
+  | 'Triceps'
+  | 'Forearms'
   | 'Core'
+  | 'Glutes'
+  | 'Quads'
+  | 'Hamstrings'
+  | 'Calves'
+  | 'Hip Flexors'
+  | 'Adductors'
+  | 'Abductors'
   | 'Full Body'
   | 'Cardio'
+  | 'Lower Body'
+  | 'Upper Body'
 
 export type BandResistance = 'light' | 'medium' | 'heavy'
 
@@ -164,9 +174,11 @@ export interface WorkoutSession {
   id: string
   userId: string
   planId?: string
+  workoutId?: string
   name: string
   startedAt: string
   endedAt?: string
+  status?: 'active' | 'completed' | 'cancelled'
   exercises: SessionExercise[]
 }
 
@@ -187,5 +199,8 @@ export interface WorkoutSet {
   reps: number | '' | null
   weight: number | '' | null
   rpe?: number | '' | null
+  rir?: number | '' | null
+  notes?: string | null
+  performedAt?: string | null
   completed: boolean
 }
