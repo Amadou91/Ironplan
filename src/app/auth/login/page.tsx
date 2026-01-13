@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Loader2, Dumbbell } from 'lucide-react'
 import { Button } from '@/components/ui/Button' // Adjust based on your Button export (default vs named)
 import { Card } from '@/components/ui/Card'     // Adjust based on your Card export
+import { toAuthUser, useAuthStore } from '@/store/authStore'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -14,13 +15,14 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
+  const setUser = useAuthStore((state) => state.setUser)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -29,6 +31,7 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
+      setUser(toAuthUser(data.session?.user ?? null))
       router.push('/')
       router.refresh()
     }
@@ -64,7 +67,7 @@ export default function LoginPage() {
             <Dumbbell className="h-8 w-8 text-emerald-500" />
           </div>
           <h2 className="mt-6 text-3xl font-bold tracking-tight text-white">Ironplan</h2>
-          <p className="mt-2 text-sm text-slate-400">Sign in to your account</p>
+          <p className="mt-2 text-sm text-slate-400">Log in to your account</p>
         </div>
 
         <Card className="p-8 bg-slate-900 border-slate-800">
@@ -117,7 +120,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full justify-center"
               >
-                {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Sign In'}
+                {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Log In'}
               </Button>
               <Button 
                 onClick={handleSignUp}

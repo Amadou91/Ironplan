@@ -1,7 +1,28 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowRight, Dumbbell, Zap, LayoutTemplate } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { authStore, useAuthStore } from '@/store/authStore';
+import { getAuthNavState } from '@/lib/authUi';
 
 export default function Home() {
+  const router = useRouter();
+  const supabase = createClient();
+  const user = useAuthStore((state) => state.user);
+  const hydrated = useAuthStore((state) => state.hydrated);
+  const clearUser = useAuthStore((state) => state.clearUser);
+  const navState = getAuthNavState(user);
+
+  const handleSignOut = async () => {
+    clearUser();
+    authStore.persist.clearStorage();
+    await supabase.auth.signOut();
+    router.push('/');
+    router.refresh();
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Navbar Placeholder if you aren't using a layout wrapper for it */}
@@ -11,12 +32,26 @@ export default function Home() {
           <span>Ironplan</span>
         </div>
         <div className="flex items-center gap-4">
-          <Link 
-            href="/auth/login" 
-            className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-          >
-            Log in
-          </Link>
+          {!hydrated ? (
+            <span className="text-sm text-slate-400">Checking session...</span>
+          ) : user ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-slate-500 dark:text-slate-400">{navState.greeting}</span>
+              <button
+                onClick={handleSignOut}
+                className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              >
+                {navState.actionLabel}
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/auth/login"
+              className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+            >
+              {navState.actionLabel}
+            </Link>
+          )}
           <Link
             href="/generate"
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"

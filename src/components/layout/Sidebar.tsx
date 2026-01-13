@@ -1,37 +1,30 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Dumbbell, LayoutDashboard, PlusCircle, LogIn, LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
+import { authStore, useAuthStore } from '@/store/authStore';
+import { getAuthNavState } from '@/lib/authUi';
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const hydrated = useAuthStore((state) => state.hydrated);
+  const clearUser = useAuthStore((state) => state.clearUser);
   const supabase = createClient();
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    getUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [supabase]);
-
   const handleSignOut = async () => {
+    clearUser();
+    authStore.persist.clearStorage();
     await supabase.auth.signOut();
-    window.location.href = '/';
+    router.push('/');
+    router.refresh();
   };
 
   const isActive = (path: string) => pathname === path;
+  const navState = getAuthNavState(user);
 
   return (
     <aside className="w-64 h-screen bg-slate-900 text-white flex flex-col fixed left-0 top-0 border-r border-slate-800">
@@ -69,17 +62,19 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-slate-800">
-        {user ? (
+        {!hydrated ? (
+          <div className="px-4 py-3 text-xs text-slate-500">Checking session...</div>
+        ) : user ? (
           <div className="space-y-2">
              <div className="px-4 py-2 text-xs text-slate-500 uppercase font-bold tracking-wider">
-              {user.email?.split('@')[0]}
+              {navState.greeting}
             </div>
             <button
               onClick={handleSignOut}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-left"
             >
               <LogOut className="w-5 h-5" />
-              <span className="font-medium">Sign Out</span>
+              <span className="font-medium">{navState.actionLabel}</span>
             </button>
           </div>
         ) : (
@@ -92,7 +87,7 @@ export default function Sidebar() {
             }`}
           >
             <LogIn className="w-5 h-5" />
-            <span className="font-medium">Log In</span>
+            <span className="font-medium">{navState.actionLabel}</span>
           </Link>
         )}
       </div>
