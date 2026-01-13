@@ -23,7 +23,13 @@ export default function GeneratePage() {
   const { user, loading: userLoading } = useUser()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
-  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [completedSteps, setCompletedSteps] = useState<Record<StepId, boolean>>({
+    goal: false,
+    duration: false,
+    equipment: false,
+    preferences: false,
+    review: false
+  })
   const [errors, setErrors] = useState<string[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
@@ -127,6 +133,13 @@ export default function GeneratePage() {
 
   const handleHistoryLoad = (entry: (typeof historyEntries)[number]) => {
     updateFormData(() => normalizePlanInput(entry.plan.inputs))
+    setCompletedSteps({
+      goal: true,
+      duration: true,
+      equipment: true,
+      preferences: true,
+      review: true
+    })
     setActiveStep('review')
   }
 
@@ -326,7 +339,7 @@ export default function GeneratePage() {
                 <p className="text-sm font-semibold text-white">Goal & Workout Type</p>
                 <p className="text-xs text-slate-400">Define your primary outcome and training background.</p>
               </div>
-              {renderStepStatus(flowState.goalStepComplete, stepAvailability.goal)}
+              {renderStepStatus(completedSteps.goal && flowState.goalStepComplete, stepAvailability.goal)}
             </button>
             {activeStep === 'goal' && (
               <div id="step-goal" className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
@@ -377,7 +390,10 @@ export default function GeneratePage() {
                 <div className="flex justify-end">
                   <Button
                     type="button"
-                    onClick={() => setActiveStep('duration')}
+                    onClick={() => {
+                      setCompletedSteps(prev => ({ ...prev, goal: true }))
+                      setActiveStep('duration')
+                    }}
                     disabled={!flowState.goalStepComplete}
                   >
                     Continue
@@ -402,7 +418,7 @@ export default function GeneratePage() {
                 <p className="text-sm font-semibold text-white">Duration & Intensity</p>
                 <p className="text-xs text-slate-400">Choose session length, intensity, and days available.</p>
               </div>
-              {renderStepStatus(flowState.durationStepComplete, stepAvailability.duration)}
+              {renderStepStatus(completedSteps.duration && flowState.durationStepComplete, stepAvailability.duration)}
             </button>
             {activeStep === 'duration' && (
               <div id="step-duration" className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
@@ -501,7 +517,10 @@ export default function GeneratePage() {
                 <div className="flex justify-end">
                   <Button
                     type="button"
-                    onClick={() => setActiveStep('equipment')}
+                    onClick={() => {
+                      setCompletedSteps(prev => ({ ...prev, duration: true }))
+                      setActiveStep('equipment')
+                    }}
                     disabled={!flowState.durationStepComplete}
                   >
                     Continue
@@ -526,7 +545,7 @@ export default function GeneratePage() {
                 <p className="text-sm font-semibold text-white">Equipment</p>
                 <p className="text-xs text-slate-400">Select what you have available.</p>
               </div>
-              {renderStepStatus(flowState.equipmentStepComplete, stepAvailability.equipment)}
+              {renderStepStatus(completedSteps.equipment && flowState.equipmentStepComplete, stepAvailability.equipment)}
             </button>
             {activeStep === 'equipment' && (
               <div id="step-equipment" className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
@@ -706,7 +725,10 @@ export default function GeneratePage() {
                 <div className="flex justify-end">
                   <Button
                     type="button"
-                    onClick={() => setActiveStep('preferences')}
+                    onClick={() => {
+                      setCompletedSteps(prev => ({ ...prev, equipment: true }))
+                      setActiveStep('preferences')
+                    }}
                     disabled={!flowState.equipmentStepComplete}
                   >
                     Continue
@@ -731,196 +753,189 @@ export default function GeneratePage() {
                 <p className="text-sm font-semibold text-white">Preferences & Constraints</p>
                 <p className="text-xs text-slate-400">Fine-tune focus areas and recovery details.</p>
               </div>
-              {renderStepStatus(flowState.preferencesStepComplete, stepAvailability.preferences)}
+              {renderStepStatus(completedSteps.preferences && flowState.preferencesStepComplete, stepAvailability.preferences)}
             </button>
             {activeStep === 'preferences' && (
               <div id="step-preferences" className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="text-sm text-emerald-300 hover:text-emerald-200"
-                >
-                  {showAdvanced ? 'Hide Optional Preferences' : 'Show Optional Preferences'}
-                </button>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Secondary Goal</label>
+                    <select
+                      value={formData.goals.secondary ?? ''}
+                      onChange={(e) =>
+                        updateFormData(prev => ({
+                          ...prev,
+                          goals: { ...prev.goals, secondary: e.target.value ? (e.target.value as Goal) : undefined }
+                        }))
+                      }
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    >
+                      <option value="">None</option>
+                      <option value="strength">Strength</option>
+                      <option value="hypertrophy">Hypertrophy</option>
+                      <option value="endurance">Endurance</option>
+                      <option value="general_fitness">General Fitness</option>
+                    </select>
+                  </div>
 
-                {showAdvanced && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Secondary Goal</label>
-                      <select
-                        value={formData.goals.secondary ?? ''}
-                        onChange={(e) =>
-                          updateFormData(prev => ({
-                            ...prev,
-                            goals: { ...prev.goals, secondary: e.target.value ? (e.target.value as Goal) : undefined }
-                          }))
-                        }
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                      >
-                        <option value="">None</option>
-                        <option value="strength">Strength</option>
-                        <option value="hypertrophy">Hypertrophy</option>
-                        <option value="endurance">Endurance</option>
-                        <option value="general_fitness">General Fitness</option>
-                      </select>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Goal Priority</label>
+                    <select
+                      value={formData.goals.priority}
+                      onChange={(e) =>
+                        updateFormData(prev => ({
+                          ...prev,
+                          goals: { ...prev.goals, priority: e.target.value as PlanInput['goals']['priority'] }
+                        }))
+                      }
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    >
+                      <option value="primary">Primary Only</option>
+                      <option value="balanced">Balanced</option>
+                      <option value="secondary">Bias Toward Secondary</option>
+                    </select>
+                  </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Goal Priority</label>
-                      <select
-                        value={formData.goals.priority}
-                        onChange={(e) =>
-                          updateFormData(prev => ({
-                            ...prev,
-                            goals: { ...prev.goals, priority: e.target.value as PlanInput['goals']['priority'] }
-                          }))
-                        }
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                      >
-                        <option value="primary">Primary Only</option>
-                        <option value="balanced">Balanced</option>
-                        <option value="secondary">Bias Toward Secondary</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Time Windows</label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {(['morning', 'afternoon', 'evening'] as PlanInput['schedule']['timeWindows']).map(opt => (
-                          <label key={opt} className="flex items-center gap-2 text-sm text-slate-300">
-                            <input
-                              type="checkbox"
-                              checked={formData.schedule.timeWindows.includes(opt)}
-                              onChange={() =>
-                                updateFormData(prev => ({
-                                  ...prev,
-                                  schedule: {
-                                    ...prev.schedule,
-                                    timeWindows: toggleArrayValue(prev.schedule.timeWindows, opt)
-                                  }
-                                }))
-                              }
-                              className="accent-emerald-500"
-                            />
-                            {opt.replace(/\b\w/g, char => char.toUpperCase())}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">Minimum Rest Days</label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={2}
-                          value={formData.schedule.minRestDays}
-                          onChange={(e) =>
-                            updateFormData(prev => ({
-                              ...prev,
-                              schedule: { ...prev.schedule, minRestDays: Number(e.target.value) }
-                            }))
-                          }
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">Recovery Preference</label>
-                        <select
-                          value={formData.preferences.restPreference}
-                          onChange={(e) =>
-                            updateFormData(prev => ({
-                              ...prev,
-                              preferences: { ...prev.preferences, restPreference: e.target.value as PlanInput['preferences']['restPreference'] }
-                            }))
-                          }
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                        >
-                          <option value="balanced">Balanced</option>
-                          <option value="high_recovery">High Recovery</option>
-                          <option value="minimal_rest">Minimal Rest</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Focus Areas</label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {(['upper', 'lower', 'full_body', 'core', 'cardio', 'mobility'] as PlanInput['preferences']['focusAreas']).map(opt => (
-                          <label key={opt} className="flex items-center gap-2 text-sm text-slate-300">
-                            <input
-                              type="checkbox"
-                              checked={formData.preferences.focusAreas.includes(opt)}
-                              onChange={() =>
-                                updateFormData(prev => ({
-                                  ...prev,
-                                  preferences: {
-                                    ...prev.preferences,
-                                    focusAreas: toggleArrayValue(prev.preferences.focusAreas, opt)
-                                  }
-                                }))
-                              }
-                              className="accent-emerald-500"
-                            />
-                            {opt.replace('_', ' ').replace(/\b\w/g, char => char.toUpperCase())}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Disliked Activities</label>
-                      <input
-                        type="text"
-                        value={formData.preferences.dislikedActivities.join(', ')}
-                        onChange={(e) =>
-                          updateFormData(prev => ({
-                            ...prev,
-                            preferences: {
-                              ...prev.preferences,
-                              dislikedActivities: e.target.value
-                                ? e.target.value.split(',').map(item => item.trim()).filter(Boolean)
-                                : []
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Time Windows</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {(['morning', 'afternoon', 'evening'] as PlanInput['schedule']['timeWindows']).map(opt => (
+                        <label key={opt} className="flex items-center gap-2 text-sm text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={formData.schedule.timeWindows.includes(opt)}
+                            onChange={() =>
+                              updateFormData(prev => ({
+                                ...prev,
+                                schedule: {
+                                  ...prev.schedule,
+                                  timeWindows: toggleArrayValue(prev.schedule.timeWindows, opt)
+                                }
+                              }))
                             }
+                            className="accent-emerald-500"
+                          />
+                          {opt.replace(/\b\w/g, char => char.toUpperCase())}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Minimum Rest Days</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={2}
+                        value={formData.schedule.minRestDays}
+                        onChange={(e) =>
+                          updateFormData(prev => ({
+                            ...prev,
+                            schedule: { ...prev.schedule, minRestDays: Number(e.target.value) }
                           }))
                         }
-                        placeholder="e.g. Running, Jumping"
                         className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                       />
                     </div>
-
                     <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Accessibility Constraints</label>
-                      <div className="flex flex-wrap gap-3">
-                        {['low-impact', 'joint-friendly', 'no-floor-work'].map(opt => (
-                          <label key={opt} className="flex items-center gap-2 text-sm text-slate-300">
-                            <input
-                              type="checkbox"
-                              checked={formData.preferences.accessibilityConstraints.includes(opt)}
-                              onChange={() =>
-                                updateFormData(prev => ({
-                                  ...prev,
-                                  preferences: {
-                                    ...prev.preferences,
-                                    accessibilityConstraints: toggleArrayValue(prev.preferences.accessibilityConstraints, opt)
-                                  }
-                                }))
-                              }
-                              className="accent-emerald-500"
-                            />
-                            {opt.replace(/\b\w/g, char => char.toUpperCase())}
-                          </label>
-                        ))}
-                      </div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Recovery Preference</label>
+                      <select
+                        value={formData.preferences.restPreference}
+                        onChange={(e) =>
+                          updateFormData(prev => ({
+                            ...prev,
+                            preferences: { ...prev.preferences, restPreference: e.target.value as PlanInput['preferences']['restPreference'] }
+                          }))
+                        }
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      >
+                        <option value="balanced">Balanced</option>
+                        <option value="high_recovery">High Recovery</option>
+                        <option value="minimal_rest">Minimal Rest</option>
+                      </select>
                     </div>
                   </div>
-                )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Focus Areas</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {(['upper', 'lower', 'full_body', 'core', 'cardio', 'mobility'] as PlanInput['preferences']['focusAreas']).map(opt => (
+                        <label key={opt} className="flex items-center gap-2 text-sm text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={formData.preferences.focusAreas.includes(opt)}
+                            onChange={() =>
+                              updateFormData(prev => ({
+                                ...prev,
+                                preferences: {
+                                  ...prev.preferences,
+                                  focusAreas: toggleArrayValue(prev.preferences.focusAreas, opt)
+                                }
+                              }))
+                            }
+                            className="accent-emerald-500"
+                          />
+                          {opt.replace('_', ' ').replace(/\b\w/g, char => char.toUpperCase())}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Disliked Activities</label>
+                    <input
+                      type="text"
+                      value={formData.preferences.dislikedActivities.join(', ')}
+                      onChange={(e) =>
+                        updateFormData(prev => ({
+                          ...prev,
+                          preferences: {
+                            ...prev.preferences,
+                            dislikedActivities: e.target.value
+                              ? e.target.value.split(',').map(item => item.trim()).filter(Boolean)
+                              : []
+                          }
+                        }))
+                      }
+                      placeholder="e.g. Running, Jumping"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Accessibility Constraints</label>
+                    <div className="flex flex-wrap gap-3">
+                      {['low-impact', 'joint-friendly', 'no-floor-work'].map(opt => (
+                        <label key={opt} className="flex items-center gap-2 text-sm text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={formData.preferences.accessibilityConstraints.includes(opt)}
+                            onChange={() =>
+                              updateFormData(prev => ({
+                                ...prev,
+                                preferences: {
+                                  ...prev.preferences,
+                                  accessibilityConstraints: toggleArrayValue(prev.preferences.accessibilityConstraints, opt)
+                                }
+                              }))
+                            }
+                            className="accent-emerald-500"
+                          />
+                          {opt.replace(/\b\w/g, char => char.toUpperCase())}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
                 <div className="flex justify-end">
                   <Button
                     type="button"
-                    onClick={() => setActiveStep('review')}
+                    onClick={() => {
+                      setCompletedSteps(prev => ({ ...prev, preferences: true }))
+                      setActiveStep('review')
+                    }}
                     disabled={!flowState.preferencesStepComplete}
                   >
                     Continue
@@ -945,7 +960,7 @@ export default function GeneratePage() {
                 <p className="text-sm font-semibold text-white">Review & Generate</p>
                 <p className="text-xs text-slate-400">Confirm selections before generating.</p>
               </div>
-              {renderStepStatus(flowState.reviewStepComplete, stepAvailability.review)}
+              {renderStepStatus(completedSteps.review && flowState.reviewStepComplete, stepAvailability.review)}
             </button>
             {activeStep === 'review' && (
               <div id="step-review" className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
@@ -1043,7 +1058,10 @@ export default function GeneratePage() {
                 </div>
 
                 <Button
-                  onClick={generatePlanHandler}
+                  onClick={async () => {
+                    setCompletedSteps(prev => ({ ...prev, review: true }))
+                    await generatePlanHandler()
+                  }}
                   disabled={loading || !flowState.isFormValid}
                   className="w-full py-5 text-base"
                   aria-label="Generate Workout Plan"
