@@ -1,71 +1,191 @@
 export interface User {
-  id: string;
-  email: string;
-  name?: string;
+  id: string
+  email: string
+  name?: string
 }
 
-export type MuscleGroup = 
-  | 'Chest' | 'Back' | 'Legs' | 'Shoulders' | 'Arms' | 'Core' | 'Full Body' | 'Cardio';
+export type MuscleGroup =
+  | 'Chest'
+  | 'Back'
+  | 'Legs'
+  | 'Shoulders'
+  | 'Arms'
+  | 'Core'
+  | 'Full Body'
+  | 'Cardio'
+
+export type BandResistance = 'light' | 'medium' | 'heavy'
+
+export type MachineType = 'cable' | 'leg_press' | 'treadmill' | 'rower'
+
+export type EquipmentPreset = 'home_minimal' | 'full_gym' | 'hotel'
+
+export type EquipmentKind = 'bodyweight' | 'dumbbell' | 'kettlebell' | 'band' | 'barbell' | 'machine'
+
+export type EquipmentOption =
+  | { kind: 'bodyweight' }
+  | { kind: 'dumbbell' }
+  | { kind: 'kettlebell' }
+  | { kind: 'band' }
+  | { kind: 'barbell' }
+  | { kind: 'machine'; machineType?: MachineType }
+
+export interface EquipmentInventory {
+  bodyweight: boolean
+  dumbbells: number[]
+  kettlebells: number[]
+  bands: BandResistance[]
+  barbell: {
+    available: boolean
+    plates: number[]
+  }
+  machines: Record<MachineType, boolean>
+}
+
+export type FocusArea = 'upper' | 'lower' | 'full_body' | 'core' | 'cardio' | 'mobility'
+
+export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'general_fitness'
+
+export type GoalPriority = 'primary' | 'secondary' | 'balanced'
+
+export type Intensity = 'low' | 'moderate' | 'high'
+
+export type TimeWindow = 'morning' | 'afternoon' | 'evening'
+
+export type RestPreference = 'balanced' | 'high_recovery' | 'minimal_rest'
+
+export interface ExerciseLoad {
+  value: number
+  unit: 'lb'
+  label: string
+}
 
 export interface Exercise {
-  id: string;
-  name: string;
-  primaryMuscle: MuscleGroup | string;
-  secondaryMuscles?: string[];
-  equipment?: string;
-  videoUrl?: string;
-  instructions?: string[];
-  // Plan specific fields
-  sets?: number; 
-  reps?: string; 
+  id?: string
+  name: string
+  focus: FocusArea
+  sets: number
+  reps: string | number
+  rpe: number
+  equipment: EquipmentOption[]
+  durationMinutes: number
+  restSeconds: number
+  loadTarget?: number
+  load?: ExerciseLoad
+  primaryMuscle?: MuscleGroup | string
+  secondaryMuscles?: string[]
+  primaryBodyParts?: string[]
+  secondaryBodyParts?: string[]
+  videoUrl?: string
+  instructions?: string[]
 }
 
-// Alias for components that might use strict naming
-export type WorkoutExercise = Exercise;
+export type WorkoutExercise = Exercise
+
+export interface PlanDay {
+  dayOfWeek: number
+  timeWindow: TimeWindow
+  focus: FocusArea
+  durationMinutes: number
+  rationale: string
+  exercises: Exercise[]
+}
+
+export interface WorkoutImpact {
+  score: number
+  breakdown: {
+    volume: number
+    intensity: number
+    density: number
+  }
+}
+
+export interface PlanInput {
+  goals: {
+    primary: Goal
+    secondary?: Goal
+    priority: GoalPriority
+  }
+  experienceLevel: 'beginner' | 'intermediate' | 'advanced'
+  intensity: Intensity
+  equipment: {
+    preset: EquipmentPreset | 'custom'
+    inventory: EquipmentInventory
+  }
+  time: {
+    minutesPerSession: number
+    totalMinutesPerWeek?: number
+  }
+  schedule: {
+    daysAvailable: number[]
+    timeWindows: TimeWindow[]
+    minRestDays: number
+  }
+  preferences: {
+    focusAreas: FocusArea[]
+    dislikedActivities: string[]
+    accessibilityConstraints: string[]
+    restPreference: RestPreference
+  }
+}
+
+export interface GeneratedPlan {
+  title: string
+  description: string
+  goal: Goal
+  level: PlanInput['experienceLevel']
+  tags: string[]
+  schedule: PlanDay[]
+  inputs: PlanInput
+  summary: {
+    sessionsPerWeek: number
+    totalMinutes: number
+    focusDistribution: Record<FocusArea, number>
+    impact: WorkoutImpact
+  }
+}
 
 export interface WorkoutPlan {
-  id: string;
-  userId: string;
-  name: string; // e.g., "4 Day Split"
-  goal: string;
-  days: WorkoutDay[];
-  createdAt: string;
+  id: string
+  userId: string
+  name: string
+  goal: string
+  days: WorkoutDay[]
+  createdAt: string
 }
 
 export interface WorkoutDay {
-  id: string;
-  name: string; // e.g., "Upper Body A"
-  exercises: Exercise[];
+  id: string
+  name: string
+  exercises: Exercise[]
 }
 
-// --- TRACKING TYPES ---
-
 export interface WorkoutSession {
-  id: string;
-  userId: string;
-  planId?: string;
-  name: string;
-  startedAt: string;
-  endedAt?: string;
-  exercises: SessionExercise[];
+  id: string
+  userId: string
+  planId?: string
+  name: string
+  startedAt: string
+  endedAt?: string
+  exercises: SessionExercise[]
 }
 
 export interface SessionExercise {
-  id: string; // UUID
-  sessionId: string;
-  exerciseId?: string;
-  name: string;
-  primaryMuscle: string;
-  secondaryMuscles: string[];
-  sets: WorkoutSet[];
-  orderIndex: number;
+  id: string
+  sessionId: string
+  exerciseId?: string
+  name: string
+  primaryMuscle: string
+  secondaryMuscles: string[]
+  sets: WorkoutSet[]
+  orderIndex: number
 }
 
 export interface WorkoutSet {
-  id: string; // UUID
-  setNumber: number;
-  reps: number | '' | null;
-  weight: number | '' | null;
-  rpe?: number | '' | null;
-  completed: boolean;
+  id: string
+  setNumber: number
+  reps: number | '' | null
+  weight: number | '' | null
+  rpe?: number | '' | null
+  completed: boolean
 }
