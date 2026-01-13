@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Dumbbell, LayoutDashboard, PlusCircle, LogIn, LogOut, Settings } from 'lucide-react';
+import { Dumbbell, LayoutDashboard, PlusCircle, LogIn, LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
