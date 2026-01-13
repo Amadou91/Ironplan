@@ -18,10 +18,30 @@ const { outputText } = ts.transpileModule(source, {
   }
 })
 
+const equipmentPath = join(__dirname, '../src/lib/equipment.ts')
+const equipmentSource = readFileSync(equipmentPath, 'utf8')
+const { outputText: equipmentOutput } = ts.transpileModule(equipmentSource, {
+  compilerOptions: {
+    module: ts.ModuleKind.CommonJS,
+    target: ts.ScriptTarget.ES2020
+  }
+})
+
 const moduleShim = { exports: {} }
+const equipmentModuleShim = { exports: {} }
 const requireShim = createRequire(import.meta.url)
+const equipmentFactory = new Function('module', 'exports', 'require', equipmentOutput)
+equipmentFactory(equipmentModuleShim, equipmentModuleShim.exports, requireShim)
+
+const requireWithEquipment = (moduleId) => {
+  if (moduleId === './equipment' || moduleId === '../src/lib/equipment') {
+    return equipmentModuleShim.exports
+  }
+  return requireShim(moduleId)
+}
+
 const factory = new Function('module', 'exports', 'require', outputText)
-factory(moduleShim, moduleShim.exports, requireShim)
+factory(moduleShim, moduleShim.exports, requireWithEquipment)
 
 const { getFlowCompletion } = moduleShim.exports
 
@@ -29,7 +49,17 @@ const baseInput = {
   goals: { primary: 'strength', priority: 'primary' },
   experienceLevel: 'intermediate',
   intensity: 'moderate',
-  equipment: ['gym'],
+  equipment: {
+    preset: 'full_gym',
+    inventory: {
+      bodyweight: true,
+      dumbbells: [10, 20],
+      kettlebells: [],
+      bands: ['light'],
+      barbell: { available: true, plates: [10, 25, 45] },
+      machines: { cable: true, leg_press: false, treadmill: true, rower: false }
+    }
+  },
   time: { minutesPerSession: 45 },
   schedule: { daysAvailable: [1, 3], timeWindows: ['evening'], minRestDays: 1 },
   preferences: { focusAreas: [], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }

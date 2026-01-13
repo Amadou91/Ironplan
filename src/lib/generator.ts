@@ -1,5 +1,5 @@
 import type {
-  Equipment,
+  EquipmentInventory,
   Exercise,
   FocusArea,
   GeneratedPlan,
@@ -9,8 +9,10 @@ import type {
   PlanDay,
   PlanInput,
   RestPreference,
-  TimeWindow
+  TimeWindow,
+  WorkoutImpact
 } from '@/types/domain'
+import { equipmentPresets, hasEquipment } from './equipment'
 
 const DEFAULT_INPUT: PlanInput = {
   goals: {
@@ -19,7 +21,10 @@ const DEFAULT_INPUT: PlanInput = {
   },
   experienceLevel: 'intermediate',
   intensity: 'moderate',
-  equipment: ['gym'],
+  equipment: {
+    preset: 'full_gym',
+    inventory: equipmentPresets.full_gym
+  },
   time: {
     minutesPerSession: 45
   },
@@ -36,24 +41,203 @@ const DEFAULT_INPUT: PlanInput = {
   }
 }
 
-const EXERCISE_LIBRARY: Exercise[] = [
-  { name: 'Barbell Back Squat', focus: 'lower', sets: 4, reps: '5-8', rpe: 8, equipment: ['gym'], durationMinutes: 12 },
-  { name: 'Dumbbell Goblet Squat', focus: 'lower', sets: 3, reps: '8-12', rpe: 7, equipment: ['dumbbells'], durationMinutes: 10 },
-  { name: 'Romanian Deadlift', focus: 'lower', sets: 3, reps: '8-10', rpe: 8, equipment: ['gym', 'dumbbells'], durationMinutes: 10 },
-  { name: 'Push-Up', focus: 'upper', sets: 3, reps: '10-15', rpe: 7, equipment: ['bodyweight'], durationMinutes: 8 },
-  { name: 'Bench Press', focus: 'upper', sets: 4, reps: '5-8', rpe: 8, equipment: ['gym'], durationMinutes: 12 },
-  { name: 'Dumbbell Row', focus: 'upper', sets: 3, reps: '8-12', rpe: 7, equipment: ['dumbbells'], durationMinutes: 10 },
-  { name: 'Overhead Press', focus: 'upper', sets: 3, reps: '6-10', rpe: 8, equipment: ['gym', 'dumbbells'], durationMinutes: 10 },
-  { name: 'Walking Lunge', focus: 'lower', sets: 3, reps: '10-12', rpe: 7, equipment: ['dumbbells', 'bodyweight'], durationMinutes: 9 },
-  { name: 'Plank Series', focus: 'core', sets: 3, reps: '30-45 sec', rpe: 7, equipment: ['bodyweight'], durationMinutes: 6 },
-  { name: 'Dead Bug', focus: 'core', sets: 3, reps: '8-12', rpe: 6, equipment: ['bodyweight'], durationMinutes: 6 },
-  { name: 'Incline Dumbbell Press', focus: 'upper', sets: 3, reps: '8-12', rpe: 7, equipment: ['dumbbells'], durationMinutes: 9 },
-  { name: 'Lat Pulldown', focus: 'upper', sets: 3, reps: '8-12', rpe: 7, equipment: ['gym'], durationMinutes: 9 },
-  { name: 'Assault Bike Intervals', focus: 'cardio', sets: 6, reps: '30 sec on/30 sec off', rpe: 8, equipment: ['gym'], durationMinutes: 10 },
-  { name: 'Zone 2 Cardio', focus: 'cardio', sets: 1, reps: '20-30 min', rpe: 6, equipment: ['gym', 'bodyweight'], durationMinutes: 20 },
-  { name: 'Mobility Flow', focus: 'mobility', sets: 1, reps: '15-20 min', rpe: 5, equipment: ['bodyweight'], durationMinutes: 15 },
-  { name: 'Kettlebell Swing', focus: 'cardio', sets: 4, reps: '12-15', rpe: 8, equipment: ['kettlebell'], durationMinutes: 8 },
-  { name: 'Resistance Band Pull-Apart', focus: 'upper', sets: 3, reps: '12-15', rpe: 6, equipment: ['bands'], durationMinutes: 6 }
+type ExerciseTemplate = Omit<Exercise, 'load'> & {
+  loadTarget?: number
+}
+
+const EXERCISE_LIBRARY: ExerciseTemplate[] = [
+  {
+    name: 'Barbell Back Squat',
+    focus: 'lower',
+    sets: 4,
+    reps: '5-8',
+    rpe: 8,
+    equipment: [{ kind: 'barbell' }],
+    durationMinutes: 12,
+    loadTarget: 135,
+    restSeconds: 120
+  },
+  {
+    name: 'Dumbbell Goblet Squat',
+    focus: 'lower',
+    sets: 3,
+    reps: '8-12',
+    rpe: 7,
+    equipment: [{ kind: 'dumbbell' }],
+    durationMinutes: 10,
+    loadTarget: 30,
+    restSeconds: 90
+  },
+  {
+    name: 'Romanian Deadlift',
+    focus: 'lower',
+    sets: 3,
+    reps: '8-10',
+    rpe: 8,
+    equipment: [{ kind: 'barbell' }, { kind: 'dumbbell' }],
+    durationMinutes: 10,
+    loadTarget: 115,
+    restSeconds: 120
+  },
+  {
+    name: 'Push-Up',
+    focus: 'upper',
+    sets: 3,
+    reps: '10-15',
+    rpe: 7,
+    equipment: [{ kind: 'bodyweight' }],
+    durationMinutes: 8,
+    restSeconds: 75
+  },
+  {
+    name: 'Bench Press',
+    focus: 'upper',
+    sets: 4,
+    reps: '5-8',
+    rpe: 8,
+    equipment: [{ kind: 'barbell' }],
+    durationMinutes: 12,
+    loadTarget: 115,
+    restSeconds: 120
+  },
+  {
+    name: 'Dumbbell Row',
+    focus: 'upper',
+    sets: 3,
+    reps: '8-12',
+    rpe: 7,
+    equipment: [{ kind: 'dumbbell' }],
+    durationMinutes: 10,
+    loadTarget: 25,
+    restSeconds: 90
+  },
+  {
+    name: 'Overhead Press',
+    focus: 'upper',
+    sets: 3,
+    reps: '6-10',
+    rpe: 8,
+    equipment: [{ kind: 'barbell' }, { kind: 'dumbbell' }],
+    durationMinutes: 10,
+    loadTarget: 75,
+    restSeconds: 120
+  },
+  {
+    name: 'Walking Lunge',
+    focus: 'lower',
+    sets: 3,
+    reps: '10-12',
+    rpe: 7,
+    equipment: [{ kind: 'dumbbell' }, { kind: 'bodyweight' }],
+    durationMinutes: 9,
+    loadTarget: 20,
+    restSeconds: 75
+  },
+  {
+    name: 'Plank Series',
+    focus: 'core',
+    sets: 3,
+    reps: '30-45 sec',
+    rpe: 7,
+    equipment: [{ kind: 'bodyweight' }],
+    durationMinutes: 6,
+    restSeconds: 60
+  },
+  {
+    name: 'Dead Bug',
+    focus: 'core',
+    sets: 3,
+    reps: '8-12',
+    rpe: 6,
+    equipment: [{ kind: 'bodyweight' }],
+    durationMinutes: 6,
+    restSeconds: 60
+  },
+  {
+    name: 'Incline Dumbbell Press',
+    focus: 'upper',
+    sets: 3,
+    reps: '8-12',
+    rpe: 7,
+    equipment: [{ kind: 'dumbbell' }],
+    durationMinutes: 9,
+    loadTarget: 25,
+    restSeconds: 90
+  },
+  {
+    name: 'Lat Pulldown',
+    focus: 'upper',
+    sets: 3,
+    reps: '8-12',
+    rpe: 7,
+    equipment: [{ kind: 'machine', machineType: 'cable' }],
+    durationMinutes: 9,
+    loadTarget: 70,
+    restSeconds: 90
+  },
+  {
+    name: 'Assault Bike Intervals',
+    focus: 'cardio',
+    sets: 6,
+    reps: '30 sec on/30 sec off',
+    rpe: 8,
+    equipment: [{ kind: 'machine', machineType: 'treadmill' }, { kind: 'machine', machineType: 'rower' }],
+    durationMinutes: 10,
+    restSeconds: 60
+  },
+  {
+    name: 'Zone 2 Cardio',
+    focus: 'cardio',
+    sets: 1,
+    reps: '20-30 min',
+    rpe: 6,
+    equipment: [{ kind: 'machine', machineType: 'treadmill' }, { kind: 'bodyweight' }],
+    durationMinutes: 20,
+    restSeconds: 60
+  },
+  {
+    name: 'Mobility Flow',
+    focus: 'mobility',
+    sets: 1,
+    reps: '15-20 min',
+    rpe: 5,
+    equipment: [{ kind: 'bodyweight' }],
+    durationMinutes: 15,
+    restSeconds: 45
+  },
+  {
+    name: 'Kettlebell Swing',
+    focus: 'cardio',
+    sets: 4,
+    reps: '12-15',
+    rpe: 8,
+    equipment: [{ kind: 'kettlebell' }],
+    durationMinutes: 8,
+    loadTarget: 35,
+    restSeconds: 75
+  },
+  {
+    name: 'Resistance Band Pull-Apart',
+    focus: 'upper',
+    sets: 3,
+    reps: '12-15',
+    rpe: 6,
+    equipment: [{ kind: 'band' }],
+    durationMinutes: 6,
+    loadTarget: 20,
+    restSeconds: 60
+  },
+  {
+    name: 'Leg Press',
+    focus: 'lower',
+    sets: 3,
+    reps: '10-12',
+    rpe: 7,
+    equipment: [{ kind: 'machine', machineType: 'leg_press' }],
+    durationMinutes: 10,
+    loadTarget: 160,
+    restSeconds: 90
+  }
 ]
 
 export const validatePlanInput = (input: PlanInput): string[] => {
@@ -79,7 +263,7 @@ export const validatePlanInput = (input: PlanInput): string[] => {
     errors.push('Minimum rest days must be between 0 and 2.')
   }
 
-  if (input.equipment.length === 0) {
+  if (!hasEquipment(input.equipment.inventory)) {
     errors.push('Select at least one equipment option.')
   }
 
@@ -92,6 +276,22 @@ export const normalizePlanInput = (input: Partial<PlanInput>): PlanInput => ({
   goals: {
     ...DEFAULT_INPUT.goals,
     ...input.goals
+  },
+  equipment: {
+    ...DEFAULT_INPUT.equipment,
+    ...input.equipment,
+    inventory: {
+      ...DEFAULT_INPUT.equipment.inventory,
+      ...input.equipment?.inventory,
+      barbell: {
+        ...DEFAULT_INPUT.equipment.inventory.barbell,
+        ...input.equipment?.inventory?.barbell
+      },
+      machines: {
+        ...DEFAULT_INPUT.equipment.inventory.machines,
+        ...input.equipment?.inventory?.machines
+      }
+    }
   },
   time: {
     ...DEFAULT_INPUT.time,
@@ -212,18 +412,124 @@ const buildFocusSequence = (
   return sequence
 }
 
+const bandLoadMap = {
+  light: 10,
+  medium: 20,
+  heavy: 30
+}
+
+const hasMachine = (inventory: EquipmentInventory, machineType?: keyof EquipmentInventory['machines']) =>
+  machineType ? inventory.machines[machineType] : Object.values(inventory.machines).some(Boolean)
+
+const isEquipmentOptionAvailable = (inventory: EquipmentInventory, option: Exercise['equipment'][number]) => {
+  switch (option.kind) {
+    case 'bodyweight':
+      return inventory.bodyweight
+    case 'dumbbell':
+      return inventory.dumbbells.length > 0
+    case 'kettlebell':
+      return inventory.kettlebells.length > 0
+    case 'band':
+      return inventory.bands.length > 0
+    case 'barbell':
+      return inventory.barbell.available
+    case 'machine':
+      return hasMachine(inventory, option.machineType)
+    default:
+      return false
+  }
+}
+
+const selectEquipmentOption = (inventory: EquipmentInventory, options: Exercise['equipment']) =>
+  options.find(option => isEquipmentOptionAvailable(inventory, option))
+
+const pickClosestWeight = (weights: number[], target: number) => {
+  if (weights.length === 0) return undefined
+  return weights.reduce((closest, weight) =>
+    Math.abs(weight - target) < Math.abs(closest - target) ? weight : closest
+  , weights[0])
+}
+
+const buildBarbellLoad = (target: number, inventory: EquipmentInventory) => {
+  const base = 45
+  if (!inventory.barbell.available) {
+    return { value: base, label: `${base} lb barbell (no plates)` }
+  }
+  if (inventory.barbell.plates.length === 0) {
+    return { value: base, label: `${base} lb barbell` }
+  }
+
+  const platePairs = inventory.barbell.plates
+  const possibleLoads = new Set<number>([base])
+
+  platePairs.forEach((plateWeight) => {
+    const currentLoads = Array.from(possibleLoads)
+    currentLoads.forEach(load => {
+      possibleLoads.add(load + plateWeight * 2)
+    })
+  })
+
+  const closest = Array.from(possibleLoads).reduce((closestLoad, load) =>
+    Math.abs(load - target) < Math.abs(closestLoad - target) ? load : closestLoad
+  , base)
+
+  return { value: closest, label: `${closest} lb barbell` }
+}
+
+const buildLoad = (
+  option: Exercise['equipment'][number] | undefined,
+  target: number | undefined,
+  inventory: EquipmentInventory
+) => {
+  if (!option || !target) return undefined
+
+  const adjustedTarget = option.kind === 'dumbbell' && target > 80 ? Math.round(target / 3) : target
+
+  switch (option.kind) {
+    case 'dumbbell': {
+      const perHand = pickClosestWeight(inventory.dumbbells, adjustedTarget)
+      if (!perHand) return undefined
+      return { value: perHand * 2, unit: 'lb' as const, label: `2x${perHand} lb dumbbells` }
+    }
+    case 'kettlebell': {
+      const weight = pickClosestWeight(inventory.kettlebells, target)
+      if (!weight) return undefined
+      return { value: weight, unit: 'lb' as const, label: `${weight} lb kettlebell` }
+    }
+    case 'band': {
+      const band = inventory.bands.includes('heavy')
+        ? 'heavy'
+        : inventory.bands.includes('medium')
+          ? 'medium'
+          : inventory.bands[0]
+      const value = bandLoadMap[band] ?? 10
+      return { value, unit: 'lb' as const, label: `${band} band` }
+    }
+    case 'barbell': {
+      const barbellLoad = buildBarbellLoad(target, inventory)
+      return { value: barbellLoad.value, unit: 'lb' as const, label: barbellLoad.label }
+    }
+    case 'machine': {
+      const stackValue = target
+      return { value: stackValue, unit: 'lb' as const, label: `Select ~${stackValue} lb on the stack` }
+    }
+    default:
+      return undefined
+  }
+}
+
 const filterExercises = (
   focus: FocusArea,
-  equipment: Equipment[],
+  inventory: EquipmentInventory,
   disliked: string[],
   accessibility: string[]
 ) => EXERCISE_LIBRARY.filter(exercise => {
   const matchesFocus = focus === 'full_body' || exercise.focus === focus || (focus === 'cardio' && exercise.focus === 'cardio')
-  const matchesEquipment = exercise.equipment.some(item => equipment.includes(item))
+  const option = selectEquipmentOption(inventory, exercise.equipment)
   const isDisliked = disliked.some(activity => exercise.name.toLowerCase().includes(activity.toLowerCase()))
   const lowImpact = accessibility.includes('low-impact')
   const isHighImpact = exercise.name.toLowerCase().includes('jump') || exercise.name.toLowerCase().includes('interval')
-  return matchesFocus && matchesEquipment && !isDisliked && !(lowImpact && isHighImpact)
+  return matchesFocus && Boolean(option) && !isDisliked && !(lowImpact && isHighImpact)
 })
 
 const adjustRpe = (baseRpe: number, intensity: Intensity) => {
@@ -251,7 +557,7 @@ const buildSessionExercises = (
 ): Exercise[] => {
   const exercises = filterExercises(
     focus,
-    input.equipment,
+    input.equipment.inventory,
     input.preferences.dislikedActivities,
     input.preferences.accessibilityConstraints
   )
@@ -260,12 +566,17 @@ const buildSessionExercises = (
   const reps = deriveReps(primaryGoal, input.intensity)
 
   const picks = exercises.slice(0, maxExercises)
-  return picks.map(exercise => ({
-    ...exercise,
-    sets: adjustSets(exercise.sets, input.experienceLevel),
-    reps,
-    rpe: adjustRpe(exercise.rpe, input.intensity)
-  }))
+  return picks.map(exercise => {
+    const selectedOption = selectEquipmentOption(input.equipment.inventory, exercise.equipment)
+    const load = buildLoad(selectedOption, exercise.loadTarget, input.equipment.inventory)
+    return {
+      ...exercise,
+      sets: adjustSets(exercise.sets, input.experienceLevel),
+      reps,
+      rpe: adjustRpe(exercise.rpe, input.intensity),
+      load
+    }
+  })
 }
 
 const buildRationale = (
@@ -295,6 +606,41 @@ const buildFocusDistribution = (schedule: PlanDay[]) => schedule.reduce<Record<F
   cardio: 0,
   mobility: 0
 })
+
+const parseReps = (reps: string | number) => {
+  if (typeof reps === 'number') return reps
+  const matches = reps.match(/\d+/g)?.map(Number) ?? []
+  if (matches.length === 0) return 10
+  if (matches.length === 1) return matches[0]
+  return Math.round(matches.reduce((sum, value) => sum + value, 0) / matches.length)
+}
+
+export const calculateWorkoutImpact = (schedule: PlanDay[]): WorkoutImpact => {
+  const totals = schedule.flatMap(day => day.exercises).reduce(
+    (acc, exercise) => {
+      const repsValue = parseReps(exercise.reps)
+      const loadValue = exercise.load?.value ?? 10
+      acc.volume += exercise.sets * repsValue * (loadValue / 10)
+      acc.intensity += exercise.rpe * exercise.sets
+      acc.density += Math.max(1, Math.round(exercise.durationMinutes / 5))
+      return acc
+    },
+    { volume: 0, intensity: 0, density: 0 }
+  )
+
+  const volumeScore = Math.round(totals.volume / 10)
+  const intensityScore = Math.round(totals.intensity / 5)
+  const densityScore = Math.round(totals.density)
+
+  return {
+    score: volumeScore + intensityScore + densityScore,
+    breakdown: {
+      volume: volumeScore,
+      intensity: intensityScore,
+      density: densityScore
+    }
+  }
+}
 
 export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: GeneratedPlan; errors: string[] } => {
   const normalized = applyRestPreference(normalizePlanInput(partialInput))
@@ -326,6 +672,7 @@ export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: Generat
   const totalMinutes = schedule.reduce((sum, day) => sum + day.durationMinutes, 0)
   const title = `${normalized.goals.primary.replace('_', ' ').toUpperCase()} PLAN`
   const description = `${sessionsPerWeek} sessions/week · ${minutesPerSession} min/session · Focus on ${normalized.goals.primary.replace('_', ' ')}.`
+  const impact = calculateWorkoutImpact(schedule)
 
   const plan: GeneratedPlan = {
     title,
@@ -343,7 +690,8 @@ export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: Generat
     summary: {
       sessionsPerWeek,
       totalMinutes,
-      focusDistribution: buildFocusDistribution(schedule)
+      focusDistribution: buildFocusDistribution(schedule),
+      impact
     }
   }
 
