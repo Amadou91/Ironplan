@@ -336,12 +336,12 @@ export default function DashboardPage() {
   }
 
   if (isLoading) {
-    return <div className="p-10 text-center text-slate-400">Loading dashboard...</div>
+    return <div className="page-shell p-10 text-center text-muted">Loading dashboard...</div>
   }
 
   if (!user) {
     return (
-      <div className="p-10 text-center text-slate-400">
+      <div className="page-shell p-10 text-center text-muted">
         <p className="mb-4">Sign in to view your dashboard.</p>
         <Button onClick={() => router.push('/auth/login')}>Go to Login</Button>
       </div>
@@ -349,25 +349,26 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
-          <p className="text-sm text-slate-400">Track your sessions, volume, and progress over time.</p>
+    <div className="page-shell">
+      <div className="w-full space-y-8 px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-strong">Dashboard</h1>
+            <p className="text-sm text-muted">Track your sessions, volume, and progress over time.</p>
+          </div>
+          <Link href="/generate">
+            <Button>Generate New Plan</Button>
+          </Link>
         </div>
-        <Link href="/generate">
-          <Button>Generate New Plan</Button>
-        </Link>
-      </div>
 
-      {error && <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">{error}</div>}
+        {error && <div className="alert-error p-4 text-sm">{error}</div>}
 
-      <Card className="card-surface p-6">
+        <Card className="p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <h2 className="text-lg font-semibold text-white">Filters</h2>
+          <h2 className="text-lg font-semibold text-strong">Filters</h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <div className="flex flex-col">
-              <label className="text-xs text-slate-400">Start date</label>
+              <label className="text-xs text-subtle">Start date</label>
               <input
                 type="date"
                 value={startDate}
@@ -376,7 +377,7 @@ export default function DashboardPage() {
               />
             </div>
             <div className="flex flex-col">
-              <label className="text-xs text-slate-400">End date</label>
+              <label className="text-xs text-subtle">End date</label>
               <input
                 type="date"
                 value={endDate}
@@ -385,7 +386,7 @@ export default function DashboardPage() {
               />
             </div>
             <div className="flex flex-col">
-              <label className="text-xs text-slate-400">Muscle group</label>
+              <label className="text-xs text-subtle">Muscle group</label>
               <select
                 value={selectedMuscle}
                 onChange={(event) => setSelectedMuscle(event.target.value)}
@@ -400,7 +401,7 @@ export default function DashboardPage() {
               </select>
             </div>
             <div className="flex flex-col">
-              <label className="text-xs text-slate-400">Exercise</label>
+              <label className="text-xs text-subtle">Exercise</label>
               <select
                 value={selectedExercise}
                 onChange={(event) => setSelectedExercise(event.target.value)}
@@ -416,177 +417,178 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </Card>
+        </Card>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="card-surface p-6">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Consistency</h3>
-          <p className="mt-3 text-3xl font-semibold text-white">{sessionsPerWeek}</p>
-          <p className="text-xs text-slate-500">sessions per week</p>
-        </Card>
-        <Card className="card-surface p-6">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">PR Snapshot</h3>
-          <div className="mt-3 space-y-1 text-sm text-slate-300">
-            <p>Max weight: <span className="text-white">{prMetrics.maxWeight}</span></p>
-            <p>Best reps: <span className="text-white">{prMetrics.bestReps}</span></p>
-            <p>Best e1RM: <span className="text-white">{prMetrics.bestE1rm}</span></p>
-          </div>
-        </Card>
-        <Card className="card-surface p-6">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Total Sessions</h3>
-          <p className="mt-3 text-3xl font-semibold text-white">{filteredSessions.length}</p>
-          <p className="text-xs text-slate-500">in selected range</p>
-        </Card>
-      </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <Card className="p-6">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Consistency</h3>
+            <p className="mt-3 text-3xl font-semibold text-strong">{sessionsPerWeek}</p>
+            <p className="text-xs text-subtle">sessions per week</p>
+          </Card>
+          <Card className="p-6">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">PR Snapshot</h3>
+            <div className="mt-3 space-y-1 text-sm text-muted">
+              <p>Max weight: <span className="text-strong">{prMetrics.maxWeight}</span></p>
+              <p>Best reps: <span className="text-strong">{prMetrics.bestReps}</span></p>
+              <p>Best e1RM: <span className="text-strong">{prMetrics.bestE1rm}</span></p>
+            </div>
+          </Card>
+          <Card className="p-6">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Total Sessions</h3>
+            <p className="mt-3 text-3xl font-semibold text-strong">{filteredSessions.length}</p>
+            <p className="text-xs text-subtle">in selected range</p>
+          </Card>
+        </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="card-surface p-6">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Volume by week</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Card className="p-6">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Volume by week</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
               <LineChart data={volumeTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis dataKey="week" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1f2937', color: '#e2e8f0' }} />
-                <Line type="monotone" dataKey="volume" stroke="#6366f1" strokeWidth={2} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis dataKey="week" stroke="var(--color-text-subtle)" />
+                  <YAxis stroke="var(--color-text-subtle)" />
+                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Line type="monotone" dataKey="volume" stroke="var(--color-primary)" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        <Card className="card-surface p-6">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Effort trend</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <Card className="p-6">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Effort trend</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
               <LineChart data={effortTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis dataKey="day" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1f2937', color: '#e2e8f0' }} />
-                <Line type="monotone" dataKey="effort" stroke="#22c55e" strokeWidth={2} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
+                  <YAxis stroke="var(--color-text-subtle)" />
+                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Line type="monotone" dataKey="effort" stroke="var(--color-success)" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </Card>
-      </div>
+        </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="card-surface p-6">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">e1RM trend</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Card className="p-6">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">e1RM trend</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
               <LineChart data={exerciseTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis dataKey="day" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1f2937', color: '#e2e8f0' }} />
-                <Line type="monotone" dataKey="e1rm" stroke="#f59e0b" strokeWidth={2} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
+                  <YAxis stroke="var(--color-text-subtle)" />
+                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Line type="monotone" dataKey="e1rm" stroke="var(--color-warning)" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </div>
-          {selectedExercise === 'all' && (
-            <p className="mt-3 text-xs text-slate-500">Select an exercise to see e1RM trends.</p>
-          )}
-        </Card>
-        <Card className="card-surface p-6">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Muscle group volume</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={muscleBreakdown} dataKey="volume" nameKey="muscle" outerRadius={90}>
-                  {muscleBreakdown.map((entry, index) => (
-                    <Cell key={entry.muscle} fill={chartColors[index % chartColors.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1f2937', color: '#e2e8f0' }} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            {selectedExercise === 'all' && (
+              <p className="mt-3 text-xs text-subtle">Select an exercise to see e1RM trends.</p>
+            )}
+          </Card>
+          <Card className="p-6">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Muscle group volume</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={muscleBreakdown} dataKey="volume" nameKey="muscle" outerRadius={90}>
+                    {muscleBreakdown.map((entry, index) => (
+                      <Cell key={entry.muscle} fill={chartColors[index % chartColors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+
+        <Card>
+          <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4">
+            <div>
+              <h2 className="text-lg font-semibold text-strong">Previous Sessions</h2>
+              <p className="text-xs text-subtle">Review and adjust your most recent training logs.</p>
+            </div>
+            <span className="text-xs text-subtle">{filteredSessions.length} session(s)</span>
+          </div>
+          <div className="divide-y divide-[var(--color-border)]">
+            {filteredSessions.length === 0 ? (
+              <div className="p-6 text-sm text-muted">No sessions logged for this range yet.</div>
+            ) : (
+              filteredSessions.map((session) => {
+                const totals = sessionTotals(session)
+                const isExpanded = Boolean(expandedSessions[session.id])
+                return (
+                  <div key={session.id} className="space-y-4 p-6">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-strong">{session.name}</p>
+                        <p className="text-xs text-subtle">{formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                        <span className="badge-neutral px-3 py-1">{totals.exercises} exercises</span>
+                        <span className="badge-neutral px-3 py-1">{totals.sets} sets</span>
+                        <span className="badge-neutral px-3 py-1">{totals.reps} reps</span>
+                        <span className="badge-neutral px-3 py-1">{Math.round(totals.volume)} volume</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link href={`/sessions/${session.id}/edit`}>
+                          <Button variant="outline" className="h-8 px-3 text-xs">Edit</Button>
+                        </Link>
+                        <Button
+                          type="button"
+                          onClick={() => handleToggleSession(session.id)}
+                          className="h-8 px-3 text-xs"
+                          variant="secondary"
+                        >
+                          {isExpanded ? 'Hide details' : 'View details'}
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleDeleteSession(session.id)}
+                          className="h-8 px-3 text-xs border border-[var(--color-danger-border)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
+                          variant="outline"
+                          disabled={Boolean(deletingSessionIds[session.id])}
+                        >
+                          {deletingSessionIds[session.id] ? 'Deleting...' : 'Delete'}
+                        </Button>
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {session.session_exercises.map((exercise) => (
+                          <div key={exercise.id} className="surface-card-muted p-4 text-xs text-muted">
+                            <p className="text-sm font-semibold text-strong">{exercise.exercise_name}</p>
+                            <p className="text-subtle">Primary: {exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : '—'}</p>
+                            <p className="text-subtle">Secondary: {exercise.secondary_muscles?.length ? exercise.secondary_muscles.map((muscle) => toMuscleLabel(muscle)).join(', ') : '—'}</p>
+                            <div className="mt-3 space-y-1">
+                              {(exercise.sets ?? []).map((set) => (
+                                <div key={set.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--color-border)] px-2 py-1">
+                                  <span>Set {set.set_number ?? '—'}</span>
+                                  <span>
+                                    {set.weight ?? '—'} lb × {set.reps ?? '—'} reps
+                                    {typeof set.rpe === 'number' ? ` · RPE ${set.rpe}` : ''}
+                                    {typeof set.rir === 'number' ? ` · RIR ${set.rir}` : ''}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            )}
           </div>
         </Card>
       </div>
-
-      <Card className="card-surface">
-        <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
-          <div>
-            <h2 className="text-lg font-semibold text-white">Previous Sessions</h2>
-            <p className="text-xs text-slate-500">Review and adjust your most recent training logs.</p>
-          </div>
-          <span className="text-xs text-slate-400">{filteredSessions.length} session(s)</span>
-        </div>
-        <div className="divide-y divide-slate-800">
-          {filteredSessions.length === 0 ? (
-            <div className="p-6 text-sm text-slate-400">No sessions logged for this range yet.</div>
-          ) : (
-            filteredSessions.map((session) => {
-              const totals = sessionTotals(session)
-              const isExpanded = Boolean(expandedSessions[session.id])
-              return (
-                <div key={session.id} className="p-6 space-y-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-white">{session.name}</p>
-                      <p className="text-xs text-slate-500">{formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}</p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                      <span className="rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1">{totals.exercises} exercises</span>
-                      <span className="rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1">{totals.sets} sets</span>
-                      <span className="rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1">{totals.reps} reps</span>
-                      <span className="rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1">{Math.round(totals.volume)} volume</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link href={`/sessions/${session.id}/edit`}>
-                        <Button variant="outline" className="h-8 px-3 text-xs">Edit</Button>
-                      </Link>
-                      <Button
-                        type="button"
-                        onClick={() => handleToggleSession(session.id)}
-                        className="h-8 px-3 text-xs"
-                        variant="secondary"
-                      >
-                        {isExpanded ? 'Hide details' : 'View details'}
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => handleDeleteSession(session.id)}
-                        className="h-8 px-3 text-xs border border-rose-500/40 text-rose-200 hover:bg-rose-500/10"
-                        variant="outline"
-                        disabled={Boolean(deletingSessionIds[session.id])}
-                      >
-                        {deletingSessionIds[session.id] ? 'Deleting...' : 'Delete'}
-                      </Button>
-                    </div>
-                  </div>
-                  {isExpanded && (
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {session.session_exercises.map((exercise) => (
-                        <div key={exercise.id} className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 text-xs text-slate-300">
-                          <p className="text-sm font-semibold text-white">{exercise.exercise_name}</p>
-                          <p className="text-slate-500">Primary: {exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : '—'}</p>
-                          <p className="text-slate-500">Secondary: {exercise.secondary_muscles?.length ? exercise.secondary_muscles.map((muscle) => toMuscleLabel(muscle)).join(', ') : '—'}</p>
-                          <div className="mt-3 space-y-1">
-                            {(exercise.sets ?? []).map((set) => (
-                              <div key={set.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-800 px-2 py-1">
-                                <span>Set {set.set_number ?? '—'}</span>
-                                <span>
-                                  {set.weight ?? '—'} lb × {set.reps ?? '—'} reps
-                                  {typeof set.rpe === 'number' ? ` · RPE ${set.rpe}` : ''}
-                                  {typeof set.rir === 'number' ? ` · RIR ${set.rir}` : ''}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })
-          )}
-        </div>
-      </Card>
     </div>
   )
 }

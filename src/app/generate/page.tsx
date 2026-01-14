@@ -270,17 +270,17 @@ export default function GeneratePage() {
   const renderStepStatus = (stepComplete: boolean, stepAvailable: boolean) => {
     if (stepComplete) {
       return (
-        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-300">
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-accent">
           <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Complete
         </span>
       )
     }
 
     if (!stepAvailable) {
-      return <span className="text-xs font-semibold text-slate-500">Locked</span>
+      return <span className="text-xs font-semibold text-subtle">Locked</span>
     }
 
-    return <span className="text-xs font-semibold text-slate-400">In Progress</span>
+    return <span className="text-xs font-semibold text-muted">In Progress</span>
   }
 
   const daysAvailableLabel = formData.schedule.daysAvailable
@@ -312,7 +312,7 @@ export default function GeneratePage() {
   const statusContent = () => {
     if (loading) {
       return (
-        <div className="flex items-center gap-2 text-sm text-emerald-200">
+        <div className="flex items-center gap-2 text-sm text-accent">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
           Generating your workout plan...
         </div>
@@ -320,44 +320,45 @@ export default function GeneratePage() {
     }
 
     if (saveError) {
-      return <div className="text-sm text-rose-200">{saveError}</div>
+      return <div className="text-sm text-[var(--color-danger)]">{saveError}</div>
     }
 
     if (errors.length > 0) {
       return (
-        <div className="text-sm text-rose-200">
+        <div className="text-sm text-[var(--color-danger)]">
           Review the items below and resolve them before generating your plan.
         </div>
       )
     }
 
     if (!flowState.isFormValid) {
-      return <div className="text-sm text-slate-400">Complete the required steps to unlock generation.</div>
+      return <div className="text-sm text-muted">Complete the required steps to unlock generation.</div>
     }
 
-    return <div className="text-sm text-slate-300">Everything looks good. Generate your plan when ready.</div>
+    return <div className="text-sm text-muted">Everything looks good. Generate your plan when ready.</div>
   }
 
-  if (userLoading) return <div className="p-8 text-center text-slate-400">Loading...</div>
+  if (userLoading) return <div className="page-shell p-8 text-center text-muted">Loading...</div>
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
-      <div className="mb-8">
+    <div className="page-shell">
+      <div className="mb-8 px-4 pt-8 sm:px-6 lg:px-10 2xl:px-16">
         <button
           type="button"
           onClick={() => router.back()}
-          className="text-slate-400 hover:text-white flex items-center text-sm mb-4"
+          className="flex items-center text-sm text-muted transition-colors hover:text-strong"
         >
           <ChevronLeft className="w-4 h-4 mr-1" /> Back
         </button>
-        <h1 className="text-3xl font-bold text-white flex items-center">
-          <Wand2 className="w-8 h-8 mr-3 text-emerald-500" />
+        <h1 className="flex items-center text-3xl font-semibold text-strong">
+          <Wand2 className="mr-3 h-8 w-8 text-accent" />
           Generate Workout Plan
         </h1>
-        <p className="text-slate-400 mt-2">Answer each step to create a plan that matches your goals, schedule, and preferences.</p>
+        <p className="mt-2 text-muted">Answer each step to create a plan that matches your goals, schedule, and preferences.</p>
       </div>
 
-      <Card className="bg-slate-900 border-slate-800 p-6">
+      <div className="px-4 pb-10 sm:px-6 lg:px-10 2xl:px-16">
+        <Card className="p-6">
         <div className="space-y-6">
           <div className="space-y-4">
             <button
@@ -365,18 +366,18 @@ export default function GeneratePage() {
               onClick={() => stepAvailability.goal && setActiveStep('goal')}
               aria-expanded={activeStep === 'goal'}
               aria-controls="step-goal"
-              className="w-full flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-left"
+              className="flex w-full items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-left shadow-[var(--shadow-sm)]"
             >
               <div>
-                <p className="text-sm font-semibold text-white">Goal & Workout Type</p>
-                <p className="text-xs text-slate-400">Define your primary outcome and training background.</p>
+                <p className="text-sm font-semibold text-strong">Goal & Workout Type</p>
+                <p className="text-xs text-subtle">Define your primary outcome and training background.</p>
               </div>
               {renderStepStatus(completedSteps.goal && flowState.goalStepComplete, stepAvailability.goal)}
             </button>
             {activeStep === 'goal' && (
-              <div id="step-goal" className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
+              <div id="step-goal" className="surface-card-muted space-y-4 p-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-3">Primary Goal</label>
+                  <label className="mb-3 block text-sm font-medium text-strong">Primary Goal</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {(['strength', 'hypertrophy', 'endurance', 'general_fitness'] as Goal[]).map(opt => (
                       <button
@@ -390,8 +391,8 @@ export default function GeneratePage() {
                         }
                         className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all ${
                           formData.goals.primary === opt
-                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-200'
-                            : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500'
+                            ? 'bg-[var(--color-primary-soft)] border-[var(--color-primary-border)] text-[var(--color-primary-strong)]'
+                            : 'bg-[var(--color-surface)] border-[var(--color-border)] text-muted hover:border-[var(--color-border-strong)]'
                         }`}
                         aria-pressed={formData.goals.primary === opt}
                       >
@@ -402,7 +403,7 @@ export default function GeneratePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-3">Experience Level</label>
+                  <label className="mb-3 block text-sm font-medium text-strong">Experience Level</label>
                   <select
                     value={formData.experienceLevel}
                     onChange={(e) =>
@@ -442,21 +443,23 @@ export default function GeneratePage() {
               disabled={!stepAvailability.duration}
               aria-expanded={activeStep === 'duration'}
               aria-controls="step-duration"
-              className={`w-full flex items-center justify-between rounded-lg border px-4 py-3 text-left ${
-                stepAvailability.duration ? 'border-slate-800 bg-slate-950/60' : 'border-slate-900 bg-slate-950/20'
+              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left ${
+                stepAvailability.duration
+                  ? 'border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]'
+                  : 'border-[var(--color-border)] bg-[var(--color-surface-subtle)]'
               }`}
             >
               <div>
-                <p className="text-sm font-semibold text-white">Duration & Intensity</p>
-                <p className="text-xs text-slate-400">Choose session length, intensity, and days available.</p>
+                <p className="text-sm font-semibold text-strong">Duration & Intensity</p>
+                <p className="text-xs text-subtle">Choose session length, intensity, and days available.</p>
               </div>
               {renderStepStatus(completedSteps.duration && flowState.durationStepComplete, stepAvailability.duration)}
             </button>
             {activeStep === 'duration' && (
-              <div id="step-duration" className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
+              <div id="step-duration" className="surface-card-muted space-y-4 p-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Minutes per Session</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Minutes per Session</label>
                     <input
                       type="number"
                       min={20}
@@ -471,11 +474,11 @@ export default function GeneratePage() {
                       className="input-base"
                     />
                     {invalidMinutes && (
-                      <p className="mt-2 text-xs text-rose-200">Enter 20 to 120 minutes per session.</p>
+                      <p className="mt-2 text-xs text-[var(--color-danger)]">Enter 20 to 120 minutes per session.</p>
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Intensity</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Intensity</label>
                     <select
                       value={formData.intensity}
                       onChange={(e) =>
@@ -495,7 +498,7 @@ export default function GeneratePage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Total Minutes per Week (Optional)</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Total Minutes per Week (Optional)</label>
                     <input
                       type="number"
                       min={40}
@@ -514,14 +517,14 @@ export default function GeneratePage() {
                       className="input-base"
                     />
                     {invalidTotalMinutes && (
-                      <p className="mt-2 text-xs text-rose-200">Keep totals between 40 and 480 minutes.</p>
+                      <p className="mt-2 text-xs text-[var(--color-danger)]">Keep totals between 40 and 480 minutes.</p>
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Days Available</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Days Available</label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {dayLabels.map((label, index) => (
-                        <label key={label} className="flex items-center gap-2 text-sm text-slate-300">
+                        <label key={label} className="flex items-center gap-2 text-sm text-muted">
                           <input
                             type="checkbox"
                             checked={formData.schedule.daysAvailable.includes(index)}
@@ -534,14 +537,14 @@ export default function GeneratePage() {
                                 }
                               }))
                             }
-                            className="accent-emerald-500"
+                            className="accent-[var(--color-primary)]"
                           />
                           {label}
                         </label>
                       ))}
                     </div>
                     {invalidDays && (
-                      <p className="mt-2 text-xs text-rose-200">Select at least one training day.</p>
+                      <p className="mt-2 text-xs text-[var(--color-danger)]">Select at least one training day.</p>
                     )}
                   </div>
                 </div>
@@ -569,20 +572,22 @@ export default function GeneratePage() {
               disabled={!stepAvailability.equipment}
               aria-expanded={activeStep === 'equipment'}
               aria-controls="step-equipment"
-              className={`w-full flex items-center justify-between rounded-lg border px-4 py-3 text-left ${
-                stepAvailability.equipment ? 'border-slate-800 bg-slate-950/60' : 'border-slate-900 bg-slate-950/20'
+              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left ${
+                stepAvailability.equipment
+                  ? 'border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]'
+                  : 'border-[var(--color-border)] bg-[var(--color-surface-subtle)]'
               }`}
             >
               <div>
-                <p className="text-sm font-semibold text-white">Equipment</p>
-                <p className="text-xs text-slate-400">Select what you have available.</p>
+                <p className="text-sm font-semibold text-strong">Equipment</p>
+                <p className="text-xs text-subtle">Select what you have available.</p>
               </div>
               {renderStepStatus(completedSteps.equipment && flowState.equipmentStepComplete, stepAvailability.equipment)}
             </button>
             {activeStep === 'equipment' && (
-              <div id="step-equipment" className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
+              <div id="step-equipment" className="surface-card-muted space-y-4 p-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-3">Equipment Preset</label>
+                  <label className="mb-3 block text-sm font-medium text-strong">Equipment Preset</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {([
                       { key: 'home_minimal', label: 'Home Minimal' },
@@ -596,8 +601,8 @@ export default function GeneratePage() {
                         onClick={() => handlePresetChange(preset.key)}
                         className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all ${
                           formData.equipment.preset === preset.key
-                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-200'
-                            : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500'
+                            ? 'bg-[var(--color-primary-soft)] border-[var(--color-primary-border)] text-[var(--color-primary-strong)]'
+                            : 'bg-[var(--color-surface)] border-[var(--color-border)] text-muted hover:border-[var(--color-border-strong)]'
                         }`}
                         aria-pressed={formData.equipment.preset === preset.key}
                       >
@@ -609,7 +614,7 @@ export default function GeneratePage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Dumbbell Weights (lb)</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Dumbbell Weights (lb)</label>
                     <input
                       type="text"
                       value={formatWeightList(inventory.dumbbells)}
@@ -619,7 +624,7 @@ export default function GeneratePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Kettlebell Weights (lb)</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Kettlebell Weights (lb)</label>
                     <input
                       type="text"
                       value={formatWeightList(inventory.kettlebells)}
@@ -632,10 +637,10 @@ export default function GeneratePage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Bands (Resistance Levels)</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Bands (Resistance Levels)</label>
                     <div className="flex flex-wrap gap-3">
                       {(['light', 'medium', 'heavy'] as BandResistance[]).map(level => (
-                        <label key={level} className="flex items-center gap-2 text-sm text-slate-300">
+                        <label key={level} className="flex items-center gap-2 text-sm text-muted">
                           <input
                             type="checkbox"
                             checked={inventory.bands.includes(level)}
@@ -652,7 +657,7 @@ export default function GeneratePage() {
                                 }
                               }))
                             }
-                            className="accent-emerald-500"
+                            className="accent-[var(--color-primary)]"
                           />
                           {bandLabels[level]}
                         </label>
@@ -660,8 +665,8 @@ export default function GeneratePage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Barbell + Plates</label>
-                    <label className="flex items-center gap-2 text-sm text-slate-300 mb-2">
+                    <label className="mb-2 block text-sm font-medium text-strong">Barbell + Plates</label>
+                    <label className="mb-2 flex items-center gap-2 text-sm text-muted">
                       <input
                         type="checkbox"
                         checked={inventory.barbell.available}
@@ -681,7 +686,7 @@ export default function GeneratePage() {
                             }
                           }))
                         }
-                        className="accent-emerald-500"
+                        className="accent-[var(--color-primary)]"
                       />
                       Barbell available
                     </label>
@@ -697,10 +702,10 @@ export default function GeneratePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Machine Availability</label>
+                  <label className="mb-2 block text-sm font-medium text-strong">Machine Availability</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {(Object.keys(machineLabels) as MachineType[]).map(machine => (
-                      <label key={machine} className="flex items-center gap-2 text-sm text-slate-300">
+                      <label key={machine} className="flex items-center gap-2 text-sm text-muted">
                         <input
                           type="checkbox"
                           checked={inventory.machines[machine]}
@@ -720,7 +725,7 @@ export default function GeneratePage() {
                               }
                             }))
                           }
-                          className="accent-emerald-500"
+                          className="accent-[var(--color-primary)]"
                         />
                         {machineLabels[machine]}
                       </label>
@@ -728,7 +733,7 @@ export default function GeneratePage() {
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2 text-sm text-slate-300">
+                <label className="flex items-center gap-2 text-sm text-muted">
                   <input
                     type="checkbox"
                     checked={inventory.bodyweight}
@@ -745,13 +750,13 @@ export default function GeneratePage() {
                         }
                       }))
                     }
-                    className="accent-emerald-500"
+                    className="accent-[var(--color-primary)]"
                   />
                   Bodyweight movements available
                 </label>
 
                 {invalidEquipment && (
-                  <p className="text-xs text-rose-200">Choose at least one equipment option.</p>
+                  <p className="text-xs text-[var(--color-danger)]">Choose at least one equipment option.</p>
                 )}
 
                 <div className="flex justify-end">
@@ -777,21 +782,23 @@ export default function GeneratePage() {
               disabled={!stepAvailability.preferences}
               aria-expanded={activeStep === 'preferences'}
               aria-controls="step-preferences"
-              className={`w-full flex items-center justify-between rounded-lg border px-4 py-3 text-left ${
-                stepAvailability.preferences ? 'border-slate-800 bg-slate-950/60' : 'border-slate-900 bg-slate-950/20'
+              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left ${
+                stepAvailability.preferences
+                  ? 'border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]'
+                  : 'border-[var(--color-border)] bg-[var(--color-surface-subtle)]'
               }`}
             >
               <div>
-                <p className="text-sm font-semibold text-white">Preferences & Constraints</p>
-                <p className="text-xs text-slate-400">Fine-tune focus areas and recovery details.</p>
+                <p className="text-sm font-semibold text-strong">Preferences & Constraints</p>
+                <p className="text-xs text-subtle">Fine-tune focus areas and recovery details.</p>
               </div>
               {renderStepStatus(completedSteps.preferences && flowState.preferencesStepComplete, stepAvailability.preferences)}
             </button>
             {activeStep === 'preferences' && (
-              <div id="step-preferences" className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
+              <div id="step-preferences" className="surface-card-muted space-y-4 p-4">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Secondary Goal</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Secondary Goal</label>
                     <select
                       value={formData.goals.secondary ?? ''}
                       onChange={(e) =>
@@ -811,7 +818,7 @@ export default function GeneratePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Goal Priority</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Goal Priority</label>
                     <select
                       value={formData.goals.priority}
                       onChange={(e) =>
@@ -829,10 +836,10 @@ export default function GeneratePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Time Windows</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Time Windows</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {(['morning', 'afternoon', 'evening'] as PlanInput['schedule']['timeWindows']).map(opt => (
-                        <label key={opt} className="flex items-center gap-2 text-sm text-slate-300">
+                        <label key={opt} className="flex items-center gap-2 text-sm text-muted">
                           <input
                             type="checkbox"
                             checked={formData.schedule.timeWindows.includes(opt)}
@@ -845,7 +852,7 @@ export default function GeneratePage() {
                                 }
                               }))
                             }
-                            className="accent-emerald-500"
+                            className="accent-[var(--color-primary)]"
                           />
                           {opt.replace(/\b\w/g, char => char.toUpperCase())}
                         </label>
@@ -855,7 +862,7 @@ export default function GeneratePage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Minimum Rest Days</label>
+                      <label className="mb-2 block text-sm font-medium text-strong">Minimum Rest Days</label>
                       <input
                         type="number"
                         min={0}
@@ -871,7 +878,7 @@ export default function GeneratePage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Recovery Preference</label>
+                      <label className="mb-2 block text-sm font-medium text-strong">Recovery Preference</label>
                       <select
                         value={formData.preferences.restPreference}
                         onChange={(e) =>
@@ -890,10 +897,10 @@ export default function GeneratePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Focus Areas</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Focus Areas</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {(['upper', 'lower', 'full_body', 'core', 'cardio', 'mobility'] as PlanInput['preferences']['focusAreas']).map(opt => (
-                        <label key={opt} className="flex items-center gap-2 text-sm text-slate-300">
+                        <label key={opt} className="flex items-center gap-2 text-sm text-muted">
                           <input
                             type="checkbox"
                             checked={formData.preferences.focusAreas.includes(opt)}
@@ -906,7 +913,7 @@ export default function GeneratePage() {
                                 }
                               }))
                             }
-                            className="accent-emerald-500"
+                            className="accent-[var(--color-primary)]"
                           />
                           {opt.replace('_', ' ').replace(/\b\w/g, char => char.toUpperCase())}
                         </label>
@@ -915,7 +922,7 @@ export default function GeneratePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Disliked Activities</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Disliked Activities</label>
                     <input
                       type="text"
                       value={formData.preferences.dislikedActivities.join(', ')}
@@ -936,10 +943,10 @@ export default function GeneratePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Accessibility Constraints</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Accessibility Constraints</label>
                     <div className="flex flex-wrap gap-3">
                       {['low-impact', 'joint-friendly', 'no-floor-work'].map(opt => (
-                        <label key={opt} className="flex items-center gap-2 text-sm text-slate-300">
+                        <label key={opt} className="flex items-center gap-2 text-sm text-muted">
                           <input
                             type="checkbox"
                             checked={formData.preferences.accessibilityConstraints.includes(opt)}
@@ -952,7 +959,7 @@ export default function GeneratePage() {
                                 }
                               }))
                             }
-                            className="accent-emerald-500"
+                            className="accent-[var(--color-primary)]"
                           />
                           {opt.replace(/\b\w/g, char => char.toUpperCase())}
                         </label>
@@ -984,92 +991,94 @@ export default function GeneratePage() {
               disabled={!stepAvailability.review}
               aria-expanded={activeStep === 'review'}
               aria-controls="step-review"
-              className={`w-full flex items-center justify-between rounded-lg border px-4 py-3 text-left ${
-                stepAvailability.review ? 'border-slate-800 bg-slate-950/60' : 'border-slate-900 bg-slate-950/20'
+              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left ${
+                stepAvailability.review
+                  ? 'border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]'
+                  : 'border-[var(--color-border)] bg-[var(--color-surface-subtle)]'
               }`}
             >
               <div>
-                <p className="text-sm font-semibold text-white">Review & Generate</p>
-                <p className="text-xs text-slate-400">Confirm selections before generating.</p>
+                <p className="text-sm font-semibold text-strong">Review & Generate</p>
+                <p className="text-xs text-subtle">Confirm selections before generating.</p>
               </div>
               {renderStepStatus(completedSteps.review && flowState.reviewStepComplete, stepAvailability.review)}
             </button>
             {activeStep === 'review' && (
-              <div id="step-review" className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-4">
-                <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-                  <h3 className="text-sm font-semibold text-white mb-3">Selection Summary</h3>
+              <div id="step-review" className="surface-card-muted space-y-4 p-4">
+                <div className="surface-card-subtle p-4">
+                  <h3 className="mb-3 text-sm font-semibold text-strong">Selection Summary</h3>
                   <dl className="grid gap-3 text-sm sm:grid-cols-2">
                     <div>
-                      <dt className="text-slate-400">Primary Goal</dt>
-                      <dd className="text-white capitalize">{formData.goals.primary.replace('_', ' ')}</dd>
+                      <dt className="text-subtle">Primary Goal</dt>
+                      <dd className="text-strong capitalize">{formData.goals.primary.replace('_', ' ')}</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Experience Level</dt>
-                      <dd className="text-white capitalize">{formData.experienceLevel}</dd>
+                      <dt className="text-subtle">Experience Level</dt>
+                      <dd className="text-strong capitalize">{formData.experienceLevel}</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Intensity</dt>
-                      <dd className="text-white capitalize">{formData.intensity}</dd>
+                      <dt className="text-subtle">Intensity</dt>
+                      <dd className="text-strong capitalize">{formData.intensity}</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Minutes per Session</dt>
-                      <dd className="text-white">{formData.time.minutesPerSession} min</dd>
+                      <dt className="text-subtle">Minutes per Session</dt>
+                      <dd className="text-strong">{formData.time.minutesPerSession} min</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Total Minutes per Week</dt>
-                      <dd className="text-white">{formData.time.totalMinutesPerWeek ?? 'Not set'}</dd>
+                      <dt className="text-subtle">Total Minutes per Week</dt>
+                      <dd className="text-strong">{formData.time.totalMinutesPerWeek ?? 'Not set'}</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Days Available</dt>
-                      <dd className="text-white">{daysAvailableLabel || 'Not selected'}</dd>
+                      <dt className="text-subtle">Days Available</dt>
+                      <dd className="text-strong">{daysAvailableLabel || 'Not selected'}</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Equipment</dt>
-                      <dd className="text-white">{equipmentSummary.length ? equipmentSummary.join(', ') : 'Not set'}</dd>
+                      <dt className="text-subtle">Equipment</dt>
+                      <dd className="text-strong">{equipmentSummary.length ? equipmentSummary.join(', ') : 'Not set'}</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Secondary Goal</dt>
-                      <dd className="text-white">{formData.goals.secondary?.replace('_', ' ') ?? 'None'}</dd>
+                      <dt className="text-subtle">Secondary Goal</dt>
+                      <dd className="text-strong">{formData.goals.secondary?.replace('_', ' ') ?? 'None'}</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Goal Priority</dt>
-                      <dd className="text-white capitalize">{formData.goals.priority.replace('_', ' ')}</dd>
+                      <dt className="text-subtle">Goal Priority</dt>
+                      <dd className="text-strong capitalize">{formData.goals.priority.replace('_', ' ')}</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Time Windows</dt>
-                      <dd className="text-white">
+                      <dt className="text-subtle">Time Windows</dt>
+                      <dd className="text-strong">
                         {formData.schedule.timeWindows.length
                           ? formData.schedule.timeWindows.map(item => item.replace('_', ' ')).join(', ')
                           : 'Not set'}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Minimum Rest Days</dt>
-                      <dd className="text-white">{formData.schedule.minRestDays}</dd>
+                      <dt className="text-subtle">Minimum Rest Days</dt>
+                      <dd className="text-strong">{formData.schedule.minRestDays}</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Recovery Preference</dt>
-                      <dd className="text-white capitalize">{formData.preferences.restPreference.replace('_', ' ')}</dd>
+                      <dt className="text-subtle">Recovery Preference</dt>
+                      <dd className="text-strong capitalize">{formData.preferences.restPreference.replace('_', ' ')}</dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Focus Areas</dt>
-                      <dd className="text-white">
+                      <dt className="text-subtle">Focus Areas</dt>
+                      <dd className="text-strong">
                         {formData.preferences.focusAreas.length
                           ? formData.preferences.focusAreas.map(item => item.replace('_', ' ')).join(', ')
                           : 'Not set'}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Disliked Activities</dt>
-                      <dd className="text-white">
+                      <dt className="text-subtle">Disliked Activities</dt>
+                      <dd className="text-strong">
                         {formData.preferences.dislikedActivities.length
                           ? formData.preferences.dislikedActivities.join(', ')
                           : 'Not set'}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-slate-400">Accessibility Constraints</dt>
-                      <dd className="text-white">
+                      <dt className="text-subtle">Accessibility Constraints</dt>
+                      <dd className="text-strong">
                         {formData.preferences.accessibilityConstraints.length
                           ? formData.preferences.accessibilityConstraints.join(', ')
                           : 'Not set'}
@@ -1078,10 +1087,10 @@ export default function GeneratePage() {
                   </dl>
                 </div>
 
-                <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4" aria-live="polite">
+                <div className="surface-card-subtle p-4" aria-live="polite">
                   {statusContent()}
                   {errors.length > 0 && (
-                    <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-rose-200">
+                    <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-[var(--color-danger)]">
                       {errors.map(error => (
                         <li key={error}>{error}</li>
                       ))}
@@ -1115,18 +1124,18 @@ export default function GeneratePage() {
         </div>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800 p-6 mt-8">
+      <Card className="mt-8 p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-white">Saved Workouts</h2>
-            <p className="text-xs text-slate-400">Quickly reload or open a recently generated plan.</p>
+            <h2 className="text-lg font-semibold text-strong">Saved Workouts</h2>
+            <p className="text-xs text-subtle">Quickly reload or open a recently generated plan.</p>
           </div>
         </div>
 
-        {historyError && <p className="text-sm text-rose-200 mb-3">{historyError}</p>}
+        {historyError && <p className="mb-3 text-sm text-[var(--color-danger)]">{historyError}</p>}
 
         {historyEntries.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-700 p-6 text-sm text-slate-400">
+          <div className="rounded-lg border border-dashed border-[var(--color-border)] p-6 text-sm text-muted">
             No saved workouts yet. Generate a plan to start building your history.
           </div>
         ) : (
@@ -1134,14 +1143,14 @@ export default function GeneratePage() {
             {historyEntries.map(entry => (
               <div
                 key={entry.id}
-                className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                className="surface-card-muted flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
-                  <p className="text-sm font-semibold text-white">{entry.title}</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-sm font-semibold text-strong">{entry.title}</p>
+                  <p className="text-xs text-subtle">
                     {new Date(entry.createdAt).toLocaleString()} · Score {entry.plan.summary.impact.score}
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="mt-1 text-xs text-subtle">
                     {entry.plan.summary.sessionsPerWeek} sessions · {entry.plan.summary.totalMinutes} min · Focus on{' '}
                     {entry.plan.goal.replace('_', ' ')}
                   </p>
@@ -1158,7 +1167,8 @@ export default function GeneratePage() {
                     <Button
                       type="button"
                       onClick={() => router.push(`/workout/${entry.remoteId}`)}
-                      className="px-3 py-2 text-xs bg-slate-700 hover:bg-slate-600"
+                      className="px-3 py-2 text-xs"
+                      variant="secondary"
                     >
                       Quick View
                     </Button>
@@ -1166,7 +1176,7 @@ export default function GeneratePage() {
                   <Button
                     type="button"
                     onClick={() => handleHistoryDelete(entry)}
-                    className="px-3 py-2 text-xs border border-rose-500/40 text-rose-200 hover:bg-rose-500/10"
+                    className="px-3 py-2 text-xs border border-[var(--color-danger-border)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
                     variant="outline"
                     disabled={Boolean(deletingHistoryIds[entry.id])}
                   >
@@ -1178,6 +1188,7 @@ export default function GeneratePage() {
           </div>
         )}
       </Card>
+    </div>
     </div>
   )
 }

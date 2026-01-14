@@ -6,20 +6,18 @@ interface ExerciseCardProps {
 
 export default function ExerciseCard({ exercise }: ExerciseCardProps) {
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-2">
-        <h4 className="font-semibold text-lg text-gray-900">{exercise.name}</h4>
-        <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full font-medium">
-          {exercise.primaryMuscle}
-        </span>
+    <div className="surface-card p-4 transition-shadow hover:shadow-md">
+      <div className="mb-2 flex items-start justify-between">
+        <h4 className="text-lg font-semibold text-strong">{exercise.name}</h4>
+        <span className="badge-accent">{exercise.primaryMuscle}</span>
       </div>
-      
-      <div className="text-sm text-gray-600 space-y-1">
+
+      <div className="space-y-1 text-sm text-muted">
         {exercise.sets && exercise.reps && (
            <p>Target: {exercise.sets} sets × {exercise.reps} reps</p>
         )}
         {exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-subtle">
             Also works: {exercise.secondaryMuscles.join(", ")}
           </p>
         )}
