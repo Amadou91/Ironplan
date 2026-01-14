@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { generatePlan, normalizePlanInput } from '@/lib/generator'
 import { bandLabels, cloneInventory, equipmentPresets, formatWeightList, machineLabels, parseWeightList } from '@/lib/equipment'
-import { buildWorkoutHistoryEntry, loadWorkoutHistory, saveWorkoutHistoryEntry } from '@/lib/workoutHistory'
+import { buildWorkoutHistoryEntry, loadWorkoutHistory, removeWorkoutHistoryEntry, saveWorkoutHistoryEntry } from '@/lib/workoutHistory'
 import { getFlowCompletion, isDaysAvailableValid, isEquipmentValid, isMinutesPerSessionValid, isTotalMinutesPerWeekValid } from '@/lib/generationFlow'
 import { logEvent } from '@/lib/logger'
 import type { BandResistance, EquipmentPreset, Goal, MachineType, PlanInput } from '@/types/domain'
@@ -34,6 +34,7 @@ export default function GeneratePage() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [historyEntries, setHistoryEntries] = useState<ReturnType<typeof loadWorkoutHistory>>([])
+  const [deletingHistoryIds, setDeletingHistoryIds] = useState<Record<string, boolean>>({})
   const [activeStep, setActiveStep] = useState<StepId>('goal')
 
   const [formData, setFormData] = useState<PlanInput>(() =>
@@ -141,6 +142,37 @@ export default function GeneratePage() {
       review: true
     })
     setActiveStep('review')
+  }
+
+  const handleHistoryDelete = async (entry: (typeof historyEntries)[number]) => {
+    if (!confirm(`Delete "${entry.title}" from your saved workouts? This cannot be undone.`)) return
+    if (!user) return
+    setHistoryError(null)
+    setDeletingHistoryIds(prev => ({ ...prev, [entry.id]: true }))
+
+    try {
+      if (entry.remoteId) {
+        const { error } = await supabase
+          .from('workouts')
+          .delete()
+          .eq('id', entry.remoteId)
+          .eq('user_id', user.id)
+
+        if (error) {
+          throw error
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        removeWorkoutHistoryEntry(entry.id, window.localStorage)
+      }
+      setHistoryEntries((prev) => prev.filter(item => item.id !== entry.id))
+    } catch (error) {
+      console.error('Failed to delete workout history entry', error)
+      setHistoryError('Unable to delete saved workout. Please try again.')
+    } finally {
+      setDeletingHistoryIds(prev => ({ ...prev, [entry.id]: false }))
+    }
   }
 
   useEffect(() => {
@@ -1131,6 +1163,15 @@ export default function GeneratePage() {
                       Quick View
                     </Button>
                   ) : null}
+                  <Button
+                    type="button"
+                    onClick={() => handleHistoryDelete(entry)}
+                    className="px-3 py-2 text-xs border border-rose-500/40 text-rose-200 hover:bg-rose-500/10"
+                    variant="outline"
+                    disabled={Boolean(deletingHistoryIds[entry.id])}
+                  >
+                    {deletingHistoryIds[entry.id] ? 'Deleting...' : 'Delete'}
+                  </Button>
                 </div>
               </div>
             ))}

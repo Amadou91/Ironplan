@@ -92,6 +92,7 @@ export default function DashboardPage() {
   const [endDate, setEndDate] = useState('')
   const [selectedMuscle, setSelectedMuscle] = useState('all')
   const [selectedExercise, setSelectedExercise] = useState('all')
+  const [deletingSessionIds, setDeletingSessionIds] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (userLoading) return
@@ -135,6 +136,28 @@ export default function DashboardPage() {
 
     loadSessions()
   }, [supabase, user, userLoading])
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!user) return
+    if (!confirm('Delete this session and all of its logged sets? This cannot be undone.')) return
+    setError(null)
+    setDeletingSessionIds(prev => ({ ...prev, [sessionId]: true }))
+
+    const { error: deleteError } = await supabase
+      .from('sessions')
+      .delete()
+      .eq('id', sessionId)
+      .eq('user_id', user.id)
+
+    if (deleteError) {
+      console.error('Failed to delete session', deleteError)
+      setError('Unable to delete session. Please try again.')
+    } else {
+      setSessions(prev => prev.filter(session => session.id !== sessionId))
+    }
+
+    setDeletingSessionIds(prev => ({ ...prev, [sessionId]: false }))
+  }
 
   const muscleOptions = useMemo(() => {
     const muscles = new Set<string>()
@@ -473,8 +496,17 @@ export default function DashboardPage() {
                     <p className="text-sm font-semibold text-white">{session.name}</p>
                     <p className="text-xs text-slate-500">{formatDate(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}</p>
                   </div>
-                  <div className="text-xs text-slate-400">
-                    {session.session_exercises.length} exercise(s)
+                  <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <span>{session.session_exercises.length} exercise(s)</span>
+                    <Button
+                      type="button"
+                      onClick={() => handleDeleteSession(session.id)}
+                      className="h-8 px-3 text-xs border border-rose-500/40 text-rose-200 hover:bg-rose-500/10"
+                      variant="outline"
+                      disabled={Boolean(deletingSessionIds[session.id])}
+                    >
+                      {deletingSessionIds[session.id] ? 'Deleting...' : 'Delete'}
+                    </Button>
                   </div>
                 </div>
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
