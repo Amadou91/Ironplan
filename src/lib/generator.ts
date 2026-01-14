@@ -13,6 +13,7 @@ import type {
   WorkoutImpact
 } from '@/types/domain'
 import { equipmentPresets, hasEquipment } from './equipment'
+import { computeExerciseMetrics } from '@/lib/workout-metrics'
 
 const DEFAULT_INPUT: PlanInput = {
   goals: {
@@ -679,29 +680,20 @@ const buildFocusDistribution = (schedule: PlanDay[]) => schedule.reduce<Record<F
   mobility: 0
 })
 
-const parseReps = (reps: string | number) => {
-  if (typeof reps === 'number') return reps
-  const matches = reps.match(/\d+/g)?.map(Number) ?? []
-  if (matches.length === 0) return 10
-  if (matches.length === 1) return matches[0]
-  return Math.round(matches.reduce((sum, value) => sum + value, 0) / matches.length)
-}
-
 export const calculateExerciseImpact = (exercises: Exercise[]): WorkoutImpact => {
   const totals = exercises.reduce(
     (acc, exercise) => {
-      const repsValue = parseReps(exercise.reps)
-      const loadValue = exercise.load?.value ?? 10
-      acc.volume += exercise.sets * repsValue * (loadValue / 10)
-      acc.intensity += exercise.rpe * exercise.sets
-      acc.density += Math.max(1, Math.round(exercise.durationMinutes / 5))
+      const metrics = computeExerciseMetrics(exercise)
+      acc.volume += metrics.volume ?? 0
+      acc.intensity += metrics.intensity ?? 0
+      acc.density += metrics.density ?? 0
       return acc
     },
     { volume: 0, intensity: 0, density: 0 }
   )
 
-  const volumeScore = Math.round(totals.volume / 10)
-  const intensityScore = Math.round(totals.intensity / 5)
+  const volumeScore = Math.round(totals.volume)
+  const intensityScore = Math.round(totals.intensity)
   const densityScore = Math.round(totals.density)
 
   return {
