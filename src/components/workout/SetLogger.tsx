@@ -27,14 +27,14 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, onUpdate, onDelete, o
   const rirEquivalence = RIR_OPTIONS.find((option) => option.value === set.rir)?.equivalence;
 
   return (
-    <div className={`flex flex-col gap-3 mb-2 p-4 rounded-xl border transition-colors ${set.completed ? 'border-emerald-500/20 bg-emerald-500/10' : 'border-slate-800 bg-slate-950/60'}`}>
+    <div className={`flex flex-col gap-3 mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
       <div className="flex items-center gap-2">
-        <div className="w-8 font-semibold text-slate-400 text-center">{set.setNumber}</div>
-        <div className="text-[10px] text-slate-500 uppercase tracking-wider">{timeLabel}</div>
+        <div className="w-8 text-center font-semibold text-muted">{set.setNumber}</div>
+        <div className="text-[10px] uppercase tracking-wider text-subtle">{timeLabel}</div>
         <button
           type="button"
           onClick={() => setIsEditing((prev) => !prev)}
-          className="ml-auto flex items-center gap-1 rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 hover:text-indigo-300"
+          className="ml-auto flex items-center gap-1 rounded-full border border-[var(--color-border)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-subtle transition-colors hover:text-accent"
         >
           <Pencil size={12} />
           Edit
@@ -43,7 +43,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, onUpdate, onDelete, o
 
       <div className="grid grid-cols-4 gap-2">
         <div className="flex flex-col">
-          <label className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider mb-1 text-center">lbs</label>
+          <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">lbs</label>
           <input
             type="number"
             placeholder="0"
@@ -56,7 +56,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, onUpdate, onDelete, o
         </div>
 
         <div className="flex flex-col">
-          <label className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider mb-1 text-center">Reps</label>
+          <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Reps</label>
           <input
             type="number"
             placeholder="0"
@@ -69,7 +69,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, onUpdate, onDelete, o
         </div>
 
         <div className="flex flex-col">
-          <label className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider mb-1 text-center">RPE</label>
+          <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">RPE</label>
           <select
             value={rpeValue}
             onChange={(event) => {
@@ -89,12 +89,12 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, onUpdate, onDelete, o
               </option>
             ))}
           </select>
-          <p className="mt-1 text-[10px] text-slate-500">{RPE_HELPER_TEXT}</p>
-          {rpeEquivalence ? <p className="text-[10px] text-indigo-300/80">{rpeEquivalence}</p> : null}
+          <p className="mt-1 text-[10px] text-subtle">{RPE_HELPER_TEXT}</p>
+          {rpeEquivalence ? <p className="text-[10px] text-accent">{rpeEquivalence}</p> : null}
         </div>
 
         <div className="flex flex-col">
-          <label className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider mb-1 text-center">RIR</label>
+          <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">RIR</label>
           <select
             value={rirValue}
             onChange={(event) => {
@@ -114,15 +114,15 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, onUpdate, onDelete, o
               </option>
             ))}
           </select>
-          <p className="mt-1 text-[10px] text-slate-500">{RIR_HELPER_TEXT}</p>
-          {rirEquivalence ? <p className="text-[10px] text-indigo-300/80">{rirEquivalence}</p> : null}
+          <p className="mt-1 text-[10px] text-subtle">{RIR_HELPER_TEXT}</p>
+          {rirEquivalence ? <p className="text-[10px] text-accent">{rirEquivalence}</p> : null}
         </div>
       </div>
-      <p className="text-[10px] text-slate-500">{INTENSITY_RECOMMENDATION}</p>
+      <p className="text-[10px] text-subtle">{INTENSITY_RECOMMENDATION}</p>
 
       <div className="flex items-center gap-2">
         <div className="flex-1">
-          <label className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider mb-1 text-left">Notes</label>
+          <label className="mb-1 text-left text-[10px] font-semibold uppercase tracking-wider text-subtle">Notes</label>
           <input
             type="text"
             placeholder="Optional notes"
@@ -134,14 +134,14 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, onUpdate, onDelete, o
         </div>
         <button
           onClick={onToggleComplete}
-          className={`p-2 rounded-full transition-colors ${set.completed ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-slate-500 hover:bg-slate-800'}`}
+          className={`rounded-full p-2 transition-colors ${set.completed ? 'text-[var(--color-primary-strong)] hover:bg-[var(--color-primary-soft)]' : 'text-subtle hover:bg-[var(--color-surface-muted)]'}`}
         >
           {set.completed ? <CheckCircle size={20} /> : <Circle size={20} />}
         </button>
 
         <button
           onClick={onDelete}
-          className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-full transition-colors"
+          className="rounded-full p-2 text-subtle transition-colors hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
         >
           <Trash2 size={16} />
         </button>

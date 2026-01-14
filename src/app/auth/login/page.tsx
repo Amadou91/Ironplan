@@ -60,20 +60,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
+    <div className="page-shell flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20">
-            <Dumbbell className="h-8 w-8 text-emerald-500" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]">
+            <Dumbbell className="h-8 w-8 text-accent" />
           </div>
-          <h2 className="mt-6 text-3xl font-bold tracking-tight text-white">Ironplan</h2>
-          <p className="mt-2 text-sm text-slate-400">Log in to your account</p>
+          <h2 className="mt-6 text-3xl font-semibold tracking-tight text-strong">Ironplan</h2>
+          <p className="mt-2 text-sm text-muted">Log in to your account</p>
         </div>
 
-        <Card className="p-8 bg-slate-900 border-slate-800">
+        <Card className="p-8">
           <form className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300">
+              <label htmlFor="email" className="block text-sm font-medium text-strong">
                 Email address
               </label>
               <div className="mt-1">
@@ -91,7 +91,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300">
+              <label htmlFor="password" className="block text-sm font-medium text-strong">
                 Password
               </label>
               <div className="mt-1">
@@ -109,7 +109,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="text-red-400 text-sm text-center bg-red-900/20 p-2 rounded">
+              <div className="alert-error p-2 text-center text-sm">
                 {error}
               </div>
             )}
