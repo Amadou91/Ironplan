@@ -320,8 +320,10 @@ export default function SessionEditPage() {
         <p className="mb-4">Session not found.</p>
         <Button onClick={() => router.push('/dashboard')}>Back to Dashboard</Button>
       </div>
-    )
-  }
+    </div>
+    </div>
+  )
+}
 
   return (
     <div className="page-shell">
@@ -507,6 +509,7 @@ export default function SessionEditPage() {
           </Card>
         ))}
       </div>
+    </div>
     </div>
   )
 }

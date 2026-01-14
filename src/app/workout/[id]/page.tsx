@@ -343,6 +343,7 @@ export default function WorkoutDetailPage() {
            </Card>
         </div>
       </div>
+      </div>
     </div>
   )
 }
