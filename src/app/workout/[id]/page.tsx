@@ -157,13 +157,19 @@ export default function WorkoutDetailPage() {
       if (sessionError) throw sessionError
       if (!sessionData) throw new Error('Failed to create session.')
 
-      const exercisePayload = enrichedExercises.map((exercise, index) => ({
-        session_id: sessionData.id,
-        exercise_name: exercise.name,
-        primary_muscle: toMuscleSlug(exercise.primaryMuscle ?? 'Full Body'),
-        secondary_muscles: (exercise.secondaryMuscles ?? []).map((muscle) => toMuscleSlug(muscle)),
-        order_index: index
-      }))
+      const exercisePayload = enrichedExercises.map((exercise, index) => {
+        const primaryMuscle = toMuscleSlug(exercise.primaryMuscle ?? 'Full Body', null)
+        const secondaryMuscles = (exercise.secondaryMuscles ?? [])
+          .map((muscle) => toMuscleSlug(muscle, null))
+          .filter((muscle): muscle is string => Boolean(muscle))
+        return {
+          session_id: sessionData.id,
+          exercise_name: exercise.name,
+          primary_muscle: primaryMuscle,
+          secondary_muscles: secondaryMuscles,
+          order_index: index
+        }
+      })
 
       const { data: sessionExercises, error: exerciseError } = await supabase
         .from('session_exercises')
