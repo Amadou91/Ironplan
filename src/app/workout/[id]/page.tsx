@@ -158,7 +158,7 @@ export default function WorkoutDetailPage() {
       if (!sessionData) throw new Error('Failed to create session.')
 
       const exercisePayload = enrichedExercises.map((exercise, index) => {
-        const primaryMuscle = toMuscleSlug(exercise.primaryMuscle ?? 'Full Body', null)
+        const primaryMuscle = toMuscleSlug(exercise.primaryMuscle ?? 'Full Body', 'full_body')
         const secondaryMuscles = (exercise.secondaryMuscles ?? [])
           .map((muscle) => toMuscleSlug(muscle, null))
           .filter((muscle): muscle is string => Boolean(muscle))
@@ -171,13 +171,23 @@ export default function WorkoutDetailPage() {
         }
       })
 
-      const { data: sessionExercises, error: exerciseError } = await supabase
-        .from('session_exercises')
-        .insert(exercisePayload)
-        .select('id, exercise_name, primary_muscle, secondary_muscles, order_index')
-        .order('order_index', { ascending: true })
+      let sessionExercises: Array<{
+        id: string
+        exercise_name: string
+        primary_muscle: string | null
+        secondary_muscles: string[] | null
+        order_index: number | null
+      }> = []
+      if (exercisePayload.length > 0) {
+        const { data: insertedExercises, error: exerciseError } = await supabase
+          .from('session_exercises')
+          .insert(exercisePayload)
+          .select('id, exercise_name, primary_muscle, secondary_muscles, order_index')
+          .order('order_index', { ascending: true })
 
-      if (exerciseError) throw exerciseError
+        if (exerciseError) throw exerciseError
+        sessionExercises = insertedExercises ?? []
+      }
 
       startSession({
         id: sessionData.id,
