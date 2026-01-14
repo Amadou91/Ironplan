@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ChevronLeft, Activity, Clock, Flame, Trophy, Gauge } from 'lucide-react'
+import { ChevronLeft, Activity, Clock, Flame, Trophy, Gauge, Shuffle, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import type { PlanDay, PlanInput, WorkoutImpact } from '@/types/domain'
@@ -13,6 +13,8 @@ import { calculateExerciseImpact } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
 import ActiveSession from '@/components/workout/ActiveSession'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
+import { getSwapSuggestions } from '@/lib/exercise-swap'
+import { EXERCISE_LIBRARY } from '@/lib/generator'
 
 // Define types based on your DB schema
 type Exercise = {
@@ -56,6 +58,16 @@ export default function WorkoutDetailPage() {
   const [loading, setLoading] = useState(true)
   const [startingSession, setStartingSession] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+  const [sessionExercises, setSessionExercises] = useState<Exercise[]>([])
+  const [swapOptions, setSwapOptions] = useState<{
+    index: number
+    suggestions: Exercise[]
+    usedFallback: boolean
+  } | null>(null)
+  const [lastSwap, setLastSwap] = useState<{ index: number; previous: Exercise } | null>(null)
+  const [swapError, setSwapError] = useState<string | null>(null)
+  const [swapNotice, setSwapNotice] = useState<string | null>(null)
+  const [savingSwap, setSavingSwap] = useState(false)
   const startSession = useWorkoutStore((state) => state.startSession)
   const activeSession = useWorkoutStore((state) => state.activeSession)
 
@@ -102,6 +114,14 @@ export default function WorkoutDetailPage() {
     return selectedSchedule?.exercises ?? []
   }, [selectedSchedule, workout])
 
+  useEffect(() => {
+    setSessionExercises(exercises)
+    setSwapOptions(null)
+    setSwapNotice(null)
+    setSwapError(null)
+    setLastSwap(null)
+  }, [exercises, selectedSchedule?.dayOfWeek])
+
   const summary = useMemo(
     () => (!workout?.exercises || Array.isArray(workout.exercises) ? undefined : workout.exercises.summary),
     [workout]
@@ -112,21 +132,125 @@ export default function WorkoutDetailPage() {
     [workout]
   )
   const impact = useMemo(() => {
-    if (exercises.length) return calculateExerciseImpact(exercises)
+    if (sessionExercises.length) return calculateExerciseImpact(sessionExercises)
     return summary?.impact
-  }, [exercises, summary])
+  }, [sessionExercises, summary])
   const sessionActive = searchParams.get('session') === 'active'
   const sessionId = searchParams.get('sessionId')
   const enrichedExercises = useMemo(
     () =>
-      exercises.map((exercise) =>
+      sessionExercises.map((exercise) =>
         enhanceExerciseData({
           ...exercise,
-          primaryMuscle: exercise.primaryBodyParts?.[0] ?? exercise.focus ?? ''
+          primaryMuscle: exercise.primaryBodyParts?.[0] ?? exercise.primaryMuscle ?? exercise.focus ?? ''
         })
       ),
-    [exercises]
+    [sessionExercises]
   )
+
+  const inventory = inputs?.equipment?.inventory
+
+  const persistSwap = async (updatedExercises: Exercise[]) => {
+    if (!workout || !selectedSchedule || !workout.exercises || Array.isArray(workout.exercises)) return
+    setSavingSwap(true)
+    setSwapError(null)
+    try {
+      const updatedSchedule = (workout.exercises.schedule ?? []).map((day) =>
+        day.dayOfWeek === selectedSchedule.dayOfWeek ? { ...day, exercises: updatedExercises } : day
+      )
+      const updatedExercisesPayload = { ...workout.exercises, schedule: updatedSchedule }
+
+      const { error: updateError } = await supabase
+        .from('workouts')
+        .update({ exercises: updatedExercisesPayload })
+        .eq('id', workout.id)
+
+      if (updateError) {
+        throw updateError
+      }
+
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { error: savedSessionError } = await supabase
+          .from('saved_sessions')
+          .update({ workouts: updatedExercises, updated_at: new Date().toISOString() })
+          .eq('user_id', user.id)
+          .eq('day_of_week', selectedSchedule.dayOfWeek)
+
+        if (savedSessionError) {
+          console.error('Failed to update saved session', savedSessionError)
+        }
+      }
+
+      setWorkout((prev) => (prev ? { ...prev, exercises: updatedExercisesPayload } : prev))
+    } catch (error) {
+      console.error('Failed to persist swap', error)
+      setSwapError('Unable to save the swap. Please try again.')
+    } finally {
+      setSavingSwap(false)
+    }
+  }
+
+  const handleSwapRequest = (exercise: Exercise, index: number) => {
+    setSwapError(null)
+    if (!inventory) {
+      setSwapError('Equipment inventory is missing. Update your plan preferences before swapping.')
+      return
+    }
+    const { suggestions, usedFallback } = getSwapSuggestions({
+      current: exercise,
+      sessionExercises,
+      inventory,
+      library: EXERCISE_LIBRARY
+    })
+    setSwapOptions({
+      index,
+      suggestions: suggestions.map((item) => item.exercise),
+      usedFallback
+    })
+    setSwapNotice(
+      usedFallback ? 'Closest match found based on equipment and muscle group.' : null
+    )
+    if (suggestions.length === 0) {
+      setSwapError('No suitable swaps were found for this exercise.')
+    }
+  }
+
+  const handleSwapSelect = async (replacement: Exercise) => {
+    if (!swapOptions) return
+    const previous = sessionExercises[swapOptions.index]
+    if (!previous) return
+
+    const updated = sessionExercises.map((exercise, idx) =>
+      idx === swapOptions.index
+        ? {
+            ...replacement,
+            load: replacement.load ?? exercise.load,
+            sets: replacement.sets ?? exercise.sets,
+            reps: replacement.reps ?? exercise.reps,
+            rpe: replacement.rpe ?? exercise.rpe,
+            durationMinutes: replacement.durationMinutes ?? exercise.durationMinutes,
+            restSeconds: replacement.restSeconds ?? exercise.restSeconds
+          }
+        : exercise
+    )
+
+    setSessionExercises(updated)
+    setSwapOptions(null)
+    setSwapNotice(null)
+    setLastSwap({ index: swapOptions.index, previous })
+    await persistSwap(updated)
+  }
+
+  const handleUndoSwap = async () => {
+    if (!lastSwap) return
+    const updated = sessionExercises.map((exercise, idx) =>
+      idx === lastSwap.index ? lastSwap.previous : exercise
+    )
+    setSessionExercises(updated)
+    setLastSwap(null)
+    await persistSwap(updated)
+  }
 
   if (loading) return <div className="page-shell p-10 text-center text-muted">Loading workout...</div>
   if (!workout) return <div className="page-shell p-10 text-center text-muted">Workout not found.</div>
@@ -169,12 +293,12 @@ export default function WorkoutDetailPage() {
       }
 
       const nameSuffix = selectedSchedule ? formatDayLabel(selectedSchedule.dayOfWeek) : undefined
-      const { sessionId, startedAt, sessionName, exercises: sessionExercises, impact: sessionImpact } = await createWorkoutSession({
+      const { sessionId, startedAt, sessionName, exercises: createdExercises, impact: sessionImpact } = await createWorkoutSession({
         supabase,
         userId: user.id,
         workoutId: workout.id,
         workoutTitle: workout.title,
-        exercises,
+        exercises: sessionExercises,
         nameSuffix,
         impact
       })
@@ -187,7 +311,7 @@ export default function WorkoutDetailPage() {
         startedAt,
         status: 'active',
         impact: sessionImpact,
-        exercises: sessionExercises
+        exercises: createdExercises
       })
 
       const dayParam = selectedSchedule ? `&day=${selectedSchedule.dayOfWeek}` : ''
@@ -231,6 +355,19 @@ export default function WorkoutDetailPage() {
               <Activity className="mr-2 h-5 w-5 text-accent" />
               Regimen
             </h3>
+            {swapError && (
+              <div className="alert-error px-3 py-2 text-xs">
+                {swapError}
+              </div>
+            )}
+            {lastSwap && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] px-3 py-2 text-xs text-[var(--color-primary-strong)]">
+                <span>Swap applied. Not the right fit?</span>
+                <Button type="button" variant="secondary" size="sm" onClick={handleUndoSwap} disabled={savingSwap}>
+                  <Undo2 className="h-4 w-4" /> Undo
+                </Button>
+              </div>
+            )}
             <div className="space-y-3">
               {enrichedExercises.map((ex, idx) => {
                 const metrics = computeMetrics(ex)
@@ -259,14 +396,48 @@ export default function WorkoutDetailPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-3 text-xs font-mono text-muted">
-                        <span>{ex.sets} sets</span>
-                        <span>{ex.reps} reps</span>
-                        <span>Vol {metrics.volume ?? '—'}</span>
-                        <span>Int {metrics.intensity ?? '—'}</span>
-                        <span>Den {metrics.density ?? '—'}</span>
+                      <div className="flex flex-col items-start gap-2 sm:items-end">
+                        <div className="flex flex-wrap gap-3 text-xs font-mono text-muted">
+                          <span>{ex.sets} sets</span>
+                          <span>{ex.reps} reps</span>
+                          <span>Vol {metrics.volume ?? '—'}</span>
+                          <span>Int {metrics.intensity ?? '—'}</span>
+                          <span>Den {metrics.density ?? '—'}</span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSwapRequest(ex, idx)}
+                          disabled={savingSwap}
+                        >
+                          <Shuffle className="h-4 w-4" /> Swap
+                        </Button>
                       </div>
                     </div>
+                    {swapOptions?.index === idx && (
+                      <div className="mt-3 space-y-2">
+                        {swapNotice && (
+                          <p className="text-xs text-subtle">{swapNotice}</p>
+                        )}
+                        {swapOptions.suggestions.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {swapOptions.suggestions.map((suggestion) => (
+                              <button
+                                key={suggestion.name}
+                                type="button"
+                                onClick={() => handleSwapSelect(suggestion)}
+                                className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs text-muted transition hover:border-[var(--color-border-strong)] hover:text-strong"
+                              >
+                                {suggestion.name}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-subtle">No alternatives found for this exercise.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               })}

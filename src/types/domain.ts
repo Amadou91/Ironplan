@@ -60,6 +60,10 @@ export type GoalPriority = 'primary' | 'secondary' | 'balanced'
 
 export type Intensity = 'low' | 'moderate' | 'high'
 
+export type MovementPattern = 'push' | 'pull' | 'squat' | 'hinge' | 'carry' | 'core' | 'cardio'
+
+export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
+
 export type TimeWindow = 'morning' | 'afternoon' | 'evening'
 
 export type RestPreference = 'balanced' | 'high_recovery' | 'minimal_rest'
@@ -78,6 +82,9 @@ export interface Exercise {
   reps: string | number
   rpe: number
   equipment: EquipmentOption[]
+  movementPattern?: MovementPattern
+  difficulty?: Difficulty
+  goal?: Goal
   durationMinutes: number
   restSeconds: number
   loadTarget?: number
@@ -216,4 +223,15 @@ export interface ScheduledSession {
   orderIndex: number
   isActive: boolean
   createdAt: string
+}
+
+export interface SavedSession {
+  id: string
+  userId: string
+  workoutId?: string
+  dayOfWeek: number
+  sessionName: string
+  workouts: Exercise[]
+  createdAt: string
+  updatedAt: string
 }

@@ -1,4 +1,4 @@
-import type { BandResistance, EquipmentInventory, EquipmentPreset, MachineType } from '@/types/domain'
+import type { BandResistance, EquipmentInventory, EquipmentOption, EquipmentPreset, MachineType } from '@/types/domain'
 
 export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
   home_minimal: {
@@ -83,3 +83,25 @@ export const bandLabels: Record<BandResistance, string> = {
   medium: 'Medium',
   heavy: 'Heavy'
 }
+
+export const isEquipmentOptionAvailable = (inventory: EquipmentInventory, option: EquipmentOption) => {
+  switch (option.kind) {
+    case 'bodyweight':
+      return inventory.bodyweight
+    case 'dumbbell':
+      return inventory.dumbbells.length > 0
+    case 'kettlebell':
+      return inventory.kettlebells.length > 0
+    case 'band':
+      return inventory.bands.length > 0
+    case 'barbell':
+      return inventory.barbell.available
+    case 'machine':
+      return option.machineType ? inventory.machines[option.machineType] : Object.values(inventory.machines).some(Boolean)
+    default:
+      return false
+  }
+}
+
+export const isExerciseEquipmentAvailable = (inventory: EquipmentInventory, equipment: EquipmentOption[]) =>
+  equipment.some(option => isEquipmentOptionAvailable(inventory, option))
