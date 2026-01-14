@@ -411,7 +411,7 @@ export default function GeneratePage() {
                         experienceLevel: e.target.value as PlanInput['experienceLevel']
                       }))
                     }
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="input-base"
                   >
                     <option value="beginner">Beginner</option>
                     <option value="intermediate">Intermediate</option>
@@ -468,7 +468,7 @@ export default function GeneratePage() {
                           time: { ...prev.time, minutesPerSession: Number(e.target.value) }
                         }))
                       }
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="input-base"
                     />
                     {invalidMinutes && (
                       <p className="mt-2 text-xs text-rose-200">Enter 20 to 120 minutes per session.</p>
@@ -484,7 +484,7 @@ export default function GeneratePage() {
                           intensity: e.target.value as PlanInput['intensity']
                         }))
                       }
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="input-base"
                     >
                       <option value="low">Low</option>
                       <option value="moderate">Moderate</option>
@@ -511,7 +511,7 @@ export default function GeneratePage() {
                         }))
                       }
                       placeholder="e.g. 180"
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="input-base"
                     />
                     {invalidTotalMinutes && (
                       <p className="mt-2 text-xs text-rose-200">Keep totals between 40 and 480 minutes.</p>
@@ -615,7 +615,7 @@ export default function GeneratePage() {
                       value={formatWeightList(inventory.dumbbells)}
                       onChange={(e) => setInventoryWeights('dumbbells', e.target.value)}
                       placeholder="e.g. 10, 15, 20"
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="input-base"
                     />
                   </div>
                   <div>
@@ -625,7 +625,7 @@ export default function GeneratePage() {
                       value={formatWeightList(inventory.kettlebells)}
                       onChange={(e) => setInventoryWeights('kettlebells', e.target.value)}
                       placeholder="e.g. 20, 35"
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="input-base"
                     />
                   </div>
                 </div>
@@ -690,7 +690,7 @@ export default function GeneratePage() {
                       value={formatWeightList(inventory.barbell.plates)}
                       onChange={(e) => setInventoryWeights('plates', e.target.value)}
                       placeholder="e.g. 10, 25, 45"
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="input-base"
                       disabled={!inventory.barbell.available}
                     />
                   </div>
@@ -800,7 +800,7 @@ export default function GeneratePage() {
                           goals: { ...prev.goals, secondary: e.target.value ? (e.target.value as Goal) : undefined }
                         }))
                       }
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="input-base"
                     >
                       <option value="">None</option>
                       <option value="strength">Strength</option>
@@ -820,7 +820,7 @@ export default function GeneratePage() {
                           goals: { ...prev.goals, priority: e.target.value as PlanInput['goals']['priority'] }
                         }))
                       }
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="input-base"
                     >
                       <option value="primary">Primary Only</option>
                       <option value="balanced">Balanced</option>
@@ -867,7 +867,7 @@ export default function GeneratePage() {
                             schedule: { ...prev.schedule, minRestDays: Number(e.target.value) }
                           }))
                         }
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                        className="input-base"
                       />
                     </div>
                     <div>
@@ -880,7 +880,7 @@ export default function GeneratePage() {
                             preferences: { ...prev.preferences, restPreference: e.target.value as PlanInput['preferences']['restPreference'] }
                           }))
                         }
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                        className="input-base"
                       >
                         <option value="balanced">Balanced</option>
                         <option value="high_recovery">High Recovery</option>
@@ -931,7 +931,7 @@ export default function GeneratePage() {
                         }))
                       }
                       placeholder="e.g. Running, Jumping"
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      className="input-base"
                     />
                   </div>
 

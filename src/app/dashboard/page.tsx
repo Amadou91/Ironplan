@@ -28,6 +28,13 @@ const formatDate = (value: string) => {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
 }
 
+const formatDateTime = (value: string) => {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+}
+
 const formatDuration = (start?: string | null, end?: string | null) => {
   if (!start || !end) return '—'
   const startDate = new Date(start)
@@ -91,6 +98,7 @@ export default function DashboardPage() {
   const [selectedMuscle, setSelectedMuscle] = useState('all')
   const [selectedExercise, setSelectedExercise] = useState('all')
   const [deletingSessionIds, setDeletingSessionIds] = useState<Record<string, boolean>>({})
+  const [expandedSessions, setExpandedSessions] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (userLoading) return
@@ -153,6 +161,10 @@ export default function DashboardPage() {
     }
 
     setDeletingSessionIds(prev => ({ ...prev, [sessionId]: false }))
+  }
+
+  const handleToggleSession = (sessionId: string) => {
+    setExpandedSessions(prev => ({ ...prev, [sessionId]: !prev[sessionId] }))
   }
 
   const muscleOptions = useMemo(() => {
@@ -304,6 +316,25 @@ export default function DashboardPage() {
     return weeks.size ? Number((filteredSessions.length / weeks.size).toFixed(1)) : 0
   }, [filteredSessions])
 
+  const sessionTotals = (session: SessionRow) => {
+    const totals = {
+      exercises: session.session_exercises.length,
+      sets: 0,
+      reps: 0,
+      volume: 0
+    }
+    session.session_exercises.forEach((exercise) => {
+      exercise.sets.forEach((set) => {
+        totals.sets += 1
+        const reps = set.reps ?? 0
+        const weight = set.weight ?? 0
+        totals.reps += reps
+        totals.volume += reps && weight ? reps * weight : 0
+      })
+    })
+    return totals
+  }
+
   if (isLoading) {
     return <div className="p-10 text-center text-slate-400">Loading dashboard...</div>
   }
@@ -318,7 +349,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
@@ -331,7 +362,7 @@ export default function DashboardPage() {
 
       {error && <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">{error}</div>}
 
-      <Card className="border-slate-800 bg-slate-900 p-6">
+      <Card className="card-surface p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h2 className="text-lg font-semibold text-white">Filters</h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
@@ -341,7 +372,7 @@ export default function DashboardPage() {
                 type="date"
                 value={startDate}
                 onChange={(event) => setStartDate(event.target.value)}
-                className="mt-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+                className="input-base mt-1"
               />
             </div>
             <div className="flex flex-col">
@@ -350,7 +381,7 @@ export default function DashboardPage() {
                 type="date"
                 value={endDate}
                 onChange={(event) => setEndDate(event.target.value)}
-                className="mt-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+                className="input-base mt-1"
               />
             </div>
             <div className="flex flex-col">
@@ -358,7 +389,7 @@ export default function DashboardPage() {
               <select
                 value={selectedMuscle}
                 onChange={(event) => setSelectedMuscle(event.target.value)}
-                className="mt-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+                className="input-base mt-1"
               >
                 <option value="all">All</option>
                 {muscleOptions.map((muscle) => (
@@ -373,7 +404,7 @@ export default function DashboardPage() {
               <select
                 value={selectedExercise}
                 onChange={(event) => setSelectedExercise(event.target.value)}
-                className="mt-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+                className="input-base mt-1"
               >
                 <option value="all">All</option>
                 {exerciseOptions.map((exercise) => (
@@ -388,12 +419,12 @@ export default function DashboardPage() {
       </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="border-slate-800 bg-slate-900 p-6">
+        <Card className="card-surface p-6">
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Consistency</h3>
           <p className="mt-3 text-3xl font-semibold text-white">{sessionsPerWeek}</p>
           <p className="text-xs text-slate-500">sessions per week</p>
         </Card>
-        <Card className="border-slate-800 bg-slate-900 p-6">
+        <Card className="card-surface p-6">
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">PR Snapshot</h3>
           <div className="mt-3 space-y-1 text-sm text-slate-300">
             <p>Max weight: <span className="text-white">{prMetrics.maxWeight}</span></p>
@@ -401,7 +432,7 @@ export default function DashboardPage() {
             <p>Best e1RM: <span className="text-white">{prMetrics.bestE1rm}</span></p>
           </div>
         </Card>
-        <Card className="border-slate-800 bg-slate-900 p-6">
+        <Card className="card-surface p-6">
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Total Sessions</h3>
           <p className="mt-3 text-3xl font-semibold text-white">{filteredSessions.length}</p>
           <p className="text-xs text-slate-500">in selected range</p>
@@ -409,7 +440,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="border-slate-800 bg-slate-900 p-6">
+        <Card className="card-surface p-6">
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Volume by week</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -424,7 +455,7 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        <Card className="border-slate-800 bg-slate-900 p-6">
+        <Card className="card-surface p-6">
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Effort trend</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -441,7 +472,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="border-slate-800 bg-slate-900 p-6">
+        <Card className="card-surface p-6">
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">e1RM trend</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -458,7 +489,7 @@ export default function DashboardPage() {
             <p className="mt-3 text-xs text-slate-500">Select an exercise to see e1RM trends.</p>
           )}
         </Card>
-        <Card className="border-slate-800 bg-slate-900 p-6">
+        <Card className="card-surface p-6">
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Muscle group volume</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -476,58 +507,83 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <Card className="border-slate-800 bg-slate-900">
+      <Card className="card-surface">
         <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
-          <h2 className="text-lg font-semibold text-white">Session history</h2>
+          <div>
+            <h2 className="text-lg font-semibold text-white">Previous Sessions</h2>
+            <p className="text-xs text-slate-500">Review and adjust your most recent training logs.</p>
+          </div>
           <span className="text-xs text-slate-400">{filteredSessions.length} session(s)</span>
         </div>
         <div className="divide-y divide-slate-800">
           {filteredSessions.length === 0 ? (
             <div className="p-6 text-sm text-slate-400">No sessions logged for this range yet.</div>
           ) : (
-            filteredSessions.map((session) => (
-              <div key={session.id} className="p-6">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-white">{session.name}</p>
-                    <p className="text-xs text-slate-500">{formatDate(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}</p>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-400">
-                    <span>{session.session_exercises.length} exercise(s)</span>
-                    <Button
-                      type="button"
-                      onClick={() => handleDeleteSession(session.id)}
-                      className="h-8 px-3 text-xs border border-rose-500/40 text-rose-200 hover:bg-rose-500/10"
-                      variant="outline"
-                      disabled={Boolean(deletingSessionIds[session.id])}
-                    >
-                      {deletingSessionIds[session.id] ? 'Deleting...' : 'Delete'}
-                    </Button>
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {session.session_exercises.map((exercise) => (
-                    <div key={exercise.id} className="rounded-lg border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-300">
-                      <p className="text-sm font-semibold text-white">{exercise.exercise_name}</p>
-                      <p className="text-slate-500">Primary: {exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : '—'}</p>
-                      <p className="text-slate-500">Secondary: {exercise.secondary_muscles?.length ? exercise.secondary_muscles.map((muscle) => toMuscleLabel(muscle)).join(', ') : '—'}</p>
-                      <div className="mt-2 space-y-1">
-                        {(exercise.sets ?? []).map((set) => (
-                          <div key={set.id} className="flex items-center justify-between rounded border border-slate-800 px-2 py-1">
-                            <span>Set {set.set_number ?? '—'}</span>
-                            <span>
-                              {set.weight ?? '—'} lb × {set.reps ?? '—'} reps
-                              {typeof set.rpe === 'number' ? ` · RPE ${set.rpe}` : ''}
-                              {typeof set.rir === 'number' ? ` · RIR ${set.rir}` : ''}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+            filteredSessions.map((session) => {
+              const totals = sessionTotals(session)
+              const isExpanded = Boolean(expandedSessions[session.id])
+              return (
+                <div key={session.id} className="p-6 space-y-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-white">{session.name}</p>
+                      <p className="text-xs text-slate-500">{formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}</p>
                     </div>
-                  ))}
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                      <span className="rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1">{totals.exercises} exercises</span>
+                      <span className="rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1">{totals.sets} sets</span>
+                      <span className="rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1">{totals.reps} reps</span>
+                      <span className="rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1">{Math.round(totals.volume)} volume</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link href={`/sessions/${session.id}/edit`}>
+                        <Button variant="outline" className="h-8 px-3 text-xs">Edit</Button>
+                      </Link>
+                      <Button
+                        type="button"
+                        onClick={() => handleToggleSession(session.id)}
+                        className="h-8 px-3 text-xs"
+                        variant="secondary"
+                      >
+                        {isExpanded ? 'Hide details' : 'View details'}
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => handleDeleteSession(session.id)}
+                        className="h-8 px-3 text-xs border border-rose-500/40 text-rose-200 hover:bg-rose-500/10"
+                        variant="outline"
+                        disabled={Boolean(deletingSessionIds[session.id])}
+                      >
+                        {deletingSessionIds[session.id] ? 'Deleting...' : 'Delete'}
+                      </Button>
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {session.session_exercises.map((exercise) => (
+                        <div key={exercise.id} className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 text-xs text-slate-300">
+                          <p className="text-sm font-semibold text-white">{exercise.exercise_name}</p>
+                          <p className="text-slate-500">Primary: {exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : '—'}</p>
+                          <p className="text-slate-500">Secondary: {exercise.secondary_muscles?.length ? exercise.secondary_muscles.map((muscle) => toMuscleLabel(muscle)).join(', ') : '—'}</p>
+                          <div className="mt-3 space-y-1">
+                            {(exercise.sets ?? []).map((set) => (
+                              <div key={set.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-800 px-2 py-1">
+                                <span>Set {set.set_number ?? '—'}</span>
+                                <span>
+                                  {set.weight ?? '—'} lb × {set.reps ?? '—'} reps
+                                  {typeof set.rpe === 'number' ? ` · RPE ${set.rpe}` : ''}
+                                  {typeof set.rir === 'number' ? ` · RIR ${set.rir}` : ''}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </Card>
