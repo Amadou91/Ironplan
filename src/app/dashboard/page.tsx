@@ -6,8 +6,6 @@ import { useRouter } from 'next/navigation'
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
@@ -86,7 +84,7 @@ export default function DashboardPage() {
   const { user, loading: userLoading } = useUser()
   const setUser = useAuthStore((state) => state.setUser)
   const [sessions, setSessions] = useState<SessionRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -110,10 +108,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (userLoading) return
-    if (!user) {
-      setLoading(false)
-      return
-    }
+    if (!user) return
 
     const loadSessions = async () => {
       setLoading(true)
@@ -136,6 +131,7 @@ export default function DashboardPage() {
 
     loadSessions()
   }, [supabase, user, userLoading])
+  const isLoading = userLoading || loading
 
   const handleDeleteSession = async (sessionId: string) => {
     if (!user) return
@@ -308,7 +304,7 @@ export default function DashboardPage() {
     return weeks.size ? Number((filteredSessions.length / weeks.size).toFixed(1)) : 0
   }, [filteredSessions])
 
-  if (userLoading || loading) {
+  if (isLoading) {
     return <div className="p-10 text-center text-slate-400">Loading dashboard...</div>
   }
 
