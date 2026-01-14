@@ -148,8 +148,7 @@ export default function WorkoutDetailPage() {
           user_id: user.id,
           workout_id: workout.id,
           name: workout.title,
-          started_at: startedAt,
-          status: 'active'
+          started_at: startedAt
         })
         .select()
         .single()
@@ -157,21 +156,37 @@ export default function WorkoutDetailPage() {
       if (sessionError) throw sessionError
       if (!sessionData) throw new Error('Failed to create session.')
 
-      const exercisePayload = enrichedExercises.map((exercise, index) => ({
-        session_id: sessionData.id,
-        exercise_name: exercise.name,
-        primary_muscle: toMuscleSlug(exercise.primaryMuscle ?? 'Full Body'),
-        secondary_muscles: (exercise.secondaryMuscles ?? []).map((muscle) => toMuscleSlug(muscle)),
-        order_index: index
-      }))
+      const exercisePayload = enrichedExercises.map((exercise, index) => {
+        const primaryMuscle = toMuscleSlug(exercise.primaryMuscle ?? 'Full Body', 'full_body')
+        const secondaryMuscles = (exercise.secondaryMuscles ?? [])
+          .map((muscle) => toMuscleSlug(muscle, null))
+          .filter((muscle): muscle is string => Boolean(muscle))
+        return {
+          session_id: sessionData.id,
+          exercise_name: exercise.name,
+          primary_muscle: primaryMuscle,
+          secondary_muscles: secondaryMuscles,
+          order_index: index
+        }
+      })
 
-      const { data: sessionExercises, error: exerciseError } = await supabase
-        .from('session_exercises')
-        .insert(exercisePayload)
-        .select('id, exercise_name, primary_muscle, secondary_muscles, order_index')
-        .order('order_index', { ascending: true })
+      let sessionExercises: Array<{
+        id: string
+        exercise_name: string
+        primary_muscle: string | null
+        secondary_muscles: string[] | null
+        order_index: number | null
+      }> = []
+      if (exercisePayload.length > 0) {
+        const { data: insertedExercises, error: exerciseError } = await supabase
+          .from('session_exercises')
+          .insert(exercisePayload)
+          .select('id, exercise_name, primary_muscle, secondary_muscles, order_index')
+          .order('order_index', { ascending: true })
 
-      if (exerciseError) throw exerciseError
+        if (exerciseError) throw exerciseError
+        sessionExercises = insertedExercises ?? []
+      }
 
       startSession({
         id: sessionData.id,
