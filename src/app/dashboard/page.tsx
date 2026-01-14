@@ -18,6 +18,7 @@ import {
 } from 'recharts'
 import { createClient } from '@/lib/supabase/client'
 import { formatDayLabel, formatWeekStartDate } from '@/lib/schedule-utils'
+import { calculateExerciseImpact } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
 import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
@@ -256,13 +257,15 @@ export default function DashboardPage() {
     try {
       const exercises = planDay?.exercises ?? (Array.isArray(workout.exercises) ? workout.exercises : [])
       const nameSuffix = planDay ? formatDayLabel(planDay.dayOfWeek) : undefined
-      const { sessionId, startedAt, sessionName, exercises: sessionExercises } = await createWorkoutSession({
+      const impact = exercises.length ? calculateExerciseImpact(exercises) : undefined
+      const { sessionId, startedAt, sessionName, exercises: sessionExercises, impact: sessionImpact } = await createWorkoutSession({
         supabase,
         userId: user.id,
         workoutId: workout.id,
         workoutTitle: workout.title,
         exercises,
-        nameSuffix
+        nameSuffix,
+        impact
       })
       startSession({
         id: sessionId,
@@ -271,6 +274,7 @@ export default function DashboardPage() {
         name: sessionName,
         startedAt,
         status: 'active',
+        impact: sessionImpact,
         exercises: sessionExercises
       })
       const dayParam = planDay ? `&day=${planDay.dayOfWeek}` : ''

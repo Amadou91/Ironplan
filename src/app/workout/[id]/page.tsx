@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card'
 import type { PlanDay, PlanInput, WorkoutImpact } from '@/types/domain'
 import { enhanceExerciseData, toMuscleLabel } from '@/lib/muscle-utils'
 import { formatDayLabel } from '@/lib/schedule-utils'
+import { calculateExerciseImpact } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
 import ActiveSession from '@/components/workout/ActiveSession'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
@@ -110,7 +111,10 @@ export default function WorkoutDetailPage() {
     () => (!workout?.exercises || Array.isArray(workout.exercises) ? undefined : workout.exercises.inputs),
     [workout]
   )
-  const impact = summary?.impact
+  const impact = useMemo(() => {
+    if (exercises.length) return calculateExerciseImpact(exercises)
+    return summary?.impact
+  }, [exercises, summary])
   const sessionActive = searchParams.get('session') === 'active'
   const sessionId = searchParams.get('sessionId')
   const enrichedExercises = useMemo(
@@ -165,13 +169,14 @@ export default function WorkoutDetailPage() {
       }
 
       const nameSuffix = selectedSchedule ? formatDayLabel(selectedSchedule.dayOfWeek) : undefined
-      const { sessionId, startedAt, sessionName, exercises: sessionExercises } = await createWorkoutSession({
+      const { sessionId, startedAt, sessionName, exercises: sessionExercises, impact: sessionImpact } = await createWorkoutSession({
         supabase,
         userId: user.id,
         workoutId: workout.id,
         workoutTitle: workout.title,
         exercises,
-        nameSuffix
+        nameSuffix,
+        impact
       })
 
       startSession({
@@ -181,6 +186,7 @@ export default function WorkoutDetailPage() {
         name: sessionName,
         startedAt,
         status: 'active',
+        impact: sessionImpact,
         exercises: sessionExercises
       })
 

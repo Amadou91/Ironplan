@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { SetLogger } from './SetLogger';
 import { Plus, Save, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { SessionExercise, WorkoutSession, WorkoutSet } from '@/types/domain';
+import { SessionExercise, WorkoutImpact, WorkoutSession, WorkoutSet } from '@/types/domain';
 import { toMuscleLabel } from '@/lib/muscle-utils';
 import { Button } from '@/components/ui/Button';
 
@@ -21,6 +21,7 @@ type SessionPayload = {
   started_at: string;
   ended_at: string | null;
   status: string | null;
+  impact?: WorkoutImpact | null;
   session_exercises: Array<{
     id: string;
     exercise_name: string;
@@ -58,6 +59,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
       startedAt: payload.started_at,
       endedAt: payload.ended_at ?? undefined,
       status: (payload.status as WorkoutSession['status']) ?? 'active',
+      impact: payload.impact ?? undefined,
       exercises: payload.session_exercises
         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
         .map((exercise, idx) => ({
@@ -91,7 +93,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-          'id, name, workout_id, started_at, ended_at, status, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
+          'id, name, workout_id, started_at, ended_at, status, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
         )
         .eq('id', sessionId)
         .single();
@@ -200,9 +202,14 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
     if (!confirm('Are you sure you want to finish this workout?')) return;
     setIsSaving(true);
     try {
+      const sessionUpdate = {
+        ended_at: new Date().toISOString(),
+        status: 'completed',
+        ...(activeSession.impact ? { impact: activeSession.impact } : {})
+      };
       const { error } = await supabase
         .from('sessions')
-        .update({ ended_at: new Date().toISOString(), status: 'completed' })
+        .update(sessionUpdate)
         .eq('id', activeSession.id);
 
       if (error) throw error;
