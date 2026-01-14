@@ -6,8 +6,10 @@ import { createClient } from '@/lib/supabase/client'
 import { ChevronLeft, Activity, Clock, Flame, Trophy, Gauge } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import type { PlanInput, WorkoutImpact } from '@/types/domain'
-import { enhanceExerciseData, toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
+import type { PlanDay, PlanInput, WorkoutImpact } from '@/types/domain'
+import { enhanceExerciseData, toMuscleLabel } from '@/lib/muscle-utils'
+import { formatDayLabel } from '@/lib/schedule-utils'
+import { createWorkoutSession } from '@/lib/session-creation'
 import ActiveSession from '@/components/workout/ActiveSession'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 
@@ -34,7 +36,11 @@ type Workout = {
   goal: string
   level: string
   exercises:
-    | { schedule?: { exercises?: Exercise[] }[]; summary?: { totalMinutes?: number; impact?: WorkoutImpact }; inputs?: PlanInput }
+    | {
+        schedule?: Array<{ dayOfWeek: number; timeWindow: string; exercises?: Exercise[] }>
+        summary?: { totalMinutes?: number; impact?: WorkoutImpact }
+        inputs?: PlanInput
+      }
     | Exercise[]
     | null
   created_at: string
@@ -71,12 +77,29 @@ export default function WorkoutDetailPage() {
     if (params.id) fetchWorkout()
   }, [params.id, supabase])
 
+  const schedule = useMemo<PlanDay[]>(
+    () => (!workout?.exercises || Array.isArray(workout.exercises) ? [] : workout.exercises.schedule ?? []),
+    [workout]
+  )
+
+  const selectedSchedule = useMemo(() => {
+    if (!schedule.length) return null
+    const dayParam = Number.parseInt(searchParams.get('day') ?? '', 10)
+    const scheduleDays = schedule.map((day) => day.dayOfWeek)
+    const today = new Date().getDay()
+    const resolvedDay = Number.isFinite(dayParam) && scheduleDays.includes(dayParam)
+      ? dayParam
+      : scheduleDays.includes(today)
+        ? today
+        : scheduleDays[0]
+    return schedule.find((day) => day.dayOfWeek === resolvedDay) ?? schedule[0]
+  }, [schedule, searchParams])
+
   const exercises = useMemo(() => {
     if (!workout?.exercises) return []
-    return Array.isArray(workout.exercises)
-      ? workout.exercises
-      : workout.exercises.schedule?.flatMap((day) => day.exercises ?? []) ?? []
-  }, [workout])
+    if (Array.isArray(workout.exercises)) return workout.exercises
+    return selectedSchedule?.exercises ?? []
+  }, [selectedSchedule, workout])
 
   const summary = useMemo(
     () => (!workout?.exercises || Array.isArray(workout.exercises) ? undefined : workout.exercises.summary),
@@ -141,72 +164,28 @@ export default function WorkoutDetailPage() {
         return
       }
 
-      const startedAt = new Date().toISOString()
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('sessions')
-        .insert({
-          user_id: user.id,
-          workout_id: workout.id,
-          name: workout.title,
-          started_at: startedAt
-        })
-        .select()
-        .single()
-
-      if (sessionError) throw sessionError
-      if (!sessionData) throw new Error('Failed to create session.')
-
-      const exercisePayload = enrichedExercises.map((exercise, index) => {
-        const primaryMuscle = toMuscleSlug(exercise.primaryMuscle ?? 'Full Body', 'full_body')
-        const secondaryMuscles = (exercise.secondaryMuscles ?? [])
-          .map((muscle) => toMuscleSlug(muscle, null))
-          .filter((muscle): muscle is string => Boolean(muscle))
-        return {
-          session_id: sessionData.id,
-          exercise_name: exercise.name,
-          primary_muscle: primaryMuscle,
-          secondary_muscles: secondaryMuscles,
-          order_index: index
-        }
-      })
-
-      let sessionExercises: Array<{
-        id: string
-        exercise_name: string
-        primary_muscle: string | null
-        secondary_muscles: string[] | null
-        order_index: number | null
-      }> = []
-      if (exercisePayload.length > 0) {
-        const { data: insertedExercises, error: exerciseError } = await supabase
-          .from('session_exercises')
-          .insert(exercisePayload)
-          .select('id, exercise_name, primary_muscle, secondary_muscles, order_index')
-          .order('order_index', { ascending: true })
-
-        if (exerciseError) throw exerciseError
-        sessionExercises = insertedExercises ?? []
-      }
-
-      startSession({
-        id: sessionData.id,
+      const nameSuffix = selectedSchedule ? formatDayLabel(selectedSchedule.dayOfWeek) : undefined
+      const { sessionId, startedAt, sessionName, exercises: sessionExercises } = await createWorkoutSession({
+        supabase,
         userId: user.id,
         workoutId: workout.id,
-        name: workout.title,
-        startedAt,
-        status: 'active',
-        exercises: (sessionExercises ?? []).map((exercise, idx) => ({
-          id: exercise.id,
-          sessionId: sessionData.id,
-          name: exercise.exercise_name,
-          primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
-          secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
-          sets: [],
-          orderIndex: exercise.order_index ?? idx
-        }))
+        workoutTitle: workout.title,
+        exercises,
+        nameSuffix
       })
 
-      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionData.id}`)
+      startSession({
+        id: sessionId,
+        userId: user.id,
+        workoutId: workout.id,
+        name: sessionName,
+        startedAt,
+        status: 'active',
+        exercises: sessionExercises
+      })
+
+      const dayParam = selectedSchedule ? `&day=${selectedSchedule.dayOfWeek}` : ''
+      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}${dayParam}`)
     } catch (error) {
       console.error('Failed to start session', error)
       setStartError('Unable to start the session. Please try again.')
@@ -230,6 +209,11 @@ export default function WorkoutDetailPage() {
             <div>
               <h1 className="mb-2 text-3xl font-semibold text-strong">{workout.title}</h1>
               <p className="text-muted">{workout.description}</p>
+              {selectedSchedule && (
+                <p className="mt-2 text-sm text-subtle">
+                  Scheduled for {formatDayLabel(selectedSchedule.dayOfWeek)} · {selectedSchedule.timeWindow.replace('_', ' ')}
+                </p>
+              )}
             </div>
             <span className="badge-accent">
               {workout.goal}

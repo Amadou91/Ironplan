@@ -204,3 +204,15 @@ export interface WorkoutSet {
   performedAt?: string | null
   completed: boolean
 }
+
+export interface ScheduledSession {
+  id: string
+  userId: string
+  workoutId: string
+  scheduleBatchId: string
+  dayOfWeek: number
+  weekStartDate: string
+  orderIndex: number
+  isActive: boolean
+  createdAt: string
+}
