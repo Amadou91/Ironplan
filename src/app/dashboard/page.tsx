@@ -50,6 +50,16 @@ const formatDuration = (start?: string | null, end?: string | null) => {
   return `${minutes} min`
 }
 
+const isSameDay = (value: string, compareDate: Date) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return false
+  return (
+    date.getFullYear() === compareDate.getFullYear() &&
+    date.getMonth() === compareDate.getMonth() &&
+    date.getDate() === compareDate.getDate()
+  )
+}
+
 const getWeekKey = (value: string) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -250,6 +260,14 @@ export default function DashboardPage() {
   const todaysPlanDay = todaysWorkoutSchedule.length
     ? pickScheduleDay(todaysWorkoutSchedule, todaysSchedule?.day_of_week ?? todayDayOfWeek)
     : null
+  const completedSessionToday = useMemo(() => {
+    const today = new Date()
+    return sessions.some((session) => {
+      if (session.status && session.status !== 'completed' && !session.ended_at) return false
+      const completedAt = session.ended_at ?? (session.status === 'completed' ? session.started_at : null)
+      return completedAt ? isSameDay(completedAt, today) : false
+    })
+  }, [sessions])
 
   const handleStartWorkout = async (workout: WorkoutRow, planDay: PlanDay | null, scheduleId?: string) => {
     if (!user) return
@@ -556,7 +574,7 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-semibold text-strong">Today&apos;s Session</h2>
                 <p className="text-sm text-muted">Automatically matched to your weekly schedule.</p>
               </div>
-              {todaysWorkout && todaysPlanDay && (
+              {todaysWorkout && todaysPlanDay && !completedSessionToday && (
                 <Button
                   onClick={() => handleStartWorkout(todaysWorkout, todaysPlanDay, todaysSchedule?.id)}
                   disabled={startingScheduleId === (todaysSchedule?.id ?? null)}
@@ -566,7 +584,12 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {todaysWorkout && todaysPlanDay ? (
+            {completedSessionToday ? (
+              <div className="mt-4 space-y-2 rounded-lg border border-[var(--color-border)] bg-emerald-50/60 p-4">
+                <p className="text-sm font-semibold text-strong">Complete for today</p>
+                <p className="text-xs text-subtle">You’ve already finished a session today. Nice work!</p>
+              </div>
+            ) : todaysWorkout && todaysPlanDay ? (
               <div className="mt-4 space-y-2 rounded-lg border border-[var(--color-border)] p-4">
                 <p className="text-sm font-semibold text-strong">{todaysWorkout.title}</p>
                 <p className="text-xs text-subtle">
