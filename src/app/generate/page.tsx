@@ -171,6 +171,16 @@ export default function GeneratePage() {
         if (error) {
           throw error
         }
+
+        const { error: savedSessionDeleteError } = await supabase
+          .from('saved_sessions')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('workout_id', entry.remoteId)
+
+        if (savedSessionDeleteError) {
+          throw savedSessionDeleteError
+        }
       }
 
       if (typeof window !== 'undefined') {
