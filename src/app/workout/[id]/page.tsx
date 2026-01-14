@@ -71,15 +71,23 @@ export default function WorkoutDetailPage() {
     if (params.id) fetchWorkout()
   }, [params.id, supabase])
 
-  if (loading) return <div className="p-10 text-center text-slate-400">Loading workout...</div>
-  if (!workout) return <div className="p-10 text-center text-slate-400">Workout not found.</div>
+  const exercises = useMemo(() => {
+    if (!workout?.exercises) return []
+    return Array.isArray(workout.exercises)
+      ? workout.exercises
+      : workout.exercises.schedule?.flatMap((day) => day.exercises ?? []) ?? []
+  }, [workout])
 
-  const exercises = Array.isArray(workout.exercises)
-    ? workout.exercises
-    : workout.exercises?.schedule?.flatMap((day) => day.exercises ?? []) ?? []
-  const summary = !Array.isArray(workout.exercises) ? workout.exercises?.summary : undefined
+  const summary = useMemo(
+    () => (!workout?.exercises || Array.isArray(workout.exercises) ? undefined : workout.exercises.summary),
+    [workout]
+  )
+
+  const inputs = useMemo(
+    () => (!workout?.exercises || Array.isArray(workout.exercises) ? undefined : workout.exercises.inputs),
+    [workout]
+  )
   const impact = summary?.impact
-  const inputs = !Array.isArray(workout.exercises) ? workout.exercises?.inputs : undefined
   const sessionActive = searchParams.get('session') === 'active'
   const sessionId = searchParams.get('sessionId')
   const enrichedExercises = useMemo(
@@ -92,6 +100,9 @@ export default function WorkoutDetailPage() {
       ),
     [exercises]
   )
+
+  if (loading) return <div className="p-10 text-center text-slate-400">Loading workout...</div>
+  if (!workout) return <div className="p-10 text-center text-slate-400">Workout not found.</div>
 
   // Per-workout metrics are computed here from each exercise's sets/reps/RPE data.
   // Assumptions: reps ranges are averaged, RPE is on a 1–10 scale, and density uses a
