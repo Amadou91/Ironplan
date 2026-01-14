@@ -134,6 +134,7 @@ export default function DashboardPage() {
   const { user, loading: userLoading } = useUser()
   const setUser = useAuthStore((state) => state.setUser)
   const startSession = useWorkoutStore((state) => state.startSession)
+  const activeSession = useWorkoutStore((state) => state.activeSession)
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -149,6 +150,10 @@ export default function DashboardPage() {
   const [recentWorkouts, setRecentWorkouts] = useState<WorkoutRow[]>([])
   const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null)
   const [deletingWorkoutIds, setDeletingWorkoutIds] = useState<Record<string, boolean>>({})
+  const hasActiveSession = Boolean(activeSession)
+  const activeSessionLink = activeSession?.workoutId
+    ? `/workout/${activeSession.workoutId}?session=active&sessionId=${activeSession.id}`
+    : '/dashboard'
 
   useEffect(() => {
     if (userLoading) return
@@ -271,6 +276,10 @@ export default function DashboardPage() {
 
   const handleStartWorkout = async (workout: WorkoutRow, planDay: PlanDay | null, scheduleId?: string) => {
     if (!user) return
+    if (hasActiveSession) {
+      setStartScheduleError('Finish your current session before starting a new one.')
+      return
+    }
     setStartScheduleError(null)
     setStartingScheduleId(scheduleId ?? workout.id)
     try {
@@ -574,7 +583,7 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-semibold text-strong">Today&apos;s Session</h2>
                 <p className="text-sm text-muted">Automatically matched to your weekly schedule.</p>
               </div>
-              {todaysWorkout && todaysPlanDay && !completedSessionToday && (
+              {todaysWorkout && todaysPlanDay && !completedSessionToday && !hasActiveSession && (
                 <Button
                   onClick={() => handleStartWorkout(todaysWorkout, todaysPlanDay, todaysSchedule?.id)}
                   disabled={startingScheduleId === (todaysSchedule?.id ?? null)}
@@ -583,6 +592,16 @@ export default function DashboardPage() {
                 </Button>
               )}
             </div>
+
+            {hasActiveSession && (
+              <div className="mt-4 space-y-2 rounded-lg border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] p-4 text-[var(--color-primary-strong)]">
+                <p className="text-sm font-semibold">Session in progress</p>
+                <p className="text-xs text-subtle">Finish your active session before starting another.</p>
+                <Link href={activeSessionLink}>
+                  <Button variant="secondary" size="sm">Resume session</Button>
+                </Link>
+              </div>
+            )}
 
             {completedSessionToday ? (
               <div className="mt-4 space-y-2 rounded-lg border border-[var(--color-border)] bg-emerald-50/60 p-4">
@@ -597,14 +616,16 @@ export default function DashboardPage() {
                   {todaysPlanDay.exercises?.length ?? 0} exercises
                 </p>
                 <div className="flex flex-wrap gap-2 pt-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleStartWorkout(todaysWorkout, todaysPlanDay, todaysSchedule?.id)}
-                    disabled={startingScheduleId === (todaysSchedule?.id ?? null)}
-                  >
-                    Start Session
-                  </Button>
+                  {!hasActiveSession && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleStartWorkout(todaysWorkout, todaysPlanDay, todaysSchedule?.id)}
+                      disabled={startingScheduleId === (todaysSchedule?.id ?? null)}
+                    >
+                      Start Session
+                    </Button>
+                  )}
                   <Link href={`/workout/${todaysWorkout.id}?day=${todaysPlanDay.dayOfWeek}`}>
                     <Button variant="ghost" size="sm">
                       View Details
@@ -620,7 +641,7 @@ export default function DashboardPage() {
                   <Link href="/generate">
                     <Button variant="secondary" size="sm">Browse Plans</Button>
                   </Link>
-                  {recentWorkouts[0] && (
+                  {recentWorkouts[0] && !hasActiveSession && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -676,9 +697,13 @@ export default function DashboardPage() {
                             variant="secondary"
                             size="sm"
                             onClick={() => handleStartWorkout(workout, defaultDay, workout.id)}
-                            disabled={startingScheduleId === workout.id}
+                            disabled={startingScheduleId === workout.id || hasActiveSession}
                           >
-                            {startingScheduleId === workout.id ? 'Starting...' : `Start ${defaultDay ? formatDayLabel(defaultDay.dayOfWeek) : 'Session'}`}
+                            {hasActiveSession
+                              ? 'Session Active'
+                              : startingScheduleId === workout.id
+                                ? 'Starting...'
+                                : `Start ${defaultDay ? formatDayLabel(defaultDay.dayOfWeek) : 'Session'}`}
                           </Button>
                           <Link href={`/workout/${workout.id}${defaultDay ? `?day=${defaultDay.dayOfWeek}` : ''}`}>
                             <Button variant="ghost" size="sm">View</Button>

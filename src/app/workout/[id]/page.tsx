@@ -59,6 +59,8 @@ export default function WorkoutDetailPage() {
   const [loading, setLoading] = useState(true)
   const [startingSession, setStartingSession] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+  const [finishError, setFinishError] = useState<string | null>(null)
+  const [finishingSession, setFinishingSession] = useState(false)
   const [sessionExercises, setSessionExercises] = useState<Exercise[]>([])
   const [swapOptions, setSwapOptions] = useState<{
     index: number
@@ -70,6 +72,7 @@ export default function WorkoutDetailPage() {
   const [swapNotice, setSwapNotice] = useState<string | null>(null)
   const [savingSwap, setSavingSwap] = useState(false)
   const startSession = useWorkoutStore((state) => state.startSession)
+  const endSession = useWorkoutStore((state) => state.endSession)
   const activeSession = useWorkoutStore((state) => state.activeSession)
 
   useEffect(() => {
@@ -139,6 +142,11 @@ export default function WorkoutDetailPage() {
   const planImpact = summary?.impact
   const sessionActive = searchParams.get('session') === 'active'
   const sessionId = searchParams.get('sessionId')
+  const hasActiveSession = Boolean(activeSession)
+  const isCurrentSessionActive = sessionActive || (activeSession?.workoutId === workout?.id)
+  const activeSessionLink = activeSession?.workoutId
+    ? `/workout/${activeSession.workoutId}?session=active&sessionId=${activeSession.id}`
+    : '/dashboard'
   const enrichedExercises = useMemo(
     () =>
       sessionExercises.map((exercise) =>
@@ -265,6 +273,11 @@ export default function WorkoutDetailPage() {
 
   const handleStartSession = async () => {
     setStartError(null)
+    setFinishError(null)
+    if (hasActiveSession) {
+      setStartError('Finish your current session before starting a new one.')
+      return
+    }
     setStartingSession(true)
     try {
       if (!workout?.id) throw new Error('Missing workout id.')
@@ -303,6 +316,33 @@ export default function WorkoutDetailPage() {
       setStartError('Unable to start the session. Please try again.')
     } finally {
       setStartingSession(false)
+    }
+  }
+
+  const handleFinishSession = async () => {
+    if (!activeSession) return
+    if (!confirm('Are you sure you want to finish this workout?')) return
+    setFinishError(null)
+    setFinishingSession(true)
+    try {
+      const sessionUpdate = {
+        ended_at: new Date().toISOString(),
+        status: 'completed',
+        ...(activeSession.impact ? { impact: activeSession.impact } : {})
+      }
+      const { error } = await supabase
+        .from('sessions')
+        .update(sessionUpdate)
+        .eq('id', activeSession.id)
+
+      if (error) throw error
+      endSession()
+      router.push('/dashboard')
+    } catch (error) {
+      console.error('Failed to finish workout:', error)
+      setFinishError('Failed to finish workout. Please try again.')
+    } finally {
+      setFinishingSession(false)
     }
   }
 
@@ -451,9 +491,19 @@ export default function WorkoutDetailPage() {
                    <span className="font-medium text-strong capitalize">{workout.level}</span>
                 </div>
               </div>
-              {sessionActive && (
+              {isCurrentSessionActive && (
                 <div className="mt-4 rounded-md border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] px-3 py-2 text-xs font-medium text-[var(--color-primary-strong)]">
                   Session active. Log your sets below to track progress.
+                </div>
+              )}
+              {hasActiveSession && !isCurrentSessionActive && (
+                <div className="mt-4 rounded-md border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] px-3 py-2 text-xs font-medium text-[var(--color-primary-strong)]">
+                  You already have a session in progress. Return to it before starting a new one.
+                  <div className="mt-2">
+                    <Button type="button" variant="secondary" size="sm" onClick={() => router.push(activeSessionLink)}>
+                      Resume active session
+                    </Button>
+                  </div>
                 </div>
               )}
               {startError && (
@@ -461,9 +511,24 @@ export default function WorkoutDetailPage() {
                   {startError}
                 </div>
               )}
-              <Button className="w-full mt-6" onClick={handleStartSession} disabled={startingSession}>
-                {startingSession ? 'Starting…' : 'Start Session'}
-              </Button>
+              {finishError && (
+                <div className="mt-4 alert-error px-3 py-2 text-xs">
+                  {finishError}
+                </div>
+              )}
+              {isCurrentSessionActive ? (
+                <Button
+                  className="w-full mt-6"
+                  onClick={handleFinishSession}
+                  disabled={finishingSession || !activeSession}
+                >
+                  {finishingSession ? 'Finishing…' : 'Finish Session'}
+                </Button>
+              ) : (
+                <Button className="w-full mt-6" onClick={handleStartSession} disabled={startingSession || hasActiveSession}>
+                  {startingSession ? 'Starting…' : 'Start Session'}
+                </Button>
+              )}
            </Card>
 
            <Card className="p-6">
