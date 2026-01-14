@@ -7,6 +7,34 @@ type SwapSuggestion = {
 }
 
 const normalizeName = (name: string) => name.trim().toLowerCase()
+const normalizeMuscle = (muscle: string) => muscle.trim().toLowerCase()
+
+const getExerciseMuscles = (exercise: Exercise) => {
+  const muscles = new Set<string>()
+  if (exercise.primaryMuscle) muscles.add(normalizeMuscle(exercise.primaryMuscle))
+  exercise.secondaryMuscles?.forEach((muscle) => muscles.add(normalizeMuscle(muscle)))
+  exercise.primaryBodyParts?.forEach((muscle) => muscles.add(normalizeMuscle(muscle)))
+  exercise.secondaryBodyParts?.forEach((muscle) => muscles.add(normalizeMuscle(muscle)))
+  return muscles
+}
+
+const buildAllowedMuscles = (current: Exercise, sessionExercises: Exercise[]) => {
+  const currentMuscles = getExerciseMuscles(current)
+  if (currentMuscles.size > 0) return currentMuscles
+
+  const sessionMuscles = new Set<string>()
+  sessionExercises.forEach((exercise) => {
+    getExerciseMuscles(exercise).forEach((muscle) => sessionMuscles.add(muscle))
+  })
+  return sessionMuscles
+}
+
+const hasMuscleOverlap = (candidate: Set<string>, allowed: Set<string>) => {
+  for (const muscle of candidate) {
+    if (allowed.has(muscle)) return true
+  }
+  return false
+}
 
 const averageRepTarget = (reps: Exercise['reps']) => {
   if (typeof reps === 'number' && Number.isFinite(reps)) return reps
@@ -90,12 +118,19 @@ export const getSwapSuggestions = ({
 }) => {
   const sessionNames = new Set(sessionExercises.map((exercise) => normalizeName(exercise.name)))
   const candidates = library.filter((exercise) => normalizeName(exercise.name) !== normalizeName(current.name))
+  const allowedMuscles = buildAllowedMuscles(current, sessionExercises)
   const filtered = candidates.filter(
     (exercise) => !sessionNames.has(normalizeName(exercise.name))
   )
+  const muscleFiltered = allowedMuscles.size
+    ? filtered.filter((exercise) => {
+        const muscleGroups = getExerciseMuscles(exercise)
+        return muscleGroups.size > 0 && hasMuscleOverlap(muscleGroups, allowedMuscles)
+      })
+    : filtered
 
-  const compatible = filtered.filter((exercise) => isExerciseEquipmentAvailable(inventory, exercise.equipment))
-  const scored = (compatible.length > 0 ? compatible : filtered)
+  const compatible = muscleFiltered.filter((exercise) => isExerciseEquipmentAvailable(inventory, exercise.equipment))
+  const scored = (compatible.length > 0 ? compatible : muscleFiltered)
     .map((exercise) => ({
       exercise,
       score: scoreCandidate(current, exercise)

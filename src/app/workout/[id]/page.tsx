@@ -133,9 +133,10 @@ export default function WorkoutDetailPage() {
     [workout]
   )
   const impact = useMemo(() => {
-    if (sessionExercises.length) return calculateExerciseImpact(sessionExercises)
-    return summary?.impact
-  }, [sessionExercises, summary])
+    if (!sessionExercises.length) return undefined
+    return calculateExerciseImpact(sessionExercises)
+  }, [sessionExercises])
+  const planImpact = summary?.impact
   const sessionActive = searchParams.get('session') === 'active'
   const sessionId = searchParams.get('sessionId')
   const enrichedExercises = useMemo(
@@ -326,7 +327,7 @@ export default function WorkoutDetailPage() {
               )}
             </div>
             <span className="badge-accent">
-              {workout.goal}
+              {`${workout.goal}${selectedSchedule ? ` — ${formatDayLabel(selectedSchedule.dayOfWeek)}` : ''}`}
             </span>
           </div>
 
@@ -434,7 +435,7 @@ export default function WorkoutDetailPage() {
                    <div className="flex items-center">
                      <Clock className="mr-2 h-4 w-4 text-subtle" /> Duration
                    </div>
-                   <span className="font-medium text-strong">{summary?.totalMinutes ?? '~60'} min</span>
+                   <span className="font-medium text-strong">{selectedSchedule?.durationMinutes ?? summary?.totalMinutes ?? '~60'} min</span>
                 </div>
                 <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
                    <div className="flex items-center">
@@ -477,6 +478,11 @@ export default function WorkoutDetailPage() {
                   <div className="text-xs text-subtle">
                     Volume +{impact.breakdown.volume}, Intensity +{impact.breakdown.intensity}, Density +{impact.breakdown.density}
                   </div>
+                </div>
+              ) : planImpact ? (
+                <div className="space-y-2 text-sm text-muted">
+                  <p>Session impact requires loaded exercises. Showing plan total instead.</p>
+                  <p className="text-xs text-subtle">Plan score {planImpact.score}.</p>
                 </div>
               ) : (
                 <p className="text-sm text-muted">Impact score will appear after generation.</p>
