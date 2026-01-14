@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { WorkoutSet } from '@/types/domain';
 import { Trash2, CheckCircle, Circle, Pencil } from 'lucide-react';
+import { INTENSITY_RECOMMENDATION, RIR_HELPER_TEXT, RIR_OPTIONS, RPE_HELPER_TEXT, RPE_OPTIONS } from '@/constants/intensityOptions';
 
 interface SetLoggerProps {
   set: WorkoutSet;
@@ -18,6 +19,12 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, onUpdate, onDelete, o
   }, [set.performedAt]);
 
   const inputClassName = `input-base input-compact text-center ${!isEditing ? 'input-muted' : ''}`;
+  const rpeValue = typeof set.rpe === 'number' ? String(set.rpe) : '';
+  const rirValue = typeof set.rir === 'number' ? String(set.rir) : '';
+  const isRpeSelected = typeof set.rpe === 'number';
+  const isRirSelected = typeof set.rir === 'number';
+  const rpeEquivalence = RPE_OPTIONS.find((option) => option.value === set.rpe)?.equivalence;
+  const rirEquivalence = RIR_OPTIONS.find((option) => option.value === set.rir)?.equivalence;
 
   return (
     <div className={`flex flex-col gap-3 mb-2 p-4 rounded-xl border transition-colors ${set.completed ? 'border-emerald-500/20 bg-emerald-500/10' : 'border-slate-800 bg-slate-950/60'}`}>
@@ -63,32 +70,55 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, onUpdate, onDelete, o
 
         <div className="flex flex-col">
           <label className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider mb-1 text-center">RPE</label>
-          <input
-            type="number"
-            placeholder="-"
-            max={10}
-            value={set.rpe ?? ''}
-            onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))}
+          <select
+            value={rpeValue}
+            onChange={(event) => {
+              const nextValue = event.target.value === '' ? '' : Number(event.target.value);
+              onUpdate('rpe', nextValue);
+              if (event.target.value !== '') {
+                onUpdate('rir', '');
+              }
+            }}
             className={inputClassName}
-            min={0}
-            readOnly={!isEditing}
-          />
+            disabled={!isEditing || isRirSelected}
+          >
+            <option value="">Select effort</option>
+            {RPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} — {option.description}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-[10px] text-slate-500">{RPE_HELPER_TEXT}</p>
+          {rpeEquivalence ? <p className="text-[10px] text-indigo-300/80">{rpeEquivalence}</p> : null}
         </div>
 
         <div className="flex flex-col">
           <label className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider mb-1 text-center">RIR</label>
-          <input
-            type="number"
-            placeholder="-"
-            max={10}
-            value={set.rir ?? ''}
-            onChange={(e) => onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value))}
+          <select
+            value={rirValue}
+            onChange={(event) => {
+              const nextValue = event.target.value === '' ? '' : Number(event.target.value);
+              onUpdate('rir', nextValue);
+              if (event.target.value !== '') {
+                onUpdate('rpe', '');
+              }
+            }}
             className={inputClassName}
-            min={0}
-            readOnly={!isEditing}
-          />
+            disabled={!isEditing || isRpeSelected}
+          >
+            <option value="">Select reps left</option>
+            {RIR_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-[10px] text-slate-500">{RIR_HELPER_TEXT}</p>
+          {rirEquivalence ? <p className="text-[10px] text-indigo-300/80">{rirEquivalence}</p> : null}
         </div>
       </div>
+      <p className="text-[10px] text-slate-500">{INTENSITY_RECOMMENDATION}</p>
 
       <div className="flex items-center gap-2">
         <div className="flex-1">
