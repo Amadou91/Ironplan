@@ -16,6 +16,11 @@ import { equipmentPresets, hasEquipment } from './equipment'
 import { computeExerciseMetrics } from '@/lib/workout-metrics'
 
 const DEFAULT_INPUT: PlanInput = {
+  intent: {
+    mode: 'style',
+    style: 'strength',
+    bodyParts: []
+  },
   goals: {
     primary: 'strength',
     priority: 'primary'
@@ -32,7 +37,12 @@ const DEFAULT_INPUT: PlanInput = {
   schedule: {
     daysAvailable: [1, 3, 5],
     timeWindows: ['evening'],
-    minRestDays: 1
+    minRestDays: 1,
+    weeklyLayout: [
+      { dayOfWeek: 1, style: 'strength', focus: 'upper' },
+      { dayOfWeek: 3, style: 'hypertrophy', focus: 'lower' },
+      { dayOfWeek: 5, style: 'endurance', focus: 'full_body' }
+    ]
   },
   preferences: {
     focusAreas: [],
@@ -328,6 +338,14 @@ export const validatePlanInput = (input: PlanInput): string[] => {
     errors.push('Select at least one available day.')
   }
 
+  if (input.intent.mode === 'style' && !input.intent.style) {
+    errors.push('Select a workout style.')
+  }
+
+  if (input.intent.mode === 'body_part' && (!input.intent.bodyParts || input.intent.bodyParts.length === 0)) {
+    errors.push('Select at least one body focus area.')
+  }
+
   if (input.schedule.timeWindows.length === 0) {
     errors.push('Select at least one time window.')
   }
@@ -340,12 +358,25 @@ export const validatePlanInput = (input: PlanInput): string[] => {
     errors.push('Select at least one equipment option.')
   }
 
+  const layout = input.schedule.weeklyLayout ?? []
+  if (layout.length > 0) {
+    const layoutDays = new Set(layout.map((entry) => entry.dayOfWeek))
+    const missingDays = input.schedule.daysAvailable.filter((day) => !layoutDays.has(day))
+    if (missingDays.length > 0) {
+      errors.push('Assign a workout style and focus for each selected day.')
+    }
+  }
+
   return errors
 }
 
 export const normalizePlanInput = (input: Partial<PlanInput>): PlanInput => ({
   ...DEFAULT_INPUT,
   ...input,
+  intent: {
+    ...DEFAULT_INPUT.intent,
+    ...input.intent
+  },
   goals: {
     ...DEFAULT_INPUT.goals,
     ...input.goals
@@ -595,14 +626,16 @@ const filterExercises = (
   focus: FocusArea,
   inventory: EquipmentInventory,
   disliked: string[],
-  accessibility: string[]
+  accessibility: string[],
+  goal?: Goal
 ) => EXERCISE_LIBRARY.filter(exercise => {
   const matchesFocus = focus === 'full_body' || exercise.focus === focus || (focus === 'cardio' && exercise.focus === 'cardio')
   const option = selectEquipmentOption(inventory, exercise.equipment)
   const isDisliked = disliked.some(activity => exercise.name.toLowerCase().includes(activity.toLowerCase()))
   const lowImpact = accessibility.includes('low-impact')
   const isHighImpact = exercise.name.toLowerCase().includes('jump') || exercise.name.toLowerCase().includes('interval')
-  return matchesFocus && Boolean(option) && !isDisliked && !(lowImpact && isHighImpact)
+  const matchesGoal = goal ? exercise.goal === goal || !exercise.goal : true
+  return matchesFocus && matchesGoal && Boolean(option) && !isDisliked && !(lowImpact && isHighImpact)
 })
 
 const adjustRpe = (baseRpe: number, intensity: Intensity) => {
@@ -626,17 +659,19 @@ const deriveReps = (goal: Goal, intensity: Intensity) => {
 const buildSessionExercises = (
   focus: FocusArea,
   duration: number,
-  input: PlanInput
+  input: PlanInput,
+  goalOverride?: Goal
 ): Exercise[] => {
+  const targetGoal = goalOverride ?? input.goals.primary
   const exercises = filterExercises(
     focus,
     input.equipment.inventory,
     input.preferences.dislikedActivities,
-    input.preferences.accessibilityConstraints
+    input.preferences.accessibilityConstraints,
+    targetGoal
   )
   const maxExercises = clamp(Math.floor(duration / 10), 3, 6)
-  const primaryGoal = input.goals.primary
-  const reps = deriveReps(primaryGoal, input.intensity)
+  const reps = deriveReps(targetGoal, input.intensity)
 
   const picks = exercises.slice(0, maxExercises)
   return picks.map(exercise => {
@@ -657,7 +692,8 @@ const buildRationale = (
   timeWindow: TimeWindow,
   focus: FocusArea,
   duration: number,
-  restPreference: RestPreference
+  restPreference: RestPreference,
+  style: Goal
 ) => {
   const dayLabel = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day]
   const recoveryNote = restPreference === 'high_recovery'
@@ -665,7 +701,7 @@ const buildRationale = (
     : restPreference === 'minimal_rest'
       ? 'Sessions are packed with minimal rest days.'
       : 'Recovery is balanced across the week.'
-  return `Scheduled for ${dayLabel} ${timeWindow} with a ${duration} minute focus on ${focus.replace('_', ' ')}. ${recoveryNote}`
+  return `Scheduled for ${dayLabel} ${timeWindow} with a ${duration} minute ${style.replace('_', ' ')} focus on ${focus.replace('_', ' ')}. ${recoveryNote}`
 }
 
 const buildFocusDistribution = (schedule: PlanDay[]) => schedule.reduce<Record<FocusArea, number>>((acc, day) => {
@@ -721,10 +757,13 @@ export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: Generat
   const minutesPerSession = adjustMinutesPerSession(normalized, sessionsPerWeek)
   const timeWindows = normalized.schedule.timeWindows
   const focusSequence = buildFocusSequence(sessionsPerWeek, normalized.preferences, normalized.goals)
+  const weeklyLayout = normalized.schedule.weeklyLayout ?? []
   const schedule: PlanDay[] = trainingDays.map((day, index) => {
-    const focus = focusSequence[index]
+    const layoutEntry = weeklyLayout.find((entry) => entry.dayOfWeek === day)
+    const focus = layoutEntry?.focus ?? focusSequence[index]
+    const style = layoutEntry?.style ?? normalized.goals.primary
     const duration = clamp(minutesPerSession, 20, 120)
-    const exercises = buildSessionExercises(focus, duration, normalized)
+    const exercises = buildSessionExercises(focus, duration, normalized, style)
     const timeWindow = timeWindows[index % timeWindows.length]
     return {
       dayOfWeek: day,
@@ -732,13 +771,20 @@ export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: Generat
       focus,
       durationMinutes: duration,
       exercises,
-      rationale: buildRationale(day, timeWindow, focus, duration, normalized.preferences.restPreference)
+      rationale: buildRationale(day, timeWindow, focus, duration, normalized.preferences.restPreference, style)
     }
   })
 
   const totalMinutes = schedule.reduce((sum, day) => sum + day.durationMinutes, 0)
-  const title = `${normalized.goals.primary.replace('_', ' ').toUpperCase()} PLAN`
-  const description = `${sessionsPerWeek} sessions/week · ${minutesPerSession} min/session · Focus on ${normalized.goals.primary.replace('_', ' ')}.`
+  const uniqueStyles = Array.from(new Set(schedule.map((day) => weeklyLayout.find((entry) => entry.dayOfWeek === day.dayOfWeek)?.style ?? normalized.goals.primary)))
+  const title =
+    uniqueStyles.length === 1
+      ? `${uniqueStyles[0].replace('_', ' ').toUpperCase()} PLAN`
+      : 'CUSTOM WEEKLY PLAN'
+  const description =
+    uniqueStyles.length === 1
+      ? `${sessionsPerWeek} sessions/week · ${minutesPerSession} min/session · Focus on ${uniqueStyles[0].replace('_', ' ')}.`
+      : `${sessionsPerWeek} sessions/week · ${minutesPerSession} min/session · Mixed styles across your week.`
   const impact = calculateWorkoutImpact(schedule)
 
   const plan: GeneratedPlan = {

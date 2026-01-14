@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
-import { CheckCircle2, ChevronLeft, Loader2, Wand2 } from 'lucide-react'
+import { ChevronLeft, Loader2, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { generatePlan, normalizePlanInput } from '@/lib/generator'
@@ -14,24 +14,28 @@ import { formatDayLabel, formatWeekStartDate } from '@/lib/schedule-utils'
 import { resolveSavedSessionConflicts } from '@/lib/saved-sessions'
 import { getFlowCompletion, isDaysAvailableValid, isEquipmentValid, isMinutesPerSessionValid, isTotalMinutesPerWeekValid } from '@/lib/generationFlow'
 import { logEvent } from '@/lib/logger'
-import type { BandResistance, EquipmentPreset, Goal, MachineType, PlanInput, GeneratedPlan } from '@/types/domain'
+import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanInput, GeneratedPlan } from '@/types/domain'
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-type StepId = 'goal' | 'duration' | 'equipment' | 'preferences' | 'review'
+const styleOptions: { value: Goal; label: string; description: string }[] = [
+  { value: 'strength', label: 'Strength', description: 'Heavier loads, lower reps, power focus.' },
+  { value: 'hypertrophy', label: 'Hypertrophy', description: 'Muscle growth with balanced volume.' },
+  { value: 'endurance', label: 'Endurance', description: 'Higher reps and conditioning focus.' }
+]
+const focusOptions: { value: PlanInput['preferences']['focusAreas'][number]; label: string }[] = [
+  { value: 'upper', label: 'Upper Body' },
+  { value: 'lower', label: 'Lower Body' },
+  { value: 'full_body', label: 'Full Body' },
+  { value: 'core', label: 'Core' },
+  { value: 'cardio', label: 'Cardio' },
+  { value: 'mobility', label: 'Mobility' }
+]
 
 export default function GeneratePage() {
   const router = useRouter()
   const { user, loading: userLoading } = useUser()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
-  const [completedSteps, setCompletedSteps] = useState<Record<StepId, boolean>>({
-    goal: false,
-    duration: false,
-    equipment: false,
-    preferences: false,
-    review: false
-  })
   const [errors, setErrors] = useState<string[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSummary, setSaveSummary] = useState<{
@@ -44,29 +48,30 @@ export default function GeneratePage() {
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [historyEntries, setHistoryEntries] = useState<ReturnType<typeof loadWorkoutHistory>>([])
   const [deletingHistoryIds, setDeletingHistoryIds] = useState<Record<string, boolean>>({})
-  const [activeStep, setActiveStep] = useState<StepId>('goal')
 
   const [formData, setFormData] = useState<PlanInput>(() =>
     normalizePlanInput({
+      intent: { mode: 'style', style: 'strength', bodyParts: [] },
       goals: { primary: 'strength', priority: 'primary' },
       experienceLevel: 'intermediate',
       intensity: 'moderate',
       equipment: { preset: 'full_gym', inventory: cloneInventory(equipmentPresets.full_gym) },
       time: { minutesPerSession: 45 },
-      schedule: { daysAvailable: [1, 3, 5], timeWindows: ['evening'], minRestDays: 1 },
+      schedule: {
+        daysAvailable: [1, 3, 5],
+        timeWindows: ['evening'],
+        minRestDays: 1,
+        weeklyLayout: [
+          { dayOfWeek: 1, style: 'strength', focus: 'upper' },
+          { dayOfWeek: 3, style: 'hypertrophy', focus: 'lower' },
+          { dayOfWeek: 5, style: 'endurance', focus: 'full_body' }
+        ]
+      },
       preferences: { focusAreas: [], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
     })
   )
 
   const flowState = useMemo(() => getFlowCompletion(formData), [formData])
-
-  const stepAvailability: Record<StepId, boolean> = {
-    goal: true,
-    duration: flowState.goalStepComplete,
-    equipment: flowState.durationStepComplete,
-    preferences: flowState.equipmentStepComplete,
-    review: flowState.preferencesStepComplete
-  }
 
   const clearFeedback = () => {
     if (errors.length > 0) setErrors([])
@@ -109,6 +114,117 @@ export default function GeneratePage() {
     })
   }
 
+  const goalToFocusDefaults = (goal: Goal): FocusArea[] => {
+    switch (goal) {
+      case 'endurance':
+        return ['cardio', 'full_body', 'mobility']
+      case 'hypertrophy':
+        return ['upper', 'lower', 'full_body']
+      case 'general_fitness':
+        return ['full_body', 'cardio', 'mobility']
+      default:
+        return ['upper', 'lower', 'core']
+    }
+  }
+
+  const buildWeeklyLayout = (
+    state: PlanInput,
+    days: number[],
+    existing?: PlanInput['schedule']['weeklyLayout']
+  ) => {
+    const sortedDays = [...days].sort((a, b) => a - b)
+    const focusPool =
+      state.intent.mode === 'body_part' && state.intent.bodyParts && state.intent.bodyParts.length > 0
+        ? state.intent.bodyParts
+        : state.preferences.focusAreas.length > 0
+          ? state.preferences.focusAreas
+          : goalToFocusDefaults(state.goals.primary)
+    const defaultStyle = state.intent.style ?? state.goals.primary
+    return sortedDays.map((day, index) => {
+      const existingEntry = existing?.find((entry) => entry.dayOfWeek === day)
+      return (
+        existingEntry ?? {
+          dayOfWeek: day,
+          style: defaultStyle,
+          focus: focusPool[index % focusPool.length]
+        }
+      )
+    })
+  }
+
+  const getBodyPartsFromLayout = (layout: PlanInput['schedule']['weeklyLayout'] = []) =>
+    Array.from(new Set(layout.map((entry) => entry.focus)))
+
+  const syncWeeklyLayout = (days: number[]) => {
+    updateFormData((prev) => {
+      const nextLayout = buildWeeklyLayout(prev, days, prev.schedule.weeklyLayout)
+      const nextBodyParts =
+        prev.intent.mode === 'body_part' ? getBodyPartsFromLayout(nextLayout) : prev.intent.bodyParts
+      return {
+        ...prev,
+        intent: {
+          ...prev.intent,
+          bodyParts: nextBodyParts
+        },
+        preferences: {
+          ...prev.preferences,
+          focusAreas: nextBodyParts ?? prev.preferences.focusAreas
+        },
+        schedule: {
+          ...prev.schedule,
+          weeklyLayout: nextLayout
+        }
+      }
+    })
+  }
+
+  const updateWeeklyLayoutEntry = (dayOfWeek: number, updates: Partial<PlanInput['schedule']['weeklyLayout'][number]>) => {
+    updateFormData((prev) => {
+      const baseLayout = buildWeeklyLayout(prev, prev.schedule.daysAvailable, prev.schedule.weeklyLayout)
+      const nextLayout = baseLayout.map((entry) =>
+        entry.dayOfWeek === dayOfWeek ? { ...entry, ...updates } : entry
+      )
+      const nextBodyParts =
+        prev.intent.mode === 'body_part' ? getBodyPartsFromLayout(nextLayout) : prev.intent.bodyParts
+      return {
+        ...prev,
+        intent: {
+          ...prev.intent,
+          bodyParts: nextBodyParts
+        },
+        preferences: {
+          ...prev.preferences,
+          focusAreas: nextBodyParts ?? prev.preferences.focusAreas
+        },
+        schedule: {
+          ...prev.schedule,
+          weeklyLayout: nextLayout
+        }
+      }
+    })
+  }
+
+  const swapWeeklyLayoutDays = (firstDay: number, secondDay: number) => {
+    updateFormData((prev) => {
+      const baseLayout = buildWeeklyLayout(prev, prev.schedule.daysAvailable, prev.schedule.weeklyLayout)
+      const firstEntry = baseLayout.find((entry) => entry.dayOfWeek === firstDay)
+      const secondEntry = baseLayout.find((entry) => entry.dayOfWeek === secondDay)
+      if (!firstEntry || !secondEntry) return prev
+      const nextLayout = baseLayout.map((entry) => {
+        if (entry.dayOfWeek === firstDay) return { ...secondEntry, dayOfWeek: firstDay }
+        if (entry.dayOfWeek === secondDay) return { ...firstEntry, dayOfWeek: secondDay }
+        return entry
+      })
+      return {
+        ...prev,
+        schedule: {
+          ...prev.schedule,
+          weeklyLayout: nextLayout
+        }
+      }
+    })
+  }
+
   const setInventoryWeights = (field: 'dumbbells' | 'kettlebells' | 'plates', value: string) => {
     updateFormData(prev => {
       const weights = parseWeightList(value)
@@ -143,15 +259,27 @@ export default function GeneratePage() {
   }
 
   const handleHistoryLoad = (entry: (typeof historyEntries)[number]) => {
-    updateFormData(() => normalizePlanInput(entry.plan.inputs))
-    setCompletedSteps({
-      goal: true,
-      duration: true,
-      equipment: true,
-      preferences: true,
-      review: true
+    updateFormData(() => {
+      const normalized = normalizePlanInput(entry.plan.inputs)
+      const nextLayout = buildWeeklyLayout(normalized, normalized.schedule.daysAvailable, normalized.schedule.weeklyLayout)
+      const nextBodyParts =
+        normalized.intent.mode === 'body_part' ? getBodyPartsFromLayout(nextLayout) : normalized.intent.bodyParts
+      return {
+        ...normalized,
+        intent: {
+          ...normalized.intent,
+          bodyParts: nextBodyParts
+        },
+        preferences: {
+          ...normalized.preferences,
+          focusAreas: nextBodyParts ?? normalized.preferences.focusAreas
+        },
+        schedule: {
+          ...normalized.schedule,
+          weeklyLayout: nextLayout
+        }
+      }
     })
-    setActiveStep('review')
   }
 
   const handleHistoryDelete = async (entry: (typeof historyEntries)[number]) => {
@@ -366,26 +494,12 @@ export default function GeneratePage() {
     }
   }
 
-  const renderStepStatus = (stepComplete: boolean, stepAvailable: boolean) => {
-    if (stepComplete) {
-      return (
-        <span className="inline-flex items-center gap-1 text-xs font-semibold text-accent">
-          <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Complete
-        </span>
-      )
-    }
-
-    if (!stepAvailable) {
-      return <span className="text-xs font-semibold text-subtle">Locked</span>
-    }
-
-    return <span className="text-xs font-semibold text-muted">In Progress</span>
-  }
-
   const daysAvailableLabel = formData.schedule.daysAvailable
     .map(index => dayLabels[index])
     .filter(Boolean)
     .join(', ')
+  const sortedDaysAvailable = [...formData.schedule.daysAvailable].sort((a, b) => a - b)
+  const weeklyLayout = formData.schedule.weeklyLayout ?? []
 
   const invalidMinutes = !isMinutesPerSessionValid(formData.time.minutesPerSession)
   const invalidTotalMinutes = !isTotalMinutesPerWeekValid(formData.time.totalMinutesPerWeek)
@@ -508,7 +622,7 @@ export default function GeneratePage() {
                   type="button"
                   variant="secondary"
                   onClick={() => {
-                    setActiveStep('duration')
+                    document.getElementById('step-intent')?.scrollIntoView({ behavior: 'smooth' })
                   }}
                 >
                   Choose different days
@@ -568,356 +682,411 @@ export default function GeneratePage() {
 
       <div className="px-4 pb-10 sm:px-6 lg:px-10 2xl:px-16">
         <Card className="p-6">
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <button
-              type="button"
-              onClick={() => stepAvailability.goal && setActiveStep('goal')}
-              aria-expanded={activeStep === 'goal'}
-              aria-controls="step-goal"
-              className="flex w-full items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-left shadow-[var(--shadow-sm)]"
-            >
+          <div className="space-y-10">
+            <section className="space-y-4" id="step-intent">
               <div>
-                <p className="text-sm font-semibold text-strong">Goal & Workout Type</p>
-                <p className="text-xs text-subtle">Define your primary outcome and training background.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 1</p>
+                <h2 className="text-xl font-semibold text-strong">Choose your workout intent</h2>
+                <p className="text-sm text-muted">
+                  Pick the primary path so we can generate the right exercises and weekly layout defaults.
+                </p>
               </div>
-              {renderStepStatus(completedSteps.goal && flowState.goalStepComplete, stepAvailability.goal)}
-            </button>
-            {activeStep === 'goal' && (
-              <div id="step-goal" className="surface-card-muted space-y-4 p-4">
-                <div>
-                  <label className="mb-3 block text-sm font-medium text-strong">Primary Goal</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(['strength', 'hypertrophy', 'endurance', 'general_fitness'] as Goal[]).map(opt => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() =>
-                          updateFormData(prev => ({
-                            ...prev,
-                            goals: { ...prev.goals, primary: opt }
-                          }))
-                        }
-                        className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all ${
-                          formData.goals.primary === opt
-                            ? 'bg-[var(--color-primary-soft)] border-[var(--color-primary-border)] text-[var(--color-primary-strong)]'
-                            : 'bg-[var(--color-surface)] border-[var(--color-border)] text-muted hover:border-[var(--color-border-strong)]'
-                        }`}
-                        aria-pressed={formData.goals.primary === opt}
-                      >
-                        {opt.replace('_', ' ').replace(/\b\w/g, char => char.toUpperCase())}
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateFormData((prev) => {
+                      const nextStyle = prev.intent.style ?? prev.goals.primary
+                      const updated: PlanInput = {
+                        ...prev,
+                        intent: { ...prev.intent, mode: 'style', style: nextStyle },
+                        goals: { ...prev.goals, primary: nextStyle }
+                      }
+                      return {
+                        ...updated,
+                        schedule: {
+                          ...updated.schedule,
+                          weeklyLayout: buildWeeklyLayout(updated, updated.schedule.daysAvailable, updated.schedule.weeklyLayout)
+                        }
+                      }
+                    })
+                  }
+                  className={`rounded-lg border px-4 py-4 text-left transition ${
+                    formData.intent.mode === 'style'
+                      ? 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
+                      : 'border-[var(--color-border)] bg-[var(--color-surface)] text-muted hover:border-[var(--color-border-strong)]'
+                  }`}
+                  aria-pressed={formData.intent.mode === 'style'}
+                >
+                  <p className="text-sm font-semibold text-strong">Workout style-driven</p>
+                  <p className="mt-1 text-xs text-subtle">Lead with strength, hypertrophy, or endurance.</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateFormData((prev) => {
+                      const nextStyle = prev.intent.style ?? prev.goals.primary ?? 'hypertrophy'
+                      const updated: PlanInput = {
+                        ...prev,
+                        intent: {
+                          ...prev.intent,
+                          mode: 'body_part',
+                          style: nextStyle,
+                          bodyParts: prev.intent.bodyParts?.length ? prev.intent.bodyParts : prev.preferences.focusAreas
+                        }
+                      }
+                      const nextLayout = buildWeeklyLayout(updated, updated.schedule.daysAvailable, updated.schedule.weeklyLayout)
+                      const nextBodyParts = getBodyPartsFromLayout(nextLayout)
+                      return {
+                        ...updated,
+                        intent: {
+                          ...updated.intent,
+                          bodyParts: nextBodyParts
+                        },
+                        preferences: {
+                          ...updated.preferences,
+                          focusAreas: nextBodyParts
+                        },
+                        schedule: {
+                          ...updated.schedule,
+                          weeklyLayout: nextLayout
+                        }
+                      }
+                    })
+                  }
+                  className={`rounded-lg border px-4 py-4 text-left transition ${
+                    formData.intent.mode === 'body_part'
+                      ? 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
+                      : 'border-[var(--color-border)] bg-[var(--color-surface)] text-muted hover:border-[var(--color-border-strong)]'
+                  }`}
+                  aria-pressed={formData.intent.mode === 'body_part'}
+                >
+                  <p className="text-sm font-semibold text-strong">Body-part driven</p>
+                  <p className="mt-1 text-xs text-subtle">Prioritize the muscles you want to train.</p>
+                </button>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-strong">Experience level</label>
+                <select
+                  value={formData.experienceLevel}
+                  onChange={(e) =>
+                    updateFormData(prev => ({
+                      ...prev,
+                      experienceLevel: e.target.value as PlanInput['experienceLevel']
+                    }))
+                  }
+                  className="input-base"
+                >
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-strong">Days available</label>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {dayLabels.map((label, index) => (
+                    <label key={label} className="flex items-center gap-2 text-sm text-muted">
+                      <input
+                        type="checkbox"
+                        checked={formData.schedule.daysAvailable.includes(index)}
+                        onChange={() =>
+                          updateFormData((prev) => {
+                            const nextDays = toggleArrayValue(prev.schedule.daysAvailable, index)
+                            const updated: PlanInput = {
+                              ...prev,
+                              schedule: { ...prev.schedule, daysAvailable: nextDays }
+                            }
+                            const nextLayout = buildWeeklyLayout(updated, nextDays, prev.schedule.weeklyLayout)
+                            const nextBodyParts =
+                              updated.intent.mode === 'body_part'
+                                ? getBodyPartsFromLayout(nextLayout)
+                                : updated.intent.bodyParts
+                            return {
+                              ...updated,
+                              intent: {
+                                ...updated.intent,
+                                bodyParts: nextBodyParts
+                              },
+                              preferences: {
+                                ...updated.preferences,
+                                focusAreas: nextBodyParts ?? updated.preferences.focusAreas
+                              },
+                              schedule: {
+                                ...updated.schedule,
+                                weeklyLayout: nextLayout
+                              }
+                            }
+                          })
+                        }
+                        className="accent-[var(--color-primary)]"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                {invalidDays && (
+                  <p className="mt-2 text-xs text-[var(--color-danger)]">Select at least one training day.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <label className="mb-3 block text-sm font-medium text-strong">Experience Level</label>
-                  <select
-                    value={formData.experienceLevel}
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 2</p>
+                  <h2 className="text-xl font-semibold text-strong">Build your weekly layout</h2>
+                  <p className="text-sm text-muted">
+                    Assign your daily workout focus based on the generation mode you selected.
+                  </p>
+                </div>
+                <Button type="button" variant="secondary" onClick={() => syncWeeklyLayout(formData.schedule.daysAvailable)}>
+                  Apply defaults
+                </Button>
+              </div>
+
+              {sortedDaysAvailable.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-sm text-muted">
+                  Choose at least one training day to build your week.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sortedDaysAvailable.map((day, index) => {
+                    const entry = weeklyLayout.find((item) => item.dayOfWeek === day)
+                    const fallbackStyle = formData.intent.style ?? formData.goals.primary
+                    const fallbackFocus = entry?.focus ?? 'full_body'
+                    const previousDay = sortedDaysAvailable[index - 1]
+                    const nextDay = sortedDaysAvailable[index + 1]
+                    return (
+                      <div key={day} className="grid gap-3 rounded-lg border border-[var(--color-border)] p-3 md:grid-cols-[1fr_1fr]">
+                        <div className="space-y-2">
+                          <div className="text-sm font-semibold text-strong">{formatDayLabel(day)}</div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="px-2 py-1 text-xs"
+                              onClick={() => previousDay !== undefined && swapWeeklyLayoutDays(day, previousDay)}
+                              disabled={previousDay === undefined}
+                            >
+                              Move earlier
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="px-2 py-1 text-xs"
+                              onClick={() => nextDay !== undefined && swapWeeklyLayoutDays(day, nextDay)}
+                              disabled={nextDay === undefined}
+                            >
+                              Move later
+                            </Button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-subtle">
+                            {formData.intent.mode === 'style' ? 'Style' : 'Focus'}
+                          </label>
+                          {formData.intent.mode === 'style' ? (
+                            <select
+                              value={entry?.style ?? fallbackStyle}
+                              onChange={(e) => updateWeeklyLayoutEntry(day, { style: e.target.value as Goal })}
+                              className="input-base"
+                            >
+                              {styleOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <select
+                              value={entry?.focus ?? fallbackFocus}
+                              onChange={(e) => updateWeeklyLayoutEntry(day, { focus: e.target.value as FocusArea })}
+                              className="input-base"
+                            >
+                              {focusOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {weeklyLayout.length < sortedDaysAvailable.length && (
+                    <p className="text-xs text-[var(--color-danger)]">Assign each selected day before continuing.</p>
+                  )}
+                </div>
+              )}
+            </section>
+
+            <section className="space-y-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 3</p>
+                <h2 className="text-xl font-semibold text-strong">Set your weekly timing</h2>
+                <p className="text-sm text-muted">Define how long each workout is and when you train.</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-strong">Minutes per session</label>
+                  <input
+                    type="number"
+                    min={20}
+                    max={120}
+                    value={formData.time.minutesPerSession}
                     onChange={(e) =>
                       updateFormData(prev => ({
                         ...prev,
-                        experienceLevel: e.target.value as PlanInput['experienceLevel']
+                        time: { ...prev.time, minutesPerSession: Number(e.target.value) }
+                      }))
+                    }
+                    className="input-base"
+                  />
+                  {invalidMinutes && (
+                    <p className="mt-2 text-xs text-[var(--color-danger)]">Enter 20 to 120 minutes per session.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-strong">Intensity</label>
+                  <select
+                    value={formData.intensity}
+                    onChange={(e) =>
+                      updateFormData(prev => ({
+                        ...prev,
+                        intensity: e.target.value as PlanInput['intensity']
                       }))
                     }
                     className="input-base"
                   >
-                    <option value="beginner">Beginner</option>
-                    <option value="intermediate">Intermediate</option>
-                    <option value="advanced">Advanced</option>
+                    <option value="low">Low</option>
+                    <option value="moderate">Moderate</option>
+                    <option value="high">High</option>
                   </select>
                 </div>
-
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setCompletedSteps(prev => ({ ...prev, goal: true }))
-                      setActiveStep('duration')
-                    }}
-                    disabled={!flowState.goalStepComplete}
-                  >
-                    Continue
-                  </Button>
-                </div>
               </div>
-            )}
-          </div>
 
-          <div className="space-y-4">
-            <button
-              type="button"
-              onClick={() => stepAvailability.duration && setActiveStep('duration')}
-              disabled={!stepAvailability.duration}
-              aria-expanded={activeStep === 'duration'}
-              aria-controls="step-duration"
-              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left ${
-                stepAvailability.duration
-                  ? 'border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]'
-                  : 'border-[var(--color-border)] bg-[var(--color-surface-subtle)]'
-              }`}
-            >
-              <div>
-                <p className="text-sm font-semibold text-strong">Duration & Intensity</p>
-                <p className="text-xs text-subtle">Choose session length, intensity, and days available.</p>
-              </div>
-              {renderStepStatus(completedSteps.duration && flowState.durationStepComplete, stepAvailability.duration)}
-            </button>
-            {activeStep === 'duration' && (
-              <div id="step-duration" className="surface-card-muted space-y-4 p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Minutes per Session</label>
-                    <input
-                      type="number"
-                      min={20}
-                      max={120}
-                      value={formData.time.minutesPerSession}
-                      onChange={(e) =>
-                        updateFormData(prev => ({
-                          ...prev,
-                          time: { ...prev.time, minutesPerSession: Number(e.target.value) }
-                        }))
-                      }
-                      className="input-base"
-                    />
-                    {invalidMinutes && (
-                      <p className="mt-2 text-xs text-[var(--color-danger)]">Enter 20 to 120 minutes per session.</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Intensity</label>
-                    <select
-                      value={formData.intensity}
-                      onChange={(e) =>
-                        updateFormData(prev => ({
-                          ...prev,
-                          intensity: e.target.value as PlanInput['intensity']
-                        }))
-                      }
-                      className="input-base"
-                    >
-                      <option value="low">Low</option>
-                      <option value="moderate">Moderate</option>
-                      <option value="high">High</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Total Minutes per Week (Optional)</label>
-                    <input
-                      type="number"
-                      min={40}
-                      max={480}
-                      value={formData.time.totalMinutesPerWeek ?? ''}
-                      onChange={(e) =>
-                        updateFormData(prev => ({
-                          ...prev,
-                          time: {
-                            ...prev.time,
-                            totalMinutesPerWeek: e.target.value ? Number(e.target.value) : undefined
-                          }
-                        }))
-                      }
-                      placeholder="e.g. 180"
-                      className="input-base"
-                    />
-                    {invalidTotalMinutes && (
-                      <p className="mt-2 text-xs text-[var(--color-danger)]">Keep totals between 40 and 480 minutes.</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Days Available</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {dayLabels.map((label, index) => (
-                        <label key={label} className="flex items-center gap-2 text-sm text-muted">
-                          <input
-                            type="checkbox"
-                            checked={formData.schedule.daysAvailable.includes(index)}
-                            onChange={() =>
-                              updateFormData(prev => ({
-                                ...prev,
-                                schedule: {
-                                  ...prev.schedule,
-                                  daysAvailable: toggleArrayValue(prev.schedule.daysAvailable, index)
-                                }
-                              }))
-                            }
-                            className="accent-[var(--color-primary)]"
-                          />
-                          {label}
-                        </label>
-                      ))}
-                    </div>
-                    {invalidDays && (
-                      <p className="mt-2 text-xs text-[var(--color-danger)]">Select at least one training day.</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setCompletedSteps(prev => ({ ...prev, duration: true }))
-                      setActiveStep('equipment')
-                    }}
-                    disabled={!flowState.durationStepComplete}
-                  >
-                    Continue
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <button
-              type="button"
-              onClick={() => stepAvailability.equipment && setActiveStep('equipment')}
-              disabled={!stepAvailability.equipment}
-              aria-expanded={activeStep === 'equipment'}
-              aria-controls="step-equipment"
-              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left ${
-                stepAvailability.equipment
-                  ? 'border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]'
-                  : 'border-[var(--color-border)] bg-[var(--color-surface-subtle)]'
-              }`}
-            >
-              <div>
-                <p className="text-sm font-semibold text-strong">Equipment</p>
-                <p className="text-xs text-subtle">Select what you have available.</p>
-              </div>
-              {renderStepStatus(completedSteps.equipment && flowState.equipmentStepComplete, stepAvailability.equipment)}
-            </button>
-            {activeStep === 'equipment' && (
-              <div id="step-equipment" className="surface-card-muted space-y-4 p-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-3 block text-sm font-medium text-strong">Equipment Preset</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {([
-                      { key: 'home_minimal', label: 'Home Minimal' },
-                      { key: 'full_gym', label: 'Full Gym' },
-                      { key: 'hotel', label: 'Hotel' },
-                      { key: 'custom', label: 'Custom' }
-                    ] as { key: EquipmentPreset | 'custom'; label: string }[]).map(preset => (
-                      <button
-                        key={preset.key}
-                        type="button"
-                        onClick={() => handlePresetChange(preset.key)}
-                        className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all ${
-                          formData.equipment.preset === preset.key
-                            ? 'bg-[var(--color-primary-soft)] border-[var(--color-primary-border)] text-[var(--color-primary-strong)]'
-                            : 'bg-[var(--color-surface)] border-[var(--color-border)] text-muted hover:border-[var(--color-border-strong)]'
-                        }`}
-                        aria-pressed={formData.equipment.preset === preset.key}
-                      >
-                        {preset.label}
-                      </button>
+                  <label className="mb-2 block text-sm font-medium text-strong">Total minutes per week (optional)</label>
+                  <input
+                    type="number"
+                    min={40}
+                    max={480}
+                    value={formData.time.totalMinutesPerWeek ?? ''}
+                    onChange={(e) =>
+                      updateFormData(prev => ({
+                        ...prev,
+                        time: {
+                          ...prev.time,
+                          totalMinutesPerWeek: e.target.value ? Number(e.target.value) : undefined
+                        }
+                      }))
+                    }
+                    placeholder="e.g. 180"
+                    className="input-base"
+                  />
+                  {invalidTotalMinutes && (
+                    <p className="mt-2 text-xs text-[var(--color-danger)]">Keep totals between 40 and 480 minutes.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-strong">Time windows</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(['morning', 'afternoon', 'evening'] as PlanInput['schedule']['timeWindows']).map(opt => (
+                      <label key={opt} className="flex items-center gap-2 text-sm text-muted">
+                        <input
+                          type="checkbox"
+                          checked={formData.schedule.timeWindows.includes(opt)}
+                          onChange={() =>
+                            updateFormData(prev => ({
+                              ...prev,
+                              schedule: {
+                                ...prev.schedule,
+                                timeWindows: toggleArrayValue(prev.schedule.timeWindows, opt)
+                              }
+                            }))
+                          }
+                          className="accent-[var(--color-primary)]"
+                        />
+                        {opt.replace(/\b\w/g, char => char.toUpperCase())}
+                      </label>
                     ))}
                   </div>
                 </div>
+              </div>
+            </section>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Dumbbell Weights (lb)</label>
-                    <input
-                      type="text"
-                      value={formatWeightList(inventory.dumbbells)}
-                      onChange={(e) => setInventoryWeights('dumbbells', e.target.value)}
-                      placeholder="e.g. 10, 15, 20"
-                      className="input-base"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Kettlebell Weights (lb)</label>
-                    <input
-                      type="text"
-                      value={formatWeightList(inventory.kettlebells)}
-                      onChange={(e) => setInventoryWeights('kettlebells', e.target.value)}
-                      placeholder="e.g. 20, 35"
-                      className="input-base"
-                    />
-                  </div>
+            <section className="space-y-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 4</p>
+                <h2 className="text-xl font-semibold text-strong">Equipment & constraints</h2>
+                <p className="text-sm text-muted">Tell us what you have and any important preferences.</p>
+              </div>
+
+              <div>
+                <label className="mb-3 block text-sm font-medium text-strong">Equipment preset</label>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {([
+                    { key: 'home_minimal', label: 'Home Minimal' },
+                    { key: 'full_gym', label: 'Full Gym' },
+                    { key: 'hotel', label: 'Hotel' },
+                    { key: 'custom', label: 'Custom' }
+                  ] as { key: EquipmentPreset | 'custom'; label: string }[]).map(preset => (
+                    <button
+                      key={preset.key}
+                      type="button"
+                      onClick={() => handlePresetChange(preset.key)}
+                      className={`rounded-lg border px-4 py-3 text-sm font-medium transition-all ${
+                        formData.equipment.preset === preset.key
+                          ? 'bg-[var(--color-primary-soft)] border-[var(--color-primary-border)] text-[var(--color-primary-strong)]'
+                          : 'bg-[var(--color-surface)] border-[var(--color-border)] text-muted hover:border-[var(--color-border-strong)]'
+                      }`}
+                      aria-pressed={formData.equipment.preset === preset.key}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
                 </div>
+              </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Bands (Resistance Levels)</label>
-                    <div className="flex flex-wrap gap-3">
-                      {(['light', 'medium', 'heavy'] as BandResistance[]).map(level => (
-                        <label key={level} className="flex items-center gap-2 text-sm text-muted">
-                          <input
-                            type="checkbox"
-                            checked={inventory.bands.includes(level)}
-                            onChange={() =>
-                              updateFormData(prev => ({
-                                ...prev,
-                                equipment: {
-                                  ...prev.equipment,
-                                  preset: 'custom',
-                                  inventory: {
-                                    ...prev.equipment.inventory,
-                                    bands: toggleArrayValue(prev.equipment.inventory.bands, level)
-                                  }
-                                }
-                              }))
-                            }
-                            className="accent-[var(--color-primary)]"
-                          />
-                          {bandLabels[level]}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Barbell + Plates</label>
-                    <label className="mb-2 flex items-center gap-2 text-sm text-muted">
-                      <input
-                        type="checkbox"
-                        checked={inventory.barbell.available}
-                        onChange={() =>
-                          updateFormData(prev => ({
-                            ...prev,
-                            equipment: {
-                              ...prev.equipment,
-                              preset: 'custom',
-                              inventory: {
-                                ...prev.equipment.inventory,
-                                barbell: {
-                                  ...prev.equipment.inventory.barbell,
-                                  available: !prev.equipment.inventory.barbell.available
-                                }
-                              }
-                            }
-                          }))
-                        }
-                        className="accent-[var(--color-primary)]"
-                      />
-                      Barbell available
-                    </label>
-                    <input
-                      type="text"
-                      value={formatWeightList(inventory.barbell.plates)}
-                      onChange={(e) => setInventoryWeights('plates', e.target.value)}
-                      placeholder="e.g. 10, 25, 45"
-                      className="input-base"
-                      disabled={!inventory.barbell.available}
-                    />
-                  </div>
-                </div>
-
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-strong">Machine Availability</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(Object.keys(machineLabels) as MachineType[]).map(machine => (
-                      <label key={machine} className="flex items-center gap-2 text-sm text-muted">
+                  <label className="mb-2 block text-sm font-medium text-strong">Dumbbell weights (lb)</label>
+                  <input
+                    type="text"
+                    value={formatWeightList(inventory.dumbbells)}
+                    onChange={(e) => setInventoryWeights('dumbbells', e.target.value)}
+                    placeholder="e.g. 10, 15, 20"
+                    className="input-base"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-strong">Kettlebell weights (lb)</label>
+                  <input
+                    type="text"
+                    value={formatWeightList(inventory.kettlebells)}
+                    onChange={(e) => setInventoryWeights('kettlebells', e.target.value)}
+                    placeholder="e.g. 20, 35"
+                    className="input-base"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-strong">Bands (resistance levels)</label>
+                  <div className="flex flex-wrap gap-3">
+                    {(['light', 'medium', 'heavy'] as BandResistance[]).map(level => (
+                      <label key={level} className="flex items-center gap-2 text-sm text-muted">
                         <input
                           type="checkbox"
-                          checked={inventory.machines[machine]}
+                          checked={inventory.bands.includes(level)}
                           onChange={() =>
                             updateFormData(prev => ({
                               ...prev,
@@ -926,88 +1095,120 @@ export default function GeneratePage() {
                                 preset: 'custom',
                                 inventory: {
                                   ...prev.equipment.inventory,
-                                  machines: {
-                                    ...prev.equipment.inventory.machines,
-                                    [machine]: !prev.equipment.inventory.machines[machine]
-                                  }
+                                  bands: toggleArrayValue(prev.equipment.inventory.bands, level)
                                 }
                               }
                             }))
                           }
                           className="accent-[var(--color-primary)]"
                         />
-                        {machineLabels[machine]}
+                        {bandLabels[level]}
                       </label>
                     ))}
                   </div>
                 </div>
-
-                <label className="flex items-center gap-2 text-sm text-muted">
-                  <input
-                    type="checkbox"
-                    checked={inventory.bodyweight}
-                    onChange={() =>
-                      updateFormData(prev => ({
-                        ...prev,
-                        equipment: {
-                          ...prev.equipment,
-                          preset: 'custom',
-                          inventory: {
-                            ...prev.equipment.inventory,
-                            bodyweight: !prev.equipment.inventory.bodyweight
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-strong">Barbell + plates</label>
+                  <label className="mb-2 flex items-center gap-2 text-sm text-muted">
+                    <input
+                      type="checkbox"
+                      checked={inventory.barbell.available}
+                      onChange={() =>
+                        updateFormData(prev => ({
+                          ...prev,
+                          equipment: {
+                            ...prev.equipment,
+                            preset: 'custom',
+                            inventory: {
+                              ...prev.equipment.inventory,
+                              barbell: {
+                                ...prev.equipment.inventory.barbell,
+                                available: !prev.equipment.inventory.barbell.available
+                              }
+                            }
                           }
-                        }
-                      }))
-                    }
-                    className="accent-[var(--color-primary)]"
+                        }))
+                      }
+                      className="accent-[var(--color-primary)]"
+                    />
+                    Barbell available
+                  </label>
+                  <input
+                    type="text"
+                    value={formatWeightList(inventory.barbell.plates)}
+                    onChange={(e) => setInventoryWeights('plates', e.target.value)}
+                    placeholder="e.g. 10, 25, 45"
+                    className="input-base"
+                    disabled={!inventory.barbell.available}
                   />
-                  Bodyweight movements available
-                </label>
-
-                {invalidEquipment && (
-                  <p className="text-xs text-[var(--color-danger)]">Choose at least one equipment option.</p>
-                )}
-
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setCompletedSteps(prev => ({ ...prev, equipment: true }))
-                      setActiveStep('preferences')
-                    }}
-                    disabled={!flowState.equipmentStepComplete}
-                  >
-                    Continue
-                  </Button>
                 </div>
               </div>
-            )}
-          </div>
 
-          <div className="space-y-4">
-            <button
-              type="button"
-              onClick={() => stepAvailability.preferences && setActiveStep('preferences')}
-              disabled={!stepAvailability.preferences}
-              aria-expanded={activeStep === 'preferences'}
-              aria-controls="step-preferences"
-              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left ${
-                stepAvailability.preferences
-                  ? 'border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]'
-                  : 'border-[var(--color-border)] bg-[var(--color-surface-subtle)]'
-              }`}
-            >
               <div>
-                <p className="text-sm font-semibold text-strong">Preferences & Constraints</p>
-                <p className="text-xs text-subtle">Fine-tune focus areas and recovery details.</p>
+                <label className="mb-2 block text-sm font-medium text-strong">Machine availability</label>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {(Object.keys(machineLabels) as MachineType[]).map(machine => (
+                    <label key={machine} className="flex items-center gap-2 text-sm text-muted">
+                      <input
+                        type="checkbox"
+                        checked={inventory.machines[machine]}
+                        onChange={() =>
+                          updateFormData(prev => ({
+                            ...prev,
+                            equipment: {
+                              ...prev.equipment,
+                              preset: 'custom',
+                              inventory: {
+                                ...prev.equipment.inventory,
+                                machines: {
+                                  ...prev.equipment.inventory.machines,
+                                  [machine]: !prev.equipment.inventory.machines[machine]
+                                }
+                              }
+                            }
+                          }))
+                        }
+                        className="accent-[var(--color-primary)]"
+                      />
+                      {machineLabels[machine]}
+                    </label>
+                  ))}
+                </div>
               </div>
-              {renderStepStatus(completedSteps.preferences && flowState.preferencesStepComplete, stepAvailability.preferences)}
-            </button>
-            {activeStep === 'preferences' && (
-              <div id="step-preferences" className="surface-card-muted space-y-4 p-4">
-                <div className="space-y-4">
+
+              <label className="flex items-center gap-2 text-sm text-muted">
+                <input
+                  type="checkbox"
+                  checked={inventory.bodyweight}
+                  onChange={() =>
+                    updateFormData(prev => ({
+                      ...prev,
+                      equipment: {
+                        ...prev.equipment,
+                        preset: 'custom',
+                        inventory: {
+                          ...prev.equipment.inventory,
+                          bodyweight: !prev.equipment.inventory.bodyweight
+                        }
+                      }
+                    }))
+                  }
+                  className="accent-[var(--color-primary)]"
+                />
+                Bodyweight movements available
+              </label>
+
+              {invalidEquipment && (
+                <p className="text-xs text-[var(--color-danger)]">Choose at least one equipment option.</p>
+              )}
+
+              <details className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                <summary className="cursor-pointer text-sm font-semibold text-strong">
+                  Advanced preferences
+                </summary>
+                <div className="mt-4 space-y-4">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Secondary Goal</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Secondary goal</label>
                     <select
                       value={formData.goals.secondary ?? ''}
                       onChange={(e) =>
@@ -1027,7 +1228,7 @@ export default function GeneratePage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Goal Priority</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Goal priority</label>
                     <select
                       value={formData.goals.priority}
                       onChange={(e) =>
@@ -1044,34 +1245,9 @@ export default function GeneratePage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Time Windows</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {(['morning', 'afternoon', 'evening'] as PlanInput['schedule']['timeWindows']).map(opt => (
-                        <label key={opt} className="flex items-center gap-2 text-sm text-muted">
-                          <input
-                            type="checkbox"
-                            checked={formData.schedule.timeWindows.includes(opt)}
-                            onChange={() =>
-                              updateFormData(prev => ({
-                                ...prev,
-                                schedule: {
-                                  ...prev.schedule,
-                                  timeWindows: toggleArrayValue(prev.schedule.timeWindows, opt)
-                                }
-                              }))
-                            }
-                            className="accent-[var(--color-primary)]"
-                          />
-                          {opt.replace(/\b\w/g, char => char.toUpperCase())}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-strong">Minimum Rest Days</label>
+                      <label className="mb-2 block text-sm font-medium text-strong">Minimum rest days</label>
                       <input
                         type="number"
                         min={0}
@@ -1087,7 +1263,7 @@ export default function GeneratePage() {
                       />
                     </div>
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-strong">Recovery Preference</label>
+                      <label className="mb-2 block text-sm font-medium text-strong">Recovery preference</label>
                       <select
                         value={formData.preferences.restPreference}
                         onChange={(e) =>
@@ -1106,32 +1282,7 @@ export default function GeneratePage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Focus Areas</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {(['upper', 'lower', 'full_body', 'core', 'cardio', 'mobility'] as PlanInput['preferences']['focusAreas']).map(opt => (
-                        <label key={opt} className="flex items-center gap-2 text-sm text-muted">
-                          <input
-                            type="checkbox"
-                            checked={formData.preferences.focusAreas.includes(opt)}
-                            onChange={() =>
-                              updateFormData(prev => ({
-                                ...prev,
-                                preferences: {
-                                  ...prev.preferences,
-                                  focusAreas: toggleArrayValue(prev.preferences.focusAreas, opt)
-                                }
-                              }))
-                            }
-                            className="accent-[var(--color-primary)]"
-                          />
-                          {opt.replace('_', ' ').replace(/\b\w/g, char => char.toUpperCase())}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Disliked Activities</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Disliked activities</label>
                     <input
                       type="text"
                       value={formData.preferences.dislikedActivities.join(', ')}
@@ -1152,7 +1303,7 @@ export default function GeneratePage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Accessibility Constraints</label>
+                    <label className="mb-2 block text-sm font-medium text-strong">Accessibility constraints</label>
                     <div className="flex flex-wrap gap-3">
                       {['low-impact', 'joint-friendly', 'no-floor-work'].map(opt => (
                         <label key={opt} className="flex items-center gap-2 text-sm text-muted">
@@ -1176,162 +1327,114 @@ export default function GeneratePage() {
                     </div>
                   </div>
                 </div>
+              </details>
+            </section>
 
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setCompletedSteps(prev => ({ ...prev, preferences: true }))
-                      setActiveStep('review')
-                    }}
-                    disabled={!flowState.preferencesStepComplete}
-                  >
-                    Continue
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <button
-              type="button"
-              onClick={() => stepAvailability.review && setActiveStep('review')}
-              disabled={!stepAvailability.review}
-              aria-expanded={activeStep === 'review'}
-              aria-controls="step-review"
-              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left ${
-                stepAvailability.review
-                  ? 'border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]'
-                  : 'border-[var(--color-border)] bg-[var(--color-surface-subtle)]'
-              }`}
-            >
+            <section className="space-y-4">
               <div>
-                <p className="text-sm font-semibold text-strong">Review & Generate</p>
-                <p className="text-xs text-subtle">Confirm selections before generating.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 5</p>
+                <h2 className="text-xl font-semibold text-strong">Review & generate</h2>
+                <p className="text-sm text-muted">Confirm the highlights before we build your plan.</p>
               </div>
-              {renderStepStatus(completedSteps.review && flowState.reviewStepComplete, stepAvailability.review)}
-            </button>
-            {activeStep === 'review' && (
-              <div id="step-review" className="surface-card-muted space-y-4 p-4">
-                <div className="surface-card-subtle p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-strong">Selection Summary</h3>
-                  <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                    <div>
-                      <dt className="text-subtle">Primary Goal</dt>
-                      <dd className="text-strong capitalize">{formData.goals.primary.replace('_', ' ')}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Experience Level</dt>
-                      <dd className="text-strong capitalize">{formData.experienceLevel}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Intensity</dt>
-                      <dd className="text-strong capitalize">{formData.intensity}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Minutes per Session</dt>
-                      <dd className="text-strong">{formData.time.minutesPerSession} min</dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Total Minutes per Week</dt>
-                      <dd className="text-strong">{formData.time.totalMinutesPerWeek ?? 'Not set'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Days Available</dt>
-                      <dd className="text-strong">{daysAvailableLabel || 'Not selected'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Equipment</dt>
-                      <dd className="text-strong">{equipmentSummary.length ? equipmentSummary.join(', ') : 'Not set'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Secondary Goal</dt>
-                      <dd className="text-strong">{formData.goals.secondary?.replace('_', ' ') ?? 'None'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Goal Priority</dt>
-                      <dd className="text-strong capitalize">{formData.goals.priority.replace('_', ' ')}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Time Windows</dt>
-                      <dd className="text-strong">
-                        {formData.schedule.timeWindows.length
-                          ? formData.schedule.timeWindows.map(item => item.replace('_', ' ')).join(', ')
-                          : 'Not set'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Minimum Rest Days</dt>
-                      <dd className="text-strong">{formData.schedule.minRestDays}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Recovery Preference</dt>
-                      <dd className="text-strong capitalize">{formData.preferences.restPreference.replace('_', ' ')}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Focus Areas</dt>
-                      <dd className="text-strong">
-                        {formData.preferences.focusAreas.length
-                          ? formData.preferences.focusAreas.map(item => item.replace('_', ' ')).join(', ')
-                          : 'Not set'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Disliked Activities</dt>
-                      <dd className="text-strong">
-                        {formData.preferences.dislikedActivities.length
-                          ? formData.preferences.dislikedActivities.join(', ')
-                          : 'Not set'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-subtle">Accessibility Constraints</dt>
-                      <dd className="text-strong">
-                        {formData.preferences.accessibilityConstraints.length
-                          ? formData.preferences.accessibilityConstraints.join(', ')
-                          : 'Not set'}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
 
-                <div className="surface-card-subtle p-4" aria-live="polite">
-                  {statusContent()}
-                  {errors.length > 0 && (
-                    <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-[var(--color-danger)]">
-                      {errors.map(error => (
-                        <li key={error}>{error}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                <Button
-                  onClick={async () => {
-                    setCompletedSteps(prev => ({ ...prev, review: true }))
-                    await generatePlanHandler()
-                  }}
-                  disabled={loading || !flowState.isFormValid}
-                  className="w-full py-5 text-base"
-                  aria-label="Generate Workout Plan"
-                >
-                  {loading ? (
-                    <span className="flex items-center justify-center">
-                      <Loader2 className="animate-spin mr-2 h-5 w-5" /> Generating...
-                    </span>
-                  ) : (
-                    <>
-                      <Wand2 className="w-5 h-5 mr-2" />
-                      Generate Plan
-                    </>
-                  )}
-                </Button>
+              <div className="surface-card-subtle p-4">
+                <h3 className="mb-3 text-sm font-semibold text-strong">Selection summary</h3>
+                <dl className="grid gap-3 text-sm md:grid-cols-2">
+                  <div>
+                    <dt className="text-subtle">Intent</dt>
+                    <dd className="text-strong capitalize">
+                      {formData.intent.mode === 'style' ? 'Style-driven' : 'Body-part driven'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-subtle">Primary style</dt>
+                    <dd className="text-strong capitalize">{(formData.intent.style ?? formData.goals.primary).replace('_', ' ')}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-subtle">Body focus</dt>
+                    <dd className="text-strong">
+                      {formData.intent.bodyParts && formData.intent.bodyParts.length > 0
+                        ? formData.intent.bodyParts.map(item => item.replace('_', ' ')).join(', ')
+                        : 'Not set'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-subtle">Experience level</dt>
+                    <dd className="text-strong capitalize">{formData.experienceLevel}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-subtle">Intensity</dt>
+                    <dd className="text-strong capitalize">{formData.intensity}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-subtle">Minutes per session</dt>
+                    <dd className="text-strong">{formData.time.minutesPerSession} min</dd>
+                  </div>
+                  <div>
+                    <dt className="text-subtle">Total minutes per week</dt>
+                    <dd className="text-strong">{formData.time.totalMinutesPerWeek ?? 'Not set'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-subtle">Days available</dt>
+                    <dd className="text-strong">{daysAvailableLabel || 'Not selected'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-subtle">Equipment</dt>
+                    <dd className="text-strong">{equipmentSummary.length ? equipmentSummary.join(', ') : 'Not set'}</dd>
+                  </div>
+                </dl>
               </div>
-            )}
+
+              <div className="surface-card-subtle p-4">
+                <h3 className="mb-3 text-sm font-semibold text-strong">Weekly layout</h3>
+                {weeklyLayout.length === 0 ? (
+                  <p className="text-sm text-muted">No weekly layout set yet.</p>
+                ) : (
+                  <ul className="space-y-2 text-sm text-muted">
+                    {weeklyLayout.map((entry) => (
+                      <li key={entry.dayOfWeek} className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-strong">{formatDayLabel(entry.dayOfWeek)}</span>
+                        <span>· {entry.style.replace('_', ' ')}</span>
+                        <span>· {entry.focus.replace('_', ' ')}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="surface-card-subtle p-4" aria-live="polite">
+                {statusContent()}
+                {errors.length > 0 && (
+                  <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-[var(--color-danger)]">
+                    {errors.map(error => (
+                      <li key={error}>{error}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <Button
+                onClick={async () => {
+                  await generatePlanHandler()
+                }}
+                disabled={loading || !flowState.isFormValid}
+                className="w-full py-5 text-base"
+                aria-label="Generate Workout Plan"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center">
+                    <Loader2 className="animate-spin mr-2 h-5 w-5" /> Generating...
+                  </span>
+                ) : (
+                  <>
+                    <Wand2 className="w-5 h-5 mr-2" />
+                    Generate Plan
+                  </>
+                )}
+              </Button>
+            </section>
           </div>
-        </div>
-      </Card>
+        </Card>
 
       <Card className="mt-8 p-6">
         <div className="flex items-center justify-between mb-4">

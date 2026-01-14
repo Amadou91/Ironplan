@@ -118,6 +118,11 @@ export interface WorkoutImpact {
 }
 
 export interface PlanInput {
+  intent: {
+    mode: 'style' | 'body_part'
+    style?: Goal
+    bodyParts?: FocusArea[]
+  }
   goals: {
     primary: Goal
     secondary?: Goal
@@ -137,6 +142,11 @@ export interface PlanInput {
     daysAvailable: number[]
     timeWindows: TimeWindow[]
     minRestDays: number
+    weeklyLayout?: Array<{
+      dayOfWeek: number
+      style: Goal
+      focus: FocusArea
+    }>
   }
   preferences: {
     focusAreas: FocusArea[]
