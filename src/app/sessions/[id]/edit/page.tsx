@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
+import { INTENSITY_RECOMMENDATION, RIR_HELPER_TEXT, RIR_OPTIONS, RPE_HELPER_TEXT, RPE_OPTIONS } from '@/constants/intensityOptions'
 
 type EditableSet = {
   id: string
@@ -420,27 +421,62 @@ export default function SessionEditPage() {
                       </div>
                       <div>
                         <label className="text-[10px] text-slate-500 uppercase tracking-wider">RPE</label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={10}
-                          value={set.rpe}
-                          onChange={(event) => updateSetField(exercise.id, set.id, 'rpe', event.target.value === '' ? '' : Number(event.target.value))}
+                        <select
+                          value={typeof set.rpe === 'number' ? String(set.rpe) : ''}
+                          onChange={(event) => {
+                            const nextValue = event.target.value === '' ? '' : Number(event.target.value)
+                            updateSetField(exercise.id, set.id, 'rpe', nextValue)
+                            if (event.target.value !== '') {
+                              updateSetField(exercise.id, set.id, 'rir', '')
+                            }
+                          }}
                           className="input-base mt-1"
-                        />
+                          disabled={typeof set.rir === 'number'}
+                        >
+                          <option value="">Select effort</option>
+                          {RPE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label} — {option.description}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-1 text-[10px] text-slate-500">{RPE_HELPER_TEXT}</p>
+                        {typeof set.rpe === 'number' ? (
+                          <p className="text-[10px] text-indigo-300/80">
+                            {RPE_OPTIONS.find((option) => option.value === set.rpe)?.equivalence}
+                          </p>
+                        ) : null}
                       </div>
                       <div>
                         <label className="text-[10px] text-slate-500 uppercase tracking-wider">RIR</label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={10}
-                          value={set.rir}
-                          onChange={(event) => updateSetField(exercise.id, set.id, 'rir', event.target.value === '' ? '' : Number(event.target.value))}
+                        <select
+                          value={typeof set.rir === 'number' ? String(set.rir) : ''}
+                          onChange={(event) => {
+                            const nextValue = event.target.value === '' ? '' : Number(event.target.value)
+                            updateSetField(exercise.id, set.id, 'rir', nextValue)
+                            if (event.target.value !== '') {
+                              updateSetField(exercise.id, set.id, 'rpe', '')
+                            }
+                          }}
                           className="input-base mt-1"
-                        />
+                          disabled={typeof set.rpe === 'number'}
+                        >
+                          <option value="">Select reps left</option>
+                          {RIR_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-1 text-[10px] text-slate-500">{RIR_HELPER_TEXT}</p>
+                        {typeof set.rir === 'number' ? (
+                          <p className="text-[10px] text-indigo-300/80">
+                            {RIR_OPTIONS.find((option) => option.value === set.rir)?.equivalence}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
+                    <p className="text-[10px] text-slate-500">{INTENSITY_RECOMMENDATION}</p>
                     <div>
                       <label className="text-[10px] text-slate-500 uppercase tracking-wider">Notes</label>
                       <input
