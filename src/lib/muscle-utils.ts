@@ -2,6 +2,28 @@ import { Exercise } from '@/types/domain';
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
 
+const MUSCLE_GROUP_SLUGS = new Set([
+  'chest',
+  'back',
+  'shoulders',
+  'arms',
+  'biceps',
+  'triceps',
+  'forearms',
+  'core',
+  'glutes',
+  'quads',
+  'hamstrings',
+  'calves',
+  'hip_flexors',
+  'adductors',
+  'abductors',
+  'upper_body',
+  'lower_body',
+  'full_body',
+  'cardio'
+]);
+
 const resolveByKeyword = (label: string) => {
   if (label.includes('bench') || label.includes('push up') || label.includes('press')) {
     return { primary: 'Chest', secondary: ['Triceps', 'Shoulders'] };
@@ -63,12 +85,16 @@ export const enhanceExerciseData = (ex: Exercise): Exercise => {
   };
 };
 
-export const toMuscleSlug = (value: string) =>
-  value
+export const toMuscleSlug = (value: string, fallback: string | null = 'full_body') => {
+  const slug = value
     .trim()
     .toLowerCase()
     .replace(/[^\w\s]/g, '')
     .replace(/\s+/g, '_');
+
+  if (!slug) return fallback;
+  return MUSCLE_GROUP_SLUGS.has(slug) ? slug : fallback;
+};
 
 export const toMuscleLabel = (value: string) =>
   value
