@@ -10,10 +10,11 @@ import { Card } from '@/components/ui/Card'
 import { generatePlan, normalizePlanInput } from '@/lib/generator'
 import { bandLabels, cloneInventory, equipmentPresets, formatWeightList, machineLabels, parseWeightList } from '@/lib/equipment'
 import { buildWorkoutHistoryEntry, loadWorkoutHistory, removeWorkoutHistoryEntry, saveWorkoutHistoryEntry } from '@/lib/workoutHistory'
-import { formatWeekStartDate } from '@/lib/schedule-utils'
+import { formatDayLabel, formatWeekStartDate } from '@/lib/schedule-utils'
+import { resolveSavedSessionConflicts } from '@/lib/saved-sessions'
 import { getFlowCompletion, isDaysAvailableValid, isEquipmentValid, isMinutesPerSessionValid, isTotalMinutesPerWeekValid } from '@/lib/generationFlow'
 import { logEvent } from '@/lib/logger'
-import type { BandResistance, EquipmentPreset, Goal, MachineType, PlanInput } from '@/types/domain'
+import type { BandResistance, EquipmentPreset, Goal, MachineType, PlanInput, GeneratedPlan } from '@/types/domain'
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -33,6 +34,13 @@ export default function GeneratePage() {
   })
   const [errors, setErrors] = useState<string[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSummary, setSaveSummary] = useState<{
+    createdDays: number[]
+    conflicts: Array<{ dayOfWeek: number; sessionId: string; sessionName: string; updatedAt: string | null }>
+    workoutId?: string
+  } | null>(null)
+  const [lastGeneratedPlan, setLastGeneratedPlan] = useState<GeneratedPlan | null>(null)
+  const [isReplacing, setIsReplacing] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [historyEntries, setHistoryEntries] = useState<ReturnType<typeof loadWorkoutHistory>>([])
   const [deletingHistoryIds, setDeletingHistoryIds] = useState<Record<string, boolean>>({})
@@ -63,6 +71,7 @@ export default function GeneratePage() {
   const clearFeedback = () => {
     if (errors.length > 0) setErrors([])
     if (saveError) setSaveError(null)
+    if (saveSummary) setSaveSummary(null)
     if (historyError) setHistoryError(null)
   }
 
@@ -201,6 +210,7 @@ export default function GeneratePage() {
     }
 
     setErrors([])
+    setSaveSummary(null)
     logEvent('info', 'plan_generated', {
       userId: user.id,
       sessionsPerWeek: plan.summary.sessionsPerWeek,
@@ -208,6 +218,7 @@ export default function GeneratePage() {
       goals: plan.inputs.goals,
       equipment: plan.inputs.equipment
     })
+    setLastGeneratedPlan(plan)
 
     let historyEntry: ReturnType<typeof buildWorkoutHistoryEntry> | null = null
     if (typeof window !== 'undefined') {
@@ -289,7 +300,50 @@ export default function GeneratePage() {
           return
         }
 
-        router.push(`/workout/${data.id}`)
+        const selectedDays = plan.schedule.map(day => day.dayOfWeek)
+        const { data: existingSessions, error: existingError } = await supabase
+          .from('saved_sessions')
+          .select('id, day_of_week, session_name, updated_at')
+          .eq('user_id', user.id)
+          .in('day_of_week', selectedDays)
+
+        if (existingError) {
+          console.error('Failed to check saved sessions', existingError)
+          setSaveError(`Plan generated, but saving sessions failed: ${existingError.message}`)
+          return
+        }
+
+        const { conflicts, availableDays } = resolveSavedSessionConflicts(selectedDays, existingSessions ?? [])
+        const createdDays = [...availableDays]
+
+        if (availableDays.length > 0) {
+          const sessionRows = plan.schedule
+            .filter(day => availableDays.includes(day.dayOfWeek))
+            .map(day => ({
+              user_id: user.id,
+              workout_id: data.id,
+              day_of_week: day.dayOfWeek,
+              session_name: `${plan.title} · ${formatDayLabel(day.dayOfWeek)}`,
+              workouts: day.exercises,
+              updated_at: new Date().toISOString()
+            }))
+
+          const { error: sessionSaveError } = await supabase
+            .from('saved_sessions')
+            .insert(sessionRows)
+
+          if (sessionSaveError) {
+            console.error('Failed to create saved sessions', sessionSaveError)
+            setSaveError(`Plan generated, but day sessions failed to save: ${sessionSaveError.message}`)
+            return
+          }
+        }
+
+        setSaveSummary({
+          createdDays,
+          conflicts,
+          workoutId: data.id
+        })
       } else {
         console.error('Failed to save plan', { error: 'No data returned from insert.' })
         setSaveError('Failed to generate plan. No data returned from insert.')
@@ -344,6 +398,60 @@ export default function GeneratePage() {
       .join(', ') || null
   ].filter(Boolean) as string[]
 
+  const handleReplaceConflicts = async () => {
+    if (!user || !saveSummary || !lastGeneratedPlan) return
+    const conflictDays = saveSummary.conflicts.map((conflict) => conflict.dayOfWeek)
+    if (conflictDays.length === 0) return
+    if (!confirm('Delete the existing sessions for these days and replace them with the new plan?')) return
+
+    setIsReplacing(true)
+    setSaveError(null)
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('saved_sessions')
+        .delete()
+        .eq('user_id', user.id)
+        .in('day_of_week', conflictDays)
+
+      if (deleteError) {
+        throw deleteError
+      }
+
+      const replacementRows = lastGeneratedPlan.schedule
+        .filter((day) => conflictDays.includes(day.dayOfWeek))
+        .map((day) => ({
+          user_id: user.id,
+          workout_id: saveSummary.workoutId ?? null,
+          day_of_week: day.dayOfWeek,
+          session_name: `${lastGeneratedPlan.title} · ${formatDayLabel(day.dayOfWeek)}`,
+          workouts: day.exercises,
+          updated_at: new Date().toISOString()
+        }))
+
+      if (replacementRows.length > 0) {
+        const { error: insertError } = await supabase
+          .from('saved_sessions')
+          .insert(replacementRows)
+
+        if (insertError) {
+          throw insertError
+        }
+      }
+
+      setSaveSummary({
+        ...saveSummary,
+        createdDays: Array.from(new Set([...saveSummary.createdDays, ...conflictDays])),
+        conflicts: []
+      })
+    } catch (error) {
+      console.error('Failed to replace saved sessions', error)
+      setSaveError('Unable to replace the existing sessions. Please try again.')
+    } finally {
+      setIsReplacing(false)
+    }
+  }
+
   const statusContent = () => {
     if (loading) {
       return (
@@ -356,6 +464,62 @@ export default function GeneratePage() {
 
     if (saveError) {
       return <div className="text-sm text-[var(--color-danger)]">{saveError}</div>
+    }
+
+    if (saveSummary) {
+      const createdLabels = saveSummary.createdDays.map((day) => formatDayLabel(day)).join(', ')
+      const conflictLabels = saveSummary.conflicts.map((conflict) => formatDayLabel(conflict.dayOfWeek)).join(', ')
+
+      return (
+        <div className="space-y-3 text-sm text-muted">
+          {saveSummary.createdDays.length > 0 && (
+            <div className="rounded-lg border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] px-3 py-2 text-[var(--color-primary-strong)]">
+              Saved sessions for: {createdLabels}
+            </div>
+          )}
+          {saveSummary.conflicts.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2">
+              <p className="text-xs text-[var(--color-danger)]">
+                You already have a session saved for {conflictLabels}. Remove it or choose different days.
+              </p>
+              <ul className="space-y-1 text-xs text-subtle">
+                {saveSummary.conflicts.map((conflict) => (
+                  <li key={conflict.sessionId}>
+                    {formatDayLabel(conflict.dayOfWeek)} · {conflict.sessionName} · Updated{' '}
+                    {conflict.updatedAt ? new Date(conflict.updatedAt).toLocaleDateString() : 'recently'}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button type="button" variant="secondary" onClick={() => router.push('/dashboard')}>
+                  View existing session
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setActiveStep('duration')
+                  }}
+                >
+                  Choose different days
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleReplaceConflicts}
+                  disabled={isReplacing}
+                >
+                  {isReplacing ? 'Replacing...' : 'Delete & replace existing'}
+                </Button>
+              </div>
+            </div>
+          )}
+          {saveSummary.workoutId && (
+            <Button type="button" variant="secondary" onClick={() => router.push(`/workout/${saveSummary.workoutId}`)}>
+              View generated plan
+            </Button>
+          )}
+        </div>
+      )
     }
 
     if (errors.length > 0) {

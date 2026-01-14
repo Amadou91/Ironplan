@@ -45,10 +45,14 @@ type ExerciseTemplate = Omit<Exercise, 'load'> & {
   loadTarget?: number
 }
 
-const EXERCISE_LIBRARY: ExerciseTemplate[] = [
+export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Barbell Back Squat',
     focus: 'lower',
+    movementPattern: 'squat',
+    difficulty: 'intermediate',
+    goal: 'strength',
+    primaryMuscle: 'Quads',
     sets: 4,
     reps: '5-8',
     rpe: 8,
@@ -60,6 +64,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Dumbbell Goblet Squat',
     focus: 'lower',
+    movementPattern: 'squat',
+    difficulty: 'beginner',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Quads',
     sets: 3,
     reps: '8-12',
     rpe: 7,
@@ -71,6 +79,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Romanian Deadlift',
     focus: 'lower',
+    movementPattern: 'hinge',
+    difficulty: 'intermediate',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Hamstrings',
     sets: 3,
     reps: '8-10',
     rpe: 8,
@@ -82,6 +94,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Push-Up',
     focus: 'upper',
+    movementPattern: 'push',
+    difficulty: 'beginner',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Chest',
     sets: 3,
     reps: '10-15',
     rpe: 7,
@@ -92,6 +108,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Bench Press',
     focus: 'upper',
+    movementPattern: 'push',
+    difficulty: 'intermediate',
+    goal: 'strength',
+    primaryMuscle: 'Chest',
     sets: 4,
     reps: '5-8',
     rpe: 8,
@@ -103,6 +123,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Dumbbell Row',
     focus: 'upper',
+    movementPattern: 'pull',
+    difficulty: 'intermediate',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Back',
     sets: 3,
     reps: '8-12',
     rpe: 7,
@@ -114,6 +138,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Overhead Press',
     focus: 'upper',
+    movementPattern: 'push',
+    difficulty: 'intermediate',
+    goal: 'strength',
+    primaryMuscle: 'Shoulders',
     sets: 3,
     reps: '6-10',
     rpe: 8,
@@ -125,6 +153,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Walking Lunge',
     focus: 'lower',
+    movementPattern: 'squat',
+    difficulty: 'intermediate',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Quads',
     sets: 3,
     reps: '10-12',
     rpe: 7,
@@ -136,6 +168,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Plank Series',
     focus: 'core',
+    movementPattern: 'core',
+    difficulty: 'beginner',
+    goal: 'endurance',
+    primaryMuscle: 'Core',
     sets: 3,
     reps: '30-45 sec',
     rpe: 7,
@@ -146,6 +182,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Dead Bug',
     focus: 'core',
+    movementPattern: 'core',
+    difficulty: 'beginner',
+    goal: 'endurance',
+    primaryMuscle: 'Core',
     sets: 3,
     reps: '8-12',
     rpe: 6,
@@ -156,6 +196,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Incline Dumbbell Press',
     focus: 'upper',
+    movementPattern: 'push',
+    difficulty: 'intermediate',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Chest',
     sets: 3,
     reps: '8-12',
     rpe: 7,
@@ -167,6 +211,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Lat Pulldown',
     focus: 'upper',
+    movementPattern: 'pull',
+    difficulty: 'beginner',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Back',
     sets: 3,
     reps: '8-12',
     rpe: 7,
@@ -178,6 +226,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Assault Bike Intervals',
     focus: 'cardio',
+    movementPattern: 'cardio',
+    difficulty: 'intermediate',
+    goal: 'endurance',
+    primaryMuscle: 'Cardio',
     sets: 6,
     reps: '30 sec on/30 sec off',
     rpe: 8,
@@ -188,6 +240,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Zone 2 Cardio',
     focus: 'cardio',
+    movementPattern: 'cardio',
+    difficulty: 'beginner',
+    goal: 'endurance',
+    primaryMuscle: 'Cardio',
     sets: 1,
     reps: '20-30 min',
     rpe: 6,
@@ -198,6 +254,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Mobility Flow',
     focus: 'mobility',
+    movementPattern: 'core',
+    difficulty: 'beginner',
+    goal: 'general_fitness',
+    primaryMuscle: 'Full Body',
     sets: 1,
     reps: '15-20 min',
     rpe: 5,
@@ -208,6 +268,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Kettlebell Swing',
     focus: 'cardio',
+    movementPattern: 'hinge',
+    difficulty: 'intermediate',
+    goal: 'endurance',
+    primaryMuscle: 'Glutes',
     sets: 4,
     reps: '12-15',
     rpe: 8,
@@ -219,6 +283,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Resistance Band Pull-Apart',
     focus: 'upper',
+    movementPattern: 'pull',
+    difficulty: 'beginner',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Shoulders',
     sets: 3,
     reps: '12-15',
     rpe: 6,
@@ -230,6 +298,10 @@ const EXERCISE_LIBRARY: ExerciseTemplate[] = [
   {
     name: 'Leg Press',
     focus: 'lower',
+    movementPattern: 'squat',
+    difficulty: 'intermediate',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Quads',
     sets: 3,
     reps: '10-12',
     rpe: 7,
