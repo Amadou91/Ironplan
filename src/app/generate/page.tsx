@@ -14,7 +14,7 @@ import { formatDayLabel, formatWeekStartDate } from '@/lib/schedule-utils'
 import { resolveSavedSessionConflicts } from '@/lib/saved-sessions'
 import { getFlowCompletion, isDaysAvailableValid, isEquipmentValid, isMinutesPerSessionValid, isTotalMinutesPerWeekValid } from '@/lib/generationFlow'
 import { logEvent } from '@/lib/logger'
-import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanInput, GeneratedPlan } from '@/types/domain'
+import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanDay, PlanInput, GeneratedPlan } from '@/types/domain'
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const styleOptions: { value: Goal; label: string; description: string }[] = [
@@ -30,6 +30,20 @@ const focusOptions: { value: PlanInput['preferences']['focusAreas'][number]; lab
   { value: 'cardio', label: 'Cardio' },
   { value: 'mobility', label: 'Mobility' }
 ]
+const toTitleCase = (value: string) =>
+  value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+
+const formatGoalLabel = (goal: Goal) => toTitleCase(goal)
+
+const formatFocusLabel = (focus: FocusArea) =>
+  focusOptions.find((option) => option.value === focus)?.label ?? toTitleCase(focus)
+
+const buildSavedSessionName = (plan: GeneratedPlan, day: PlanDay) => {
+  const dayLabel = formatDayLabel(day.dayOfWeek)
+  return `${plan.title} · ${dayLabel} · ${formatGoalLabel(plan.goal)} · ${formatFocusLabel(day.focus)}`
+}
 
 export default function GeneratePage() {
   const router = useRouter()
@@ -461,7 +475,7 @@ export default function GeneratePage() {
               user_id: user.id,
               workout_id: data.id,
               day_of_week: day.dayOfWeek,
-              session_name: `${plan.title} · ${formatDayLabel(day.dayOfWeek)}`,
+              session_name: buildSavedSessionName(plan, day),
               workouts: day.exercises,
               updated_at: new Date().toISOString()
             }))
@@ -548,7 +562,7 @@ export default function GeneratePage() {
           user_id: user.id,
           workout_id: saveSummary.workoutId ?? null,
           day_of_week: day.dayOfWeek,
-          session_name: `${lastGeneratedPlan.title} · ${formatDayLabel(day.dayOfWeek)}`,
+          session_name: buildSavedSessionName(lastGeneratedPlan, day),
           workouts: day.exercises,
           updated_at: new Date().toISOString()
         }))

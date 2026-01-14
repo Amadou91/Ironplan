@@ -16,10 +16,12 @@ export const resolveSavedSessionConflicts = (
   selectedDays: number[],
   existingSessions: ExistingSessionRow[]
 ) => {
+  const selectedDaySet = new Set(selectedDays)
+  const relevantSessions = existingSessions.filter((session) => selectedDaySet.has(session.day_of_week))
   const conflicts: SavedSessionConflict[] = []
-  const conflictDays = new Set(existingSessions.map((session) => session.day_of_week))
+  const conflictDays = new Set(relevantSessions.map((session) => session.day_of_week))
 
-  for (const session of existingSessions) {
+  for (const session of relevantSessions) {
     conflicts.push({
       dayOfWeek: session.day_of_week,
       sessionId: session.id,
