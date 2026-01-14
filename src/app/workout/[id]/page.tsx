@@ -178,6 +178,7 @@ export default function WorkoutDetailPage() {
           .update({ workouts: updatedExercises, updated_at: new Date().toISOString() })
           .eq('user_id', user.id)
           .eq('day_of_week', selectedSchedule.dayOfWeek)
+          .eq('workout_id', workout.id)
 
         if (savedSessionError) {
           console.error('Failed to update saved session', savedSessionError)
