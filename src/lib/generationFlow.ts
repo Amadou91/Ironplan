@@ -10,14 +10,26 @@ export const isDaysAvailableValid = (days: number[]) => days.length > 0
 
 export const isEquipmentValid = (equipment: PlanInput['equipment']) => hasEquipment(equipment.inventory)
 
+const isIntentValid = (intent: PlanInput['intent']) => {
+  if (intent.mode === 'style') return Boolean(intent.style)
+  return Boolean(intent.bodyParts && intent.bodyParts.length > 0)
+}
+
+const isWeeklyLayoutValid = (schedule: PlanInput['schedule']) => {
+  if (!schedule.weeklyLayout || schedule.weeklyLayout.length === 0) return false
+  const layoutDays = new Set(schedule.weeklyLayout.map((entry) => entry.dayOfWeek))
+  return schedule.daysAvailable.every((day) => layoutDays.has(day))
+}
+
 export const getFlowCompletion = (input: PlanInput) => {
-  const goalStepComplete = Boolean(input.goals.primary) && Boolean(input.experienceLevel)
+  const goalStepComplete = Boolean(input.goals.primary) && Boolean(input.experienceLevel) && isIntentValid(input.intent)
   const durationStepComplete =
     goalStepComplete &&
     Boolean(input.intensity) &&
     isMinutesPerSessionValid(input.time.minutesPerSession) &&
     isTotalMinutesPerWeekValid(input.time.totalMinutesPerWeek) &&
-    isDaysAvailableValid(input.schedule.daysAvailable)
+    isDaysAvailableValid(input.schedule.daysAvailable) &&
+    isWeeklyLayoutValid(input.schedule)
   const equipmentStepComplete = durationStepComplete && isEquipmentValid(input.equipment)
   const preferencesStepComplete = equipmentStepComplete
   const reviewStepComplete = preferencesStepComplete
