@@ -222,18 +222,18 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
   }, [activeSession]);
 
   if (isLoading) {
-    return <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-center text-slate-400">Loading active session...</div>;
+    return <div className="surface-card-muted p-6 text-center text-muted">Loading active session...</div>;
   }
 
   if (!activeSession) return null;
 
   return (
     <div className="space-y-8 pb-24">
-      <div className="sticky top-0 z-10 rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-lg backdrop-blur">
+      <div className="sticky top-0 z-10 surface-elevated p-4 backdrop-blur">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-white">{heading}</h2>
-            <div className="flex items-center text-sm text-slate-400 gap-1">
+            <h2 className="text-xl font-semibold text-strong">{heading}</h2>
+            <div className="flex items-center gap-1 text-sm text-muted">
               <Clock size={14} />
               <span>Started at {new Date(activeSession.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
@@ -247,22 +247,22 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
           </Button>
         </div>
         {errorMessage && (
-          <div className="mt-3 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{errorMessage}</div>
+          <div className="mt-3 alert-error px-3 py-2 text-xs">{errorMessage}</div>
         )}
       </div>
 
       <div className="space-y-6">
         {activeSession.exercises.map((exercise: SessionExercise, exIdx: number) => (
-          <div key={`${exercise.name}-${exIdx}`} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 md:p-6 shadow-sm">
+          <div key={`${exercise.name}-${exIdx}`} className="surface-card-muted p-4 md:p-6">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-white">{exercise.name}</h3>
+                <h3 className="text-lg font-semibold text-strong">{exercise.name}</h3>
                 <div className="flex gap-2 mt-2 flex-wrap">
-                  <span className="text-xs bg-indigo-500/10 text-indigo-200 px-2 py-0.5 rounded-full font-medium border border-indigo-500/20">
+                  <span className="badge-accent">
                     {exercise.primaryMuscle}
                   </span>
                   {exercise.secondaryMuscles?.map((m: string) => (
-                    <span key={m} className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">
+                    <span key={m} className="badge-neutral">
                       {m}
                     </span>
                   ))}
@@ -284,7 +284,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
 
             <button
               onClick={() => handleAddSet(exIdx)}
-              className="w-full mt-4 py-2 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 font-medium hover:border-indigo-500/60 hover:text-indigo-200 hover:bg-indigo-500/10 transition-all flex justify-center items-center gap-2"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--color-border-strong)] py-2 text-sm font-medium text-muted transition-all hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)]"
             >
               <Plus size={18} /> Add Set
             </button>

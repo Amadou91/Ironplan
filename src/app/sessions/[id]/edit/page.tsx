@@ -311,12 +311,12 @@ export default function SessionEditPage() {
   }
 
   if (loading) {
-    return <div className="p-10 text-center text-slate-400">Loading session details...</div>
+    return <div className="page-shell p-10 text-center text-muted">Loading session details...</div>
   }
 
   if (!session) {
     return (
-      <div className="p-10 text-center text-slate-400">
+      <div className="page-shell p-10 text-center text-muted">
         <p className="mb-4">Session not found.</p>
         <Button onClick={() => router.push('/dashboard')}>Back to Dashboard</Button>
       </div>
@@ -324,83 +324,84 @@ export default function SessionEditPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button
-            onClick={handleCancel}
-            className="text-xs text-slate-400 hover:text-white"
-            type="button"
+    <div className="page-shell">
+      <div className="w-full space-y-8 px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <button
+              onClick={handleCancel}
+              className="text-xs text-muted transition-colors hover:text-strong"
+              type="button"
+            >
+              ← Back to Dashboard
+            </button>
+            <h1 className="mt-2 text-2xl font-semibold text-strong">Edit Session</h1>
+            <p className="text-sm text-muted">{formatDateTime(session.startedAt)} · Adjust logged sets, reps, and notes.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="ghost" onClick={handleCancel} className="h-9 px-3">
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving || !hasChanges} className="h-9 px-4">
+              {saving ? 'Saving...' : 'Save changes'}
+            </Button>
+          </div>
+        </div>
+
+        {(errorMessage || successMessage) && (
+          <div
+            className={`rounded-lg border p-4 text-sm ${
+              errorMessage
+                ? 'alert-error'
+                : 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
+            }`}
           >
-            ← Back to Dashboard
-          </button>
-          <h1 className="text-2xl font-semibold text-white mt-2">Edit Session</h1>
-          <p className="text-sm text-slate-400">{formatDateTime(session.startedAt)} · Adjust logged sets, reps, and notes.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" onClick={handleCancel} className="h-9 px-3">
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={saving || !hasChanges} className="h-9 px-4">
-            {saving ? 'Saving...' : 'Save changes'}
-          </Button>
-        </div>
-      </div>
+            {errorMessage ?? successMessage}
+          </div>
+        )}
 
-      {(errorMessage || successMessage) && (
-        <div
-          className={`rounded-lg border p-4 text-sm ${
-            errorMessage
-              ? 'border-rose-500/30 bg-rose-500/10 text-rose-200'
-              : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-          }`}
-        >
-          {errorMessage ?? successMessage}
-        </div>
-      )}
+        <Card className="p-6">
+          <label className="text-xs text-subtle">Session name</label>
+          <input
+            type="text"
+            value={session.name}
+            onChange={(event) => updateSessionName(event.target.value)}
+            className="input-base mt-2"
+          />
+        </Card>
 
-      <Card className="card-surface p-6">
-        <label className="text-xs text-slate-400">Session name</label>
-        <input
-          type="text"
-          value={session.name}
-          onChange={(event) => updateSessionName(event.target.value)}
-          className="input-base mt-2"
-        />
-      </Card>
-
-      <div className="space-y-6">
-        {session.exercises.map((exercise) => (
-          <Card key={exercise.id} className="card-surface p-6 space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold text-white">{exercise.name}</h2>
-              <p className="text-xs text-slate-400">
-                Primary: {exercise.primaryMuscle ? toMuscleLabel(exercise.primaryMuscle) : '—'}
-                {exercise.secondaryMuscles?.length
-                  ? ` · Secondary: ${exercise.secondaryMuscles.map((muscle) => toMuscleLabel(muscle)).join(', ')}`
-                  : ''}
-              </p>
-            </div>
+        <div className="space-y-6">
+          {session.exercises.map((exercise) => (
+            <Card key={exercise.id} className="space-y-4 p-6">
+              <div>
+                <h2 className="text-lg font-semibold text-strong">{exercise.name}</h2>
+                <p className="text-xs text-subtle">
+                  Primary: {exercise.primaryMuscle ? toMuscleLabel(exercise.primaryMuscle) : '—'}
+                  {exercise.secondaryMuscles?.length
+                    ? ` · Secondary: ${exercise.secondaryMuscles.map((muscle) => toMuscleLabel(muscle)).join(', ')}`
+                    : ''}
+                </p>
+              </div>
 
             <div className="space-y-3">
               {exercise.sets.length === 0 ? (
-                <p className="text-sm text-slate-500">No sets logged yet.</p>
+                <p className="text-sm text-subtle">No sets logged yet.</p>
               ) : (
                 exercise.sets.map((set) => (
-                  <div key={set.id} className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 space-y-3">
+                  <div key={set.id} className="surface-card-muted space-y-3 p-4">
                     <div className="flex items-center justify-between">
-                      <p className="text-xs text-slate-400">Set {set.setNumber}</p>
+                      <p className="text-xs text-subtle">Set {set.setNumber}</p>
                       <button
                         type="button"
                         onClick={() => handleDeleteSet(exercise.id, set.id)}
-                        className="text-xs text-rose-300 hover:text-rose-200"
+                        className="text-xs text-[var(--color-danger)] transition-colors hover:text-[var(--color-danger)]"
                       >
                         Delete set
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                       <div>
-                        <label className="text-[10px] text-slate-500 uppercase tracking-wider">Weight (lb)</label>
+                        <label className="text-[10px] uppercase tracking-wider text-subtle">Weight (lb)</label>
                         <input
                           type="number"
                           min={0}
@@ -410,7 +411,7 @@ export default function SessionEditPage() {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-slate-500 uppercase tracking-wider">Reps</label>
+                        <label className="text-[10px] uppercase tracking-wider text-subtle">Reps</label>
                         <input
                           type="number"
                           min={0}
@@ -420,7 +421,7 @@ export default function SessionEditPage() {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-slate-500 uppercase tracking-wider">RPE</label>
+                        <label className="text-[10px] uppercase tracking-wider text-subtle">RPE</label>
                         <select
                           value={typeof set.rpe === 'number' ? String(set.rpe) : ''}
                           onChange={(event) => {
@@ -440,15 +441,15 @@ export default function SessionEditPage() {
                             </option>
                           ))}
                         </select>
-                        <p className="mt-1 text-[10px] text-slate-500">{RPE_HELPER_TEXT}</p>
+                        <p className="mt-1 text-[10px] text-subtle">{RPE_HELPER_TEXT}</p>
                         {typeof set.rpe === 'number' ? (
-                          <p className="text-[10px] text-indigo-300/80">
+                          <p className="text-[10px] text-accent">
                             {RPE_OPTIONS.find((option) => option.value === set.rpe)?.equivalence}
                           </p>
                         ) : null}
                       </div>
                       <div>
-                        <label className="text-[10px] text-slate-500 uppercase tracking-wider">RIR</label>
+                        <label className="text-[10px] uppercase tracking-wider text-subtle">RIR</label>
                         <select
                           value={typeof set.rir === 'number' ? String(set.rir) : ''}
                           onChange={(event) => {
@@ -468,17 +469,17 @@ export default function SessionEditPage() {
                             </option>
                           ))}
                         </select>
-                        <p className="mt-1 text-[10px] text-slate-500">{RIR_HELPER_TEXT}</p>
+                        <p className="mt-1 text-[10px] text-subtle">{RIR_HELPER_TEXT}</p>
                         {typeof set.rir === 'number' ? (
-                          <p className="text-[10px] text-indigo-300/80">
+                          <p className="text-[10px] text-accent">
                             {RIR_OPTIONS.find((option) => option.value === set.rir)?.equivalence}
                           </p>
                         ) : null}
                       </div>
                     </div>
-                    <p className="text-[10px] text-slate-500">{INTENSITY_RECOMMENDATION}</p>
+                    <p className="text-[10px] text-subtle">{INTENSITY_RECOMMENDATION}</p>
                     <div>
-                      <label className="text-[10px] text-slate-500 uppercase tracking-wider">Notes</label>
+                      <label className="text-[10px] uppercase tracking-wider text-subtle">Notes</label>
                       <input
                         type="text"
                         value={set.notes}
@@ -486,12 +487,12 @@ export default function SessionEditPage() {
                         className="input-base mt-1"
                       />
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <div className="flex items-center gap-2 text-xs text-muted">
                       <input
                         type="checkbox"
                         checked={set.completed}
                         onChange={(event) => updateSetField(exercise.id, set.id, 'completed', event.target.checked)}
-                        className="h-4 w-4 rounded border-slate-700 bg-slate-950"
+                        className="h-4 w-4 rounded border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)]"
                       />
                       <span>Mark as completed</span>
                     </div>

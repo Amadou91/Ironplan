@@ -10,10 +10,14 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', ...props }, ref) => {
     const variants = {
-      primary: "bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm",
-      secondary: "bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700",
-      outline: "border border-slate-700 text-slate-100 hover:bg-slate-800/60",
-      ghost: "text-slate-200 hover:bg-slate-800/60",
+      primary:
+        "bg-[var(--color-primary)] text-white shadow-[var(--shadow-sm)] hover:bg-[var(--color-primary-strong)]",
+      secondary:
+        "bg-[var(--color-surface-muted)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)]",
+      outline:
+        "border border-[var(--color-border-strong)] text-[var(--color-text)] hover:bg-[var(--color-surface-subtle)]",
+      ghost:
+        "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-subtle)]",
     }
 
     const sizes = {
@@ -25,7 +29,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)] disabled:pointer-events-none disabled:opacity-50",
           variants[variant],
           sizes[size],
           className
