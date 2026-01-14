@@ -138,6 +138,7 @@ export default function DashboardPage() {
   const [scheduledSessions, setScheduledSessions] = useState<ScheduledSessionRow[]>([])
   const [recentWorkouts, setRecentWorkouts] = useState<WorkoutRow[]>([])
   const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null)
+  const [deletingWorkoutIds, setDeletingWorkoutIds] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (userLoading) return
@@ -311,6 +312,43 @@ export default function DashboardPage() {
 
   const handleToggleSession = (sessionId: string) => {
     setExpandedSessions(prev => ({ ...prev, [sessionId]: !prev[sessionId] }))
+  }
+
+  const handleDeleteWorkout = async (workout: WorkoutRow) => {
+    if (!user) return
+    if (!confirm(`Delete "${workout.title}"? This will remove the plan and its schedule.`)) return
+    setError(null)
+    setDeletingWorkoutIds(prev => ({ ...prev, [workout.id]: true }))
+
+    try {
+      const { error: scheduleDeleteError } = await supabase
+        .from('scheduled_sessions')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('workout_id', workout.id)
+
+      if (scheduleDeleteError) {
+        throw scheduleDeleteError
+      }
+
+      const { error: workoutDeleteError } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', workout.id)
+        .eq('user_id', user.id)
+
+      if (workoutDeleteError) {
+        throw workoutDeleteError
+      }
+
+      setRecentWorkouts(prev => prev.filter(item => item.id !== workout.id))
+      setScheduledSessions(prev => prev.filter(session => session.workout?.id !== workout.id))
+    } catch (deleteError) {
+      console.error('Failed to delete workout', deleteError)
+      setError('Unable to delete this session. Please try again.')
+    } finally {
+      setDeletingWorkoutIds(prev => ({ ...prev, [workout.id]: false }))
+    }
   }
 
   const muscleOptions = useMemo(() => {
@@ -622,6 +660,15 @@ export default function DashboardPage() {
                           <Link href={`/workout/${workout.id}${defaultDay ? `?day=${defaultDay.dayOfWeek}` : ''}`}>
                             <Button variant="ghost" size="sm">View</Button>
                           </Link>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-600"
+                            onClick={() => handleDeleteWorkout(workout)}
+                            disabled={Boolean(deletingWorkoutIds[workout.id])}
+                          >
+                            {deletingWorkoutIds[workout.id] ? 'Deleting...' : 'Delete'}
+                          </Button>
                         </div>
                       </div>
                     </div>

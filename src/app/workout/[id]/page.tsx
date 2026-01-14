@@ -15,6 +15,7 @@ import ActiveSession from '@/components/workout/ActiveSession'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { getSwapSuggestions } from '@/lib/exercise-swap'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
+import { computeExerciseMetrics } from '@/lib/workout-metrics'
 
 // Define types based on your DB schema
 type Exercise = {
@@ -255,31 +256,10 @@ export default function WorkoutDetailPage() {
   if (loading) return <div className="page-shell p-10 text-center text-muted">Loading workout...</div>
   if (!workout) return <div className="page-shell p-10 text-center text-muted">Workout not found.</div>
 
-  // Per-workout metrics are computed here from each exercise's sets/reps/RPE data.
+  // Per-workout metrics are computed from each exercise's sets/reps/RPE data.
   // Assumptions: reps ranges are averaged, RPE is on a 1–10 scale, and density uses a
   // default 2 minutes per set when duration/rest data is missing.
   // Missing data is handled by returning null and rendering a "—" placeholder.
-  const parseReps = (reps: Exercise['reps']) => {
-    if (typeof reps === 'number' && Number.isFinite(reps)) return reps
-    if (typeof reps !== 'string') return null
-    const matches = reps.match(/\d+/g)
-    if (!matches?.length) return null
-    const numbers = matches.map((value) => Number.parseInt(value, 10)).filter(Number.isFinite)
-    if (!numbers.length) return null
-    if (numbers.length === 1) return numbers[0]
-    return Math.round(numbers.reduce((sum, value) => sum + value, 0) / numbers.length)
-  }
-
-  const computeMetrics = (exercise: Exercise) => {
-    const repsValue = parseReps(exercise.reps)
-    const volume = repsValue && exercise.sets ? repsValue * exercise.sets : null
-    const estimatedMinutes =
-      exercise.durationMinutes ??
-      (exercise.restSeconds ? (exercise.restSeconds * exercise.sets) / 60 : exercise.sets * 2)
-    const density = volume && estimatedMinutes ? Number((volume / estimatedMinutes).toFixed(1)) : null
-    const intensity = Number.isFinite(exercise.rpe) ? exercise.rpe : null
-    return { volume, density, intensity }
-  }
 
   const handleStartSession = async () => {
     setStartError(null)
@@ -370,7 +350,7 @@ export default function WorkoutDetailPage() {
             )}
             <div className="space-y-3">
               {enrichedExercises.map((ex, idx) => {
-                const metrics = computeMetrics(ex)
+                const metrics = computeExerciseMetrics(ex)
                 const primaryParts = ex.primaryMuscle ? toMuscleLabel(ex.primaryMuscle) : '—'
                 const secondaryParts = ex.secondaryMuscles?.length ? ex.secondaryMuscles.map((muscle) => toMuscleLabel(muscle)).join(', ') : '—'
 
