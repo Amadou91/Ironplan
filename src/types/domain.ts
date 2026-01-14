@@ -179,6 +179,7 @@ export interface WorkoutSession {
   startedAt: string
   endedAt?: string
   status?: 'active' | 'completed' | 'cancelled'
+  impact?: WorkoutImpact
   exercises: SessionExercise[]
 }
 

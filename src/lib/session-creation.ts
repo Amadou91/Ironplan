@@ -1,6 +1,6 @@
 import { toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { SessionExercise } from '@/types/domain'
+import type { SessionExercise, WorkoutImpact } from '@/types/domain'
 
 type SessionExerciseSeed = {
   name: string
@@ -18,6 +18,7 @@ type CreateSessionParams = {
   workoutTitle: string
   exercises: SessionExerciseSeed[]
   nameSuffix?: string
+  impact?: WorkoutImpact
 }
 
 type CreateSessionResult = {
@@ -25,6 +26,7 @@ type CreateSessionResult = {
   startedAt: string
   sessionName: string
   exercises: SessionExercise[]
+  impact?: WorkoutImpact
 }
 
 const getPrimaryMuscle = (exercise: SessionExerciseSeed) =>
@@ -39,7 +41,8 @@ export const createWorkoutSession = async ({
   workoutId,
   workoutTitle,
   exercises,
-  nameSuffix
+  nameSuffix,
+  impact
 }: CreateSessionParams): Promise<CreateSessionResult> => {
   const startedAt = new Date().toISOString()
   const sessionName = nameSuffix ? `${workoutTitle} · ${nameSuffix}` : workoutTitle
@@ -49,7 +52,8 @@ export const createWorkoutSession = async ({
       user_id: userId,
       workout_id: workoutId,
       name: sessionName,
-      started_at: startedAt
+      started_at: startedAt,
+      impact: impact ?? null
     })
     .select()
     .single()
@@ -105,6 +109,7 @@ export const createWorkoutSession = async ({
     sessionId: sessionData.id,
     startedAt,
     sessionName,
-    exercises: mappedExercises
+    exercises: mappedExercises,
+    impact
   }
 }

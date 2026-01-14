@@ -615,8 +615,8 @@ const parseReps = (reps: string | number) => {
   return Math.round(matches.reduce((sum, value) => sum + value, 0) / matches.length)
 }
 
-export const calculateWorkoutImpact = (schedule: PlanDay[]): WorkoutImpact => {
-  const totals = schedule.flatMap(day => day.exercises).reduce(
+export const calculateExerciseImpact = (exercises: Exercise[]): WorkoutImpact => {
+  const totals = exercises.reduce(
     (acc, exercise) => {
       const repsValue = parseReps(exercise.reps)
       const loadValue = exercise.load?.value ?? 10
@@ -641,6 +641,9 @@ export const calculateWorkoutImpact = (schedule: PlanDay[]): WorkoutImpact => {
     }
   }
 }
+
+export const calculateWorkoutImpact = (schedule: PlanDay[]): WorkoutImpact =>
+  calculateExerciseImpact(schedule.flatMap(day => day.exercises))
 
 export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: GeneratedPlan; errors: string[] } => {
   const normalized = applyRestPreference(normalizePlanInput(partialInput))
