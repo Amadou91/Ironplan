@@ -148,8 +148,7 @@ export default function WorkoutDetailPage() {
           user_id: user.id,
           workout_id: workout.id,
           name: workout.title,
-          started_at: startedAt,
-          status: 'active'
+          started_at: startedAt
         })
         .select()
         .single()
