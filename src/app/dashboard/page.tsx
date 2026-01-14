@@ -17,11 +17,15 @@ import {
   Legend
 } from 'recharts'
 import { createClient } from '@/lib/supabase/client'
+import { formatDayLabel, formatWeekStartDate } from '@/lib/schedule-utils'
+import { createWorkoutSession } from '@/lib/session-creation'
 import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
+import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
+import type { PlanDay } from '@/types/domain'
 
 const formatDate = (value: string) => {
   const date = new Date(value)
@@ -83,6 +87,34 @@ type SessionRow = {
   }>
 }
 
+type WorkoutExercise = {
+  name: string
+  focus?: string
+  primaryBodyParts?: string[]
+  secondaryBodyParts?: string[]
+  primaryMuscle?: string
+  secondaryMuscles?: string[]
+}
+
+type WorkoutRow = {
+  id: string
+  title: string
+  created_at: string
+  exercises:
+    | { schedule?: PlanDay[] }
+    | WorkoutExercise[]
+    | null
+}
+
+type ScheduledSessionRow = {
+  id: string
+  day_of_week: number
+  week_start_date: string
+  created_at: string
+  order_index: number | null
+  workout: WorkoutRow | null
+}
+
 const chartColors = ['#6366f1', '#22c55e', '#0ea5e9', '#f59e0b', '#ec4899']
 
 export default function DashboardPage() {
@@ -90,15 +122,21 @@ export default function DashboardPage() {
   const supabase = createClient()
   const { user, loading: userLoading } = useUser()
   const setUser = useAuthStore((state) => state.setUser)
+  const startSession = useWorkoutStore((state) => state.startSession)
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [scheduleError, setScheduleError] = useState<string | null>(null)
+  const [startScheduleError, setStartScheduleError] = useState<string | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedMuscle, setSelectedMuscle] = useState('all')
   const [selectedExercise, setSelectedExercise] = useState('all')
   const [deletingSessionIds, setDeletingSessionIds] = useState<Record<string, boolean>>({})
   const [expandedSessions, setExpandedSessions] = useState<Record<string, boolean>>({})
+  const [scheduledSessions, setScheduledSessions] = useState<ScheduledSessionRow[]>([])
+  const [recentWorkouts, setRecentWorkouts] = useState<WorkoutRow[]>([])
+  const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null)
 
   useEffect(() => {
     if (userLoading) return
@@ -139,7 +177,111 @@ export default function DashboardPage() {
 
     loadSessions()
   }, [supabase, user, userLoading])
+
+  useEffect(() => {
+    if (userLoading) return
+    if (!user) return
+
+    const loadSchedule = async () => {
+      setScheduleError(null)
+      const weekStartDate = formatWeekStartDate(new Date())
+      const { data, error: fetchError } = await supabase
+        .from('scheduled_sessions')
+        .select('id, day_of_week, week_start_date, created_at, order_index, workout:workouts(id, title, exercises, created_at)')
+        .eq('user_id', user.id)
+        .eq('week_start_date', weekStartDate)
+        .eq('is_active', true)
+        .order('order_index', { ascending: true })
+        .order('created_at', { ascending: true })
+
+      if (fetchError) {
+        console.error('Failed to load schedule', fetchError)
+        setScheduleError('Unable to load your scheduled sessions.')
+        return
+      }
+      setScheduledSessions((data as ScheduledSessionRow[]) ?? [])
+    }
+
+    const loadRecentWorkouts = async () => {
+      const { data, error: fetchError } = await supabase
+        .from('workouts')
+        .select('id, title, exercises, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(6)
+
+      if (fetchError) {
+        console.error('Failed to load recent workouts', fetchError)
+        return
+      }
+      setRecentWorkouts((data as WorkoutRow[]) ?? [])
+    }
+
+    loadSchedule()
+    loadRecentWorkouts()
+  }, [supabase, user, userLoading])
+
   const isLoading = userLoading || loading
+
+  const getWorkoutSchedule = (workout: WorkoutRow | null) => {
+    if (!workout?.exercises || Array.isArray(workout.exercises)) return []
+    return workout.exercises.schedule ?? []
+  }
+
+  const pickScheduleDay = (schedule: PlanDay[], dayOfWeek: number) =>
+    schedule.find((day) => day.dayOfWeek === dayOfWeek) ?? schedule[0] ?? null
+
+  const todayDayOfWeek = new Date().getDay()
+  const todaysSchedule = useMemo(() => {
+    const matches = scheduledSessions.filter((session) => session.day_of_week === todayDayOfWeek)
+    if (!matches.length) return null
+    const sorted = [...matches].sort((a, b) => {
+      const orderDiff = (a.order_index ?? 0) - (b.order_index ?? 0)
+      if (orderDiff !== 0) return orderDiff
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    })
+    return sorted[0]
+  }, [scheduledSessions, todayDayOfWeek])
+
+  const todaysWorkout = todaysSchedule?.workout ?? null
+  const todaysWorkoutSchedule = getWorkoutSchedule(todaysWorkout)
+  const todaysPlanDay = todaysWorkoutSchedule.length
+    ? pickScheduleDay(todaysWorkoutSchedule, todaysSchedule?.day_of_week ?? todayDayOfWeek)
+    : null
+
+  const handleStartWorkout = async (workout: WorkoutRow, planDay: PlanDay | null, scheduleId?: string) => {
+    if (!user) return
+    setStartScheduleError(null)
+    setStartingScheduleId(scheduleId ?? workout.id)
+    try {
+      const exercises = planDay?.exercises ?? (Array.isArray(workout.exercises) ? workout.exercises : [])
+      const nameSuffix = planDay ? formatDayLabel(planDay.dayOfWeek) : undefined
+      const { sessionId, startedAt, sessionName, exercises: sessionExercises } = await createWorkoutSession({
+        supabase,
+        userId: user.id,
+        workoutId: workout.id,
+        workoutTitle: workout.title,
+        exercises,
+        nameSuffix
+      })
+      startSession({
+        id: sessionId,
+        userId: user.id,
+        workoutId: workout.id,
+        name: sessionName,
+        startedAt,
+        status: 'active',
+        exercises: sessionExercises
+      })
+      const dayParam = planDay ? `&day=${planDay.dayOfWeek}` : ''
+      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}${dayParam}`)
+    } catch (startError) {
+      console.error('Failed to start scheduled session', startError)
+      setStartScheduleError('Unable to start the session. Please try again.')
+    } finally {
+      setStartingScheduleId(null)
+    }
+  }
 
   const handleDeleteSession = async (sessionId: string) => {
     if (!user) return
@@ -362,6 +504,129 @@ export default function DashboardPage() {
         </div>
 
         {error && <div className="alert-error p-4 text-sm">{error}</div>}
+        {scheduleError && <div className="alert-error p-4 text-sm">{scheduleError}</div>}
+        {startScheduleError && <div className="alert-error p-4 text-sm">{startScheduleError}</div>}
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Card className="p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-strong">Today&apos;s Session</h2>
+                <p className="text-sm text-muted">Automatically matched to your weekly schedule.</p>
+              </div>
+              {todaysWorkout && todaysPlanDay && (
+                <Button
+                  onClick={() => handleStartWorkout(todaysWorkout, todaysPlanDay, todaysSchedule?.id)}
+                  disabled={startingScheduleId === (todaysSchedule?.id ?? null)}
+                >
+                  {startingScheduleId === (todaysSchedule?.id ?? null) ? 'Starting...' : 'Start Today’s Session'}
+                </Button>
+              )}
+            </div>
+
+            {todaysWorkout && todaysPlanDay ? (
+              <div className="mt-4 space-y-2 rounded-lg border border-[var(--color-border)] p-4">
+                <p className="text-sm font-semibold text-strong">{todaysWorkout.title}</p>
+                <p className="text-xs text-subtle">
+                  {formatDayLabel(todaysPlanDay.dayOfWeek)} · {todaysPlanDay.timeWindow.replace('_', ' ')} ·{' '}
+                  {todaysPlanDay.exercises?.length ?? 0} exercises
+                </p>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleStartWorkout(todaysWorkout, todaysPlanDay, todaysSchedule?.id)}
+                    disabled={startingScheduleId === (todaysSchedule?.id ?? null)}
+                  >
+                    Start Session
+                  </Button>
+                  <Link href={`/workout/${todaysWorkout.id}?day=${todaysPlanDay.dayOfWeek}`}>
+                    <Button variant="ghost" size="sm">
+                      View Details
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3 rounded-lg border border-dashed border-[var(--color-border)] p-4">
+                <p className="text-sm font-semibold text-strong">Rest day</p>
+                <p className="text-xs text-subtle">No session is scheduled for today.</p>
+                <div className="flex flex-wrap gap-2">
+                  <Link href="/generate">
+                    <Button variant="secondary" size="sm">Browse Plans</Button>
+                  </Link>
+                  {recentWorkouts[0] && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        handleStartWorkout(
+                          recentWorkouts[0],
+                          pickScheduleDay(getWorkoutSchedule(recentWorkouts[0]), todayDayOfWeek),
+                          recentWorkouts[0].id
+                        )
+                      }
+                      disabled={startingScheduleId === recentWorkouts[0].id}
+                    >
+                      Start a Previous Session
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-strong">Continue / Start a Session</h2>
+                <p className="text-sm text-muted">Jump back into a recently generated schedule.</p>
+              </div>
+              <Link href="/generate">
+                <Button variant="outline" size="sm">Generate New Plan</Button>
+              </Link>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {recentWorkouts.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-sm text-muted">
+                  No previous plans yet. Generate a workout to get started.
+                </div>
+              ) : (
+                recentWorkouts.map((workout) => {
+                  const schedule = getWorkoutSchedule(workout)
+                  const days = schedule.map((day) => formatDayLabel(day.dayOfWeek, 'short')).join(', ')
+                  const defaultDay = pickScheduleDay(schedule, todayDayOfWeek)
+                  return (
+                    <div key={workout.id} className="rounded-lg border border-[var(--color-border)] p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-strong">{workout.title}</p>
+                          <p className="text-xs text-subtle">
+                            {days ? `Days: ${days}` : 'No schedule data'} · Last generated {formatDate(workout.created_at)}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleStartWorkout(workout, defaultDay, workout.id)}
+                            disabled={startingScheduleId === workout.id}
+                          >
+                            {startingScheduleId === workout.id ? 'Starting...' : `Start ${defaultDay ? formatDayLabel(defaultDay.dayOfWeek) : 'Session'}`}
+                          </Button>
+                          <Link href={`/workout/${workout.id}${defaultDay ? `?day=${defaultDay.dayOfWeek}` : ''}`}>
+                            <Button variant="ghost" size="sm">View</Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </Card>
+        </div>
 
         <Card className="p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

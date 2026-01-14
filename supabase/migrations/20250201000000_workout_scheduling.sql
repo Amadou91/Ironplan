@@ -1,17 +1,3 @@
-create extension if not exists "pgcrypto";
-
-create table if not exists public.workouts (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null,
-  title text not null,
-  description text,
-  goal text,
-  level text,
-  tags text[],
-  exercises jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now()
-);
-
 create table if not exists public.scheduled_sessions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -23,3 +9,14 @@ create table if not exists public.scheduled_sessions (
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+create index if not exists scheduled_sessions_user_week_idx
+  on public.scheduled_sessions (user_id, week_start_date, day_of_week, is_active);
+
+create index if not exists scheduled_sessions_batch_idx
+  on public.scheduled_sessions (schedule_batch_id);
+
+alter table public.scheduled_sessions enable row level security;
+
+create policy "Users can manage their scheduled sessions" on public.scheduled_sessions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

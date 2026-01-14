@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card'
 import { generatePlan, normalizePlanInput } from '@/lib/generator'
 import { bandLabels, cloneInventory, equipmentPresets, formatWeightList, machineLabels, parseWeightList } from '@/lib/equipment'
 import { buildWorkoutHistoryEntry, loadWorkoutHistory, removeWorkoutHistoryEntry, saveWorkoutHistoryEntry } from '@/lib/workoutHistory'
+import { formatWeekStartDate } from '@/lib/schedule-utils'
 import { getFlowCompletion, isDaysAvailableValid, isEquipmentValid, isMinutesPerSessionValid, isTotalMinutesPerWeekValid } from '@/lib/generationFlow'
 import { logEvent } from '@/lib/logger'
 import type { BandResistance, EquipmentPreset, Goal, MachineType, PlanInput } from '@/types/domain'
@@ -254,6 +255,40 @@ export default function GeneratePage() {
           saveWorkoutHistoryEntry(entry, window.localStorage)
           setHistoryEntries((prev) => [entry, ...prev.filter(item => item.id !== entry.id)])
         }
+        const weekStartDate = formatWeekStartDate(new Date())
+        const scheduleBatchId =
+          typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${user.id}`
+        const scheduleRows = plan.schedule.map((day, index) => ({
+          user_id: user.id,
+          workout_id: data.id,
+          schedule_batch_id: scheduleBatchId,
+          day_of_week: day.dayOfWeek,
+          week_start_date: weekStartDate,
+          order_index: index,
+          is_active: true
+        }))
+
+        const { error: deactivateError } = await supabase
+          .from('scheduled_sessions')
+          .update({ is_active: false })
+          .eq('user_id', user.id)
+          .eq('week_start_date', weekStartDate)
+          .eq('is_active', true)
+
+        if (deactivateError) {
+          console.error('Failed to deactivate prior schedules', deactivateError)
+        }
+
+        const { error: scheduleError } = await supabase
+          .from('scheduled_sessions')
+          .insert(scheduleRows)
+
+        if (scheduleError) {
+          console.error('Failed to create schedule sessions', scheduleError)
+          setSaveError(`Plan generated, but scheduling failed: ${scheduleError.message}`)
+          return
+        }
+
         router.push(`/workout/${data.id}`)
       } else {
         console.error('Failed to save plan', { error: 'No data returned from insert.' })
