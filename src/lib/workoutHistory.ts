@@ -35,6 +35,17 @@ export const saveWorkoutHistoryEntry = (entry: WorkoutHistoryEntry, storage?: St
   }
 }
 
+export const removeWorkoutHistoryEntry = (entryId: string, storage?: Storage) => {
+  if (!storage) return
+  try {
+    const current = loadWorkoutHistory(storage)
+    const next = current.filter(item => item.id !== entryId)
+    storage.setItem(HISTORY_KEY, JSON.stringify(next))
+  } catch (error) {
+    console.error('Failed to remove workout history entry', error)
+  }
+}
+
 export const buildWorkoutHistoryEntry = (plan: GeneratedPlan, remoteId?: string): WorkoutHistoryEntry => ({
   id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
   title: plan.title,
