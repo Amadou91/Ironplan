@@ -8,6 +8,7 @@ import { Plus, Save, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { SessionExercise, WorkoutSession, WorkoutSet } from '@/types/domain';
 import { toMuscleLabel } from '@/lib/muscle-utils';
+import { Button } from '@/components/ui/Button';
 
 type ActiveSessionProps = {
   sessionId?: string | null;
@@ -221,51 +222,47 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
   }, [activeSession]);
 
   if (isLoading) {
-    return <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-gray-400">Loading active session...</div>;
+    return <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-center text-slate-400">Loading active session...</div>;
   }
 
   if (!activeSession) return null;
 
   return (
     <div className="space-y-8 pb-24">
-      <div className="bg-white sticky top-0 z-10 p-4 border-b border-gray-100 shadow-sm flex flex-col gap-3 rounded-xl mb-6">
+      <div className="sticky top-0 z-10 rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-lg backdrop-blur">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{heading}</h2>
-            <div className="flex items-center text-sm text-gray-500 gap-1">
+            <h2 className="text-xl font-semibold text-white">{heading}</h2>
+            <div className="flex items-center text-sm text-slate-400 gap-1">
               <Clock size={14} />
               <span>Started at {new Date(activeSession.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           </div>
-          <button
-            onClick={handleFinishWorkout}
-            disabled={isSaving}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 flex items-center gap-2"
-          >
+          <Button onClick={handleFinishWorkout} disabled={isSaving} className="h-10 px-4">
             {isSaving ? 'Saving...' : (
               <>
                 <Save size={18} /> Finish
               </>
             )}
-          </button>
+          </Button>
         </div>
         {errorMessage && (
-          <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">{errorMessage}</div>
+          <div className="mt-3 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{errorMessage}</div>
         )}
       </div>
 
       <div className="space-y-6">
         {activeSession.exercises.map((exercise: SessionExercise, exIdx: number) => (
-          <div key={`${exercise.name}-${exIdx}`} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
+          <div key={`${exercise.name}-${exIdx}`} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 md:p-6 shadow-sm">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">{exercise.name}</h3>
-                <div className="flex gap-2 mt-1 flex-wrap">
-                  <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+                <h3 className="text-lg font-semibold text-white">{exercise.name}</h3>
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  <span className="text-xs bg-indigo-500/10 text-indigo-200 px-2 py-0.5 rounded-full font-medium border border-indigo-500/20">
                     {exercise.primaryMuscle}
                   </span>
                   {exercise.secondaryMuscles?.map((m: string) => (
-                    <span key={m} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                    <span key={m} className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">
                       {m}
                     </span>
                   ))}
@@ -273,7 +270,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
               </div>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-2">
               {exercise.sets.map((set: WorkoutSet, setIdx: number) => (
                 <SetLogger
                   key={set.id}
@@ -287,7 +284,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
 
             <button
               onClick={() => handleAddSet(exIdx)}
-              className="w-full mt-3 py-2 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 font-medium hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all flex justify-center items-center gap-2"
+              className="w-full mt-4 py-2 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 font-medium hover:border-indigo-500/60 hover:text-indigo-200 hover:bg-indigo-500/10 transition-all flex justify-center items-center gap-2"
             >
               <Plus size={18} /> Add Set
             </button>
