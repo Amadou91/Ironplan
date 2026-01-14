@@ -152,14 +152,30 @@ export default function GeneratePage() {
     })
   }
 
+  const getBodyPartsFromLayout = (layout: PlanInput['schedule']['weeklyLayout'] = []) =>
+    Array.from(new Set(layout.map((entry) => entry.focus)))
+
   const syncWeeklyLayout = (days: number[]) => {
-    updateFormData((prev) => ({
-      ...prev,
-      schedule: {
-        ...prev.schedule,
-        weeklyLayout: buildWeeklyLayout(prev, days, prev.schedule.weeklyLayout)
+    updateFormData((prev) => {
+      const nextLayout = buildWeeklyLayout(prev, days, prev.schedule.weeklyLayout)
+      const nextBodyParts =
+        prev.intent.mode === 'body_part' ? getBodyPartsFromLayout(nextLayout) : prev.intent.bodyParts
+      return {
+        ...prev,
+        intent: {
+          ...prev.intent,
+          bodyParts: nextBodyParts
+        },
+        preferences: {
+          ...prev.preferences,
+          focusAreas: nextBodyParts ?? prev.preferences.focusAreas
+        },
+        schedule: {
+          ...prev.schedule,
+          weeklyLayout: nextLayout
+        }
       }
-    }))
+    })
   }
 
   const updateWeeklyLayoutEntry = (dayOfWeek: number, updates: Partial<PlanInput['schedule']['weeklyLayout'][number]>) => {
@@ -168,8 +184,18 @@ export default function GeneratePage() {
       const nextLayout = baseLayout.map((entry) =>
         entry.dayOfWeek === dayOfWeek ? { ...entry, ...updates } : entry
       )
+      const nextBodyParts =
+        prev.intent.mode === 'body_part' ? getBodyPartsFromLayout(nextLayout) : prev.intent.bodyParts
       return {
         ...prev,
+        intent: {
+          ...prev.intent,
+          bodyParts: nextBodyParts
+        },
+        preferences: {
+          ...prev.preferences,
+          focusAreas: nextBodyParts ?? prev.preferences.focusAreas
+        },
         schedule: {
           ...prev.schedule,
           weeklyLayout: nextLayout
@@ -235,11 +261,22 @@ export default function GeneratePage() {
   const handleHistoryLoad = (entry: (typeof historyEntries)[number]) => {
     updateFormData(() => {
       const normalized = normalizePlanInput(entry.plan.inputs)
+      const nextLayout = buildWeeklyLayout(normalized, normalized.schedule.daysAvailable, normalized.schedule.weeklyLayout)
+      const nextBodyParts =
+        normalized.intent.mode === 'body_part' ? getBodyPartsFromLayout(nextLayout) : normalized.intent.bodyParts
       return {
         ...normalized,
+        intent: {
+          ...normalized.intent,
+          bodyParts: nextBodyParts
+        },
+        preferences: {
+          ...normalized.preferences,
+          focusAreas: nextBodyParts ?? normalized.preferences.focusAreas
+        },
         schedule: {
           ...normalized.schedule,
-          weeklyLayout: buildWeeklyLayout(normalized, normalized.schedule.daysAvailable, normalized.schedule.weeklyLayout)
+          weeklyLayout: nextLayout
         }
       }
     })
@@ -585,7 +622,7 @@ export default function GeneratePage() {
                   type="button"
                   variant="secondary"
                   onClick={() => {
-                    setActiveStep('duration')
+                    document.getElementById('step-intent')?.scrollIntoView({ behavior: 'smooth' })
                   }}
                 >
                   Choose different days
@@ -646,7 +683,7 @@ export default function GeneratePage() {
       <div className="px-4 pb-10 sm:px-6 lg:px-10 2xl:px-16">
         <Card className="p-6">
           <div className="space-y-10">
-            <section className="space-y-4">
+            <section className="space-y-4" id="step-intent">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 1</p>
                 <h2 className="text-xl font-semibold text-strong">Choose your workout intent</h2>
@@ -699,11 +736,21 @@ export default function GeneratePage() {
                           bodyParts: prev.intent.bodyParts?.length ? prev.intent.bodyParts : prev.preferences.focusAreas
                         }
                       }
+                      const nextLayout = buildWeeklyLayout(updated, updated.schedule.daysAvailable, updated.schedule.weeklyLayout)
+                      const nextBodyParts = getBodyPartsFromLayout(nextLayout)
                       return {
                         ...updated,
+                        intent: {
+                          ...updated.intent,
+                          bodyParts: nextBodyParts
+                        },
+                        preferences: {
+                          ...updated.preferences,
+                          focusAreas: nextBodyParts
+                        },
                         schedule: {
                           ...updated.schedule,
-                          weeklyLayout: buildWeeklyLayout(updated, updated.schedule.daysAvailable, updated.schedule.weeklyLayout)
+                          weeklyLayout: nextLayout
                         }
                       }
                     })
@@ -719,82 +766,6 @@ export default function GeneratePage() {
                   <p className="mt-1 text-xs text-subtle">Prioritize the muscles you want to train.</p>
                 </button>
               </div>
-
-              {formData.intent.mode === 'style' ? (
-                <div>
-                  <label className="mb-3 block text-sm font-medium text-strong">Workout style</label>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    {styleOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          updateFormData((prev) => {
-                            const updated: PlanInput = {
-                              ...prev,
-                              intent: { ...prev.intent, style: option.value },
-                              goals: { ...prev.goals, primary: option.value }
-                            }
-                            return {
-                              ...updated,
-                              schedule: {
-                                ...updated.schedule,
-                                weeklyLayout: buildWeeklyLayout(updated, updated.schedule.daysAvailable, updated.schedule.weeklyLayout)
-                              }
-                            }
-                          })
-                        }
-                        className={`rounded-lg border px-4 py-3 text-left text-sm font-medium transition ${
-                          formData.intent.style === option.value
-                            ? 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
-                            : 'border-[var(--color-border)] bg-[var(--color-surface)] text-muted hover:border-[var(--color-border-strong)]'
-                        }`}
-                        aria-pressed={formData.intent.style === option.value}
-                      >
-                        <p className="font-semibold text-strong">{option.label}</p>
-                        <p className="mt-1 text-xs text-subtle">{option.description}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <label className="mb-3 block text-sm font-medium text-strong">Target body areas</label>
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                    {focusOptions.map((option) => (
-                      <label key={option.value} className="flex items-center gap-2 text-sm text-muted">
-                        <input
-                          type="checkbox"
-                          checked={formData.intent.bodyParts?.includes(option.value) ?? false}
-                          onChange={() =>
-                            updateFormData((prev) => {
-                              const nextBodyParts = toggleArrayValue(prev.intent.bodyParts ?? [], option.value)
-                              const updated: PlanInput = {
-                                ...prev,
-                                intent: { ...prev.intent, bodyParts: nextBodyParts },
-                                preferences: { ...prev.preferences, focusAreas: nextBodyParts }
-                              }
-                              return {
-                                ...updated,
-                                schedule: {
-                                  ...updated.schedule,
-                                  weeklyLayout: buildWeeklyLayout(updated, updated.schedule.daysAvailable, updated.schedule.weeklyLayout)
-                                }
-                              }
-                            })
-                          }
-                          className="accent-[var(--color-primary)]"
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-xs text-subtle">These areas become the default focus for each training day.</p>
-                  {formData.intent.mode === 'body_part' && (!formData.intent.bodyParts || formData.intent.bodyParts.length === 0) && (
-                    <p className="mt-2 text-xs text-[var(--color-danger)]">Select at least one body area.</p>
-                  )}
-                </div>
-              )}
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-strong">Experience level</label>
@@ -813,11 +784,150 @@ export default function GeneratePage() {
                   <option value="advanced">Advanced</option>
                 </select>
               </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-strong">Days available</label>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {dayLabels.map((label, index) => (
+                    <label key={label} className="flex items-center gap-2 text-sm text-muted">
+                      <input
+                        type="checkbox"
+                        checked={formData.schedule.daysAvailable.includes(index)}
+                        onChange={() =>
+                          updateFormData((prev) => {
+                            const nextDays = toggleArrayValue(prev.schedule.daysAvailable, index)
+                            const updated: PlanInput = {
+                              ...prev,
+                              schedule: { ...prev.schedule, daysAvailable: nextDays }
+                            }
+                            const nextLayout = buildWeeklyLayout(updated, nextDays, prev.schedule.weeklyLayout)
+                            const nextBodyParts =
+                              updated.intent.mode === 'body_part'
+                                ? getBodyPartsFromLayout(nextLayout)
+                                : updated.intent.bodyParts
+                            return {
+                              ...updated,
+                              intent: {
+                                ...updated.intent,
+                                bodyParts: nextBodyParts
+                              },
+                              preferences: {
+                                ...updated.preferences,
+                                focusAreas: nextBodyParts ?? updated.preferences.focusAreas
+                              },
+                              schedule: {
+                                ...updated.schedule,
+                                weeklyLayout: nextLayout
+                              }
+                            }
+                          })
+                        }
+                        className="accent-[var(--color-primary)]"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                {invalidDays && (
+                  <p className="mt-2 text-xs text-[var(--color-danger)]">Select at least one training day.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 2</p>
+                  <h2 className="text-xl font-semibold text-strong">Build your weekly layout</h2>
+                  <p className="text-sm text-muted">
+                    Assign your daily workout focus based on the generation mode you selected.
+                  </p>
+                </div>
+                <Button type="button" variant="secondary" onClick={() => syncWeeklyLayout(formData.schedule.daysAvailable)}>
+                  Apply defaults
+                </Button>
+              </div>
+
+              {sortedDaysAvailable.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-sm text-muted">
+                  Choose at least one training day to build your week.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sortedDaysAvailable.map((day, index) => {
+                    const entry = weeklyLayout.find((item) => item.dayOfWeek === day)
+                    const fallbackStyle = formData.intent.style ?? formData.goals.primary
+                    const fallbackFocus = entry?.focus ?? 'full_body'
+                    const previousDay = sortedDaysAvailable[index - 1]
+                    const nextDay = sortedDaysAvailable[index + 1]
+                    return (
+                      <div key={day} className="grid gap-3 rounded-lg border border-[var(--color-border)] p-3 md:grid-cols-[1fr_1fr]">
+                        <div className="space-y-2">
+                          <div className="text-sm font-semibold text-strong">{formatDayLabel(day)}</div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="px-2 py-1 text-xs"
+                              onClick={() => previousDay !== undefined && swapWeeklyLayoutDays(day, previousDay)}
+                              disabled={previousDay === undefined}
+                            >
+                              Move earlier
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="px-2 py-1 text-xs"
+                              onClick={() => nextDay !== undefined && swapWeeklyLayoutDays(day, nextDay)}
+                              disabled={nextDay === undefined}
+                            >
+                              Move later
+                            </Button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-subtle">
+                            {formData.intent.mode === 'style' ? 'Style' : 'Focus'}
+                          </label>
+                          {formData.intent.mode === 'style' ? (
+                            <select
+                              value={entry?.style ?? fallbackStyle}
+                              onChange={(e) => updateWeeklyLayoutEntry(day, { style: e.target.value as Goal })}
+                              className="input-base"
+                            >
+                              {styleOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <select
+                              value={entry?.focus ?? fallbackFocus}
+                              onChange={(e) => updateWeeklyLayoutEntry(day, { focus: e.target.value as FocusArea })}
+                              className="input-base"
+                            >
+                              {focusOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {weeklyLayout.length < sortedDaysAvailable.length && (
+                    <p className="text-xs text-[var(--color-danger)]">Assign each selected day before continuing.</p>
+                  )}
+                </div>
+              )}
             </section>
 
             <section className="space-y-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 2</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 3</p>
                 <h2 className="text-xl font-semibold text-strong">Set your weekly timing</h2>
                 <p className="text-sm text-muted">Define how long each workout is and when you train.</p>
               </div>
@@ -910,149 +1020,6 @@ export default function GeneratePage() {
                   </div>
                 </div>
               </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-strong">Days available</label>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {dayLabels.map((label, index) => (
-                    <label key={label} className="flex items-center gap-2 text-sm text-muted">
-                      <input
-                        type="checkbox"
-                        checked={formData.schedule.daysAvailable.includes(index)}
-                        onChange={() =>
-                          updateFormData((prev) => {
-                            const nextDays = toggleArrayValue(prev.schedule.daysAvailable, index)
-                            const updated: PlanInput = {
-                              ...prev,
-                              schedule: { ...prev.schedule, daysAvailable: nextDays }
-                            }
-                            return {
-                              ...updated,
-                              schedule: {
-                                ...updated.schedule,
-                                weeklyLayout: buildWeeklyLayout(updated, nextDays, prev.schedule.weeklyLayout)
-                              }
-                            }
-                          })
-                        }
-                        className="accent-[var(--color-primary)]"
-                      />
-                      {label}
-                    </label>
-                  ))}
-                </div>
-                {invalidDays && (
-                  <p className="mt-2 text-xs text-[var(--color-danger)]">Select at least one training day.</p>
-                )}
-              </div>
-            </section>
-
-            <section className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 3</p>
-                  <h2 className="text-xl font-semibold text-strong">Build your weekly layout</h2>
-                  <p className="text-sm text-muted">
-                    Assign a workout style or focus to each training day based on your intent.
-                  </p>
-                </div>
-                <Button type="button" variant="secondary" onClick={() => syncWeeklyLayout(formData.schedule.daysAvailable)}>
-                  Apply defaults
-                </Button>
-              </div>
-
-              {sortedDaysAvailable.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-sm text-muted">
-                  Choose at least one training day to build your week.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {sortedDaysAvailable.map((day, index) => {
-                    const entry = weeklyLayout.find((item) => item.dayOfWeek === day)
-                    const fallbackStyle = formData.intent.style ?? formData.goals.primary
-                    const fallbackFocus = entry?.focus ?? 'full_body'
-                    const previousDay = sortedDaysAvailable[index - 1]
-                    const nextDay = sortedDaysAvailable[index + 1]
-                    return (
-                      <div key={day} className="grid gap-3 rounded-lg border border-[var(--color-border)] p-3 md:grid-cols-[1fr_1fr_1fr]">
-                        <div className="space-y-2">
-                          <div className="text-sm font-semibold text-strong">{formatDayLabel(day)}</div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="px-2 py-1 text-xs"
-                              onClick={() => previousDay !== undefined && swapWeeklyLayoutDays(day, previousDay)}
-                              disabled={previousDay === undefined}
-                            >
-                              Move earlier
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="px-2 py-1 text-xs"
-                              onClick={() => nextDay !== undefined && swapWeeklyLayoutDays(day, nextDay)}
-                              disabled={nextDay === undefined}
-                            >
-                              Move later
-                            </Button>
-                          </div>
-                        </div>
-                        {formData.intent.mode === 'style' ? (
-                          <>
-                            <div>
-                              <label className="mb-1 block text-xs font-medium text-subtle">Style</label>
-                              <select
-                                value={entry?.style ?? fallbackStyle}
-                                onChange={(e) => updateWeeklyLayoutEntry(day, { style: e.target.value as Goal })}
-                                className="input-base"
-                              >
-                                {styleOptions.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <p className="mb-1 text-xs font-medium text-subtle">Focus</p>
-                              <p className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2 text-sm text-muted">
-                                {focusOptions.find((option) => option.value === fallbackFocus)?.label ?? 'Full Body'}
-                              </p>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div>
-                              <label className="mb-1 block text-xs font-medium text-subtle">Focus</label>
-                              <select
-                                value={entry?.focus ?? fallbackFocus}
-                                onChange={(e) => updateWeeklyLayoutEntry(day, { focus: e.target.value as FocusArea })}
-                                className="input-base"
-                              >
-                                {focusOptions.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <p className="mb-1 text-xs font-medium text-subtle">Style</p>
-                              <p className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2 text-sm text-muted">
-                                {styleOptions.find((option) => option.value === fallbackStyle)?.label ?? 'Strength'}
-                              </p>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )
-                  })}
-                  {weeklyLayout.length < sortedDaysAvailable.length && (
-                    <p className="text-xs text-[var(--color-danger)]">Assign each selected day before continuing.</p>
-                  )}
-                </div>
-              )}
             </section>
 
             <section className="space-y-4">
