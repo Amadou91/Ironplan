@@ -101,8 +101,8 @@ export default function WorkoutDetailPage() {
     [exercises]
   )
 
-  if (loading) return <div className="p-10 text-center text-slate-400">Loading workout...</div>
-  if (!workout) return <div className="p-10 text-center text-slate-400">Workout not found.</div>
+  if (loading) return <div className="page-shell p-10 text-center text-muted">Loading workout...</div>
+  if (!workout) return <div className="page-shell p-10 text-center text-muted">Workout not found.</div>
 
   // Per-workout metrics are computed here from each exercise's sets/reps/RPE data.
   // Assumptions: reps ranges are averaged, RPE is on a 1–10 scale, and density uses a
@@ -216,28 +216,29 @@ export default function WorkoutDetailPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4">
-      <button onClick={() => router.back()} className="text-slate-400 hover:text-white flex items-center text-sm mb-6">
-        <ChevronLeft className="w-4 h-4 mr-1" /> Back to Dashboard
+    <div className="page-shell">
+      <div className="w-full px-4 py-8 sm:px-6 lg:px-10 2xl:px-16">
+      <button onClick={() => router.back()} className="mb-6 flex items-center text-sm text-muted transition-colors hover:text-strong">
+        <ChevronLeft className="mr-1 h-4 w-4" /> Back to Dashboard
       </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {sessionActive && (activeSession || sessionId) && <ActiveSession sessionId={sessionId} />}
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">{workout.title}</h1>
-              <p className="text-slate-400">{workout.description}</p>
+              <h1 className="mb-2 text-3xl font-semibold text-strong">{workout.title}</h1>
+              <p className="text-muted">{workout.description}</p>
             </div>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+            <span className="badge-accent">
               {workout.goal}
             </span>
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white flex items-center">
-              <Activity className="w-5 h-5 mr-2 text-emerald-500" />
+            <h3 className="flex items-center text-lg font-semibold text-strong">
+              <Activity className="mr-2 h-5 w-5 text-accent" />
               Regimen
             </h3>
             <div className="space-y-3">
@@ -247,28 +248,28 @@ export default function WorkoutDetailPage() {
                 const secondaryParts = ex.secondaryMuscles?.length ? ex.secondaryMuscles.map((muscle) => toMuscleLabel(muscle)).join(', ') : '—'
 
                 return (
-                  <div key={idx} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                  <div key={idx} className="surface-card-muted p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-start gap-4">
-                        <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-white">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary-soft)] text-sm font-semibold text-[var(--color-primary-strong)]">
                           {idx + 1}
                         </div>
                         <div className="space-y-2">
                           <div>
-                            <h4 className="font-medium text-white">{ex.name}</h4>
-                            <p className="text-xs text-slate-400">{ex.load?.label ?? 'Target: General'}</p>
+                            <h4 className="font-medium text-strong">{ex.name}</h4>
+                            <p className="text-xs text-subtle">{ex.load?.label ?? 'Target: General'}</p>
                           </div>
-                          <div className="flex flex-wrap gap-2 text-[11px] text-slate-300">
-                            <span className="rounded-full border border-slate-600/60 bg-slate-900/40 px-2 py-0.5">
+                          <div className="flex flex-wrap gap-2 text-[11px] text-muted">
+                            <span className="badge-neutral">
                               Primary: {primaryParts ?? '—'}
                             </span>
-                            <span className="rounded-full border border-slate-600/60 bg-slate-900/40 px-2 py-0.5">
+                            <span className="badge-neutral">
                               Secondary: {secondaryParts ?? '—'}
                             </span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-3 text-xs text-slate-300 font-mono">
+                      <div className="flex flex-wrap gap-3 text-xs font-mono text-muted">
                         <span>{ex.sets} sets</span>
                         <span>{ex.reps} reps</span>
                         <span>Vol {metrics.volume ?? '—'}</span>
@@ -285,35 +286,35 @@ export default function WorkoutDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-           <Card className="bg-slate-800 border-slate-700 p-6">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Program Stats</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-700/50">
-                   <div className="flex items-center text-slate-300">
-                     <Clock className="w-4 h-4 mr-2 text-slate-500" /> Duration
+           <Card className="p-6">
+              <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Program Stats</h3>
+              <div className="space-y-4 text-sm text-muted">
+                <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+                   <div className="flex items-center">
+                     <Clock className="mr-2 h-4 w-4 text-subtle" /> Duration
                    </div>
-                   <span className="text-white font-medium">{summary?.totalMinutes ?? '~60'} min</span>
+                   <span className="font-medium text-strong">{summary?.totalMinutes ?? '~60'} min</span>
                 </div>
-                <div className="flex items-center justify-between pb-3 border-b border-slate-700/50">
-                   <div className="flex items-center text-slate-300">
-                     <Flame className="w-4 h-4 mr-2 text-slate-500" /> Intensity
+                <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+                   <div className="flex items-center">
+                     <Flame className="mr-2 h-4 w-4 text-subtle" /> Intensity
                    </div>
-                   <span className="text-white font-medium capitalize">{inputs?.intensity ?? 'Moderate'}</span>
+                   <span className="font-medium text-strong capitalize">{inputs?.intensity ?? 'Moderate'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                   <div className="flex items-center text-slate-300">
-                     <Trophy className="w-4 h-4 mr-2 text-slate-500" /> Level
+                   <div className="flex items-center">
+                     <Trophy className="mr-2 h-4 w-4 text-subtle" /> Level
                    </div>
-                   <span className="text-white font-medium capitalize">{workout.level}</span>
+                   <span className="font-medium text-strong capitalize">{workout.level}</span>
                 </div>
               </div>
               {sessionActive && (
-                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                <div className="mt-4 rounded-md border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] px-3 py-2 text-xs font-medium text-[var(--color-primary-strong)]">
                   Session active. Log your sets below to track progress.
                 </div>
               )}
               {startError && (
-                <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                <div className="mt-4 alert-error px-3 py-2 text-xs">
                   {startError}
                 </div>
               )}
@@ -322,25 +323,26 @@ export default function WorkoutDetailPage() {
               </Button>
            </Card>
 
-           <Card className="bg-slate-800 border-slate-700 p-6">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Workout Impact</h3>
+           <Card className="p-6">
+              <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Workout Impact</h3>
               {impact ? (
-                <div className="space-y-4">
+                <div className="space-y-4 text-sm text-muted">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center text-slate-300">
-                      <Gauge className="w-4 h-4 mr-2 text-slate-500" /> Score
+                    <div className="flex items-center text-muted">
+                      <Gauge className="mr-2 h-4 w-4 text-subtle" /> Score
                     </div>
-                    <span className="text-white font-semibold">{impact.score}</span>
+                    <span className="font-semibold text-strong">{impact.score}</span>
                   </div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-subtle">
                     Volume +{impact.breakdown.volume}, Intensity +{impact.breakdown.intensity}, Density +{impact.breakdown.density}
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">Impact score will appear after generation.</p>
+                <p className="text-sm text-muted">Impact score will appear after generation.</p>
               )}
            </Card>
         </div>
+      </div>
       </div>
     </div>
   )
