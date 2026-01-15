@@ -171,7 +171,10 @@ export default function GeneratePage() {
   const getBodyPartsFromLayout = (layout: PlanInput['schedule']['weeklyLayout'] = []) =>
     Array.from(new Set(layout.map((entry) => entry.focus)))
 
-  const updateWeeklyLayoutEntry = (dayOfWeek: number, updates: Partial<PlanInput['schedule']['weeklyLayout'][number]>) => {
+  const updateWeeklyLayoutEntry = (
+    dayOfWeek: number,
+    updates: Partial<NonNullable<PlanInput['schedule']['weeklyLayout']>[number]>
+  ) => {
     updateFormData((prev) => {
       const baseLayout = buildWeeklyLayout(prev, prev.schedule.daysAvailable, prev.schedule.weeklyLayout)
       const nextLayout = baseLayout.map((entry) =>

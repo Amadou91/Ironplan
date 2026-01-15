@@ -26,7 +26,7 @@ import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
-import type { PlanDay } from '@/types/domain'
+import type { Exercise, PlanDay } from '@/types/domain'
 
 const formatDate = (value: string) => {
   const date = new Date(value)
@@ -98,22 +98,13 @@ type SessionRow = {
   }>
 }
 
-type WorkoutExercise = {
-  name: string
-  focus?: string
-  primaryBodyParts?: string[]
-  secondaryBodyParts?: string[]
-  primaryMuscle?: string
-  secondaryMuscles?: string[]
-}
-
 type WorkoutRow = {
   id: string
   title: string
   created_at: string
   exercises:
     | { schedule?: PlanDay[] }
-    | WorkoutExercise[]
+    | Exercise[]
     | null
 }
 
@@ -123,7 +114,7 @@ type ScheduledSessionRow = {
   week_start_date: string
   created_at: string
   order_index: number | null
-  workout: WorkoutRow | null
+  workout: WorkoutRow | WorkoutRow[] | null
 }
 
 const chartColors = ['#6366f1', '#22c55e', '#0ea5e9', '#f59e0b', '#ec4899']
@@ -341,7 +332,7 @@ export default function DashboardPage() {
 
   const todaysSessions = useMemo(() => {
     return todaysSchedules.map((schedule) => {
-      const workout = schedule.workout ?? null
+      const workout = Array.isArray(schedule.workout) ? schedule.workout[0] ?? null : schedule.workout ?? null
       const workoutSchedule = getWorkoutSchedule(workout)
       const planDay = workoutSchedule.length
         ? pickScheduleDay(workoutSchedule, schedule.day_of_week ?? todayDayOfWeek)
