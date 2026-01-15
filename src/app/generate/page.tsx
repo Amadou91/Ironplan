@@ -365,6 +365,15 @@ export default function GeneratePage() {
 
     if (scheduleError) {
       console.error('Failed to create schedule sessions', scheduleError)
+      const { error: workoutRollbackError } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', data.id)
+        .eq('user_id', user.id)
+
+      if (workoutRollbackError) {
+        console.error('Failed to rollback workout after schedule error', workoutRollbackError)
+      }
       setSaveError(`Plan generated, but scheduling failed: ${scheduleError.message}`)
       return null
     }
@@ -380,7 +389,7 @@ export default function GeneratePage() {
 
     const { error: sessionSaveError } = await supabase
       .from('saved_sessions')
-      .insert(sessionRows)
+      .upsert(sessionRows, { onConflict: 'user_id,day_of_week' })
 
     if (sessionSaveError) {
       console.error('Failed to create saved sessions', sessionSaveError)
@@ -393,6 +402,15 @@ export default function GeneratePage() {
 
       if (rollbackError) {
         console.error('Failed to rollback scheduled sessions after saved session error', rollbackError)
+      }
+      const { error: workoutRollbackError } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', data.id)
+        .eq('user_id', user.id)
+
+      if (workoutRollbackError) {
+        console.error('Failed to rollback workout after saved session error', workoutRollbackError)
       }
       setSaveError(`Plan generated, but day sessions failed to save: ${sessionSaveError.message}`)
       return null
