@@ -4,11 +4,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { createClient } from '@/lib/supabase/client';
 import { SetLogger } from './SetLogger';
-import { Plus, Save, Clock } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Plus, Clock } from 'lucide-react';
 import { SessionExercise, WorkoutImpact, WorkoutSession, WorkoutSet } from '@/types/domain';
 import { toMuscleLabel } from '@/lib/muscle-utils';
-import { Button } from '@/components/ui/Button';
 
 type ActiveSessionProps = {
   sessionId?: string | null;
@@ -43,11 +41,9 @@ type SessionPayload = {
 };
 
 export default function ActiveSession({ sessionId }: ActiveSessionProps) {
-  const { activeSession, addSet, removeSet, updateSet, endSession, startSession } = useWorkoutStore();
-  const [isSaving, setIsSaving] = useState(false);
+  const { activeSession, addSet, removeSet, updateSet, startSession } = useWorkoutStore();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const router = useRouter();
   const supabase = createClient();
 
   const mapSession = useCallback((payload: SessionPayload): WorkoutSession => {
@@ -197,32 +193,6 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
     }
   };
 
-  const handleFinishWorkout = async () => {
-    if (!activeSession) return;
-    if (!confirm('Are you sure you want to finish this workout?')) return;
-    setIsSaving(true);
-    try {
-      const sessionUpdate = {
-        ended_at: new Date().toISOString(),
-        status: 'completed',
-        ...(activeSession.impact ? { impact: activeSession.impact } : {})
-      };
-      const { error } = await supabase
-        .from('sessions')
-        .update(sessionUpdate)
-        .eq('id', activeSession.id);
-
-      if (error) throw error;
-      endSession();
-      router.push('/dashboard');
-    } catch (error) {
-      console.error('Failed to finish workout:', error);
-      setErrorMessage('Failed to finish workout. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const heading = useMemo(() => {
     if (!activeSession) return 'Session Active';
     return activeSession.name;
@@ -245,13 +215,6 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
               <span>Started at {new Date(activeSession.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           </div>
-          <Button onClick={handleFinishWorkout} disabled={isSaving} className="h-10 px-4">
-            {isSaving ? 'Saving...' : (
-              <>
-                <Save size={18} /> Finish
-              </>
-            )}
-          </Button>
         </div>
         {errorMessage && (
           <div className="mt-3 alert-error px-3 py-2 text-xs">{errorMessage}</div>
