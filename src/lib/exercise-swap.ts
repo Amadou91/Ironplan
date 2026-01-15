@@ -1,11 +1,6 @@
 import type { EquipmentInventory, Exercise, Goal } from '@/types/domain'
 import { isExerciseEquipmentAvailable } from '@/lib/equipment'
 
-type SwapSuggestion = {
-  exercise: Exercise
-  score: number
-}
-
 const normalizeName = (name: string) => name.trim().toLowerCase()
 const normalizeMuscle = (muscle: string) => muscle.trim().toLowerCase()
 

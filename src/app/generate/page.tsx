@@ -175,29 +175,6 @@ export default function GeneratePage() {
   const getBodyPartsFromLayout = (layout: PlanInput['schedule']['weeklyLayout'] = []) =>
     Array.from(new Set(layout.map((entry) => entry.focus)))
 
-  const syncWeeklyLayout = (days: number[]) => {
-    updateFormData((prev) => {
-      const nextLayout = buildWeeklyLayout(prev, days, prev.schedule.weeklyLayout)
-      const nextBodyParts =
-        prev.intent.mode === 'body_part' ? getBodyPartsFromLayout(nextLayout) : prev.intent.bodyParts
-      return {
-        ...prev,
-        intent: {
-          ...prev.intent,
-          bodyParts: nextBodyParts
-        },
-        preferences: {
-          ...prev.preferences,
-          focusAreas: nextBodyParts ?? prev.preferences.focusAreas
-        },
-        schedule: {
-          ...prev.schedule,
-          weeklyLayout: nextLayout
-        }
-      }
-    })
-  }
-
   const updateWeeklyLayoutEntry = (dayOfWeek: number, updates: Partial<PlanInput['schedule']['weeklyLayout'][number]>) => {
     updateFormData((prev) => {
       const baseLayout = buildWeeklyLayout(prev, prev.schedule.daysAvailable, prev.schedule.weeklyLayout)
@@ -216,27 +193,6 @@ export default function GeneratePage() {
           ...prev.preferences,
           focusAreas: nextBodyParts ?? prev.preferences.focusAreas
         },
-        schedule: {
-          ...prev.schedule,
-          weeklyLayout: nextLayout
-        }
-      }
-    })
-  }
-
-  const swapWeeklyLayoutDays = (firstDay: number, secondDay: number) => {
-    updateFormData((prev) => {
-      const baseLayout = buildWeeklyLayout(prev, prev.schedule.daysAvailable, prev.schedule.weeklyLayout)
-      const firstEntry = baseLayout.find((entry) => entry.dayOfWeek === firstDay)
-      const secondEntry = baseLayout.find((entry) => entry.dayOfWeek === secondDay)
-      if (!firstEntry || !secondEntry) return prev
-      const nextLayout = baseLayout.map((entry) => {
-        if (entry.dayOfWeek === firstDay) return { ...secondEntry, dayOfWeek: firstDay }
-        if (entry.dayOfWeek === secondDay) return { ...firstEntry, dayOfWeek: secondDay }
-        return entry
-      })
-      return {
-        ...prev,
         schedule: {
           ...prev.schedule,
           weeklyLayout: nextLayout
@@ -900,7 +856,7 @@ export default function GeneratePage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {sortedDaysAvailable.map((day, index) => {
+                  {sortedDaysAvailable.map((day) => {
                     const entry = weeklyLayout.find((item) => item.dayOfWeek === day)
                     const fallbackStyle = formData.intent.style ?? formData.goals.primary
                     const fallbackFocus = entry?.focus ?? 'full_body'
