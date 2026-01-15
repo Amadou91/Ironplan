@@ -904,9 +904,6 @@ export default function GeneratePage() {
                     Assign your daily workout focus based on the generation mode you selected.
                   </p>
                 </div>
-                <Button type="button" variant="secondary" onClick={() => syncWeeklyLayout(formData.schedule.daysAvailable)}>
-                  Apply defaults
-                </Button>
               </div>
 
               {sortedDaysAvailable.length === 0 ? (
