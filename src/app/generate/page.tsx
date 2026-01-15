@@ -872,32 +872,10 @@ export default function GeneratePage() {
                     const entry = weeklyLayout.find((item) => item.dayOfWeek === day)
                     const fallbackStyle = formData.intent.style ?? formData.goals.primary
                     const fallbackFocus = entry?.focus ?? 'full_body'
-                    const previousDay = sortedDaysAvailable[index - 1]
-                    const nextDay = sortedDaysAvailable[index + 1]
                     return (
                       <div key={day} className="grid gap-3 rounded-lg border border-[var(--color-border)] p-3 md:grid-cols-[1fr_1fr]">
                         <div className="space-y-2">
                           <div className="text-sm font-semibold text-strong">{formatDayLabel(day)}</div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="px-2 py-1 text-xs"
-                              onClick={() => previousDay !== undefined && swapWeeklyLayoutDays(day, previousDay)}
-                              disabled={previousDay === undefined}
-                            >
-                              Move earlier
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="px-2 py-1 text-xs"
-                              onClick={() => nextDay !== undefined && swapWeeklyLayoutDays(day, nextDay)}
-                              disabled={nextDay === undefined}
-                            >
-                              Move later
-                            </Button>
-                          </div>
                         </div>
                         <div>
                           <label className="mb-1 block text-xs font-medium text-subtle">
