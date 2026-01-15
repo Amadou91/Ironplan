@@ -135,6 +135,7 @@ export default function DashboardPage() {
   const setUser = useAuthStore((state) => state.setUser)
   const startSession = useWorkoutStore((state) => state.startSession)
   const activeSession = useWorkoutStore((state) => state.activeSession)
+  const endSession = useWorkoutStore((state) => state.endSession)
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -150,6 +151,7 @@ export default function DashboardPage() {
   const [recentWorkouts, setRecentWorkouts] = useState<WorkoutRow[]>([])
   const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null)
   const [deletingWorkoutIds, setDeletingWorkoutIds] = useState<Record<string, boolean>>({})
+  const [sessionsLoaded, setSessionsLoaded] = useState(false)
   const hasActiveSession = Boolean(activeSession)
   const activeSessionLink = activeSession?.workoutId
     ? `/workout/${activeSession.workoutId}?session=active&sessionId=${activeSession.id}`
@@ -175,6 +177,7 @@ export default function DashboardPage() {
 
     const loadSessions = async () => {
       setLoading(true)
+      setSessionsLoaded(false)
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
@@ -188,12 +191,26 @@ export default function DashboardPage() {
         setError('Unable to load sessions. Please try again.')
       } else {
         setSessions((data as SessionRow[]) ?? [])
+        setSessionsLoaded(true)
       }
       setLoading(false)
     }
 
     loadSessions()
   }, [supabase, user, userLoading])
+
+  useEffect(() => {
+    if (!sessionsLoaded || !activeSession) return
+
+    const matchedSession = sessions.find((session) => session.id === activeSession.id)
+    const isSessionActive = matchedSession
+      ? matchedSession.status === 'active' || (!matchedSession.status && !matchedSession.ended_at)
+      : false
+
+    if (!isSessionActive) {
+      endSession()
+    }
+  }, [activeSession, endSession, sessions, sessionsLoaded])
 
   useEffect(() => {
     if (userLoading) return
