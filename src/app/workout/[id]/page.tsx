@@ -25,7 +25,7 @@ type Workout = {
   level: string
   exercises:
     | {
-        schedule?: Array<{ dayOfWeek: number; timeWindow: string; exercises?: Exercise[] }>
+        schedule?: Array<{ order: number; name?: string; timeWindow: string; exercises?: Exercise[] }>
         summary?: { totalMinutes?: number; impact?: WorkoutImpact }
         inputs?: PlanInput
       }
@@ -84,14 +84,15 @@ export default function WorkoutDetailPage() {
     [workout]
   )
 
-  const selectedSchedule = useMemo(() => {
-    if (!schedule.length) return null
+  const selectedScheduleIndex = useMemo(() => {
+    if (!schedule.length) return 0
     const sessionIndexParam = Number.parseInt(searchParams.get('sessionIndex') ?? '', 10)
-    const resolvedIndex = Number.isFinite(sessionIndexParam) && sessionIndexParam >= 0 && sessionIndexParam < schedule.length
+    return Number.isFinite(sessionIndexParam) && sessionIndexParam >= 0 && sessionIndexParam < schedule.length
       ? sessionIndexParam
       : 0
-    return schedule[resolvedIndex] ?? schedule[0]
   }, [schedule, searchParams])
+
+  const selectedSchedule = schedule[selectedScheduleIndex] ?? schedule[0] ?? null
 
   const exercises = useMemo(() => {
     if (!workout?.exercises) return []
@@ -184,12 +185,12 @@ export default function WorkoutDetailPage() {
   }
 
   const persistSwap = async (updatedExercises: Exercise[]) => {
-    if (!workout || !selectedSchedule || !workout.exercises || Array.isArray(workout.exercises)) return
+    if (!workout || selectedScheduleIndex < 0 || !workout.exercises || Array.isArray(workout.exercises)) return
     setSavingSwap(true)
     setSwapError(null)
     try {
-      const updatedSchedule = (workout.exercises.schedule ?? []).map((day) =>
-        day.dayOfWeek === selectedSchedule.dayOfWeek ? { ...day, exercises: updatedExercises } : day
+      const updatedSchedule = (workout.exercises.schedule ?? []).map((day, idx) =>
+        idx === selectedScheduleIndex ? { ...day, exercises: updatedExercises } : day
       )
       const updatedExercisesPayload = { ...workout.exercises, schedule: updatedSchedule }
 
@@ -200,50 +201,6 @@ export default function WorkoutDetailPage() {
 
       if (updateError) {
         throw updateError
-      }
-
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const sessionName = formatSessionName(selectedSchedule, workout.goal)
-        const sessionPayload = {
-          user_id: user.id,
-          workout_id: workout.id,
-          day_of_week: selectedSchedule.dayOfWeek,
-          session_name: sessionName,
-          workouts: updatedExercises,
-          updated_at: new Date().toISOString()
-        }
-
-        const { data: existingSession, error: lookupError } = await supabase
-          .from('saved_sessions')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('workout_id', workout.id)
-          .eq('day_of_week', selectedSchedule.dayOfWeek)
-          .maybeSingle()
-
-        if (lookupError) {
-          console.error('Failed to lookup saved session', lookupError)
-        }
-
-        if (existingSession?.id) {
-          const { error: savedSessionError } = await supabase
-            .from('saved_sessions')
-            .update(sessionPayload)
-            .eq('id', existingSession.id)
-
-          if (savedSessionError) {
-            console.error('Failed to update saved session', savedSessionError)
-          }
-        } else {
-          const { error: savedSessionError } = await supabase
-            .from('saved_sessions')
-            .insert(sessionPayload)
-
-          if (savedSessionError) {
-            console.error('Failed to create saved session', savedSessionError)
-          }
-        }
       }
 
       setWorkout((prev) => (prev ? { ...prev, exercises: updatedExercisesPayload } : prev))
@@ -372,8 +329,7 @@ export default function WorkoutDetailPage() {
         exercises: createdExercises
       })
 
-      const scheduleIndex = selectedSchedule ? schedule.indexOf(selectedSchedule) : -1
-      const indexParam = scheduleIndex >= 0 ? `&sessionIndex=${scheduleIndex}` : ''
+      const indexParam = selectedSchedule ? `&sessionIndex=${selectedScheduleIndex}` : ''
       router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}${indexParam}`)
     } catch (error) {
       console.error('Failed to start session', error)

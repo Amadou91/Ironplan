@@ -18,7 +18,7 @@ const isIntentValid = (intent: PlanInput['intent']) => {
 
 const isWeeklyLayoutValid = (schedule: PlanInput['schedule']) => {
   if (!schedule.weeklyLayout || schedule.weeklyLayout.length === 0) return false
-  const layoutDays = new Set(schedule.weeklyLayout.map((entry) => entry.dayOfWeek))
+  const layoutDays = new Set(schedule.weeklyLayout.map((entry) => entry.sessionIndex))
   return schedule.daysAvailable.every((day) => layoutDays.has(day))
 }
 
