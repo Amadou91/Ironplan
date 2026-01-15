@@ -43,9 +43,9 @@ type SessionPayload = {
 
 export default function ActiveSession({ sessionId }: ActiveSessionProps) {
   const { activeSession, addSet, removeSet, updateSet, startSession } = useWorkoutStore();
-  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const supabase = createClient();
+  const isLoading = Boolean(sessionId) && !activeSession && !errorMessage;
 
   const mapSession = useCallback((payload: SessionPayload): WorkoutSession => {
     return {
@@ -85,7 +85,6 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
 
   useEffect(() => {
     if (activeSession || !sessionId) return;
-    setIsLoading(true);
     const fetchSession = async () => {
       const { data, error } = await supabase
         .from('sessions')
@@ -101,7 +100,6 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
       } else if (data) {
         startSession(mapSession(data as SessionPayload));
       }
-      setIsLoading(false);
     };
     fetchSession();
   }, [activeSession, mapSession, sessionId, startSession, supabase]);
