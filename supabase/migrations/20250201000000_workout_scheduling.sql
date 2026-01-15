@@ -6,6 +6,7 @@ create table if not exists public.scheduled_sessions (
   day_of_week int not null check (day_of_week between 0 and 6),
   week_start_date date not null,
   order_index int not null default 0,
+  status text not null default 'DRAFT' check (status in ('DRAFT', 'ACTIVE', 'ARCHIVED', 'COMPLETED')),
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -15,6 +16,10 @@ create index if not exists scheduled_sessions_user_week_idx
 
 create index if not exists scheduled_sessions_batch_idx
   on public.scheduled_sessions (schedule_batch_id);
+
+create unique index if not exists scheduled_sessions_unique_active_day
+  on public.scheduled_sessions (user_id, week_start_date, day_of_week)
+  where status = 'ACTIVE';
 
 alter table public.scheduled_sessions enable row level security;
 

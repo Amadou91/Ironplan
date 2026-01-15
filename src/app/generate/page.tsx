@@ -11,7 +11,14 @@ import { generatePlan, normalizePlanInput } from '@/lib/generator'
 import { bandLabels, cloneInventory, equipmentPresets, formatWeightList, machineLabels, parseWeightList } from '@/lib/equipment'
 import { buildWorkoutHistoryEntry, loadWorkoutHistory, removeWorkoutHistoryEntry, saveWorkoutHistoryEntry } from '@/lib/workoutHistory'
 import { formatDayLabel, formatWeekStartDate } from '@/lib/schedule-utils'
-import { getFlowCompletion, isDaysAvailableValid, isEquipmentValid, isMinutesPerSessionValid, isTotalMinutesPerWeekValid } from '@/lib/generationFlow'
+import {
+  DEFAULT_PLAN_STATUS,
+  getFlowCompletion,
+  isDaysAvailableValid,
+  isEquipmentValid,
+  isMinutesPerSessionValid,
+  isTotalMinutesPerWeekValid
+} from '@/lib/generationFlow'
 import { logEvent } from '@/lib/logger'
 import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanDay, PlanInput, GeneratedPlan } from '@/types/domain'
 
@@ -323,6 +330,7 @@ export default function GeneratePage() {
       goal: plan.goal,
       level: plan.level,
       tags: plan.tags,
+      status: DEFAULT_PLAN_STATUS,
       exercises: {
         schedule: plan.schedule,
         inputs: plan.inputs,
@@ -359,7 +367,8 @@ export default function GeneratePage() {
       day_of_week: day.dayOfWeek,
       week_start_date: weekStartDate,
       order_index: index,
-      is_active: true
+      status: DEFAULT_PLAN_STATUS,
+      is_active: false
     }))
 
     const { error: scheduleError } = await supabase

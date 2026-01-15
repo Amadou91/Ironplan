@@ -9,6 +9,7 @@ export const isTotalMinutesPerWeekValid = (minutes?: number) =>
 export const isDaysAvailableValid = (days: number[]) => days.length > 0
 
 export const isEquipmentValid = (equipment: PlanInput['equipment']) => hasEquipment(equipment.inventory)
+export const DEFAULT_PLAN_STATUS = 'DRAFT'
 
 const isIntentValid = (intent: PlanInput['intent']) => {
   if (intent.mode === 'style') return Boolean(intent.style)

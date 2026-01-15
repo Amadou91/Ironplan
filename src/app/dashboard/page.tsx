@@ -278,7 +278,7 @@ export default function DashboardPage() {
         .select('id, day_of_week, week_start_date, created_at, order_index, workout:workouts(id, title, exercises, created_at)')
         .eq('user_id', user.id)
         .eq('week_start_date', weekStartDate)
-        .eq('is_active', true)
+        .eq('status', 'ACTIVE')
         .order('order_index', { ascending: true })
         .order('created_at', { ascending: true })
 
