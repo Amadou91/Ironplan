@@ -562,37 +562,29 @@ export default function GeneratePage() {
 
   const handleReplaceConflicts = async () => {
     if (!user || !saveSummary || !lastGeneratedPlan) return
-    const conflictDays = saveSummary.conflicts.map((conflict) => conflict.dayOfWeek)
-    const conflictSessionIds = saveSummary.conflicts.map((conflict) => conflict.sessionId)
-    if (conflictDays.length === 0 || conflictSessionIds.length === 0) return
+    const conflictDays = Array.from(new Set(saveSummary.conflicts.map((conflict) => conflict.dayOfWeek)))
+    if (conflictDays.length === 0) return
     if (!confirm('Delete the existing sessions for these days and replace them with the new plan?')) return
 
     setIsReplacing(true)
     setSaveError(null)
 
     try {
-      const { data: deletedSessions, error: deleteError } = await supabase
+      const { error: deleteError, count: deletedCount } = await supabase
         .from('saved_sessions')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('user_id', user.id)
-        .in('id', conflictSessionIds)
-        .select('id, day_of_week')
+        .in('day_of_week', conflictDays)
 
       if (deleteError) {
         throw deleteError
       }
 
-      const deletedSessionIds = (deletedSessions ?? []).map((session) => session.id)
       logEvent('info', 'saved_sessions_conflicts_deleted', {
         userId: user.id,
-        requestedSessionIds: conflictSessionIds,
-        deletedSessionIds,
-        deletedDays: (deletedSessions ?? []).map((session) => session.day_of_week)
+        deletedCount: deletedCount ?? null,
+        deletedDays: conflictDays
       })
-
-      if (deletedSessionIds.length === 0) {
-        throw new Error('No saved sessions were deleted for the selected conflict days.')
-      }
 
       const replacementRows = lastGeneratedPlan.schedule
         .filter((day) => conflictDays.includes(day.dayOfWeek))
