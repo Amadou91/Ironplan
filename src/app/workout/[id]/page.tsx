@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import type { Exercise, PlanDay, PlanInput, WorkoutImpact } from '@/types/domain'
 import { enhanceExerciseData, toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
-import { formatDayLabel } from '@/lib/schedule-utils'
+import { formatSessionName } from '@/lib/workout-metrics'
 import { calculateExerciseImpact } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
 import ActiveSession from '@/components/workout/ActiveSession'
@@ -86,15 +86,11 @@ export default function WorkoutDetailPage() {
 
   const selectedSchedule = useMemo(() => {
     if (!schedule.length) return null
-    const dayParam = Number.parseInt(searchParams.get('day') ?? '', 10)
-    const scheduleDays = schedule.map((day) => day.dayOfWeek)
-    const today = new Date().getDay()
-    const resolvedDay = Number.isFinite(dayParam) && scheduleDays.includes(dayParam)
-      ? dayParam
-      : scheduleDays.includes(today)
-        ? today
-        : scheduleDays[0]
-    return schedule.find((day) => day.dayOfWeek === resolvedDay) ?? schedule[0]
+    const sessionIndexParam = Number.parseInt(searchParams.get('sessionIndex') ?? '', 10)
+    const resolvedIndex = Number.isFinite(sessionIndexParam) && sessionIndexParam >= 0 && sessionIndexParam < schedule.length
+      ? sessionIndexParam
+      : 0
+    return schedule[resolvedIndex] ?? schedule[0]
   }, [schedule, searchParams])
 
   const exercises = useMemo(() => {
@@ -109,7 +105,7 @@ export default function WorkoutDetailPage() {
     setSwapNotice(null)
     setSwapError(null)
     setLastSwap(null)
-  }, [exercises, selectedSchedule?.dayOfWeek])
+  }, [exercises, selectedSchedule])
 
   const summary = useMemo(
     () => (!workout?.exercises || Array.isArray(workout.exercises) ? undefined : workout.exercises.summary),
@@ -208,7 +204,7 @@ export default function WorkoutDetailPage() {
 
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const sessionName = `${workout.title} · ${formatDayLabel(selectedSchedule.dayOfWeek)}`
+        const sessionName = formatSessionName(selectedSchedule, workout.goal)
         const sessionPayload = {
           user_id: user.id,
           workout_id: workout.id,
@@ -354,7 +350,7 @@ export default function WorkoutDetailPage() {
         return
       }
 
-      const nameSuffix = selectedSchedule ? formatDayLabel(selectedSchedule.dayOfWeek) : undefined
+      const nameSuffix = selectedSchedule ? formatSessionName(selectedSchedule, workout.goal) : undefined
       const { sessionId, startedAt, sessionName, exercises: createdExercises, impact: sessionImpact } = await createWorkoutSession({
         supabase,
         userId: user.id,
@@ -376,8 +372,9 @@ export default function WorkoutDetailPage() {
         exercises: createdExercises
       })
 
-      const dayParam = selectedSchedule ? `&day=${selectedSchedule.dayOfWeek}` : ''
-      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}${dayParam}`)
+      const scheduleIndex = selectedSchedule ? schedule.indexOf(selectedSchedule) : -1
+      const indexParam = scheduleIndex >= 0 ? `&sessionIndex=${scheduleIndex}` : ''
+      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}${indexParam}`)
     } catch (error) {
       console.error('Failed to start session', error)
       setStartError('Unable to start the session. Please try again.')
@@ -430,12 +427,12 @@ export default function WorkoutDetailPage() {
               <p className="text-muted">{workout.description}</p>
               {selectedSchedule && (
                 <p className="mt-2 text-sm text-subtle">
-                  Scheduled for {formatDayLabel(selectedSchedule.dayOfWeek)} · {selectedSchedule.timeWindow.replace('_', ' ')}
+                  {formatSessionName(selectedSchedule, workout.goal)} · {selectedSchedule.timeWindow.replace('_', ' ')}
                 </p>
               )}
             </div>
             <span className="badge-accent">
-              {`${workout.goal}${selectedSchedule ? ` — ${formatDayLabel(selectedSchedule.dayOfWeek)}` : ''}`}
+              {workout.goal}
             </span>
           </div>
 

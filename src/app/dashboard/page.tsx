@@ -19,7 +19,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { calculateExerciseImpact } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
-import { formatSessionLabel } from '@/lib/workout-metrics'
+import { formatSessionName } from '@/lib/workout-metrics'
 import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
@@ -48,19 +48,6 @@ const formatDuration = (start?: string | null, end?: string | null) => {
   const diff = Math.max(0, endDate.getTime() - startDate.getTime())
   const minutes = Math.round(diff / 60000)
   return `${minutes} min`
-}
-
-const formatFocusLabel = (focus: PlanDay['focus']) =>
-  focus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-
-const isSameDay = (value: string, compareDate: Date) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return false
-  return (
-    date.getFullYear() === compareDate.getFullYear() &&
-    date.getMonth() === compareDate.getMonth() &&
-    date.getDate() === compareDate.getDate()
-  )
 }
 
 const getWeekKey = (value: string) => {
@@ -124,7 +111,7 @@ export default function DashboardPage() {
   const startSession = useWorkoutStore((state) => state.startSession)
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const endSession = useWorkoutStore((state) => state.endSession)
-  const getSuggestedSessionId = useWorkoutStore((state) => state.getSuggestedSessionId)
+  const getSuggestedSessionIndex = useWorkoutStore((state) => state.getSuggestedSessionIndex)
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -314,7 +301,7 @@ export default function DashboardPage() {
 
   const planSessions = useMemo(() => getWorkoutSessions(activePlan), [activePlan])
 
-  const suggestedSessionId = useMemo(() => {
+  const suggestedSessionIndex = useMemo(() => {
     if (!activePlan || !planSessions.length || !user) return null
     const plan: WorkoutPlan = {
       id: activePlan.id,
@@ -334,33 +321,22 @@ export default function DashboardPage() {
           ? session.ended_at ?? session.started_at
           : null
     }))
-    return getSuggestedSessionId(plan, history)
-  }, [activePlan, getSuggestedSessionId, planSessions, sessions, user])
-  const completedSessionToday = useMemo(() => {
-    const today = new Date()
-    return sessions.some((session) => {
-      if (session.status && session.status !== 'completed' && !session.ended_at) return false
-      const completedAt = session.ended_at ?? (session.status === 'completed' ? session.started_at : null)
-      return completedAt ? isSameDay(completedAt, today) : false
-    })
-  }, [sessions])
+    return getSuggestedSessionIndex(plan, history)
+  }, [activePlan, getSuggestedSessionIndex, planSessions, sessions, user])
 
   const recommendedSessionIndex = useMemo(() => {
-    if (!suggestedSessionId) return 0
-    const parsed = Number.parseInt(suggestedSessionId.replace('session-', ''), 10)
-    return Number.isFinite(parsed) ? parsed : 0
-  }, [suggestedSessionId])
+    return Number.isFinite(suggestedSessionIndex ?? null) ? suggestedSessionIndex ?? 0 : 0
+  }, [suggestedSessionIndex])
 
   const sessionCards = useMemo(
     () =>
       planSessions.map((session, index) => ({
         session,
         index,
-        label: formatSessionLabel(index),
-        focusLabel: formatFocusLabel(session.focus),
+        name: formatSessionName(session, activePlan?.goal ?? null),
         exercisesCount: session.exercises?.length ?? 0
       })),
-    [planSessions]
+    [activePlan?.goal, planSessions]
   )
 
   const recommendedSession = sessionCards[recommendedSessionIndex] ?? sessionCards[0] ?? null
@@ -372,7 +348,8 @@ export default function DashboardPage() {
     workout: WorkoutRow,
     planDay: PlanDay | null,
     sessionLabel: string,
-    sessionKey: string
+    sessionKey: string,
+    sessionIndex?: number
   ) => {
     if (!user) return
     if (hasActiveSession) {
@@ -404,8 +381,8 @@ export default function DashboardPage() {
         impact: sessionImpact,
         exercises: sessionExercises
       })
-      const dayParam = planDay ? `&day=${planDay.dayOfWeek}` : ''
-      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}${dayParam}`)
+      const indexParam = Number.isFinite(sessionIndex) ? `&sessionIndex=${sessionIndex}` : ''
+      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}${indexParam}`)
     } catch (startError) {
       console.error('Failed to start scheduled session', startError)
       setStartSessionError('Unable to start the session. Please try again.')
@@ -674,12 +651,12 @@ export default function DashboardPage() {
         {planError && <div className="alert-error p-4 text-sm">{planError}</div>}
         {startSessionError && <div className="alert-error p-4 text-sm">{startSessionError}</div>}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6">
           <Card className="p-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-strong">Next Up</h2>
-                <p className="text-sm text-muted">Follow your rotation and pick up where you left off.</p>
+                <h2 className="text-lg font-semibold text-strong">Continue / Start a Session</h2>
+                <p className="text-sm text-muted">Jump back into a recently generated session library.</p>
               </div>
             </div>
 
@@ -693,27 +670,19 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {completedSessionToday && (
-              <div className="mt-4 space-y-2 rounded-lg border border-[var(--color-border)] bg-emerald-50/60 p-4">
-                <p className="text-sm font-semibold text-strong">Completed a session today</p>
-                <p className="text-xs text-subtle">You can still start another session if you’d like.</p>
-              </div>
-            )}
-
             {activePlan && recommendedSession ? (
               <div className="mt-4 space-y-4">
                 <div className="space-y-3 rounded-lg border border-emerald-300 bg-emerald-50/70 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Recommended</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Recommended Session</p>
                       <p className="text-sm font-semibold text-strong">{activePlan.title}</p>
                       <p className="text-xs text-subtle">
-                        {recommendedSession.label} · {recommendedSession.focusLabel} ·{' '}
-                        {recommendedSession.session.timeWindow.replace('_', ' ')} ·{' '}
+                        {recommendedSession.name} · {recommendedSession.session.timeWindow.replace('_', ' ')} ·{' '}
                         {recommendedSession.exercisesCount} exercises
                       </p>
                     </div>
-                    <span className="badge-accent">Next Up</span>
+                    <span className="badge-accent">Recommended</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {!hasActiveSession && (
@@ -724,8 +693,9 @@ export default function DashboardPage() {
                           handleStartWorkout(
                             activePlan,
                             recommendedSession.session,
-                            recommendedSession.label,
-                            `${activePlan.id}-${recommendedSession.index}`
+                            recommendedSession.name,
+                            `${activePlan.id}-${recommendedSession.index}`,
+                            recommendedSession.index
                           )
                         }
                         disabled={startingSessionKey === `${activePlan.id}-${recommendedSession.index}`}
@@ -733,7 +703,7 @@ export default function DashboardPage() {
                         {startingSessionKey === `${activePlan.id}-${recommendedSession.index}` ? 'Starting...' : 'Start Session'}
                       </Button>
                     )}
-                    <Link href={`/workout/${activePlan.id}?day=${recommendedSession.session.dayOfWeek}`}>
+                    <Link href={`/workout/${activePlan.id}?sessionIndex=${recommendedSession.index}`}>
                       <Button variant="ghost" size="sm">
                         View Details
                       </Button>
@@ -748,10 +718,10 @@ export default function DashboardPage() {
                     </summary>
                     <div className="mt-4 grid gap-3">
                       {otherSessions.map((card) => (
-                        <div key={card.label} className="space-y-2 rounded-lg border border-[var(--color-border)] p-4">
-                          <p className="text-sm font-semibold text-strong">{card.label}</p>
+                        <div key={`${card.index}-${card.name}`} className="space-y-2 rounded-lg border border-[var(--color-border)] p-4">
+                          <p className="text-sm font-semibold text-strong">{card.name}</p>
                           <p className="text-xs text-subtle">
-                            {card.focusLabel} · {card.session.timeWindow.replace('_', ' ')} · {card.exercisesCount} exercises
+                            {card.session.timeWindow.replace('_', ' ')} · {card.exercisesCount} exercises
                           </p>
                           <div className="flex flex-wrap gap-2">
                             {!hasActiveSession && (
@@ -762,8 +732,9 @@ export default function DashboardPage() {
                                   handleStartWorkout(
                                     activePlan,
                                     card.session,
-                                    card.label,
-                                    `${activePlan.id}-${card.index}`
+                                    card.name,
+                                    `${activePlan.id}-${card.index}`,
+                                    card.index
                                   )
                                 }
                                 disabled={startingSessionKey === `${activePlan.id}-${card.index}`}
@@ -771,7 +742,7 @@ export default function DashboardPage() {
                                 {startingSessionKey === `${activePlan.id}-${card.index}` ? 'Starting...' : 'Start Session'}
                               </Button>
                             )}
-                            <Link href={`/workout/${activePlan.id}?day=${card.session.dayOfWeek}`}>
+                            <Link href={`/workout/${activePlan.id}?sessionIndex=${card.index}`}>
                               <Button variant="ghost" size="sm">
                                 View Details
                               </Button>
@@ -794,17 +765,8 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
-          </Card>
 
-          <Card className="p-6">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-strong">Continue / Start a Session</h2>
-                <p className="text-sm text-muted">Jump back into a recently generated rotation.</p>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-3">
+            <div className="mt-6 space-y-3">
               {recentWorkouts.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-sm text-muted">
                   No previous plans yet. Generate a workout to get started.
@@ -814,7 +776,8 @@ export default function DashboardPage() {
                   const sessions = getWorkoutSessions(workout)
                   const defaultSession = sessions[0] ?? null
                   const sessionCount = sessions.length
-                  const defaultLabel = formatSessionLabel(0)
+                  const defaultLabel = defaultSession ? formatSessionName(defaultSession, workout.goal ?? null) : 'Session'
+                  const defaultIndex = defaultSession ? sessions.indexOf(defaultSession) : undefined
                   const sessionKey = `${workout.id}-0`
                   return (
                     <div key={workout.id} className="rounded-lg border border-[var(--color-border)] p-4">
@@ -834,7 +797,8 @@ export default function DashboardPage() {
                                 workout,
                                 defaultSession,
                                 defaultLabel,
-                                sessionKey
+                                sessionKey,
+                                defaultIndex
                               )
                             }
                             disabled={startingSessionKey === sessionKey || hasActiveSession}
@@ -845,7 +809,7 @@ export default function DashboardPage() {
                                 ? 'Starting...'
                                 : `Start ${defaultLabel}`}
                           </Button>
-                          <Link href={`/workout/${workout.id}${defaultSession ? `?day=${defaultSession.dayOfWeek}` : ''}`}>
+                          <Link href={`/workout/${workout.id}${Number.isFinite(defaultIndex) ? `?sessionIndex=${defaultIndex}` : ''}`}>
                             <Button variant="ghost" size="sm">View</Button>
                           </Link>
                           <Button
