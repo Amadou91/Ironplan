@@ -10,8 +10,6 @@ import { Card } from '@/components/ui/Card'
 import { generatePlan, normalizePlanInput } from '@/lib/generator'
 import { bandLabels, cloneInventory, equipmentPresets, formatWeightList, machineLabels, parseWeightList } from '@/lib/equipment'
 import { buildWorkoutHistoryEntry, loadWorkoutHistory, removeWorkoutHistoryEntry, saveWorkoutHistoryEntry } from '@/lib/workoutHistory'
-import { formatDayLabel, formatWeekStartDate } from '@/lib/schedule-utils'
-import { formatSessionName } from '@/lib/workout-metrics'
 import { CARDIO_ACTIVITY_OPTIONS } from '@/lib/cardio-activities'
 import {
   DEFAULT_PLAN_STATUS,
@@ -22,9 +20,9 @@ import {
   isTotalMinutesPerWeekValid
 } from '@/lib/generationFlow'
 import { logEvent } from '@/lib/logger'
-import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanDay, PlanInput, GeneratedPlan } from '@/types/domain'
+import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanInput, GeneratedPlan } from '@/types/domain'
 
-const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const sessionLabels = ['Session 1', 'Session 2', 'Session 3', 'Session 4', 'Session 5', 'Session 6', 'Session 7']
 const styleOptions: { value: Goal; label: string; description: string }[] = [
   { value: 'strength', label: 'Strength', description: 'Heavier loads, lower reps, power focus.' },
   { value: 'hypertrophy', label: 'Hypertrophy', description: 'Muscle growth with balanced volume.' },
@@ -39,8 +37,6 @@ const focusOptions: { value: PlanInput['preferences']['focusAreas'][number]; lab
   { value: 'cardio', label: 'Cardio' },
   { value: 'mobility', label: 'Mobility' }
 ]
-const buildSavedSessionName = (plan: GeneratedPlan, day: PlanDay) => formatSessionName(day, plan.goal)
-
 const buildWorkoutTitle = (plan: GeneratedPlan) => plan.title
 
 export default function GeneratePage() {
@@ -51,7 +47,7 @@ export default function GeneratePage() {
   const [errors, setErrors] = useState<string[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSummary, setSaveSummary] = useState<{
-    createdDays: number[]
+    createdSessions: number[]
     workoutId?: string
   } | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
@@ -67,13 +63,13 @@ export default function GeneratePage() {
       equipment: { preset: 'full_gym', inventory: cloneInventory(equipmentPresets.full_gym) },
       time: { minutesPerSession: 45 },
       schedule: {
-        daysAvailable: [1, 3, 5],
+        daysAvailable: [0, 1, 2],
         timeWindows: ['evening'],
         minRestDays: 1,
         weeklyLayout: [
-          { dayOfWeek: 1, style: 'strength', focus: 'upper' },
-          { dayOfWeek: 3, style: 'hypertrophy', focus: 'lower' },
-          { dayOfWeek: 5, style: 'endurance', focus: 'full_body' }
+          { sessionIndex: 0, style: 'strength', focus: 'upper' },
+          { sessionIndex: 1, style: 'hypertrophy', focus: 'lower' },
+          { sessionIndex: 2, style: 'endurance', focus: 'full_body' }
         ]
       },
       preferences: { focusAreas: [], dislikedActivities: [], cardioActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
@@ -151,10 +147,10 @@ export default function GeneratePage() {
           : goalToFocusDefaults(state.goals.primary)
     const defaultStyle = state.intent.style ?? state.goals.primary
     return sortedDays.map((day, index) => {
-      const existingEntry = existing?.find((entry) => entry.dayOfWeek === day)
+      const existingEntry = existing?.find((entry) => entry.sessionIndex === day)
       return (
         existingEntry ?? {
-          dayOfWeek: day,
+          sessionIndex: day,
           style: defaultStyle,
           focus: focusPool[index % focusPool.length]
         }
@@ -166,13 +162,13 @@ export default function GeneratePage() {
     Array.from(new Set(layout.map((entry) => entry.focus)))
 
   const updateWeeklyLayoutEntry = (
-    dayOfWeek: number,
+    sessionIndex: number,
     updates: Partial<NonNullable<PlanInput['schedule']['weeklyLayout']>[number]>
   ) => {
     updateFormData((prev) => {
       const baseLayout = buildWeeklyLayout(prev, prev.schedule.daysAvailable, prev.schedule.weeklyLayout)
       const nextLayout = baseLayout.map((entry) =>
-        entry.dayOfWeek === dayOfWeek ? { ...entry, ...updates } : entry
+        entry.sessionIndex === sessionIndex ? { ...entry, ...updates } : entry
       )
       const nextBodyParts =
         prev.intent.mode === 'body_part' ? getBodyPartsFromLayout(nextLayout) : prev.intent.bodyParts
@@ -259,20 +255,6 @@ export default function GeneratePage() {
 
     try {
       if (entry.remoteId) {
-        // STEP 1: Delete the sessions from the schedule FIRST
-        // We do this before deleting the workout, otherwise the DB sets workout_id to NULL
-        // and this query would fail to find them.
-        const { error: savedSessionDeleteError } = await supabase
-          .from('saved_sessions')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('workout_id', entry.remoteId)
-
-        if (savedSessionDeleteError) {
-          throw savedSessionDeleteError
-        }
-
-        // STEP 2: Now it is safe to delete the workout itself
         const { error } = await supabase
           .from('workouts')
           .delete()
@@ -344,77 +326,6 @@ export default function GeneratePage() {
       return null
     }
 
-    const weekStartDate = formatWeekStartDate(new Date())
-    const scheduleBatchId =
-      typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${user.id}`
-    const scheduleRows = plan.schedule.map((day, index) => ({
-      user_id: user.id,
-      workout_id: data.id,
-      schedule_batch_id: scheduleBatchId,
-      day_of_week: day.dayOfWeek,
-      week_start_date: weekStartDate,
-      order_index: index,
-      status: DEFAULT_PLAN_STATUS,
-      is_active: false
-    }))
-
-    const { error: scheduleError } = await supabase
-      .from('scheduled_sessions')
-      .insert(scheduleRows)
-
-    if (scheduleError) {
-      console.error('Failed to create schedule sessions', scheduleError)
-      const { error: workoutRollbackError } = await supabase
-        .from('workouts')
-        .delete()
-        .eq('id', data.id)
-        .eq('user_id', user.id)
-
-      if (workoutRollbackError) {
-        console.error('Failed to rollback workout after schedule error', workoutRollbackError)
-      }
-      setSaveError(`Plan generated, but scheduling failed: ${scheduleError.message}`)
-      return null
-    }
-
-    const sessionRows = plan.schedule.map((day) => ({
-      user_id: user.id,
-      workout_id: data.id,
-      day_of_week: day.dayOfWeek,
-      session_name: buildSavedSessionName(plan, day),
-      workouts: day.exercises,
-      updated_at: new Date().toISOString()
-    }))
-
-    const { error: sessionSaveError } = await supabase
-      .from('saved_sessions')
-      .upsert(sessionRows, { onConflict: 'user_id,day_of_week' })
-
-    if (sessionSaveError) {
-      console.error('Failed to create saved sessions', sessionSaveError)
-      const { error: rollbackError } = await supabase
-        .from('scheduled_sessions')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('workout_id', data.id)
-        .eq('schedule_batch_id', scheduleBatchId)
-
-      if (rollbackError) {
-        console.error('Failed to rollback scheduled sessions after saved session error', rollbackError)
-      }
-      const { error: workoutRollbackError } = await supabase
-        .from('workouts')
-        .delete()
-        .eq('id', data.id)
-        .eq('user_id', user.id)
-
-      if (workoutRollbackError) {
-        console.error('Failed to rollback workout after saved session error', workoutRollbackError)
-      }
-      setSaveError(`Plan generated, but day sessions failed to save: ${sessionSaveError.message}`)
-      return null
-    }
-
     if (typeof window !== 'undefined') {
       try {
         const entry = buildWorkoutHistoryEntry(plan, data.id)
@@ -429,7 +340,7 @@ export default function GeneratePage() {
 
     return {
       workoutId: data.id,
-      createdDays: plan.schedule.map((day) => day.dayOfWeek)
+      createdSessions: plan.schedule.map((session) => session.order)
     }
   }
 
@@ -461,7 +372,7 @@ export default function GeneratePage() {
       if (!saveResult) return
 
       setSaveSummary({
-        createdDays: saveResult.createdDays,
+        createdSessions: saveResult.createdSessions,
         workoutId: saveResult.workoutId
       })
     } catch (err) {
@@ -473,7 +384,7 @@ export default function GeneratePage() {
   }
 
   const daysAvailableLabel = formData.schedule.daysAvailable
-    .map(index => dayLabels[index])
+    .map(index => sessionLabels[index])
     .filter(Boolean)
     .join(', ')
   const sortedDaysAvailable = [...formData.schedule.daysAvailable].sort((a, b) => a - b)
@@ -515,11 +426,13 @@ export default function GeneratePage() {
     }
 
     if (saveSummary) {
-      const createdLabels = saveSummary.createdDays.map((day) => formatDayLabel(day)).join(', ')
+      const createdLabels = saveSummary.createdSessions
+        .map((index) => sessionLabels[index] ?? `Session ${index + 1}`)
+        .join(', ')
 
       return (
         <div className="space-y-3 text-sm text-muted">
-          {saveSummary.createdDays.length > 0 && (
+          {saveSummary.createdSessions.length > 0 && (
             <div className="rounded-lg border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] px-3 py-2 text-[var(--color-primary-strong)]">
               Saved sessions for: {createdLabels}
             </div>
@@ -575,7 +488,7 @@ export default function GeneratePage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 1</p>
                 <h2 className="text-xl font-semibold text-strong">Choose your workout intent</h2>
                 <p className="text-sm text-muted">
-                  Pick the primary path so we can generate the right exercises and weekly layout defaults.
+                  Pick the primary path so we can generate the right exercises and session layout defaults.
                 </p>
               </div>
 
@@ -673,9 +586,9 @@ export default function GeneratePage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-strong">Days available</label>
+                <label className="mb-2 block text-sm font-medium text-strong">Sessions per week</label>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {dayLabels.map((label, index) => (
+                  {sessionLabels.map((label, index) => (
                     <label key={label} className="flex items-center gap-2 text-sm text-muted">
                       <input
                         type="checkbox"
@@ -716,7 +629,7 @@ export default function GeneratePage() {
                   ))}
                 </div>
                 {invalidDays && (
-                  <p className="mt-2 text-xs text-[var(--color-danger)]">Select at least one training day.</p>
+                  <p className="mt-2 text-xs text-[var(--color-danger)]">Select at least one session slot.</p>
                 )}
               </div>
             </section>
@@ -725,27 +638,27 @@ export default function GeneratePage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 2</p>
-                  <h2 className="text-xl font-semibold text-strong">Build your weekly layout</h2>
+                  <h2 className="text-xl font-semibold text-strong">Build your session layout</h2>
                   <p className="text-sm text-muted">
-                    Assign your daily workout focus based on the generation mode you selected.
+                    Assign the focus for each session in your library.
                   </p>
                 </div>
               </div>
 
               {sortedDaysAvailable.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-sm text-muted">
-                  Choose at least one training day to build your week.
+                  Choose at least one session slot to build your library.
                 </div>
               ) : (
                 <div className="space-y-3">
                   {sortedDaysAvailable.map((day) => {
-                    const entry = weeklyLayout.find((item) => item.dayOfWeek === day)
+                    const entry = weeklyLayout.find((item) => item.sessionIndex === day)
                     const fallbackStyle = formData.intent.style ?? formData.goals.primary
                     const fallbackFocus = entry?.focus ?? 'full_body'
                     return (
                       <div key={day} className="grid gap-3 rounded-lg border border-[var(--color-border)] p-3 md:grid-cols-[1fr_1fr]">
                         <div className="space-y-2">
-                          <div className="text-sm font-semibold text-strong">{formatDayLabel(day)}</div>
+                          <div className="text-sm font-semibold text-strong">{sessionLabels[day] ?? `Session ${day + 1}`}</div>
                         </div>
                         <div>
                           <label className="mb-1 block text-xs font-medium text-subtle">
@@ -781,7 +694,7 @@ export default function GeneratePage() {
                     )
                   })}
                   {weeklyLayout.length < sortedDaysAvailable.length && (
-                    <p className="text-xs text-[var(--color-danger)]">Assign each selected day before continuing.</p>
+                    <p className="text-xs text-[var(--color-danger)]">Assign each selected session slot before continuing.</p>
                   )}
                 </div>
               )}
@@ -790,7 +703,7 @@ export default function GeneratePage() {
             <section className="space-y-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 3</p>
-                <h2 className="text-xl font-semibold text-strong">Set your weekly timing</h2>
+                  <h2 className="text-xl font-semibold text-strong">Set your session timing</h2>
                 <p className="text-sm text-muted">Define how long each workout is and when you train.</p>
               </div>
 
@@ -1108,7 +1021,7 @@ export default function GeneratePage() {
 
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-strong">Minimum rest days</label>
+                      <label className="mb-2 block text-sm font-medium text-strong">Minimum rest days between sessions</label>
                       <input
                         type="number"
                         min={0}
@@ -1262,7 +1175,7 @@ export default function GeneratePage() {
                     <dd className="text-strong">{formData.time.totalMinutesPerWeek ?? 'Not set'}</dd>
                   </div>
                   <div>
-                    <dt className="text-subtle">Days available</dt>
+                    <dt className="text-subtle">Sessions per week</dt>
                     <dd className="text-strong">{daysAvailableLabel || 'Not selected'}</dd>
                   </div>
                   <div>
@@ -1273,14 +1186,16 @@ export default function GeneratePage() {
               </div>
 
               <div className="surface-card-subtle p-4">
-                <h3 className="mb-3 text-sm font-semibold text-strong">Weekly layout</h3>
+                <h3 className="mb-3 text-sm font-semibold text-strong">Session layout</h3>
                 {weeklyLayout.length === 0 ? (
-                  <p className="text-sm text-muted">No weekly layout set yet.</p>
+                  <p className="text-sm text-muted">No session layout set yet.</p>
                 ) : (
                   <ul className="space-y-2 text-sm text-muted">
                     {weeklyLayout.map((entry) => (
-                      <li key={entry.dayOfWeek} className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-strong">{formatDayLabel(entry.dayOfWeek)}</span>
+                      <li key={entry.sessionIndex} className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-strong">
+                          {sessionLabels[entry.sessionIndex] ?? `Session ${entry.sessionIndex + 1}`}
+                        </span>
                         <span>· {entry.style.replace('_', ' ')}</span>
                         <span>· {entry.focus.replace('_', ' ')}</span>
                       </li>

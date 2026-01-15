@@ -64,6 +64,28 @@ const getWeekKey = (value: string) => {
   return `${temp.getUTCFullYear()}-W${week}`
 }
 
+const normalizeLabel = (value: string) =>
+  value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+
+const getRecommendedSession = (plan: WorkoutPlan, history: WorkoutLog[]) => {
+  if (!plan.sessions.length) return null
+  const completedHistory = history
+    .filter((log) => log.workoutId === plan.id && log.completedAt)
+    .sort((a, b) => new Date(b.completedAt ?? b.startedAt).getTime() - new Date(a.completedAt ?? a.startedAt).getTime())
+
+  if (completedHistory.length === 0) return 0
+
+  const lastSessionName = completedHistory[0]?.sessionName ?? ''
+  const normalizedLast = normalizeLabel(lastSessionName)
+  const matchedIndex = plan.sessions.findIndex((session) => {
+    const sessionLabel = normalizeLabel(session.name || formatSessionName(session, plan.goal))
+    return normalizedLast.includes(sessionLabel)
+  })
+
+  if (matchedIndex < 0) return 0
+  return (matchedIndex + 1) % plan.sessions.length
+}
+
 type SessionRow = {
   id: string
   name: string
@@ -114,7 +136,6 @@ export default function DashboardPage() {
   const startSession = useWorkoutStore((state) => state.startSession)
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const endSession = useWorkoutStore((state) => state.endSession)
-  const getSuggestedSessionIndex = useWorkoutStore((state) => state.getSuggestedSessionIndex)
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -308,7 +329,7 @@ export default function DashboardPage() {
 
   const planSessions = useMemo(() => getWorkoutSessions(activePlan), [activePlan])
 
-  const suggestedSessionIndex = useMemo(() => {
+  const recommendedSessionIndex = useMemo(() => {
     if (!activePlan || !planSessions.length || !user) return null
     const plan: WorkoutPlan = {
       id: activePlan.id,
@@ -328,28 +349,23 @@ export default function DashboardPage() {
           ? session.ended_at ?? session.started_at
           : null
     }))
-    return getSuggestedSessionIndex(plan, history)
-  }, [activePlan, getSuggestedSessionIndex, planSessions, sessions, user])
-
-  const recommendedSessionIndex = useMemo(() => {
-    return Number.isFinite(suggestedSessionIndex ?? null) ? suggestedSessionIndex ?? 0 : 0
-  }, [suggestedSessionIndex])
+    return getRecommendedSession(plan, history)
+  }, [activePlan, planSessions, sessions, user])
 
   const sessionCards = useMemo(
     () =>
       planSessions.map((session, index) => ({
         session,
         index,
-        name: formatSessionName(session, activePlan?.goal ?? null),
+        name: session.name || formatSessionName(session, activePlan?.goal ?? null),
         exercisesCount: session.exercises?.length ?? 0
       })),
     [activePlan?.goal, planSessions]
   )
 
-  const recommendedSession = sessionCards[recommendedSessionIndex] ?? sessionCards[0] ?? null
-  const otherSessions = recommendedSession
-    ? sessionCards.filter((card) => card.index !== recommendedSession.index)
-    : sessionCards
+  const resolvedRecommendedIndex = Number.isFinite(recommendedSessionIndex ?? null)
+    ? (recommendedSessionIndex ?? 0)
+    : 0
 
   const handleStartWorkout = async (
     workout: WorkoutRow,
@@ -431,16 +447,6 @@ export default function DashboardPage() {
     setDeletingWorkoutIds(prev => ({ ...prev, [workout.id]: true }))
 
     try {
-      const { error: scheduleDeleteError } = await supabase
-        .from('scheduled_sessions')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('workout_id', workout.id)
-
-      if (scheduleDeleteError) {
-        throw scheduleDeleteError
-      }
-
       const { error: workoutDeleteError } = await supabase
         .from('workouts')
         .delete()
@@ -677,59 +683,35 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {activePlan && recommendedSession ? (
+            {activePlan && sessionCards.length > 0 ? (
               <div className="mt-4 space-y-4">
-                <div className="space-y-3 rounded-lg border border-emerald-300 bg-emerald-50/70 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Recommended Session</p>
-                      <p className="text-sm font-semibold text-strong">{activePlan.title}</p>
-                      <p className="text-xs text-subtle">
-                        {recommendedSession.name} · {recommendedSession.session.timeWindow.replace('_', ' ')} ·{' '}
-                        {recommendedSession.exercisesCount} exercises
-                      </p>
-                    </div>
-                    <span className="badge-accent">Recommended</span>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-strong">Available Workouts</h3>
+                    <span className="text-xs text-subtle">{sessionCards.length} sessions</span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {!hasActiveSession && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() =>
-                          handleStartWorkout(
-                            activePlan,
-                            recommendedSession.session,
-                            recommendedSession.name,
-                            `${activePlan.id}-${recommendedSession.index}`,
-                            recommendedSession.index
-                          )
-                        }
-                        disabled={startingSessionKey === `${activePlan.id}-${recommendedSession.index}`}
-                      >
-                        {startingSessionKey === `${activePlan.id}-${recommendedSession.index}` ? 'Starting...' : 'Start Session'}
-                      </Button>
-                    )}
-                    <Link href={`/workout/${activePlan.id}?sessionIndex=${recommendedSession.index}`}>
-                      <Button variant="ghost" size="sm">
-                        View Details
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-
-                {otherSessions.length > 0 && (
-                  <details className="rounded-lg border border-[var(--color-border)] p-4">
-                    <summary className="cursor-pointer text-sm font-semibold text-strong">
-                      Other Sessions
-                    </summary>
-                    <div className="mt-4 grid gap-3">
-                      {otherSessions.map((card) => (
-                        <div key={`${card.index}-${card.name}`} className="space-y-2 rounded-lg border border-[var(--color-border)] p-4">
-                          <p className="text-sm font-semibold text-strong">{card.name}</p>
-                          <p className="text-xs text-subtle">
-                            {card.session.timeWindow.replace('_', ' ')} · {card.exercisesCount} exercises
-                          </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {sessionCards.map((card) => {
+                      const isRecommended = card.index === resolvedRecommendedIndex
+                      const sessionKey = `${activePlan.id}-${card.index}`
+                      return (
+                        <div
+                          key={sessionKey}
+                          className={`space-y-3 rounded-lg border p-4 ${
+                            isRecommended
+                              ? 'border-emerald-300 bg-emerald-50/70'
+                              : 'border-[var(--color-border)]'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold text-strong">{card.name}</p>
+                              <p className="text-xs text-subtle">
+                                {card.session.timeWindow.replace('_', ' ')} · {card.exercisesCount} exercises
+                              </p>
+                            </div>
+                            {isRecommended && <span className="badge-accent">Best for Today</span>}
+                          </div>
                           <div className="flex flex-wrap gap-2">
                             {!hasActiveSession && (
                               <Button
@@ -740,13 +722,13 @@ export default function DashboardPage() {
                                     activePlan,
                                     card.session,
                                     card.name,
-                                    `${activePlan.id}-${card.index}`,
+                                    sessionKey,
                                     card.index
                                   )
                                 }
-                                disabled={startingSessionKey === `${activePlan.id}-${card.index}`}
+                                disabled={startingSessionKey === sessionKey}
                               >
-                                {startingSessionKey === `${activePlan.id}-${card.index}` ? 'Starting...' : 'Start Session'}
+                                {startingSessionKey === sessionKey ? 'Starting...' : `Start ${card.name}`}
                               </Button>
                             )}
                             <Link href={`/workout/${activePlan.id}?sessionIndex=${card.index}`}>
@@ -756,10 +738,10 @@ export default function DashboardPage() {
                             </Link>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </details>
-                )}
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="mt-4 space-y-3 rounded-lg border border-dashed border-[var(--color-border)] p-4">
@@ -783,7 +765,7 @@ export default function DashboardPage() {
                   const sessions = getWorkoutSessions(workout)
                   const defaultSession = sessions[0] ?? null
                   const sessionCount = sessions.length
-                  const defaultLabel = defaultSession ? formatSessionName(defaultSession, workout.goal ?? null) : 'Session'
+                  const defaultLabel = defaultSession?.name || (defaultSession ? formatSessionName(defaultSession, workout.goal ?? null) : 'Session')
                   const defaultIndex = defaultSession ? sessions.indexOf(defaultSession) : undefined
                   const sessionKey = `${workout.id}-0`
                   return (

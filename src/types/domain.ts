@@ -102,7 +102,8 @@ export interface Exercise {
 export type WorkoutExercise = Exercise
 
 export interface PlanDay {
-  dayOfWeek: number
+  order: number
+  name?: string
   timeWindow: TimeWindow
   focus: FocusArea
   durationMinutes: number
@@ -145,7 +146,7 @@ export interface PlanInput {
     timeWindows: TimeWindow[]
     minRestDays: number
     weeklyLayout?: Array<{
-      dayOfWeek: number
+      sessionIndex: number
       style: Goal
       focus: FocusArea
     }>
@@ -234,28 +235,4 @@ export interface WorkoutSet {
   notes?: string | null
   performedAt?: string | null
   completed: boolean
-}
-
-export interface ScheduledSession {
-  id: string
-  userId: string
-  workoutId: string
-  scheduleBatchId: string
-  dayOfWeek: number
-  weekStartDate: string
-  orderIndex: number
-  status: PlanStatus
-  isActive: boolean
-  createdAt: string
-}
-
-export interface SavedSession {
-  id: string
-  userId: string
-  workoutId?: string
-  dayOfWeek: number
-  sessionName: string
-  workouts: Exercise[]
-  createdAt: string
-  updatedAt: string
 }

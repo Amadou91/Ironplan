@@ -37,13 +37,13 @@ const DEFAULT_INPUT: PlanInput = {
     minutesPerSession: 45
   },
   schedule: {
-    daysAvailable: [1, 3, 5],
+    daysAvailable: [0, 1, 2],
     timeWindows: ['evening'],
     minRestDays: 1,
     weeklyLayout: [
-      { dayOfWeek: 1, style: 'strength', focus: 'upper' },
-      { dayOfWeek: 3, style: 'hypertrophy', focus: 'lower' },
-      { dayOfWeek: 5, style: 'endurance', focus: 'full_body' }
+      { sessionIndex: 0, style: 'strength', focus: 'upper' },
+      { sessionIndex: 1, style: 'hypertrophy', focus: 'lower' },
+      { sessionIndex: 2, style: 'endurance', focus: 'full_body' }
     ]
   },
   preferences: {
@@ -380,7 +380,7 @@ export const validatePlanInput = (input: PlanInput): string[] => {
   }
 
   if (input.schedule.daysAvailable.length === 0) {
-    errors.push('Select at least one available day.')
+    errors.push('Select at least one session slot.')
   }
 
   if (input.intent.mode === 'style' && !input.intent.style) {
@@ -405,10 +405,10 @@ export const validatePlanInput = (input: PlanInput): string[] => {
 
   const layout = input.schedule.weeklyLayout ?? []
   if (layout.length > 0) {
-    const layoutDays = new Set(layout.map((entry) => entry.dayOfWeek))
+    const layoutDays = new Set(layout.map((entry) => entry.sessionIndex))
     const missingDays = input.schedule.daysAvailable.filter((day) => !layoutDays.has(day))
     if (missingDays.length > 0) {
-      errors.push('Assign a workout style and focus for each selected day.')
+      errors.push('Assign a workout style and focus for each session slot.')
     }
   }
 
@@ -483,32 +483,6 @@ const deriveSessionsPerWeek = (input: PlanInput) => {
     return clamp(Math.min(byTime, availableDays.length), 1, availableDays.length)
   }
   return availableDays.length
-}
-
-const pickTrainingDays = (input: PlanInput, sessionsPerWeek: number): number[] => {
-  const sorted = sortDays(input.schedule.daysAvailable)
-  const minRest = input.schedule.minRestDays
-  const selected: number[] = []
-
-  for (const day of sorted) {
-    if (selected.length === 0) {
-      selected.push(day)
-      continue
-    }
-    const last = selected[selected.length - 1]
-    if (day - last > minRest) {
-      selected.push(day)
-    }
-    if (selected.length >= sessionsPerWeek) {
-      break
-    }
-  }
-
-  if (selected.length < sessionsPerWeek) {
-    return sorted.slice(0, sessionsPerWeek)
-  }
-
-  return selected
 }
 
 const adjustMinutesPerSession = (input: PlanInput, sessionsPerWeek: number) => {
@@ -739,20 +713,73 @@ const buildSessionExercises = (
 }
 
 const buildRationale = (
-  day: number,
   timeWindow: TimeWindow,
   focus: FocusArea,
   duration: number,
   restPreference: RestPreference,
   style: Goal
 ) => {
-  const dayLabel = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day]
   const recoveryNote = restPreference === 'high_recovery'
-    ? 'Extra recovery spacing was prioritized.'
+    ? 'Extra recovery was prioritized between sessions.'
     : restPreference === 'minimal_rest'
-      ? 'Sessions are packed with minimal rest days.'
-      : 'Recovery is balanced across the week.'
-  return `Scheduled for ${dayLabel} ${timeWindow} with a ${duration} minute ${style.replace('_', ' ')} focus on ${focus.replace('_', ' ')}. ${recoveryNote}`
+      ? 'Sessions are designed for minimal rest between workouts.'
+      : 'Recovery is balanced across the rotation.'
+  return `${duration} minute ${style.replace('_', ' ')} session focused on ${focus.replace('_', ' ')} (${timeWindow}). ${recoveryNote}`
+}
+
+const buildSessionName = (focus: FocusArea, exercises: Exercise[], goal: Goal) => {
+  const goalLabel = goal.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+  const movementCounts = exercises.reduce<Record<string, number>>((acc, exercise) => {
+    if (exercise.movementPattern) {
+      acc[exercise.movementPattern] = (acc[exercise.movementPattern] ?? 0) + 1
+    }
+    return acc
+  }, {})
+
+  if (focus === 'upper') {
+    const pushCount = movementCounts.push ?? 0
+    const pullCount = movementCounts.pull ?? 0
+    if (pushCount > pullCount) return 'Push - Chest & Tris'
+    if (pullCount > pushCount) return 'Pull - Back & Biceps'
+    return `Upper Body - ${goalLabel} Focus`
+  }
+
+  if (focus === 'lower') {
+    const squatCount = movementCounts.squat ?? 0
+    const hingeCount = movementCounts.hinge ?? 0
+    if (squatCount > hingeCount) return 'Legs - Squat Focus'
+    if (hingeCount > squatCount) return 'Legs - Hinge Focus'
+    return `Lower Body - ${goalLabel} Focus`
+  }
+
+  if (focus === 'full_body') {
+    return `Full Body - ${goalLabel} Flow`
+  }
+
+  if (focus === 'core') {
+    return 'Core - Stability Focus'
+  }
+
+  if (focus === 'cardio') {
+    return `Conditioning - ${goalLabel} Circuit`
+  }
+
+  return 'Mobility - Recovery Flow'
+}
+
+const buildPlanTitle = (sessionsPerWeek: number, focusSequence: FocusArea[], goal: Goal) => {
+  const goalLabel = goal.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+  const uniqueFocus = new Set(focusSequence)
+  if (uniqueFocus.has('upper') && uniqueFocus.has('lower') && !uniqueFocus.has('full_body')) {
+    return `Upper/Lower ${goalLabel} Rotation`
+  }
+  if (uniqueFocus.has('full_body') && uniqueFocus.size === 1) {
+    return `${sessionsPerWeek}-Session ${goalLabel} Full Body Split`
+  }
+  if (sessionsPerWeek >= 3) {
+    return `${sessionsPerWeek}-Session ${goalLabel} Split`
+  }
+  return `${sessionsPerWeek}-Session ${goalLabel} Plan`
 }
 
 const buildFocusDistribution = (schedule: PlanDay[]) => schedule.reduce<Record<FocusArea, number>>((acc, day) => {
@@ -804,25 +831,26 @@ export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: Generat
   }
 
   const sessionsPerWeek = deriveSessionsPerWeek(normalized)
-  const trainingDays = pickTrainingDays(normalized, sessionsPerWeek)
   const minutesPerSession = adjustMinutesPerSession(normalized, sessionsPerWeek)
   const timeWindows = normalized.schedule.timeWindows
   const focusSequence = buildFocusSequence(sessionsPerWeek, normalized.preferences, normalized.goals)
   const weeklyLayout = normalized.schedule.weeklyLayout ?? []
-  const schedule: PlanDay[] = trainingDays.map((day, index) => {
-    const layoutEntry = weeklyLayout.find((entry) => entry.dayOfWeek === day)
+  const schedule: PlanDay[] = Array.from({ length: sessionsPerWeek }, (_, index) => {
+    const layoutEntry = weeklyLayout.find((entry) => entry.sessionIndex === index)
     const focus = layoutEntry?.focus ?? focusSequence[index]
     const style = layoutEntry?.style ?? normalized.goals.primary
     const duration = clamp(minutesPerSession, 20, 120)
     const exercises = buildSessionExercises(focus, duration, normalized, style)
     const timeWindow = timeWindows[index % timeWindows.length]
+    const name = buildSessionName(focus, exercises, style)
     return {
-      dayOfWeek: day,
+      order: index,
+      name,
       timeWindow,
       focus,
       durationMinutes: duration,
       exercises,
-      rationale: buildRationale(day, timeWindow, focus, duration, normalized.preferences.restPreference, style)
+      rationale: buildRationale(timeWindow, focus, duration, normalized.preferences.restPreference, style)
     }
   })
 
@@ -830,11 +858,11 @@ export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: Generat
   const uniqueStyles = Array.from(
     new Set(
       schedule.map(
-        (day) => weeklyLayout.find((entry) => entry.dayOfWeek === day.dayOfWeek)?.style ?? normalized.goals.primary
+        (day) => weeklyLayout.find((entry) => entry.sessionIndex === day.order)?.style ?? normalized.goals.primary
       )
     )
   )
-  const title = `${normalized.goals.primary.replace('_', ' ').toUpperCase()} WORKOUT PLAN`
+  const title = buildPlanTitle(sessionsPerWeek, focusSequence, normalized.goals.primary)
   const description =
     uniqueStyles.length === 1
       ? `${sessionsPerWeek} sessions/week · ${minutesPerSession} min/session · Focus on ${uniqueStyles[0].replace('_', ' ')}.`
