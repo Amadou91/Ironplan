@@ -1,5 +1,4 @@
-import { formatDayLabel } from '@/lib/schedule-utils'
-import type { WorkoutLog, WorkoutPlan } from '@/types/domain'
+import type { FocusArea, PlanDay, WorkoutLog, WorkoutPlan } from '@/types/domain'
 
 type ExerciseMetricsInput = {
   sets?: number
@@ -9,30 +8,58 @@ type ExerciseMetricsInput = {
   restSeconds?: number
 }
 
-const SESSION_LABEL_REGEX = /Session\s+(\d+)/i
+const toTitleCase = (value: string) =>
+  value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 
-const formatSessionId = (index: number) => `session-${index}`
+const focusLabelMap: Record<FocusArea, string> = {
+  upper: 'Upper Body',
+  lower: 'Lower Body',
+  full_body: 'Full Body',
+  core: 'Core',
+  cardio: 'Conditioning',
+  mobility: 'Mobility'
+}
 
-export const formatSessionLabel = (index: number) => `Session ${index + 1}`
+const goalLabelMap: Record<string, string> = {
+  cardio: 'Conditioning'
+}
+
+export const formatGoalLabel = (goal?: string | null) => {
+  if (!goal) return ''
+  return goalLabelMap[goal] ?? toTitleCase(goal)
+}
+
+export const formatFocusLabel = (focus: FocusArea) => focusLabelMap[focus] ?? toTitleCase(focus)
+
+export const formatSessionName = (session: PlanDay, goal?: string | null) => {
+  const focusLabel = formatFocusLabel(session.focus)
+  const goalLabel = formatGoalLabel(goal)
+  if (!goalLabel) return focusLabel
+  const normalizedFocus = focusLabel.toLowerCase()
+  const normalizedGoal = goalLabel.toLowerCase()
+  if (normalizedFocus.includes(normalizedGoal)) {
+    return focusLabel
+  }
+  return `${focusLabel} ${goalLabel}`.trim()
+}
+
+const normalizeLabel = (value: string) =>
+  value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 
 const getSessionIndexFromName = (sessionName: string | null, plan: WorkoutPlan) => {
   if (!sessionName) return null
-  const match = sessionName.match(SESSION_LABEL_REGEX)
-  if (match) {
-    const parsed = Number.parseInt(match[1], 10)
-    if (Number.isFinite(parsed)) {
-      const index = parsed - 1
-      if (index >= 0 && index < plan.sessions.length) return index
-    }
-  }
+  const normalizedName = normalizeLabel(sessionName)
+  const sessionNames = plan.sessions.map((session, index) => ({
+    index,
+    label: normalizeLabel(formatSessionName(session, plan.goal))
+  }))
 
-  const normalizedName = sessionName.toLowerCase()
+  const directMatch = sessionNames.find((session) => normalizedName.includes(session.label))
+  if (directMatch) return directMatch.index
+
   for (const [index, session] of plan.sessions.entries()) {
-    const dayOfWeek = session.dayOfWeek
-    if (dayOfWeek === undefined || dayOfWeek === null) continue
-    const longLabel = formatDayLabel(dayOfWeek, 'long').toLowerCase()
-    const shortLabel = formatDayLabel(dayOfWeek, 'short').toLowerCase()
-    if (normalizedName.includes(longLabel) || normalizedName.includes(shortLabel)) {
+    const focusLabel = normalizeLabel(formatFocusLabel(session.focus))
+    if (focusLabel && normalizedName.includes(focusLabel)) {
       return index
     }
   }
@@ -40,7 +67,24 @@ const getSessionIndexFromName = (sessionName: string | null, plan: WorkoutPlan) 
   return null
 }
 
-export const getSuggestedSessionId = (plan: WorkoutPlan, history: WorkoutLog[]) => {
+const focusPriority: Record<FocusArea, FocusArea[]> = {
+  upper: ['lower', 'full_body', 'cardio', 'mobility', 'core'],
+  lower: ['upper', 'full_body', 'cardio', 'mobility', 'core'],
+  full_body: ['mobility', 'cardio', 'upper', 'lower', 'core'],
+  core: ['upper', 'lower', 'full_body', 'cardio', 'mobility'],
+  cardio: ['upper', 'lower', 'full_body', 'mobility', 'core'],
+  mobility: ['upper', 'lower', 'full_body', 'cardio', 'core']
+}
+
+const findNextSessionByFocus = (sessions: PlanDay[], startIndex: number, focus: FocusArea) => {
+  for (let offset = 1; offset <= sessions.length; offset += 1) {
+    const index = (startIndex + offset) % sessions.length
+    if (sessions[index]?.focus === focus) return index
+  }
+  return null
+}
+
+export const getSuggestedSessionIndex = (plan: WorkoutPlan, history: WorkoutLog[]) => {
   if (!plan.sessions.length) return null
 
   const sortedHistory = [...history]
@@ -50,12 +94,19 @@ export const getSuggestedSessionId = (plan: WorkoutPlan, history: WorkoutLog[]) 
   for (const log of sortedHistory) {
     const lastIndex = getSessionIndexFromName(log.sessionName, plan)
     if (lastIndex !== null) {
-      const nextIndex = (lastIndex + 1) % plan.sessions.length
-      return formatSessionId(nextIndex)
+      const lastFocus = plan.sessions[lastIndex]?.focus
+      if (lastFocus) {
+        const priorities = focusPriority[lastFocus] ?? []
+        for (const focus of priorities) {
+          const nextIndex = findNextSessionByFocus(plan.sessions, lastIndex, focus)
+          if (nextIndex !== null) return nextIndex
+        }
+      }
+      return (lastIndex + 1) % plan.sessions.length
     }
   }
 
-  return formatSessionId(0)
+  return 0
 }
 
 const parseReps = (reps: ExerciseMetricsInput['reps']) => {

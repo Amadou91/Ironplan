@@ -11,6 +11,7 @@ import { generatePlan, normalizePlanInput } from '@/lib/generator'
 import { bandLabels, cloneInventory, equipmentPresets, formatWeightList, machineLabels, parseWeightList } from '@/lib/equipment'
 import { buildWorkoutHistoryEntry, loadWorkoutHistory, removeWorkoutHistoryEntry, saveWorkoutHistoryEntry } from '@/lib/workoutHistory'
 import { formatDayLabel, formatWeekStartDate } from '@/lib/schedule-utils'
+import { formatSessionName } from '@/lib/workout-metrics'
 import { CARDIO_ACTIVITY_OPTIONS } from '@/lib/cardio-activities'
 import {
   DEFAULT_PLAN_STATUS,
@@ -38,20 +39,7 @@ const focusOptions: { value: PlanInput['preferences']['focusAreas'][number]; lab
   { value: 'cardio', label: 'Cardio' },
   { value: 'mobility', label: 'Mobility' }
 ]
-const toTitleCase = (value: string) =>
-  value
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase())
-
-const formatGoalLabel = (goal: Goal) => toTitleCase(goal)
-
-const formatFocusLabel = (focus: FocusArea) =>
-  focusOptions.find((option) => option.value === focus)?.label ?? toTitleCase(focus)
-
-const buildSavedSessionName = (plan: GeneratedPlan, day: PlanDay) => {
-  const dayLabel = formatDayLabel(day.dayOfWeek)
-  return `${plan.title} · ${dayLabel} · ${formatGoalLabel(plan.goal)} · ${formatFocusLabel(day.focus)}`
-}
+const buildSavedSessionName = (plan: GeneratedPlan, day: PlanDay) => formatSessionName(day, plan.goal)
 
 const buildWorkoutTitle = (plan: GeneratedPlan) => {
   const uniqueDays = Array.from(new Set(plan.schedule.map((day) => day.dayOfWeek))).sort((a, b) => a - b)
