@@ -304,16 +304,9 @@ export default function GeneratePage() {
 
     try {
       if (entry.remoteId) {
-        const { error } = await supabase
-          .from('workouts')
-          .delete()
-          .eq('id', entry.remoteId)
-          .eq('user_id', user.id)
-
-        if (error) {
-          throw error
-        }
-
+        // STEP 1: Delete the sessions from the schedule FIRST
+        // We do this before deleting the workout, otherwise the DB sets workout_id to NULL
+        // and this query would fail to find them.
         const { error: savedSessionDeleteError } = await supabase
           .from('saved_sessions')
           .delete()
@@ -322,6 +315,17 @@ export default function GeneratePage() {
 
         if (savedSessionDeleteError) {
           throw savedSessionDeleteError
+        }
+
+        // STEP 2: Now it is safe to delete the workout itself
+        const { error } = await supabase
+          .from('workouts')
+          .delete()
+          .eq('id', entry.remoteId)
+          .eq('user_id', user.id)
+
+        if (error) {
+          throw error
         }
       }
 
