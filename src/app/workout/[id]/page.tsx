@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ChevronLeft, Activity, Clock, Flame, Trophy, Gauge, Shuffle, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import type { PlanDay, PlanInput, WorkoutImpact } from '@/types/domain'
+import type { Exercise, PlanDay, PlanInput, WorkoutImpact } from '@/types/domain'
 import { enhanceExerciseData, toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
 import { formatDayLabel } from '@/lib/schedule-utils'
 import { calculateExerciseImpact } from '@/lib/generator'
@@ -16,22 +16,6 @@ import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { getSwapSuggestions } from '@/lib/exercise-swap'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
 import { computeExerciseMetrics } from '@/lib/workout-metrics'
-
-// Define types based on your DB schema
-type Exercise = {
-  name: string
-  sets: number
-  reps: string | number
-  rpe: number
-  focus?: string
-  primaryBodyParts?: string[]
-  secondaryBodyParts?: string[]
-  primaryMuscle?: string
-  secondaryMuscles?: string[]
-  durationMinutes?: number
-  restSeconds?: number
-  load?: { label: string }
-}
 
 type Workout = {
   id: string
