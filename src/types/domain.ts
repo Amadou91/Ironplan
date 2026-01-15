@@ -182,7 +182,7 @@ export interface WorkoutPlan {
   userId: string
   name: string
   goal: string
-  days: WorkoutDay[]
+  sessions: PlanDay[]
   createdAt: string
   status?: PlanStatus
 }
@@ -204,6 +204,13 @@ export interface WorkoutSession {
   status?: 'active' | 'completed' | 'cancelled'
   impact?: WorkoutImpact
   exercises: SessionExercise[]
+}
+
+export interface WorkoutLog {
+  workoutId: string
+  sessionName: string | null
+  startedAt: string
+  completedAt: string | null
 }
 
 export interface SessionExercise {
