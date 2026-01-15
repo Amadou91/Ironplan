@@ -19,9 +19,9 @@ import { matchesCardioSelection } from '@/lib/cardio-activities'
 
 const DEFAULT_INPUT: PlanInput = {
   intent: {
-    mode: 'style',
+    mode: 'body_part',
     style: 'strength',
-    bodyParts: []
+    bodyParts: ['chest']
   },
   goals: {
     primary: 'strength',
@@ -37,17 +37,15 @@ const DEFAULT_INPUT: PlanInput = {
     minutesPerSession: 45
   },
   schedule: {
-    daysAvailable: [0, 1, 2],
+    daysAvailable: [0],
     timeWindows: ['evening'],
     minRestDays: 1,
     weeklyLayout: [
-      { sessionIndex: 0, style: 'strength', focus: 'upper' },
-      { sessionIndex: 1, style: 'hypertrophy', focus: 'lower' },
-      { sessionIndex: 2, style: 'endurance', focus: 'full_body' }
+      { sessionIndex: 0, style: 'strength', focus: 'chest' }
     ]
   },
   preferences: {
-    focusAreas: [],
+    focusAreas: ['chest'],
     dislikedActivities: [],
     cardioActivities: [],
     accessibilityConstraints: [],
@@ -178,6 +176,66 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     durationMinutes: 9,
     loadTarget: 20,
     restSeconds: 75
+  },
+  {
+    name: 'Dumbbell Biceps Curl',
+    focus: 'upper',
+    movementPattern: 'pull',
+    difficulty: 'beginner',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Biceps',
+    sets: 3,
+    reps: '10-12',
+    rpe: 7,
+    equipment: [{ kind: 'dumbbell' }, { kind: 'band' }],
+    durationMinutes: 8,
+    loadTarget: 20,
+    restSeconds: 60
+  },
+  {
+    name: 'Hammer Curl',
+    focus: 'upper',
+    movementPattern: 'pull',
+    difficulty: 'intermediate',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Biceps',
+    sets: 3,
+    reps: '8-12',
+    rpe: 7,
+    equipment: [{ kind: 'dumbbell' }, { kind: 'kettlebell' }],
+    durationMinutes: 8,
+    loadTarget: 25,
+    restSeconds: 75
+  },
+  {
+    name: 'Overhead Triceps Extension',
+    focus: 'upper',
+    movementPattern: 'push',
+    difficulty: 'beginner',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Triceps',
+    sets: 3,
+    reps: '10-12',
+    rpe: 7,
+    equipment: [{ kind: 'dumbbell' }, { kind: 'band' }],
+    durationMinutes: 8,
+    loadTarget: 20,
+    restSeconds: 60
+  },
+  {
+    name: 'Triceps Rope Pushdown',
+    focus: 'upper',
+    movementPattern: 'push',
+    difficulty: 'intermediate',
+    goal: 'hypertrophy',
+    primaryMuscle: 'Triceps',
+    sets: 3,
+    reps: '10-12',
+    rpe: 7,
+    equipment: [{ kind: 'machine', machineType: 'cable' }],
+    durationMinutes: 8,
+    loadTarget: 40,
+    restSeconds: 60
   },
   {
     name: 'Plank Series',
@@ -379,10 +437,6 @@ export const validatePlanInput = (input: PlanInput): string[] => {
     errors.push('Total weekly minutes must be at least 40 when provided.')
   }
 
-  if (input.schedule.daysAvailable.length === 0) {
-    errors.push('Select at least one session slot.')
-  }
-
   if (input.intent.mode === 'style' && !input.intent.style) {
     errors.push('Select a workout style.')
   }
@@ -401,15 +455,6 @@ export const validatePlanInput = (input: PlanInput): string[] => {
 
   if (!hasEquipment(input.equipment.inventory)) {
     errors.push('Select at least one equipment option.')
-  }
-
-  const layout = input.schedule.weeklyLayout ?? []
-  if (layout.length > 0) {
-    const layoutDays = new Set(layout.map((entry) => entry.sessionIndex))
-    const missingDays = input.schedule.daysAvailable.filter((day) => !layoutDays.has(day))
-    if (missingDays.length > 0) {
-      errors.push('Assign a workout style and focus for each session slot.')
-    }
   }
 
   return errors
@@ -474,17 +519,6 @@ const applyRestPreference = (input: PlanInput): PlanInput => {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
-const sortDays = (days: number[]) => [...days].sort((a, b) => a - b)
-
-const deriveSessionsPerWeek = (input: PlanInput) => {
-  const availableDays = sortDays(input.schedule.daysAvailable)
-  if (input.time.totalMinutesPerWeek) {
-    const byTime = Math.floor(input.time.totalMinutesPerWeek / input.time.minutesPerSession)
-    return clamp(Math.min(byTime, availableDays.length), 1, availableDays.length)
-  }
-  return availableDays.length
-}
-
 const adjustMinutesPerSession = (input: PlanInput, sessionsPerWeek: number) => {
   if (!input.time.totalMinutesPerWeek) {
     return input.time.minutesPerSession
@@ -534,6 +568,30 @@ const buildFocusSequence = (
     sequence.push(focusPool[i % focusPool.length])
   }
   return sequence
+}
+
+const focusMuscleMap: Record<
+  FocusArea,
+  { primaryMuscles?: string[]; baseFocus?: FocusArea }
+> = {
+  arms: {
+    primaryMuscles: ['Biceps', 'Triceps', 'Forearms', 'Shoulders'],
+    baseFocus: 'upper'
+  },
+  legs: {
+    primaryMuscles: ['Quads', 'Hamstrings', 'Glutes', 'Calves', 'Adductors', 'Abductors', 'Hip Flexors'],
+    baseFocus: 'lower'
+  },
+  biceps: { primaryMuscles: ['Biceps'], baseFocus: 'upper' },
+  triceps: { primaryMuscles: ['Triceps'], baseFocus: 'upper' },
+  chest: { primaryMuscles: ['Chest'], baseFocus: 'upper' },
+  back: { primaryMuscles: ['Back'], baseFocus: 'upper' },
+  upper: {},
+  lower: {},
+  full_body: {},
+  core: {},
+  cardio: {},
+  mobility: {}
 }
 
 const bandLoadMap = {
@@ -642,6 +700,21 @@ const buildLoad = (
   }
 }
 
+const matchesFocusArea = (focus: FocusArea, exercise: Exercise) => {
+  if (focus === 'full_body') return true
+  if (focus === 'cardio') return exercise.focus === 'cardio'
+  const focusConfig = focusMuscleMap[focus]
+  if (focusConfig?.primaryMuscles?.length) {
+    const primaryMuscle = typeof exercise.primaryMuscle === 'string' ? exercise.primaryMuscle : ''
+    const matchesMuscle = focusConfig.primaryMuscles.some((muscle) =>
+      primaryMuscle.toLowerCase().includes(muscle.toLowerCase())
+    )
+    const matchesBase = focusConfig.baseFocus ? exercise.focus === focusConfig.baseFocus : true
+    return matchesMuscle && matchesBase
+  }
+  return exercise.focus === focus
+}
+
 const filterExercises = (
   focus: FocusArea,
   inventory: EquipmentInventory,
@@ -650,7 +723,7 @@ const filterExercises = (
   cardioActivities: CardioActivity[],
   goal?: Goal
 ) => EXERCISE_LIBRARY.filter(exercise => {
-  const matchesFocus = focus === 'full_body' || exercise.focus === focus || (focus === 'cardio' && exercise.focus === 'cardio')
+  const matchesFocus = matchesFocusArea(focus, exercise)
   const option = selectEquipmentOption(inventory, exercise.equipment)
   const isDisliked = disliked.some(activity => exercise.name.toLowerCase().includes(activity.toLowerCase()))
   const lowImpact = accessibility.includes('low-impact')
@@ -687,7 +760,7 @@ const buildSessionExercises = (
   goalOverride?: Goal
 ): Exercise[] => {
   const targetGoal = goalOverride ?? input.goals.primary
-  const exercises = filterExercises(
+  let exercises = filterExercises(
     focus,
     input.equipment.inventory,
     input.preferences.dislikedActivities,
@@ -695,6 +768,16 @@ const buildSessionExercises = (
     input.preferences.cardioActivities,
     targetGoal
   )
+  if (exercises.length === 0 && focusMuscleMap[focus]?.baseFocus) {
+    exercises = filterExercises(
+      focusMuscleMap[focus].baseFocus as FocusArea,
+      input.equipment.inventory,
+      input.preferences.dislikedActivities,
+      input.preferences.accessibilityConstraints,
+      input.preferences.cardioActivities,
+      targetGoal
+    )
+  }
   const maxExercises = clamp(Math.floor(duration / 10), 3, 6)
   const reps = deriveReps(targetGoal, input.intensity)
 
@@ -712,6 +795,9 @@ const buildSessionExercises = (
   })
 }
 
+const formatFocusLabel = (focus: FocusArea) =>
+  focus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+
 const buildRationale = (
   timeWindow: TimeWindow,
   focus: FocusArea,
@@ -724,7 +810,7 @@ const buildRationale = (
     : restPreference === 'minimal_rest'
       ? 'Sessions are designed for minimal rest between workouts.'
       : 'Recovery is balanced across the rotation.'
-  return `${duration} minute ${style.replace('_', ' ')} session focused on ${focus.replace('_', ' ')} (${timeWindow}). ${recoveryNote}`
+  return `${duration} minute ${style.replace('_', ' ')} session focused on ${formatFocusLabel(focus)} (${timeWindow}). ${recoveryNote}`
 }
 
 const buildSessionName = (focus: FocusArea, exercises: Exercise[], goal: Goal) => {
@@ -764,11 +850,18 @@ const buildSessionName = (focus: FocusArea, exercises: Exercise[], goal: Goal) =
     return `Conditioning - ${goalLabel} Circuit`
   }
 
-  return 'Mobility - Recovery Flow'
+  if (focus === 'mobility') {
+    return 'Mobility - Recovery Flow'
+  }
+
+  return `${formatFocusLabel(focus)} - ${goalLabel} Focus`
 }
 
 const buildPlanTitle = (sessionsPerWeek: number, focusSequence: FocusArea[], goal: Goal) => {
   const goalLabel = goal.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+  if (sessionsPerWeek === 1 && focusSequence.length === 1) {
+    return `${formatFocusLabel(focusSequence[0])} ${goalLabel} Plan`
+  }
   const uniqueFocus = new Set(focusSequence)
   if (uniqueFocus.has('upper') && uniqueFocus.has('lower') && !uniqueFocus.has('full_body')) {
     return `Upper/Lower ${goalLabel} Rotation`
@@ -791,7 +884,13 @@ const buildFocusDistribution = (schedule: PlanDay[]) => schedule.reduce<Record<F
   full_body: 0,
   core: 0,
   cardio: 0,
-  mobility: 0
+  mobility: 0,
+  arms: 0,
+  legs: 0,
+  biceps: 0,
+  triceps: 0,
+  chest: 0,
+  back: 0
 })
 
 export const calculateExerciseImpact = (exercises: Exercise[]): WorkoutImpact => {
@@ -830,15 +929,15 @@ export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: Generat
     return { errors }
   }
 
-  const sessionsPerWeek = deriveSessionsPerWeek(normalized)
+  const focusSequence = normalized.intent.mode === 'body_part' && normalized.intent.bodyParts?.length
+    ? [normalized.intent.bodyParts[0]]
+    : buildFocusSequence(1, normalized.preferences, normalized.goals)
+  const sessionsPerWeek = 1
   const minutesPerSession = adjustMinutesPerSession(normalized, sessionsPerWeek)
   const timeWindows = normalized.schedule.timeWindows
-  const focusSequence = buildFocusSequence(sessionsPerWeek, normalized.preferences, normalized.goals)
-  const weeklyLayout = normalized.schedule.weeklyLayout ?? []
   const schedule: PlanDay[] = Array.from({ length: sessionsPerWeek }, (_, index) => {
-    const layoutEntry = weeklyLayout.find((entry) => entry.sessionIndex === index)
-    const focus = layoutEntry?.focus ?? focusSequence[index]
-    const style = layoutEntry?.style ?? normalized.goals.primary
+    const focus = focusSequence[index]
+    const style = normalized.goals.primary
     const duration = clamp(minutesPerSession, 20, 120)
     const exercises = buildSessionExercises(focus, duration, normalized, style)
     const timeWindow = timeWindows[index % timeWindows.length]
@@ -855,18 +954,12 @@ export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: Generat
   })
 
   const totalMinutes = schedule.reduce((sum, day) => sum + day.durationMinutes, 0)
-  const uniqueStyles = Array.from(
-    new Set(
-      schedule.map(
-        (day) => weeklyLayout.find((entry) => entry.sessionIndex === day.order)?.style ?? normalized.goals.primary
-      )
-    )
-  )
+  const uniqueStyles = [normalized.goals.primary]
   const title = buildPlanTitle(sessionsPerWeek, focusSequence, normalized.goals.primary)
   const description =
     uniqueStyles.length === 1
-      ? `${sessionsPerWeek} sessions/week · ${minutesPerSession} min/session · Focus on ${uniqueStyles[0].replace('_', ' ')}.`
-      : `${sessionsPerWeek} sessions/week · ${minutesPerSession} min/session · Mixed styles across your week.`
+      ? `${minutesPerSession} min · Focus on ${formatFocusLabel(focusSequence[0])} · ${uniqueStyles[0].replace('_', ' ')} style.`
+      : `${minutesPerSession} min · Mixed styles across your focus rotation.`
   const impact = calculateWorkoutImpact(schedule)
 
   const plan: GeneratedPlan = {

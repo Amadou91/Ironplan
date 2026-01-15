@@ -52,7 +52,19 @@ export interface EquipmentInventory {
   machines: Record<MachineType, boolean>
 }
 
-export type FocusArea = 'upper' | 'lower' | 'full_body' | 'core' | 'cardio' | 'mobility'
+export type FocusArea =
+  | 'upper'
+  | 'lower'
+  | 'full_body'
+  | 'core'
+  | 'cardio'
+  | 'mobility'
+  | 'arms'
+  | 'legs'
+  | 'biceps'
+  | 'triceps'
+  | 'chest'
+  | 'back'
 
 export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'cardio' | 'general_fitness'
 

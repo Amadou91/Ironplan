@@ -9,12 +9,17 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { generatePlan, normalizePlanInput } from '@/lib/generator'
 import { bandLabels, cloneInventory, equipmentPresets, formatWeightList, machineLabels, parseWeightList } from '@/lib/equipment'
-import { buildWorkoutHistoryEntry, loadWorkoutHistory, removeWorkoutHistoryEntry, saveWorkoutHistoryEntry } from '@/lib/workoutHistory'
+import {
+  buildWorkoutHistoryEntry,
+  loadWorkoutHistory,
+  removeWorkoutHistoryEntry,
+  saveWorkoutHistoryEntry,
+  setWorkoutHistoryEntries
+} from '@/lib/workoutHistory'
 import { CARDIO_ACTIVITY_OPTIONS } from '@/lib/cardio-activities'
 import {
   DEFAULT_PLAN_STATUS,
   getFlowCompletion,
-  isDaysAvailableValid,
   isEquipmentValid,
   isMinutesPerSessionValid,
   isTotalMinutesPerWeekValid
@@ -22,20 +27,18 @@ import {
 import { logEvent } from '@/lib/logger'
 import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanInput, GeneratedPlan } from '@/types/domain'
 
-const sessionLabels = ['Session 1', 'Session 2', 'Session 3', 'Session 4', 'Session 5', 'Session 6', 'Session 7']
 const styleOptions: { value: Goal; label: string; description: string }[] = [
   { value: 'strength', label: 'Strength', description: 'Heavier loads, lower reps, power focus.' },
   { value: 'hypertrophy', label: 'Hypertrophy', description: 'Muscle growth with balanced volume.' },
-  { value: 'endurance', label: 'Endurance', description: 'Higher reps and conditioning focus.' },
-  { value: 'cardio', label: 'Cardio', description: 'Conditioning work for heart-health and stamina.' }
+  { value: 'endurance', label: 'Endurance', description: 'Higher reps and conditioning focus.' }
 ]
 const focusOptions: { value: PlanInput['preferences']['focusAreas'][number]; label: string }[] = [
-  { value: 'upper', label: 'Upper Body' },
-  { value: 'lower', label: 'Lower Body' },
-  { value: 'full_body', label: 'Full Body' },
-  { value: 'core', label: 'Core' },
-  { value: 'cardio', label: 'Cardio' },
-  { value: 'mobility', label: 'Mobility' }
+  { value: 'arms', label: 'Arms' },
+  { value: 'legs', label: 'Legs' },
+  { value: 'biceps', label: 'Biceps' },
+  { value: 'triceps', label: 'Triceps' },
+  { value: 'chest', label: 'Chest' },
+  { value: 'back', label: 'Back' }
 ]
 const buildWorkoutTitle = (plan: GeneratedPlan) => plan.title
 
@@ -47,8 +50,8 @@ export default function GeneratePage() {
   const [errors, setErrors] = useState<string[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSummary, setSaveSummary] = useState<{
-    createdSessions: number[]
     workoutId?: string
+    title?: string
   } | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [historyEntries, setHistoryEntries] = useState<ReturnType<typeof loadWorkoutHistory>>([])
@@ -56,23 +59,21 @@ export default function GeneratePage() {
 
   const [formData, setFormData] = useState<PlanInput>(() =>
     normalizePlanInput({
-      intent: { mode: 'style', style: 'strength', bodyParts: [] },
+      intent: { mode: 'body_part', style: 'strength', bodyParts: ['chest'] },
       goals: { primary: 'strength', priority: 'primary' },
       experienceLevel: 'intermediate',
       intensity: 'moderate',
       equipment: { preset: 'full_gym', inventory: cloneInventory(equipmentPresets.full_gym) },
       time: { minutesPerSession: 45 },
       schedule: {
-        daysAvailable: [0, 1, 2],
+        daysAvailable: [0],
         timeWindows: ['evening'],
         minRestDays: 1,
         weeklyLayout: [
-          { sessionIndex: 0, style: 'strength', focus: 'upper' },
-          { sessionIndex: 1, style: 'hypertrophy', focus: 'lower' },
-          { sessionIndex: 2, style: 'endurance', focus: 'full_body' }
+          { sessionIndex: 0, style: 'strength', focus: 'chest' }
         ]
       },
-      preferences: { focusAreas: [], dislikedActivities: [], cardioActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
+      preferences: { focusAreas: ['chest'], dislikedActivities: [], cardioActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
     })
   )
 
@@ -119,75 +120,48 @@ export default function GeneratePage() {
     })
   }
 
-  const goalToFocusDefaults = (goal: Goal): FocusArea[] => {
-    switch (goal) {
-      case 'endurance':
-      case 'cardio':
-        return ['cardio', 'full_body', 'mobility']
-      case 'hypertrophy':
-        return ['upper', 'lower', 'full_body']
-      case 'general_fitness':
-        return ['full_body', 'cardio', 'mobility']
-      default:
-        return ['upper', 'lower', 'core']
-    }
-  }
-
-  const buildWeeklyLayout = (
-    state: PlanInput,
-    days: number[],
-    existing?: PlanInput['schedule']['weeklyLayout']
-  ) => {
-    const sortedDays = [...days].sort((a, b) => a - b)
-    const focusPool =
-      state.intent.mode === 'body_part' && state.intent.bodyParts && state.intent.bodyParts.length > 0
-        ? state.intent.bodyParts
-        : state.preferences.focusAreas.length > 0
-          ? state.preferences.focusAreas
-          : goalToFocusDefaults(state.goals.primary)
-    const defaultStyle = state.intent.style ?? state.goals.primary
-    return sortedDays.map((day, index) => {
-      const existingEntry = existing?.find((entry) => entry.sessionIndex === day)
-      return (
-        existingEntry ?? {
-          sessionIndex: day,
-          style: defaultStyle,
-          focus: focusPool[index % focusPool.length]
-        }
-      )
-    })
-  }
-
-  const getBodyPartsFromLayout = (layout: PlanInput['schedule']['weeklyLayout'] = []) =>
-    Array.from(new Set(layout.map((entry) => entry.focus)))
-
-  const updateWeeklyLayoutEntry = (
-    sessionIndex: number,
-    updates: Partial<NonNullable<PlanInput['schedule']['weeklyLayout']>[number]>
-  ) => {
-    updateFormData((prev) => {
-      const baseLayout = buildWeeklyLayout(prev, prev.schedule.daysAvailable, prev.schedule.weeklyLayout)
-      const nextLayout = baseLayout.map((entry) =>
-        entry.sessionIndex === sessionIndex ? { ...entry, ...updates } : entry
-      )
-      const nextBodyParts =
-        prev.intent.mode === 'body_part' ? getBodyPartsFromLayout(nextLayout) : prev.intent.bodyParts
-      return {
-        ...prev,
-        intent: {
-          ...prev.intent,
-          bodyParts: nextBodyParts
-        },
-        preferences: {
-          ...prev.preferences,
-          focusAreas: nextBodyParts ?? prev.preferences.focusAreas
-        },
-        schedule: {
-          ...prev.schedule,
-          weeklyLayout: nextLayout
-        }
+  const updateBodyPartFocus = (focus: FocusArea) => {
+    updateFormData((prev) => ({
+      ...prev,
+      intent: {
+        ...prev.intent,
+        mode: 'body_part',
+        bodyParts: [focus]
+      },
+      preferences: {
+        ...prev.preferences,
+        focusAreas: [focus]
+      },
+      schedule: {
+        ...prev.schedule,
+        daysAvailable: [0],
+        weeklyLayout: [{ sessionIndex: 0, style: prev.goals.primary, focus }]
       }
-    })
+    }))
+  }
+
+  const updatePrimaryStyle = (style: Goal) => {
+    updateFormData((prev) => ({
+      ...prev,
+      intent: {
+        ...prev.intent,
+        style
+      },
+      goals: {
+        ...prev.goals,
+        primary: style
+      },
+      schedule: {
+        ...prev.schedule,
+        weeklyLayout: [
+          {
+            sessionIndex: 0,
+            style,
+            focus: prev.intent.bodyParts?.[0] ?? 'chest'
+          }
+        ]
+      }
+    }))
   }
 
   const setInventoryWeights = (field: 'dumbbells' | 'kettlebells' | 'plates', value: string) => {
@@ -226,22 +200,22 @@ export default function GeneratePage() {
   const handleHistoryLoad = (entry: (typeof historyEntries)[number]) => {
     updateFormData(() => {
       const normalized = normalizePlanInput(entry.plan.inputs)
-      const nextLayout = buildWeeklyLayout(normalized, normalized.schedule.daysAvailable, normalized.schedule.weeklyLayout)
-      const nextBodyParts =
-        normalized.intent.mode === 'body_part' ? getBodyPartsFromLayout(nextLayout) : normalized.intent.bodyParts
+      const storedFocus = normalized.intent.bodyParts?.[0] ?? entry.plan.schedule?.[0]?.focus ?? 'chest'
       return {
         ...normalized,
         intent: {
           ...normalized.intent,
-          bodyParts: nextBodyParts
+          mode: 'body_part',
+          bodyParts: [storedFocus]
         },
         preferences: {
           ...normalized.preferences,
-          focusAreas: nextBodyParts ?? normalized.preferences.focusAreas
+          focusAreas: [storedFocus]
         },
         schedule: {
           ...normalized.schedule,
-          weeklyLayout: nextLayout
+          daysAvailable: [0],
+          weeklyLayout: [{ sessionIndex: 0, style: normalized.goals.primary, focus: storedFocus }]
         }
       }
     })
@@ -262,18 +236,18 @@ export default function GeneratePage() {
           .eq('user_id', user.id)
 
         if (error) {
-          throw error
+          console.error('Failed to delete workout history entry from server', error)
+          setHistoryError('Removed locally, but unable to delete the saved workout on the server.')
         }
       }
-
+    } catch (error) {
+      console.error('Failed to delete workout history entry', error)
+      setHistoryError('Removed locally, but unable to delete the saved workout on the server.')
+    } finally {
       if (typeof window !== 'undefined') {
         removeWorkoutHistoryEntry(entry.id, window.localStorage)
       }
       setHistoryEntries((prev) => prev.filter(item => item.id !== entry.id))
-    } catch (error) {
-      console.error('Failed to delete workout history entry', error)
-      setHistoryError('Unable to delete saved workout. Please try again.')
-    } finally {
       setDeletingHistoryIds(prev => ({ ...prev, [entry.id]: false }))
     }
   }
@@ -288,6 +262,34 @@ export default function GeneratePage() {
       setHistoryError('Unable to load workout history.')
     }
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+    if (typeof window === 'undefined') return
+
+    const syncHistory = async () => {
+      const { data, error } = await supabase
+        .from('workouts')
+        .select('id')
+        .eq('user_id', user.id)
+
+      if (error) {
+        console.error('Failed to sync workout history', error)
+        return
+      }
+
+      const existingIds = new Set((data ?? []).map((row) => row.id))
+      setHistoryEntries((prev) => {
+        const next = prev.filter((entry) => !entry.remoteId || existingIds.has(entry.remoteId))
+        if (next.length !== prev.length) {
+          setWorkoutHistoryEntries(next, window.localStorage)
+        }
+        return next
+      })
+    }
+
+    syncHistory()
+  }, [supabase, user])
 
   const savePlanToDatabase = async (plan: GeneratedPlan) => {
     if (!user) return null
@@ -340,7 +342,7 @@ export default function GeneratePage() {
 
     return {
       workoutId: data.id,
-      createdSessions: plan.schedule.map((session) => session.order)
+      title: plan.title
     }
   }
 
@@ -372,8 +374,8 @@ export default function GeneratePage() {
       if (!saveResult) return
 
       setSaveSummary({
-        createdSessions: saveResult.createdSessions,
-        workoutId: saveResult.workoutId
+        workoutId: saveResult.workoutId,
+        title: saveResult.title
       })
     } catch (err) {
       console.error('Failed to save plan', err)
@@ -383,16 +385,8 @@ export default function GeneratePage() {
     }
   }
 
-  const daysAvailableLabel = formData.schedule.daysAvailable
-    .map(index => sessionLabels[index])
-    .filter(Boolean)
-    .join(', ')
-  const sortedDaysAvailable = [...formData.schedule.daysAvailable].sort((a, b) => a - b)
-  const weeklyLayout = formData.schedule.weeklyLayout ?? []
-
   const invalidMinutes = !isMinutesPerSessionValid(formData.time.minutesPerSession)
   const invalidTotalMinutes = !isTotalMinutesPerWeekValid(formData.time.totalMinutesPerWeek)
-  const invalidDays = !isDaysAvailableValid(formData.schedule.daysAvailable)
   const invalidEquipment = !isEquipmentValid(formData.equipment)
 
   const inventory = formData.equipment.inventory
@@ -426,15 +420,11 @@ export default function GeneratePage() {
     }
 
     if (saveSummary) {
-      const createdLabels = saveSummary.createdSessions
-        .map((index) => sessionLabels[index] ?? `Session ${index + 1}`)
-        .join(', ')
-
       return (
         <div className="space-y-3 text-sm text-muted">
-          {saveSummary.createdSessions.length > 0 && (
+          {saveSummary.title && (
             <div className="rounded-lg border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] px-3 py-2 text-[var(--color-primary-strong)]">
-              Saved sessions for: {createdLabels}
+              Saved plan: {saveSummary.title}
             </div>
           )}
           {saveSummary.workoutId && (
@@ -486,85 +476,44 @@ export default function GeneratePage() {
             <section className="space-y-4" id="step-intent">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 1</p>
-                <h2 className="text-xl font-semibold text-strong">Choose your workout intent</h2>
+                <h2 className="text-xl font-semibold text-strong">Choose your workout focus</h2>
                 <p className="text-sm text-muted">
-                  Pick the primary path so we can generate the right exercises and session layout defaults.
+                  Pick the muscle group you want to train and the training style for this plan.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateFormData((prev) => {
-                      const nextStyle = prev.intent.style ?? prev.goals.primary
-                      const updated: PlanInput = {
-                        ...prev,
-                        intent: { ...prev.intent, mode: 'style', style: nextStyle },
-                        goals: { ...prev.goals, primary: nextStyle }
-                      }
-                      return {
-                        ...updated,
-                        schedule: {
-                          ...updated.schedule,
-                          weeklyLayout: buildWeeklyLayout(updated, updated.schedule.daysAvailable, updated.schedule.weeklyLayout)
-                        }
-                      }
-                    })
-                  }
-                  className={`rounded-lg border px-4 py-4 text-left transition ${
-                    formData.intent.mode === 'style'
-                      ? 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
-                      : 'border-[var(--color-border)] bg-[var(--color-surface)] text-muted hover:border-[var(--color-border-strong)]'
-                  }`}
-                  aria-pressed={formData.intent.mode === 'style'}
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                {focusOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => updateBodyPartFocus(option.value)}
+                    className={`rounded-lg border px-4 py-4 text-left transition ${
+                      formData.intent.bodyParts?.[0] === option.value
+                        ? 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
+                        : 'border-[var(--color-border)] bg-[var(--color-surface)] text-muted hover:border-[var(--color-border-strong)]'
+                    }`}
+                    aria-pressed={formData.intent.bodyParts?.[0] === option.value}
+                  >
+                    <p className="text-sm font-semibold text-strong">{option.label}</p>
+                    <p className="mt-1 text-xs text-subtle">Generate a dedicated {option.label.toLowerCase()} plan.</p>
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-strong">Training style</label>
+                <select
+                  value={formData.goals.primary}
+                  onChange={(e) => updatePrimaryStyle(e.target.value as Goal)}
+                  className="input-base"
                 >
-                  <p className="text-sm font-semibold text-strong">Workout style-driven</p>
-                  <p className="mt-1 text-xs text-subtle">Lead with strength, hypertrophy, endurance, or cardio.</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateFormData((prev) => {
-                      const nextStyle = prev.intent.style ?? prev.goals.primary ?? 'hypertrophy'
-                      const updated: PlanInput = {
-                        ...prev,
-                        intent: {
-                          ...prev.intent,
-                          mode: 'body_part',
-                          style: nextStyle,
-                          bodyParts: prev.intent.bodyParts?.length ? prev.intent.bodyParts : prev.preferences.focusAreas
-                        }
-                      }
-                      const nextLayout = buildWeeklyLayout(updated, updated.schedule.daysAvailable, updated.schedule.weeklyLayout)
-                      const nextBodyParts = getBodyPartsFromLayout(nextLayout)
-                      return {
-                        ...updated,
-                        intent: {
-                          ...updated.intent,
-                          bodyParts: nextBodyParts
-                        },
-                        preferences: {
-                          ...updated.preferences,
-                          focusAreas: nextBodyParts
-                        },
-                        schedule: {
-                          ...updated.schedule,
-                          weeklyLayout: nextLayout
-                        }
-                      }
-                    })
-                  }
-                  className={`rounded-lg border px-4 py-4 text-left transition ${
-                    formData.intent.mode === 'body_part'
-                      ? 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
-                      : 'border-[var(--color-border)] bg-[var(--color-surface)] text-muted hover:border-[var(--color-border-strong)]'
-                  }`}
-                  aria-pressed={formData.intent.mode === 'body_part'}
-                >
-                  <p className="text-sm font-semibold text-strong">Body-part driven</p>
-                  <p className="mt-1 text-xs text-subtle">Prioritize the muscles you want to train.</p>
-                </button>
+                  {styleOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -585,125 +534,12 @@ export default function GeneratePage() {
                 </select>
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-strong">Sessions per week</label>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {sessionLabels.map((label, index) => (
-                    <label key={label} className="flex items-center gap-2 text-sm text-muted">
-                      <input
-                        type="checkbox"
-                        checked={formData.schedule.daysAvailable.includes(index)}
-                        onChange={() =>
-                          updateFormData((prev) => {
-                            const nextDays = toggleArrayValue(prev.schedule.daysAvailable, index)
-                            const updated: PlanInput = {
-                              ...prev,
-                              schedule: { ...prev.schedule, daysAvailable: nextDays }
-                            }
-                            const nextLayout = buildWeeklyLayout(updated, nextDays, prev.schedule.weeklyLayout)
-                            const nextBodyParts =
-                              updated.intent.mode === 'body_part'
-                                ? getBodyPartsFromLayout(nextLayout)
-                                : updated.intent.bodyParts
-                            return {
-                              ...updated,
-                              intent: {
-                                ...updated.intent,
-                                bodyParts: nextBodyParts
-                              },
-                              preferences: {
-                                ...updated.preferences,
-                                focusAreas: nextBodyParts ?? updated.preferences.focusAreas
-                              },
-                              schedule: {
-                                ...updated.schedule,
-                                weeklyLayout: nextLayout
-                              }
-                            }
-                          })
-                        }
-                        className="accent-[var(--color-primary)]"
-                      />
-                      {label}
-                    </label>
-                  ))}
-                </div>
-                {invalidDays && (
-                  <p className="mt-2 text-xs text-[var(--color-danger)]">Select at least one session slot.</p>
-                )}
-              </div>
-            </section>
-
-            <section className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 2</p>
-                  <h2 className="text-xl font-semibold text-strong">Build your session layout</h2>
-                  <p className="text-sm text-muted">
-                    Assign the focus for each session in your library.
-                  </p>
-                </div>
-              </div>
-
-              {sortedDaysAvailable.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-sm text-muted">
-                  Choose at least one session slot to build your library.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {sortedDaysAvailable.map((day) => {
-                    const entry = weeklyLayout.find((item) => item.sessionIndex === day)
-                    const fallbackStyle = formData.intent.style ?? formData.goals.primary
-                    const fallbackFocus = entry?.focus ?? 'full_body'
-                    return (
-                      <div key={day} className="grid gap-3 rounded-lg border border-[var(--color-border)] p-3 md:grid-cols-[1fr_1fr]">
-                        <div className="space-y-2">
-                          <div className="text-sm font-semibold text-strong">{sessionLabels[day] ?? `Session ${day + 1}`}</div>
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-xs font-medium text-subtle">
-                            {formData.intent.mode === 'style' ? 'Style' : 'Focus'}
-                          </label>
-                          {formData.intent.mode === 'style' ? (
-                            <select
-                              value={entry?.style ?? fallbackStyle}
-                              onChange={(e) => updateWeeklyLayoutEntry(day, { style: e.target.value as Goal })}
-                              className="input-base"
-                            >
-                              {styleOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <select
-                              value={entry?.focus ?? fallbackFocus}
-                              onChange={(e) => updateWeeklyLayoutEntry(day, { focus: e.target.value as FocusArea })}
-                              className="input-base"
-                            >
-                              {focusOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {weeklyLayout.length < sortedDaysAvailable.length && (
-                    <p className="text-xs text-[var(--color-danger)]">Assign each selected session slot before continuing.</p>
-                  )}
-                </div>
-              )}
             </section>
 
             <section className="space-y-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 3</p>
-                  <h2 className="text-xl font-semibold text-strong">Set your session timing</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 2</p>
+                <h2 className="text-xl font-semibold text-strong">Set your session timing</h2>
                 <p className="text-sm text-muted">Define how long each workout is and when you train.</p>
               </div>
 
@@ -799,7 +635,7 @@ export default function GeneratePage() {
 
             <section className="space-y-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 4</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 3</p>
                 <h2 className="text-xl font-semibold text-strong">Equipment & constraints</h2>
                 <p className="text-sm text-muted">Tell us what you have and any important preferences.</p>
               </div>
@@ -1132,7 +968,7 @@ export default function GeneratePage() {
 
             <section className="space-y-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 5</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 4</p>
                 <h2 className="text-xl font-semibold text-strong">Review & generate</h2>
                 <p className="text-sm text-muted">Confirm the highlights before we build your plan.</p>
               </div>
@@ -1141,22 +977,14 @@ export default function GeneratePage() {
                 <h3 className="mb-3 text-sm font-semibold text-strong">Selection summary</h3>
                 <dl className="grid gap-3 text-sm md:grid-cols-2">
                   <div>
-                    <dt className="text-subtle">Intent</dt>
+                    <dt className="text-subtle">Muscle focus</dt>
                     <dd className="text-strong capitalize">
-                      {formData.intent.mode === 'style' ? 'Style-driven' : 'Body-part driven'}
+                      {formData.intent.bodyParts?.[0]?.replace('_', ' ') ?? 'Not set'}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-subtle">Primary style</dt>
+                    <dt className="text-subtle">Training style</dt>
                     <dd className="text-strong capitalize">{(formData.intent.style ?? formData.goals.primary).replace('_', ' ')}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-subtle">Body focus</dt>
-                    <dd className="text-strong">
-                      {formData.intent.bodyParts && formData.intent.bodyParts.length > 0
-                        ? formData.intent.bodyParts.map(item => item.replace('_', ' ')).join(', ')
-                        : 'Not set'}
-                    </dd>
                   </div>
                   <div>
                     <dt className="text-subtle">Experience level</dt>
@@ -1175,33 +1003,14 @@ export default function GeneratePage() {
                     <dd className="text-strong">{formData.time.totalMinutesPerWeek ?? 'Not set'}</dd>
                   </div>
                   <div>
-                    <dt className="text-subtle">Sessions per week</dt>
-                    <dd className="text-strong">{daysAvailableLabel || 'Not selected'}</dd>
+                    <dt className="text-subtle">Time windows</dt>
+                    <dd className="text-strong">{formData.schedule.timeWindows.map(item => item.replace('_', ' ')).join(', ')}</dd>
                   </div>
                   <div>
                     <dt className="text-subtle">Equipment</dt>
                     <dd className="text-strong">{equipmentSummary.length ? equipmentSummary.join(', ') : 'Not set'}</dd>
                   </div>
                 </dl>
-              </div>
-
-              <div className="surface-card-subtle p-4">
-                <h3 className="mb-3 text-sm font-semibold text-strong">Session layout</h3>
-                {weeklyLayout.length === 0 ? (
-                  <p className="text-sm text-muted">No session layout set yet.</p>
-                ) : (
-                  <ul className="space-y-2 text-sm text-muted">
-                    {weeklyLayout.map((entry) => (
-                      <li key={entry.sessionIndex} className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-strong">
-                          {sessionLabels[entry.sessionIndex] ?? `Session ${entry.sessionIndex + 1}`}
-                        </span>
-                        <span>· {entry.style.replace('_', ' ')}</span>
-                        <span>· {entry.focus.replace('_', ' ')}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
 
               <div className="surface-card-subtle p-4" aria-live="polite">
@@ -1265,8 +1074,8 @@ export default function GeneratePage() {
                     {new Date(entry.createdAt).toLocaleString()} · Score {entry.plan.summary.impact.score}
                   </p>
                   <p className="mt-1 text-xs text-subtle">
-                    {entry.plan.summary.sessionsPerWeek} sessions · {entry.plan.summary.totalMinutes} min · Focus on{' '}
-                    {entry.plan.goal.replace('_', ' ')}
+                    {entry.plan.summary.totalMinutes} min · Focus on{' '}
+                    {(entry.plan.schedule?.[0]?.focus ?? entry.plan.inputs.intent.bodyParts?.[0] ?? entry.plan.goal).replace('_', ' ')}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">

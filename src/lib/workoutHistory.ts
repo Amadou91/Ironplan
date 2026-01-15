@@ -35,6 +35,15 @@ export const saveWorkoutHistoryEntry = (entry: WorkoutHistoryEntry, storage?: St
   }
 }
 
+export const setWorkoutHistoryEntries = (entries: WorkoutHistoryEntry[], storage?: Storage) => {
+  if (!storage) return
+  try {
+    storage.setItem(HISTORY_KEY, JSON.stringify(entries))
+  } catch (error) {
+    console.error('Failed to set workout history', error)
+  }
+}
+
 export const removeWorkoutHistoryEntry = (entryId: string, storage?: Storage) => {
   if (!storage) return
   try {
