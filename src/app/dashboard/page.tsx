@@ -448,7 +448,12 @@ export default function DashboardPage() {
       }
 
       setRecentWorkouts(prev => prev.filter(item => item.id !== workout.id))
-      setScheduledSessions(prev => prev.filter(session => session.workout?.id !== workout.id))
+      setScheduledSessions(prev =>
+        prev.filter((session) => {
+          const sessionWorkout = Array.isArray(session.workout) ? session.workout[0] ?? null : session.workout
+          return sessionWorkout?.id !== workout.id
+        })
+      )
     } catch (deleteError) {
       console.error('Failed to delete workout', deleteError)
       setError('Unable to delete this session. Please try again.')
