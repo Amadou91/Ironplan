@@ -45,6 +45,12 @@ const buildSavedSessionName = (plan: GeneratedPlan, day: PlanDay) => {
   return `${plan.title} · ${dayLabel} · ${formatGoalLabel(plan.goal)} · ${formatFocusLabel(day.focus)}`
 }
 
+const buildWorkoutTitle = (plan: GeneratedPlan) => {
+  const uniqueDays = Array.from(new Set(plan.schedule.map((day) => day.dayOfWeek))).sort((a, b) => a - b)
+  const dayLabels = uniqueDays.map((day) => formatDayLabel(day)).join(', ')
+  return dayLabels ? `${plan.title} · ${dayLabels}` : plan.title
+}
+
 export default function GeneratePage() {
   const router = useRouter()
   const { user, loading: userLoading } = useUser()
@@ -352,6 +358,113 @@ export default function GeneratePage() {
     }
   }, [])
 
+  const savePlanToDatabase = async (plan: GeneratedPlan) => {
+    if (!user) return null
+
+    const newPlan = {
+      user_id: user.id,
+      title: buildWorkoutTitle(plan),
+      description: plan.description,
+      goal: plan.goal,
+      level: plan.level,
+      tags: plan.tags,
+      exercises: {
+        schedule: plan.schedule,
+        inputs: plan.inputs,
+        summary: plan.summary
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('workouts')
+      .insert([newPlan])
+      .select()
+      .single()
+
+    if (error) {
+      const hint = getSavePlanHint(error)
+      console.error('Failed to save plan', { error, hint })
+      setSaveError(`Failed to generate plan: ${error.message}${hint ? ` ${hint}` : ''}`)
+      return null
+    }
+
+    if (!data) {
+      console.error('Failed to save plan', { error: 'No data returned from insert.' })
+      setSaveError('Failed to generate plan. No data returned from insert.')
+      return null
+    }
+
+    const weekStartDate = formatWeekStartDate(new Date())
+    const scheduleBatchId =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${user.id}`
+    const scheduleRows = plan.schedule.map((day, index) => ({
+      user_id: user.id,
+      workout_id: data.id,
+      schedule_batch_id: scheduleBatchId,
+      day_of_week: day.dayOfWeek,
+      week_start_date: weekStartDate,
+      order_index: index,
+      is_active: true
+    }))
+
+    const { error: deactivateError } = await supabase
+      .from('scheduled_sessions')
+      .update({ is_active: false })
+      .eq('user_id', user.id)
+      .eq('week_start_date', weekStartDate)
+      .eq('is_active', true)
+
+    if (deactivateError) {
+      console.error('Failed to deactivate prior schedules', deactivateError)
+    }
+
+    const { error: scheduleError } = await supabase
+      .from('scheduled_sessions')
+      .insert(scheduleRows)
+
+    if (scheduleError) {
+      console.error('Failed to create schedule sessions', scheduleError)
+      setSaveError(`Plan generated, but scheduling failed: ${scheduleError.message}`)
+      return null
+    }
+
+    const sessionRows = plan.schedule.map((day) => ({
+      user_id: user.id,
+      workout_id: data.id,
+      day_of_week: day.dayOfWeek,
+      session_name: buildSavedSessionName(plan, day),
+      workouts: day.exercises,
+      updated_at: new Date().toISOString()
+    }))
+
+    const { error: sessionSaveError } = await supabase
+      .from('saved_sessions')
+      .insert(sessionRows)
+
+    if (sessionSaveError) {
+      console.error('Failed to create saved sessions', sessionSaveError)
+      setSaveError(`Plan generated, but day sessions failed to save: ${sessionSaveError.message}`)
+      return null
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        const entry = buildWorkoutHistoryEntry(plan, data.id)
+        const titledEntry = { ...entry, title: buildWorkoutTitle(plan) }
+        saveWorkoutHistoryEntry(titledEntry, window.localStorage)
+        setHistoryEntries((prev) => [titledEntry, ...prev.filter(item => item.id !== titledEntry.id)])
+      } catch (error) {
+        console.error('Failed to store workout history', error)
+        setHistoryError('Unable to save workout history locally.')
+      }
+    }
+
+    return {
+      workoutId: data.id,
+      createdDays: plan.schedule.map((day) => day.dayOfWeek)
+    }
+  }
+
   const generatePlanHandler = async () => {
     if (!user) return
     setLoading(true)
@@ -376,154 +489,55 @@ export default function GeneratePage() {
     })
     setLastGeneratedPlan(plan)
 
-    let historyEntry: ReturnType<typeof buildWorkoutHistoryEntry> | null = null
-    if (typeof window !== 'undefined') {
-      try {
-        historyEntry = buildWorkoutHistoryEntry(plan)
-        saveWorkoutHistoryEntry(historyEntry, window.localStorage)
-        setHistoryEntries((prev) => [historyEntry!, ...prev.filter(item => item.id !== historyEntry!.id)])
-      } catch (error) {
-        console.error('Failed to store workout history', error)
-        setHistoryError('Unable to save workout history locally.')
-      }
-    }
-
-    const newPlan = {
-      user_id: user.id,
-      title: plan.title,
-      description: plan.description,
-      goal: plan.goal,
-      level: plan.level,
-      tags: plan.tags,
-      exercises: {
-        schedule: plan.schedule,
-        inputs: plan.inputs,
-        summary: plan.summary
-      }
-    }
-
     try {
-      const { data, error } = await supabase
-        .from('workouts')
-        .insert([newPlan])
-        .select()
-        .single()
+      const selectedDays = plan.schedule.map(day => day.dayOfWeek)
+      const { data: existingSessions, error: existingError } = await supabase
+        .from('saved_sessions')
+        .select('id, day_of_week, session_name, updated_at, workout_id')
+        .eq('user_id', user.id)
+        .in('day_of_week', selectedDays)
 
-      if (error) {
-        const hint = getSavePlanHint(error)
-        console.error('Failed to save plan', { error, hint })
-        setSaveError(`Failed to generate plan: ${error.message}${hint ? ` ${hint}` : ''}`)
+      if (existingError) {
+        console.error('Failed to check saved sessions', existingError)
+        setSaveError(`Plan generated, but saving sessions failed: ${existingError.message}`)
         return
       }
 
-      if (data) {
-        if (typeof window !== 'undefined') {
-          const entry = historyEntry ? { ...historyEntry, remoteId: data.id } : buildWorkoutHistoryEntry(plan, data.id)
-          saveWorkoutHistoryEntry(entry, window.localStorage)
-          setHistoryEntries((prev) => [entry, ...prev.filter(item => item.id !== entry.id)])
-        }
-        const weekStartDate = formatWeekStartDate(new Date())
-        const scheduleBatchId =
-          typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${user.id}`
-        const scheduleRows = plan.schedule.map((day, index) => ({
-          user_id: user.id,
-          workout_id: data.id,
-          schedule_batch_id: scheduleBatchId,
-          day_of_week: day.dayOfWeek,
-          week_start_date: weekStartDate,
-          order_index: index,
-          is_active: true
+      logEvent('info', 'saved_sessions_conflict_check', {
+        userId: user.id,
+        selectedDays,
+        existingSessions: (existingSessions ?? []).map((session) => ({
+          id: session.id,
+          dayOfWeek: session.day_of_week,
+          sessionName: session.session_name,
+          updatedAt: session.updated_at,
+          workoutId: session.workout_id
         }))
+      })
 
-        const { error: deactivateError } = await supabase
-          .from('scheduled_sessions')
-          .update({ is_active: false })
-          .eq('user_id', user.id)
-          .eq('week_start_date', weekStartDate)
-          .eq('is_active', true)
+      const { conflicts } = resolveSavedSessionConflicts(selectedDays, existingSessions ?? [])
 
-        if (deactivateError) {
-          console.error('Failed to deactivate prior schedules', deactivateError)
-        }
-
-        const { error: scheduleError } = await supabase
-          .from('scheduled_sessions')
-          .insert(scheduleRows)
-
-        if (scheduleError) {
-          console.error('Failed to create schedule sessions', scheduleError)
-          setSaveError(`Plan generated, but scheduling failed: ${scheduleError.message}`)
-          return
-        }
-
-        const selectedDays = plan.schedule.map(day => day.dayOfWeek)
-        const { data: existingSessions, error: existingError } = await supabase
-          .from('saved_sessions')
-          .select('id, day_of_week, session_name, updated_at, workout_id')
-          .eq('user_id', user.id)
-          .in('day_of_week', selectedDays)
-
-        if (existingError) {
-          console.error('Failed to check saved sessions', existingError)
-          setSaveError(`Plan generated, but saving sessions failed: ${existingError.message}`)
-          return
-        }
-
-        logEvent('info', 'saved_sessions_conflict_check', {
-          userId: user.id,
-          selectedDays,
-          existingSessions: (existingSessions ?? []).map((session) => ({
-            id: session.id,
-            dayOfWeek: session.day_of_week,
-            sessionName: session.session_name,
-            updatedAt: session.updated_at,
-            workoutId: session.workout_id
-          }))
-        })
-
-        const { conflicts, availableDays } = resolveSavedSessionConflicts(selectedDays, existingSessions ?? [])
-        const createdDays = [...availableDays]
-
-        if (availableDays.length > 0) {
-          const sessionRows = plan.schedule
-            .filter(day => availableDays.includes(day.dayOfWeek))
-            .map(day => ({
-              user_id: user.id,
-              workout_id: data.id,
-              day_of_week: day.dayOfWeek,
-              session_name: buildSavedSessionName(plan, day),
-              workouts: day.exercises,
-              updated_at: new Date().toISOString()
-            }))
-
-          const { error: sessionSaveError } = await supabase
-            .from('saved_sessions')
-            .insert(sessionRows)
-
-          if (sessionSaveError) {
-            console.error('Failed to create saved sessions', sessionSaveError)
-            setSaveError(`Plan generated, but day sessions failed to save: ${sessionSaveError.message}`)
-            return
-          }
-        }
-
+      if (conflicts.length > 0) {
         setSaveSummary({
-          createdDays,
-          conflicts,
-          workoutId: data.id
+          createdDays: [],
+          conflicts
         })
 
-        if (conflicts.length > 0) {
-          logEvent('info', 'saved_sessions_conflicts_detected', {
-            userId: user.id,
-            conflicts,
-            availableDays
-          })
-        }
-      } else {
-        console.error('Failed to save plan', { error: 'No data returned from insert.' })
-        setSaveError('Failed to generate plan. No data returned from insert.')
+        logEvent('info', 'saved_sessions_conflicts_detected', {
+          userId: user.id,
+          conflicts
+        })
+        return
       }
+
+      const saveResult = await savePlanToDatabase(plan)
+      if (!saveResult) return
+
+      setSaveSummary({
+        createdDays: saveResult.createdDays,
+        conflicts: [],
+        workoutId: saveResult.workoutId
+      })
     } catch (err) {
       console.error('Failed to save plan', err)
       setSaveError('Failed to generate plan. Check console for details.')
@@ -586,40 +600,22 @@ export default function GeneratePage() {
         deletedDays: conflictDays
       })
 
-      const replacementRows = lastGeneratedPlan.schedule
-        .filter((day) => conflictDays.includes(day.dayOfWeek))
-        .map((day) => ({
-          user_id: user.id,
-          workout_id: saveSummary.workoutId ?? null,
-          day_of_week: day.dayOfWeek,
-          session_name: buildSavedSessionName(lastGeneratedPlan, day),
-          workouts: day.exercises,
-          updated_at: new Date().toISOString()
-        }))
-
-      if (replacementRows.length > 0) {
-        const { error: insertError } = await supabase
-          .from('saved_sessions')
-          .insert(replacementRows)
-
-        if (insertError) {
-          throw insertError
-        }
+      const saveResult = await savePlanToDatabase(lastGeneratedPlan)
+      if (!saveResult) {
+        return
       }
 
       setSaveSummary({
         ...saveSummary,
-        createdDays: Array.from(new Set([...saveSummary.createdDays, ...conflictDays])),
+        createdDays: saveResult.createdDays,
+        workoutId: saveResult.workoutId,
         conflicts: []
       })
 
       logEvent('info', 'saved_sessions_conflicts_replaced', {
         userId: user.id,
         replacedDays: conflictDays,
-        insertedSessions: replacementRows.map((row) => ({
-          dayOfWeek: row.day_of_week,
-          sessionName: row.session_name
-        }))
+        insertedDays: saveResult.createdDays
       })
     } catch (error) {
       console.error('Failed to replace saved sessions', error)
