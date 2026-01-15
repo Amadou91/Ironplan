@@ -86,6 +86,11 @@ const getRecommendedSession = (plan: WorkoutPlan, history: WorkoutLog[]) => {
   return (matchedIndex + 1) % plan.sessions.length
 }
 
+const getWorkoutFocus = (workout: WorkoutRow) => {
+  if (!workout.exercises || Array.isArray(workout.exercises)) return null
+  return workout.exercises.schedule?.[0]?.focus ?? null
+}
+
 type SessionRow = {
   id: string
   name: string
@@ -366,6 +371,81 @@ export default function DashboardPage() {
   const resolvedRecommendedIndex = Number.isFinite(recommendedSessionIndex ?? null)
     ? (recommendedSessionIndex ?? 0)
     : 0
+
+  const focusByWorkoutId = useMemo(() => {
+    const map = new Map<string, string>()
+    recentWorkouts.forEach((workout) => {
+      const focus = getWorkoutFocus(workout)
+      if (focus) {
+        map.set(workout.id, focus)
+      }
+    })
+    return map
+  }, [recentWorkouts])
+
+  const focusStats = useMemo(() => {
+    const totals = new Map<string, { count: number; sets: number }>()
+    const now = Date.now()
+    const recentWindow = 14 * 24 * 60 * 60 * 1000
+    const loadWindow = 7 * 24 * 60 * 60 * 1000
+
+    sessions.forEach((session) => {
+      if (!session.workout_id) return
+      const focus = focusByWorkoutId.get(session.workout_id)
+      if (!focus) return
+      const completedAt = session.ended_at ?? session.started_at
+      const completedTime = completedAt ? new Date(completedAt).getTime() : 0
+      if (!completedTime) return
+
+      const entry = totals.get(focus) ?? { count: 0, sets: 0 }
+      if (now - completedTime <= recentWindow) {
+        entry.count += 1
+      }
+      if (now - completedTime <= loadWindow) {
+        const sessionSets = session.session_exercises.reduce((sum, exercise) => sum + (exercise.sets?.length ?? 0), 0)
+        entry.sets += sessionSets
+      }
+      totals.set(focus, entry)
+    })
+
+    return totals
+  }, [focusByWorkoutId, sessions])
+
+  const recommendedWorkoutId = useMemo(() => {
+    if (!recentWorkouts.length) return null
+    const now = Date.now()
+    let bestId: string | null = null
+    let bestScore = -Infinity
+
+    recentWorkouts.forEach((workout) => {
+      const focus = focusByWorkoutId.get(workout.id) ?? 'full_body'
+      const workoutSessions = sessions.filter(
+        (session) => session.workout_id === workout.id && (session.status === 'completed' || session.ended_at)
+      )
+      const lastCompletedAt = workoutSessions.reduce((latest, session) => {
+        const completedAt = session.ended_at ?? session.started_at
+        const timestamp = completedAt ? new Date(completedAt).getTime() : 0
+        return timestamp > latest ? timestamp : latest
+      }, 0)
+      const daysSince = lastCompletedAt ? Math.max(0, (now - lastCompletedAt) / 86400000) : 30
+      const focusEntry = focusStats.get(focus)
+      const recentCount = focusEntry?.count ?? 0
+      const recentSets = focusEntry?.sets ?? 0
+
+      const balanceScore = Math.max(0, 6 - recentCount) * 4
+      const recoveryScore = Math.min(daysSince, 14) * 3
+      const loadPenalty = Math.min(recentSets / 4, 20)
+      const firstTimeBoost = workoutSessions.length === 0 ? 8 : 0
+      const score = balanceScore + recoveryScore + firstTimeBoost - loadPenalty
+
+      if (score > bestScore) {
+        bestScore = score
+        bestId = workout.id
+      }
+    })
+
+    return bestId
+  }, [focusByWorkoutId, focusStats, recentWorkouts, sessions])
 
   const handleStartWorkout = async (
     workout: WorkoutRow,
@@ -768,13 +848,19 @@ export default function DashboardPage() {
                   const defaultLabel = defaultSession?.name || (defaultSession ? formatSessionName(defaultSession, workout.goal ?? null) : 'Session')
                   const defaultIndex = defaultSession ? sessions.indexOf(defaultSession) : undefined
                   const sessionKey = `${workout.id}-0`
+                  const focus = focusByWorkoutId.get(workout.id)
+                  const isRecommended = recommendedWorkoutId === workout.id
                   return (
                     <div key={workout.id} className="rounded-lg border border-[var(--color-border)] p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <p className="text-sm font-semibold text-strong">{workout.title}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-strong">{workout.title}</p>
+                            {isRecommended && <span className="badge-accent">Best for Today</span>}
+                          </div>
                           <p className="text-xs text-subtle">
-                            {sessionCount ? `${sessionCount} sessions` : 'No sessions'} · Last generated {formatDate(workout.created_at)}
+                            {focus ? `${toMuscleLabel(focus)} focus` : 'Focus not set'} ·{' '}
+                            {sessionCount ? `${sessionCount} session${sessionCount === 1 ? '' : 's'}` : 'No sessions'} · Last generated {formatDate(workout.created_at)}
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
