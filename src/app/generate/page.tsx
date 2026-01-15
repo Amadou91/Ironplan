@@ -374,12 +374,51 @@ export default function GeneratePage() {
       console.error('Failed to deactivate prior schedules', deactivateError)
     }
 
+    const rollbackPlan = async (reason: string, error: unknown) => {
+      console.error(reason, error)
+      const cleanupErrors: Array<{ step: string; error: unknown }> = []
+
+      const { error: scheduleCleanupError } = await supabase
+        .from('scheduled_sessions')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('schedule_batch_id', scheduleBatchId)
+
+      if (scheduleCleanupError) {
+        cleanupErrors.push({ step: 'scheduled_sessions', error: scheduleCleanupError })
+      }
+
+      const { error: savedCleanupError } = await supabase
+        .from('saved_sessions')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('workout_id', data.id)
+
+      if (savedCleanupError) {
+        cleanupErrors.push({ step: 'saved_sessions', error: savedCleanupError })
+      }
+
+      const { error: workoutCleanupError } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('id', data.id)
+
+      if (workoutCleanupError) {
+        cleanupErrors.push({ step: 'workouts', error: workoutCleanupError })
+      }
+
+      if (cleanupErrors.length > 0) {
+        console.error('Failed to fully rollback plan write', cleanupErrors)
+      }
+    }
+
     const { error: scheduleError } = await supabase
       .from('scheduled_sessions')
       .insert(scheduleRows)
 
     if (scheduleError) {
-      console.error('Failed to create schedule sessions', scheduleError)
+      await rollbackPlan('Failed to create schedule sessions', scheduleError)
       setSaveError(`Plan generated, but scheduling failed: ${scheduleError.message}`)
       return null
     }
@@ -398,7 +437,7 @@ export default function GeneratePage() {
       .insert(sessionRows)
 
     if (sessionSaveError) {
-      console.error('Failed to create saved sessions', sessionSaveError)
+      await rollbackPlan('Failed to create saved sessions', sessionSaveError)
       setSaveError(`Plan generated, but day sessions failed to save: ${sessionSaveError.message}`)
       return null
     }
