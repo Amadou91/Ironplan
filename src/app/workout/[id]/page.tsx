@@ -225,19 +225,44 @@ export default function WorkoutDetailPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const sessionName = `${workout.title} · ${formatDayLabel(selectedSchedule.dayOfWeek)}`
-        const { error: savedSessionError } = await supabase
-          .from('saved_sessions')
-          .upsert({
-            user_id: user.id,
-            workout_id: workout.id,
-            day_of_week: selectedSchedule.dayOfWeek,
-            session_name: sessionName,
-            workouts: updatedExercises,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'user_id,workout_id,day_of_week' })
+        const sessionPayload = {
+          user_id: user.id,
+          workout_id: workout.id,
+          day_of_week: selectedSchedule.dayOfWeek,
+          session_name: sessionName,
+          workouts: updatedExercises,
+          updated_at: new Date().toISOString()
+        }
 
-        if (savedSessionError) {
-          console.error('Failed to update saved session', savedSessionError)
+        const { data: existingSession, error: lookupError } = await supabase
+          .from('saved_sessions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('workout_id', workout.id)
+          .eq('day_of_week', selectedSchedule.dayOfWeek)
+          .maybeSingle()
+
+        if (lookupError) {
+          console.error('Failed to lookup saved session', lookupError)
+        }
+
+        if (existingSession?.id) {
+          const { error: savedSessionError } = await supabase
+            .from('saved_sessions')
+            .update(sessionPayload)
+            .eq('id', existingSession.id)
+
+          if (savedSessionError) {
+            console.error('Failed to update saved session', savedSessionError)
+          }
+        } else {
+          const { error: savedSessionError } = await supabase
+            .from('saved_sessions')
+            .insert(sessionPayload)
+
+          if (savedSessionError) {
+            console.error('Failed to create saved session', savedSessionError)
+          }
         }
       }
 

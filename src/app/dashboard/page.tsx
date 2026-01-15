@@ -329,22 +329,30 @@ export default function DashboardPage() {
     schedule.find((day) => day.dayOfWeek === dayOfWeek) ?? schedule[0] ?? null
 
   const todayDayOfWeek = new Date().getDay()
-  const todaysSchedule = useMemo(() => {
+  const todaysSchedules = useMemo(() => {
     const matches = scheduledSessions.filter((session) => session.day_of_week === todayDayOfWeek)
-    if (!matches.length) return null
-    const sorted = [...matches].sort((a, b) => {
+    if (!matches.length) return []
+    return [...matches].sort((a, b) => {
       const orderDiff = (a.order_index ?? 0) - (b.order_index ?? 0)
       if (orderDiff !== 0) return orderDiff
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     })
-    return sorted[0]
   }, [scheduledSessions, todayDayOfWeek])
 
-  const todaysWorkout = todaysSchedule?.workout ?? null
-  const todaysWorkoutSchedule = getWorkoutSchedule(todaysWorkout)
-  const todaysPlanDay = todaysWorkoutSchedule.length
-    ? pickScheduleDay(todaysWorkoutSchedule, todaysSchedule?.day_of_week ?? todayDayOfWeek)
-    : null
+  const todaysSessions = useMemo(() => {
+    return todaysSchedules.map((schedule) => {
+      const workout = schedule.workout ?? null
+      const workoutSchedule = getWorkoutSchedule(workout)
+      const planDay = workoutSchedule.length
+        ? pickScheduleDay(workoutSchedule, schedule.day_of_week ?? todayDayOfWeek)
+        : null
+      return {
+        schedule,
+        workout,
+        planDay
+      }
+    })
+  }, [todaysSchedules, todayDayOfWeek])
   const completedSessionToday = useMemo(() => {
     const today = new Date()
     return sessions.some((session) => {
@@ -663,14 +671,6 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-semibold text-strong">Today&apos;s Session</h2>
                 <p className="text-sm text-muted">Automatically matched to your weekly schedule.</p>
               </div>
-              {todaysWorkout && todaysPlanDay && !completedSessionToday && !hasActiveSession && (
-                <Button
-                  onClick={() => handleStartWorkout(todaysWorkout, todaysPlanDay, todaysSchedule?.id)}
-                  disabled={startingScheduleId === (todaysSchedule?.id ?? null)}
-                >
-                  {startingScheduleId === (todaysSchedule?.id ?? null) ? 'Starting...' : 'Start Today’s Session'}
-                </Button>
-              )}
             </div>
 
             {hasActiveSession && (
@@ -683,35 +683,45 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {completedSessionToday ? (
+            {completedSessionToday && (
               <div className="mt-4 space-y-2 rounded-lg border border-[var(--color-border)] bg-emerald-50/60 p-4">
-                <p className="text-sm font-semibold text-strong">Complete for today</p>
-                <p className="text-xs text-subtle">You’ve already finished a session today. Nice work!</p>
+                <p className="text-sm font-semibold text-strong">Completed a session today</p>
+                <p className="text-xs text-subtle">You can still start another scheduled session if you’d like.</p>
               </div>
-            ) : todaysWorkout && todaysPlanDay ? (
-              <div className="mt-4 space-y-2 rounded-lg border border-[var(--color-border)] p-4">
-                <p className="text-sm font-semibold text-strong">{todaysWorkout.title}</p>
-                <p className="text-xs text-subtle">
-                  {formatDayLabel(todaysPlanDay.dayOfWeek)} · {todaysPlanDay.timeWindow.replace('_', ' ')} ·{' '}
-                  {todaysPlanDay.exercises?.length ?? 0} exercises
-                </p>
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {!hasActiveSession && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleStartWorkout(todaysWorkout, todaysPlanDay, todaysSchedule?.id)}
-                      disabled={startingScheduleId === (todaysSchedule?.id ?? null)}
-                    >
-                      Start Session
-                    </Button>
-                  )}
-                  <Link href={`/workout/${todaysWorkout.id}?day=${todaysPlanDay.dayOfWeek}`}>
-                    <Button variant="ghost" size="sm">
-                      View Details
-                    </Button>
-                  </Link>
-                </div>
+            )}
+
+            {todaysSessions.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {todaysSessions.map(({ schedule, workout, planDay }) => {
+                  if (!workout || !planDay) return null
+                  const scheduleId = schedule.id ?? workout.id
+                  return (
+                    <div key={scheduleId} className="space-y-2 rounded-lg border border-[var(--color-border)] p-4">
+                      <p className="text-sm font-semibold text-strong">{workout.title}</p>
+                      <p className="text-xs text-subtle">
+                        {formatDayLabel(planDay.dayOfWeek)} · {planDay.timeWindow.replace('_', ' ')} ·{' '}
+                        {planDay.exercises?.length ?? 0} exercises
+                      </p>
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        {!hasActiveSession && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleStartWorkout(workout, planDay, schedule.id)}
+                            disabled={startingScheduleId === schedule.id}
+                          >
+                            {startingScheduleId === schedule.id ? 'Starting...' : 'Start Session'}
+                          </Button>
+                        )}
+                        <Link href={`/workout/${workout.id}?day=${planDay.dayOfWeek}`}>
+                          <Button variant="ghost" size="sm">
+                            View Details
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             ) : (
               <div className="mt-4 space-y-3 rounded-lg border border-dashed border-[var(--color-border)] p-4">
