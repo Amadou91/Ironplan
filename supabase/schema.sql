@@ -16,6 +16,13 @@ create table if not exists public.workouts (
 create index if not exists workouts_user_created_idx
   on public.workouts (user_id, created_at desc);
 
+alter table public.workouts enable row level security;
+
+drop policy if exists "Users can manage their workouts" on public.workouts;
+
+create policy "Users can manage their workouts" on public.workouts
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 create table if not exists public.scheduled_sessions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -42,3 +49,23 @@ create table if not exists public.saved_sessions (
 
 create unique index if not exists saved_sessions_user_day_idx
   on public.saved_sessions (user_id, day_of_week);
+
+alter table public.scheduled_sessions enable row level security;
+
+drop policy if exists "Users can manage their scheduled sessions" on public.scheduled_sessions;
+
+create policy "Users can manage their scheduled sessions" on public.scheduled_sessions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+alter table public.saved_sessions enable row level security;
+
+drop policy if exists "Users can manage their saved sessions" on public.saved_sessions;
+
+create policy "Users can manage their saved sessions" on public.saved_sessions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+grant usage on schema public to anon, authenticated;
+
+grant select, insert, update, delete on public.workouts to authenticated;
+grant select, insert, update, delete on public.scheduled_sessions to authenticated;
+grant select, insert, update, delete on public.saved_sessions to authenticated;
