@@ -164,6 +164,16 @@ export default function DashboardPage() {
     ? `/workout/${activeSession.workoutId}?session=active&sessionId=${activeSession.id}`
     : '/dashboard'
 
+  const ensureSession = async () => {
+    const { data, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError || !data.session) {
+      setUser(null)
+      setError('Your session has expired. Please sign in again.')
+      return null
+    }
+    return data.session
+  }
+
   useEffect(() => {
     if (userLoading) return
     if (user) return
@@ -189,6 +199,11 @@ export default function DashboardPage() {
     const loadSessions = async () => {
       setLoading(true)
       setSessionsLoaded(false)
+      const session = await ensureSession()
+      if (!session) {
+        setLoading(false)
+        return
+      }
       const startIndex = 0
       const endIndex = SESSION_PAGE_SIZE - 1
       const { data, error: fetchError } = await supabase
@@ -202,7 +217,12 @@ export default function DashboardPage() {
 
       if (fetchError) {
         console.error('Failed to load sessions', fetchError)
-        setError('Unable to load sessions. Please try again.')
+        if (fetchError.status === 401 || fetchError.status === 403) {
+          setUser(null)
+          setError('Your session has expired. Please sign in again.')
+        } else {
+          setError('Unable to load sessions. Please try again.')
+        }
       } else {
         const nextSessions = (data as SessionRow[]) ?? []
         setSessions(nextSessions)
@@ -213,7 +233,7 @@ export default function DashboardPage() {
     }
 
     loadSessions()
-  }, [supabase, user, userLoading])
+  }, [supabase, user, userLoading, setUser])
 
   useEffect(() => {
     if (userLoading) return
@@ -222,6 +242,11 @@ export default function DashboardPage() {
 
     const loadMoreSessions = async () => {
       setLoading(true)
+      const session = await ensureSession()
+      if (!session) {
+        setLoading(false)
+        return
+      }
       const startIndex = sessionPage * SESSION_PAGE_SIZE
       const endIndex = startIndex + SESSION_PAGE_SIZE - 1
       const { data, error: fetchError } = await supabase
@@ -235,7 +260,12 @@ export default function DashboardPage() {
 
       if (fetchError) {
         console.error('Failed to load more sessions', fetchError)
-        setError('Unable to load more sessions. Please try again.')
+        if (fetchError.status === 401 || fetchError.status === 403) {
+          setUser(null)
+          setError('Your session has expired. Please sign in again.')
+        } else {
+          setError('Unable to load more sessions. Please try again.')
+        }
       } else {
         const nextSessions = (data as SessionRow[]) ?? []
         setSessions((prev) => [...prev, ...nextSessions])
@@ -245,7 +275,7 @@ export default function DashboardPage() {
     }
 
     loadMoreSessions()
-  }, [sessionPage, supabase, user, userLoading])
+  }, [sessionPage, supabase, user, userLoading, setUser])
 
   useEffect(() => {
     if (!sessionsLoaded || !activeSession) return
@@ -289,6 +319,8 @@ export default function DashboardPage() {
 
     const loadActivePlan = async () => {
       setPlanError(null)
+      const session = await ensureSession()
+      if (!session) return
       const { data, error: fetchError } = await supabase
         .from('workouts')
         .select('id, title, goal, status, exercises, created_at')
@@ -299,7 +331,12 @@ export default function DashboardPage() {
 
       if (fetchError) {
         console.error('Failed to load active plan', fetchError)
-        setPlanError('Unable to load your active plan.')
+        if (fetchError.status === 401 || fetchError.status === 403) {
+          setUser(null)
+          setError('Your session has expired. Please sign in again.')
+        } else {
+          setPlanError('Unable to load your active plan.')
+        }
         return
       }
 
@@ -307,6 +344,8 @@ export default function DashboardPage() {
     }
 
     const loadRecentWorkouts = async () => {
+      const session = await ensureSession()
+      if (!session) return
       const { data, error: fetchError } = await supabase
         .from('workouts')
         .select('id, title, goal, status, exercises, created_at')
@@ -316,6 +355,10 @@ export default function DashboardPage() {
 
       if (fetchError) {
         console.error('Failed to load recent workouts', fetchError)
+        if (fetchError.status === 401 || fetchError.status === 403) {
+          setUser(null)
+          setError('Your session has expired. Please sign in again.')
+        }
         return
       }
       setRecentWorkouts((data as WorkoutRow[]) ?? [])
@@ -323,7 +366,7 @@ export default function DashboardPage() {
 
     loadActivePlan()
     loadRecentWorkouts()
-  }, [supabase, user, userLoading])
+  }, [supabase, user, userLoading, setUser])
 
   const isLoading = userLoading || loading
 
@@ -987,7 +1030,7 @@ export default function DashboardPage() {
           <Card className="p-6">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Volume by week</h3>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
               <LineChart data={volumeTrend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="week" stroke="var(--color-text-subtle)" />
@@ -1002,7 +1045,7 @@ export default function DashboardPage() {
           <Card className="p-6">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Effort trend</h3>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
               <LineChart data={effortTrend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
@@ -1019,7 +1062,7 @@ export default function DashboardPage() {
           <Card className="p-6">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">e1RM trend</h3>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
               <LineChart data={exerciseTrend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
@@ -1036,7 +1079,7 @@ export default function DashboardPage() {
           <Card className="p-6">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Muscle group volume</h3>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <PieChart>
                   <Pie data={muscleBreakdown} dataKey="volume" nameKey="muscle" outerRadius={90}>
                     {muscleBreakdown.map((entry, index) => (
