@@ -172,6 +172,8 @@ export interface GeneratedPlan {
   }
 }
 
+export type PlanStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED' | 'COMPLETED'
+
 export interface WorkoutPlan {
   id: string
   userId: string
@@ -179,6 +181,7 @@ export interface WorkoutPlan {
   goal: string
   days: WorkoutDay[]
   createdAt: string
+  status?: PlanStatus
 }
 
 export interface WorkoutDay {
@@ -231,6 +234,7 @@ export interface ScheduledSession {
   dayOfWeek: number
   weekStartDate: string
   orderIndex: number
+  status: PlanStatus
   isActive: boolean
   createdAt: string
 }
