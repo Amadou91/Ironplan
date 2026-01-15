@@ -1025,9 +1025,7 @@ export default function GeneratePage() {
                 <label className="mb-3 block text-sm font-medium text-strong">Equipment preset</label>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   {([
-                    { key: 'home_minimal', label: 'Home Minimal' },
                     { key: 'full_gym', label: 'Full Gym' },
-                    { key: 'hotel', label: 'Hotel' },
                     { key: 'custom', label: 'Custom' }
                   ] as { key: EquipmentPreset | 'custom'; label: string }[]).map(preset => (
                     <button
