@@ -236,12 +236,16 @@ export default function DashboardPage() {
             .from('sessions')
             .select('id, status, ended_at')
             .eq('id', activeSession.id)
-            .single()
+            .maybeSingle()
           if (error) {
             console.error('Failed to refresh active session', error)
             return
           }
-          const stillActive = data?.status === 'active' || (!data?.status && !data?.ended_at)
+          if (!data) {
+            endSession()
+            return
+          }
+          const stillActive = data.status === 'active' || (!data.status && !data.ended_at)
           if (!stillActive) {
             endSession()
           }
