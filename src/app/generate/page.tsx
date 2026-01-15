@@ -384,6 +384,16 @@ export default function GeneratePage() {
 
     if (sessionSaveError) {
       console.error('Failed to create saved sessions', sessionSaveError)
+      const { error: rollbackError } = await supabase
+        .from('scheduled_sessions')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('workout_id', data.id)
+        .eq('schedule_batch_id', scheduleBatchId)
+
+      if (rollbackError) {
+        console.error('Failed to rollback scheduled sessions after saved session error', rollbackError)
+      }
       setSaveError(`Plan generated, but day sessions failed to save: ${sessionSaveError.message}`)
       return null
     }
