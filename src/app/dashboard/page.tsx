@@ -668,9 +668,6 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-semibold text-strong">Continue / Start a Session</h2>
                 <p className="text-sm text-muted">Jump back into a recently generated schedule.</p>
               </div>
-              <Link href="/generate">
-                <Button variant="outline" size="sm">Generate New Plan</Button>
-              </Link>
             </div>
 
             <div className="mt-4 space-y-3">
