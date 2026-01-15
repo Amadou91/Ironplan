@@ -54,7 +54,7 @@ export interface EquipmentInventory {
 
 export type FocusArea = 'upper' | 'lower' | 'full_body' | 'core' | 'cardio' | 'mobility'
 
-export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'general_fitness'
+export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'cardio' | 'general_fitness'
 
 export type GoalPriority = 'primary' | 'secondary' | 'balanced'
 
@@ -67,6 +67,8 @@ export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
 export type TimeWindow = 'morning' | 'afternoon' | 'evening'
 
 export type RestPreference = 'balanced' | 'high_recovery' | 'minimal_rest'
+
+export type CardioActivity = 'skipping' | 'indoor_cycling' | 'outdoor_cycling' | 'running' | 'rowing'
 
 export interface ExerciseLoad {
   value: number
@@ -151,6 +153,7 @@ export interface PlanInput {
   preferences: {
     focusAreas: FocusArea[]
     dislikedActivities: string[]
+    cardioActivities: CardioActivity[]
     accessibilityConstraints: string[]
     restPreference: RestPreference
   }

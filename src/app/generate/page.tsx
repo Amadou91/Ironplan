@@ -11,6 +11,7 @@ import { generatePlan, normalizePlanInput } from '@/lib/generator'
 import { bandLabels, cloneInventory, equipmentPresets, formatWeightList, machineLabels, parseWeightList } from '@/lib/equipment'
 import { buildWorkoutHistoryEntry, loadWorkoutHistory, removeWorkoutHistoryEntry, saveWorkoutHistoryEntry } from '@/lib/workoutHistory'
 import { formatDayLabel, formatWeekStartDate } from '@/lib/schedule-utils'
+import { CARDIO_ACTIVITY_OPTIONS } from '@/lib/cardio-activities'
 import {
   DEFAULT_PLAN_STATUS,
   getFlowCompletion,
@@ -26,7 +27,8 @@ const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const styleOptions: { value: Goal; label: string; description: string }[] = [
   { value: 'strength', label: 'Strength', description: 'Heavier loads, lower reps, power focus.' },
   { value: 'hypertrophy', label: 'Hypertrophy', description: 'Muscle growth with balanced volume.' },
-  { value: 'endurance', label: 'Endurance', description: 'Higher reps and conditioning focus.' }
+  { value: 'endurance', label: 'Endurance', description: 'Higher reps and conditioning focus.' },
+  { value: 'cardio', label: 'Cardio', description: 'Conditioning work for heart-health and stamina.' }
 ]
 const focusOptions: { value: PlanInput['preferences']['focusAreas'][number]; label: string }[] = [
   { value: 'upper', label: 'Upper Body' },
@@ -90,7 +92,7 @@ export default function GeneratePage() {
           { dayOfWeek: 5, style: 'endurance', focus: 'full_body' }
         ]
       },
-      preferences: { focusAreas: [], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
+      preferences: { focusAreas: [], dislikedActivities: [], cardioActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
     })
   )
 
@@ -140,6 +142,7 @@ export default function GeneratePage() {
   const goalToFocusDefaults = (goal: Goal): FocusArea[] => {
     switch (goal) {
       case 'endurance':
+      case 'cardio':
         return ['cardio', 'full_body', 'mobility']
       case 'hypertrophy':
         return ['upper', 'lower', 'full_body']
@@ -620,7 +623,7 @@ export default function GeneratePage() {
                   aria-pressed={formData.intent.mode === 'style'}
                 >
                   <p className="text-sm font-semibold text-strong">Workout style-driven</p>
-                  <p className="mt-1 text-xs text-subtle">Lead with strength, hypertrophy, or endurance.</p>
+                  <p className="mt-1 text-xs text-subtle">Lead with strength, hypertrophy, endurance, or cardio.</p>
                 </button>
                 <button
                   type="button"
@@ -1096,6 +1099,7 @@ export default function GeneratePage() {
                       <option value="strength">Strength</option>
                       <option value="hypertrophy">Hypertrophy</option>
                       <option value="endurance">Endurance</option>
+                      <option value="cardio">Cardio</option>
                       <option value="general_fitness">General Fitness</option>
                     </select>
                   </div>
@@ -1173,6 +1177,32 @@ export default function GeneratePage() {
                       placeholder="e.g. Running, Jumping"
                       className="input-base"
                     />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-strong">Cardio activities (optional)</label>
+                    <div className="flex flex-wrap gap-3">
+                      {CARDIO_ACTIVITY_OPTIONS.map((option) => (
+                        <label key={option.value} className="flex items-center gap-2 text-sm text-muted">
+                          <input
+                            type="checkbox"
+                            checked={formData.preferences.cardioActivities.includes(option.value)}
+                            onChange={() =>
+                              updateFormData(prev => ({
+                                ...prev,
+                                preferences: {
+                                  ...prev.preferences,
+                                  cardioActivities: toggleArrayValue(prev.preferences.cardioActivities, option.value)
+                                }
+                              }))
+                            }
+                            className="accent-[var(--color-primary)]"
+                          />
+                          {option.label}
+                        </label>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-subtle">Leave blank to allow any cardio activity.</p>
                   </div>
 
                   <div>

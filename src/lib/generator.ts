@@ -1,4 +1,5 @@
 import type {
+  CardioActivity,
   EquipmentInventory,
   Exercise,
   FocusArea,
@@ -14,6 +15,7 @@ import type {
 } from '@/types/domain'
 import { equipmentPresets, hasEquipment } from './equipment'
 import { computeExerciseMetrics } from '@/lib/workout-metrics'
+import { matchesCardioSelection } from '@/lib/cardio-activities'
 
 const DEFAULT_INPUT: PlanInput = {
   intent: {
@@ -47,6 +49,7 @@ const DEFAULT_INPUT: PlanInput = {
   preferences: {
     focusAreas: [],
     dislikedActivities: [],
+    cardioActivities: [],
     accessibilityConstraints: [],
     restPreference: 'balanced'
   }
@@ -246,6 +249,48 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     rpe: 8,
     equipment: [{ kind: 'machine', machineType: 'treadmill' }, { kind: 'machine', machineType: 'rower' }],
     durationMinutes: 10,
+    restSeconds: 60
+  },
+  {
+    name: 'Skipping Intervals',
+    focus: 'cardio',
+    movementPattern: 'cardio',
+    difficulty: 'beginner',
+    goal: 'cardio',
+    primaryMuscle: 'Cardio',
+    sets: 6,
+    reps: '45 sec on/15 sec off',
+    rpe: 7,
+    equipment: [{ kind: 'bodyweight' }],
+    durationMinutes: 10,
+    restSeconds: 45
+  },
+  {
+    name: 'Indoor Cycling Tempo Ride',
+    focus: 'cardio',
+    movementPattern: 'cardio',
+    difficulty: 'beginner',
+    goal: 'cardio',
+    primaryMuscle: 'Cardio',
+    sets: 1,
+    reps: '20-30 min',
+    rpe: 6,
+    equipment: [{ kind: 'machine' }],
+    durationMinutes: 20,
+    restSeconds: 60
+  },
+  {
+    name: 'Outdoor Cycling Endurance Ride',
+    focus: 'cardio',
+    movementPattern: 'cardio',
+    difficulty: 'intermediate',
+    goal: 'cardio',
+    primaryMuscle: 'Cardio',
+    sets: 1,
+    reps: '30-45 min',
+    rpe: 6,
+    equipment: [{ kind: 'bodyweight' }],
+    durationMinutes: 30,
     restSeconds: 60
   },
   {
@@ -477,6 +522,7 @@ const adjustMinutesPerSession = (input: PlanInput, sessionsPerWeek: number) => {
 const goalToFocus = (goal: Goal): FocusArea[] => {
   switch (goal) {
     case 'endurance':
+    case 'cardio':
       return ['cardio', 'full_body', 'mobility']
     case 'hypertrophy':
       return ['upper', 'lower', 'full_body']
@@ -627,6 +673,7 @@ const filterExercises = (
   inventory: EquipmentInventory,
   disliked: string[],
   accessibility: string[],
+  cardioActivities: CardioActivity[],
   goal?: Goal
 ) => EXERCISE_LIBRARY.filter(exercise => {
   const matchesFocus = focus === 'full_body' || exercise.focus === focus || (focus === 'cardio' && exercise.focus === 'cardio')
@@ -634,8 +681,11 @@ const filterExercises = (
   const isDisliked = disliked.some(activity => exercise.name.toLowerCase().includes(activity.toLowerCase()))
   const lowImpact = accessibility.includes('low-impact')
   const isHighImpact = exercise.name.toLowerCase().includes('jump') || exercise.name.toLowerCase().includes('interval')
-  const matchesGoal = goal ? exercise.goal === goal || !exercise.goal : true
-  return matchesFocus && matchesGoal && Boolean(option) && !isDisliked && !(lowImpact && isHighImpact)
+  const matchesGoal = goal
+    ? exercise.goal === goal || !exercise.goal || (goal === 'cardio' && exercise.goal === 'endurance')
+    : true
+  const matchesCardio = exercise.focus === 'cardio' ? matchesCardioSelection(exercise.name, cardioActivities) : true
+  return matchesFocus && matchesGoal && matchesCardio && Boolean(option) && !isDisliked && !(lowImpact && isHighImpact)
 })
 
 const adjustRpe = (baseRpe: number, intensity: Intensity) => {
@@ -668,6 +718,7 @@ const buildSessionExercises = (
     input.equipment.inventory,
     input.preferences.dislikedActivities,
     input.preferences.accessibilityConstraints,
+    input.preferences.cardioActivities,
     targetGoal
   )
   const maxExercises = clamp(Math.floor(duration / 10), 3, 6)
@@ -680,7 +731,7 @@ const buildSessionExercises = (
     return {
       ...exercise,
       sets: adjustSets(exercise.sets, input.experienceLevel),
-      reps,
+      reps: exercise.focus === 'cardio' ? exercise.reps : reps,
       rpe: adjustRpe(exercise.rpe, input.intensity),
       load
     }
