@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { createClient } from '@/lib/supabase/client';
-import { PlanStatus, SessionExercise, WorkoutSession, WorkoutSet } from '@/types/domain';
+import { getSuggestedSessionId as computeSuggestedSessionId } from '@/lib/workout-metrics';
+import { PlanStatus, SessionExercise, WorkoutLog, WorkoutPlan, WorkoutSession, WorkoutSet } from '@/types/domain';
 
 interface PlanActivationConflict {
   workoutId: string;
@@ -17,6 +18,7 @@ interface WorkoutState {
   updateSet: (exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: string | number | boolean) => void;
   addSet: (exerciseIndex: number) => WorkoutSet | null;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
+  getSuggestedSessionId: (plan: WorkoutPlan, history: WorkoutLog[]) => string | null;
   activatePlan: (
     planId: string,
     options?: { force?: boolean }
@@ -105,6 +107,8 @@ export const useWorkoutStore = create<WorkoutState>()(
         exercises[exIdx] = { ...exercises[exIdx], sets };
         return { activeSession: { ...state.activeSession, exercises } };
       }),
+
+      getSuggestedSessionId: (plan, history) => computeSuggestedSessionId(plan, history),
 
       activatePlan: async (planId, options = {}) => {
         const supabase = createClient();

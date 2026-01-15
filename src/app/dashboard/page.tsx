@@ -17,16 +17,16 @@ import {
   Legend
 } from 'recharts'
 import { createClient } from '@/lib/supabase/client'
-import { formatDayLabel, formatWeekStartDate } from '@/lib/schedule-utils'
 import { calculateExerciseImpact } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
+import { formatSessionLabel } from '@/lib/workout-metrics'
 import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
-import type { Exercise, PlanDay } from '@/types/domain'
+import type { Exercise, PlanDay, WorkoutLog, WorkoutPlan } from '@/types/domain'
 
 const formatDate = (value: string) => {
   const date = new Date(value)
@@ -49,6 +49,9 @@ const formatDuration = (start?: string | null, end?: string | null) => {
   const minutes = Math.round(diff / 60000)
   return `${minutes} min`
 }
+
+const formatFocusLabel = (focus: PlanDay['focus']) =>
+  focus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 
 const isSameDay = (value: string, compareDate: Date) => {
   const date = new Date(value)
@@ -101,20 +104,13 @@ type SessionRow = {
 type WorkoutRow = {
   id: string
   title: string
+  goal?: string | null
+  status?: string | null
   created_at: string
   exercises:
     | { schedule?: PlanDay[] }
     | Exercise[]
     | null
-}
-
-type ScheduledSessionRow = {
-  id: string
-  day_of_week: number
-  week_start_date: string
-  created_at: string
-  order_index: number | null
-  workout: WorkoutRow | WorkoutRow[] | null
 }
 
 const chartColors = ['#6366f1', '#22c55e', '#0ea5e9', '#f59e0b', '#ec4899']
@@ -128,20 +124,21 @@ export default function DashboardPage() {
   const startSession = useWorkoutStore((state) => state.startSession)
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const endSession = useWorkoutStore((state) => state.endSession)
+  const getSuggestedSessionId = useWorkoutStore((state) => state.getSuggestedSessionId)
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [scheduleError, setScheduleError] = useState<string | null>(null)
-  const [startScheduleError, setStartScheduleError] = useState<string | null>(null)
+  const [planError, setPlanError] = useState<string | null>(null)
+  const [startSessionError, setStartSessionError] = useState<string | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedMuscle, setSelectedMuscle] = useState('all')
   const [selectedExercise, setSelectedExercise] = useState('all')
   const [deletingSessionIds, setDeletingSessionIds] = useState<Record<string, boolean>>({})
   const [expandedSessions, setExpandedSessions] = useState<Record<string, boolean>>({})
-  const [scheduledSessions, setScheduledSessions] = useState<ScheduledSessionRow[]>([])
+  const [activePlan, setActivePlan] = useState<WorkoutRow | null>(null)
   const [recentWorkouts, setRecentWorkouts] = useState<WorkoutRow[]>([])
-  const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null)
+  const [startingSessionKey, setStartingSessionKey] = useState<string | null>(null)
   const [deletingWorkoutIds, setDeletingWorkoutIds] = useState<Record<string, boolean>>({})
   const [sessionsLoaded, setSessionsLoaded] = useState(false)
   const [sessionPage, setSessionPage] = useState(0)
@@ -270,30 +267,29 @@ export default function DashboardPage() {
     if (userLoading) return
     if (!user) return
 
-    const loadSchedule = async () => {
-      setScheduleError(null)
-      const weekStartDate = formatWeekStartDate(new Date())
+    const loadActivePlan = async () => {
+      setPlanError(null)
       const { data, error: fetchError } = await supabase
-        .from('scheduled_sessions')
-        .select('id, day_of_week, week_start_date, created_at, order_index, workout:workouts(id, title, exercises, created_at)')
+        .from('workouts')
+        .select('id, title, goal, status, exercises, created_at')
         .eq('user_id', user.id)
-        .eq('week_start_date', weekStartDate)
         .eq('status', 'ACTIVE')
-        .order('order_index', { ascending: true })
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
+        .limit(1)
 
       if (fetchError) {
-        console.error('Failed to load schedule', fetchError)
-        setScheduleError('Unable to load your scheduled sessions.')
+        console.error('Failed to load active plan', fetchError)
+        setPlanError('Unable to load your active plan.')
         return
       }
-      setScheduledSessions((data as ScheduledSessionRow[]) ?? [])
+
+      setActivePlan((data as WorkoutRow[] | null)?.[0] ?? null)
     }
 
     const loadRecentWorkouts = async () => {
       const { data, error: fetchError } = await supabase
         .from('workouts')
-        .select('id, title, exercises, created_at')
+        .select('id, title, goal, status, exercises, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(6)
@@ -305,45 +301,41 @@ export default function DashboardPage() {
       setRecentWorkouts((data as WorkoutRow[]) ?? [])
     }
 
-    loadSchedule()
+    loadActivePlan()
     loadRecentWorkouts()
   }, [supabase, user, userLoading])
 
   const isLoading = userLoading || loading
 
-  const getWorkoutSchedule = (workout: WorkoutRow | null) => {
+  const getWorkoutSessions = (workout: WorkoutRow | null) => {
     if (!workout?.exercises || Array.isArray(workout.exercises)) return []
     return workout.exercises.schedule ?? []
   }
 
-  const pickScheduleDay = (schedule: PlanDay[], dayOfWeek: number) =>
-    schedule.find((day) => day.dayOfWeek === dayOfWeek) ?? schedule[0] ?? null
+  const planSessions = useMemo(() => getWorkoutSessions(activePlan), [activePlan])
 
-  const todayDayOfWeek = new Date().getDay()
-  const todaysSchedules = useMemo(() => {
-    const matches = scheduledSessions.filter((session) => session.day_of_week === todayDayOfWeek)
-    if (!matches.length) return []
-    return [...matches].sort((a, b) => {
-      const orderDiff = (a.order_index ?? 0) - (b.order_index ?? 0)
-      if (orderDiff !== 0) return orderDiff
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    })
-  }, [scheduledSessions, todayDayOfWeek])
-
-  const todaysSessions = useMemo(() => {
-    return todaysSchedules.map((schedule) => {
-      const workout = Array.isArray(schedule.workout) ? schedule.workout[0] ?? null : schedule.workout ?? null
-      const workoutSchedule = getWorkoutSchedule(workout)
-      const planDay = workoutSchedule.length
-        ? pickScheduleDay(workoutSchedule, schedule.day_of_week ?? todayDayOfWeek)
-        : null
-      return {
-        schedule,
-        workout,
-        planDay
-      }
-    })
-  }, [todaysSchedules, todayDayOfWeek])
+  const suggestedSessionId = useMemo(() => {
+    if (!activePlan || !planSessions.length || !user) return null
+    const plan: WorkoutPlan = {
+      id: activePlan.id,
+      userId: user.id,
+      name: activePlan.title,
+      goal: activePlan.goal ?? '',
+      sessions: planSessions,
+      createdAt: activePlan.created_at,
+      status: activePlan.status ?? undefined
+    }
+    const history: WorkoutLog[] = sessions.map((session) => ({
+      workoutId: session.workout_id ?? '',
+      sessionName: session.name,
+      startedAt: session.started_at,
+      completedAt:
+        session.status === 'completed' || session.ended_at
+          ? session.ended_at ?? session.started_at
+          : null
+    }))
+    return getSuggestedSessionId(plan, history)
+  }, [activePlan, getSuggestedSessionId, planSessions, sessions, user])
   const completedSessionToday = useMemo(() => {
     const today = new Date()
     return sessions.some((session) => {
@@ -353,17 +345,45 @@ export default function DashboardPage() {
     })
   }, [sessions])
 
-  const handleStartWorkout = async (workout: WorkoutRow, planDay: PlanDay | null, scheduleId?: string) => {
+  const recommendedSessionIndex = useMemo(() => {
+    if (!suggestedSessionId) return 0
+    const parsed = Number.parseInt(suggestedSessionId.replace('session-', ''), 10)
+    return Number.isFinite(parsed) ? parsed : 0
+  }, [suggestedSessionId])
+
+  const sessionCards = useMemo(
+    () =>
+      planSessions.map((session, index) => ({
+        session,
+        index,
+        label: formatSessionLabel(index),
+        focusLabel: formatFocusLabel(session.focus),
+        exercisesCount: session.exercises?.length ?? 0
+      })),
+    [planSessions]
+  )
+
+  const recommendedSession = sessionCards[recommendedSessionIndex] ?? sessionCards[0] ?? null
+  const otherSessions = recommendedSession
+    ? sessionCards.filter((card) => card.index !== recommendedSession.index)
+    : sessionCards
+
+  const handleStartWorkout = async (
+    workout: WorkoutRow,
+    planDay: PlanDay | null,
+    sessionLabel: string,
+    sessionKey: string
+  ) => {
     if (!user) return
     if (hasActiveSession) {
-      setStartScheduleError('Finish your current session before starting a new one.')
+      setStartSessionError('Finish your current session before starting a new one.')
       return
     }
-    setStartScheduleError(null)
-    setStartingScheduleId(scheduleId ?? workout.id)
+    setStartSessionError(null)
+    setStartingSessionKey(sessionKey)
     try {
       const exercises = planDay?.exercises ?? (Array.isArray(workout.exercises) ? workout.exercises : [])
-      const nameSuffix = planDay ? formatDayLabel(planDay.dayOfWeek) : undefined
+      const nameSuffix = sessionLabel
       const impact = exercises.length ? calculateExerciseImpact(exercises) : undefined
       const { sessionId, startedAt, sessionName, exercises: sessionExercises, impact: sessionImpact } = await createWorkoutSession({
         supabase,
@@ -388,9 +408,9 @@ export default function DashboardPage() {
       router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}${dayParam}`)
     } catch (startError) {
       console.error('Failed to start scheduled session', startError)
-      setStartScheduleError('Unable to start the session. Please try again.')
+      setStartSessionError('Unable to start the session. Please try again.')
     } finally {
-      setStartingScheduleId(null)
+      setStartingSessionKey(null)
     }
   }
 
@@ -448,12 +468,6 @@ export default function DashboardPage() {
       }
 
       setRecentWorkouts(prev => prev.filter(item => item.id !== workout.id))
-      setScheduledSessions(prev =>
-        prev.filter((session) => {
-          const sessionWorkout = Array.isArray(session.workout) ? session.workout[0] ?? null : session.workout
-          return sessionWorkout?.id !== workout.id
-        })
-      )
     } catch (deleteError) {
       console.error('Failed to delete workout', deleteError)
       setError('Unable to delete this session. Please try again.')
@@ -657,15 +671,15 @@ export default function DashboardPage() {
         </div>
 
         {error && <div className="alert-error p-4 text-sm">{error}</div>}
-        {scheduleError && <div className="alert-error p-4 text-sm">{scheduleError}</div>}
-        {startScheduleError && <div className="alert-error p-4 text-sm">{startScheduleError}</div>}
+        {planError && <div className="alert-error p-4 text-sm">{planError}</div>}
+        {startSessionError && <div className="alert-error p-4 text-sm">{startSessionError}</div>}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card className="p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-strong">Today&apos;s Session</h2>
-                <p className="text-sm text-muted">Automatically matched to your weekly schedule.</p>
+                <h2 className="text-lg font-semibold text-strong">Next Up</h2>
+                <p className="text-sm text-muted">Follow your rotation and pick up where you left off.</p>
               </div>
             </div>
 
@@ -682,67 +696,101 @@ export default function DashboardPage() {
             {completedSessionToday && (
               <div className="mt-4 space-y-2 rounded-lg border border-[var(--color-border)] bg-emerald-50/60 p-4">
                 <p className="text-sm font-semibold text-strong">Completed a session today</p>
-                <p className="text-xs text-subtle">You can still start another scheduled session if you’d like.</p>
+                <p className="text-xs text-subtle">You can still start another session if you’d like.</p>
               </div>
             )}
 
-            {todaysSessions.length > 0 ? (
-              <div className="mt-4 space-y-3">
-                {todaysSessions.map(({ schedule, workout, planDay }) => {
-                  if (!workout || !planDay) return null
-                  const scheduleId = schedule.id ?? workout.id
-                  return (
-                    <div key={scheduleId} className="space-y-2 rounded-lg border border-[var(--color-border)] p-4">
-                      <p className="text-sm font-semibold text-strong">{workout.title}</p>
+            {activePlan && recommendedSession ? (
+              <div className="mt-4 space-y-4">
+                <div className="space-y-3 rounded-lg border border-emerald-300 bg-emerald-50/70 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Recommended</p>
+                      <p className="text-sm font-semibold text-strong">{activePlan.title}</p>
                       <p className="text-xs text-subtle">
-                        {formatDayLabel(planDay.dayOfWeek)} · {planDay.timeWindow.replace('_', ' ')} ·{' '}
-                        {planDay.exercises?.length ?? 0} exercises
+                        {recommendedSession.label} · {recommendedSession.focusLabel} ·{' '}
+                        {recommendedSession.session.timeWindow.replace('_', ' ')} ·{' '}
+                        {recommendedSession.exercisesCount} exercises
                       </p>
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        {!hasActiveSession && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleStartWorkout(workout, planDay, schedule.id)}
-                            disabled={startingScheduleId === schedule.id}
-                          >
-                            {startingScheduleId === schedule.id ? 'Starting...' : 'Start Session'}
-                          </Button>
-                        )}
-                        <Link href={`/workout/${workout.id}?day=${planDay.dayOfWeek}`}>
-                          <Button variant="ghost" size="sm">
-                            View Details
-                          </Button>
-                        </Link>
-                      </div>
                     </div>
-                  )
-                })}
+                    <span className="badge-accent">Next Up</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {!hasActiveSession && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() =>
+                          handleStartWorkout(
+                            activePlan,
+                            recommendedSession.session,
+                            recommendedSession.label,
+                            `${activePlan.id}-${recommendedSession.index}`
+                          )
+                        }
+                        disabled={startingSessionKey === `${activePlan.id}-${recommendedSession.index}`}
+                      >
+                        {startingSessionKey === `${activePlan.id}-${recommendedSession.index}` ? 'Starting...' : 'Start Session'}
+                      </Button>
+                    )}
+                    <Link href={`/workout/${activePlan.id}?day=${recommendedSession.session.dayOfWeek}`}>
+                      <Button variant="ghost" size="sm">
+                        View Details
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+
+                {otherSessions.length > 0 && (
+                  <details className="rounded-lg border border-[var(--color-border)] p-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-strong">
+                      Other Sessions
+                    </summary>
+                    <div className="mt-4 grid gap-3">
+                      {otherSessions.map((card) => (
+                        <div key={card.label} className="space-y-2 rounded-lg border border-[var(--color-border)] p-4">
+                          <p className="text-sm font-semibold text-strong">{card.label}</p>
+                          <p className="text-xs text-subtle">
+                            {card.focusLabel} · {card.session.timeWindow.replace('_', ' ')} · {card.exercisesCount} exercises
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {!hasActiveSession && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() =>
+                                  handleStartWorkout(
+                                    activePlan,
+                                    card.session,
+                                    card.label,
+                                    `${activePlan.id}-${card.index}`
+                                  )
+                                }
+                                disabled={startingSessionKey === `${activePlan.id}-${card.index}`}
+                              >
+                                {startingSessionKey === `${activePlan.id}-${card.index}` ? 'Starting...' : 'Start Session'}
+                              </Button>
+                            )}
+                            <Link href={`/workout/${activePlan.id}?day=${card.session.dayOfWeek}`}>
+                              <Button variant="ghost" size="sm">
+                                View Details
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
               </div>
             ) : (
               <div className="mt-4 space-y-3 rounded-lg border border-dashed border-[var(--color-border)] p-4">
-                <p className="text-sm font-semibold text-strong">Rest day</p>
-                <p className="text-xs text-subtle">No session is scheduled for today.</p>
+                <p className="text-sm font-semibold text-strong">No active plan yet</p>
+                <p className="text-xs text-subtle">Generate or activate a plan to start your rotation.</p>
                 <div className="flex flex-wrap gap-2">
                   <Link href="/generate">
                     <Button variant="secondary" size="sm">Browse Plans</Button>
                   </Link>
-                  {recentWorkouts[0] && !hasActiveSession && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        handleStartWorkout(
-                          recentWorkouts[0],
-                          pickScheduleDay(getWorkoutSchedule(recentWorkouts[0]), todayDayOfWeek),
-                          recentWorkouts[0].id
-                        )
-                      }
-                      disabled={startingScheduleId === recentWorkouts[0].id}
-                    >
-                      Start a Previous Session
-                    </Button>
-                  )}
                 </div>
               </div>
             )}
@@ -752,7 +800,7 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-strong">Continue / Start a Session</h2>
-                <p className="text-sm text-muted">Jump back into a recently generated schedule.</p>
+                <p className="text-sm text-muted">Jump back into a recently generated rotation.</p>
               </div>
             </div>
 
@@ -763,32 +811,41 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 recentWorkouts.map((workout) => {
-                  const schedule = getWorkoutSchedule(workout)
-                  const days = schedule.map((day) => formatDayLabel(day.dayOfWeek, 'short')).join(', ')
-                  const defaultDay = pickScheduleDay(schedule, todayDayOfWeek)
+                  const sessions = getWorkoutSessions(workout)
+                  const defaultSession = sessions[0] ?? null
+                  const sessionCount = sessions.length
+                  const defaultLabel = formatSessionLabel(0)
+                  const sessionKey = `${workout.id}-0`
                   return (
                     <div key={workout.id} className="rounded-lg border border-[var(--color-border)] p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <p className="text-sm font-semibold text-strong">{workout.title}</p>
                           <p className="text-xs text-subtle">
-                            {days ? `Days: ${days}` : 'No schedule data'} · Last generated {formatDate(workout.created_at)}
+                            {sessionCount ? `${sessionCount} sessions` : 'No sessions'} · Last generated {formatDate(workout.created_at)}
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <Button
                             variant="secondary"
                             size="sm"
-                            onClick={() => handleStartWorkout(workout, defaultDay, workout.id)}
-                            disabled={startingScheduleId === workout.id || hasActiveSession}
+                            onClick={() =>
+                              handleStartWorkout(
+                                workout,
+                                defaultSession,
+                                defaultLabel,
+                                sessionKey
+                              )
+                            }
+                            disabled={startingSessionKey === sessionKey || hasActiveSession}
                           >
                             {hasActiveSession
                               ? 'Session Active'
-                              : startingScheduleId === workout.id
+                              : startingSessionKey === sessionKey
                                 ? 'Starting...'
-                                : `Start ${defaultDay ? formatDayLabel(defaultDay.dayOfWeek) : 'Session'}`}
+                                : `Start ${defaultLabel}`}
                           </Button>
-                          <Link href={`/workout/${workout.id}${defaultDay ? `?day=${defaultDay.dayOfWeek}` : ''}`}>
+                          <Link href={`/workout/${workout.id}${defaultSession ? `?day=${defaultSession.dayOfWeek}` : ''}`}>
                             <Button variant="ghost" size="sm">View</Button>
                           </Link>
                           <Button
