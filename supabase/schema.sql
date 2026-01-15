@@ -20,6 +20,7 @@ create table if not exists public.scheduled_sessions (
   day_of_week int not null check (day_of_week between 0 and 6),
   week_start_date date not null,
   order_index int not null default 0,
+  status text not null default 'DRAFT' check (status in ('DRAFT', 'ACTIVE', 'ARCHIVED', 'COMPLETED')),
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );

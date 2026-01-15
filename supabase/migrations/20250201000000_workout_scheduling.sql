@@ -11,6 +11,9 @@ create table if not exists public.scheduled_sessions (
   created_at timestamptz not null default now()
 );
 
+alter table public.scheduled_sessions
+  add column if not exists status text not null default 'DRAFT';
+
 create index if not exists scheduled_sessions_user_week_idx
   on public.scheduled_sessions (user_id, week_start_date, day_of_week, is_active);
 
