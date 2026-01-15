@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  Dumbbell, 
-  Calendar, 
-  RefreshCw, 
-  ChevronRight, 
-  Save, 
-  Clock, 
+import {
+  Dumbbell,
+  Calendar,
+  RefreshCw,
+  ChevronRight,
+  Save,
+  Clock,
   Activity,
   Layers,
   ArrowRight,
@@ -19,73 +19,152 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import Sidebar from "@/components/layout/Sidebar";
 import { useUser } from "@/hooks/useUser";
-import { generateWeeklyPlan, generateWorkoutSession, regenerateSession } from "@/lib/generator";
-import { WeeklySchedule, WorkoutSession } from "@/types/domain";
-import { 
-  saveGeneratedPlan, 
-  SavedWeeklyPlan, 
-  SavedWorkoutSession,
-  saveSessionToDb
-} from "@/lib/saved-sessions";
+import { calculateWorkoutImpact, generatePlan } from "@/lib/generator";
+import { equipmentPresets } from "@/lib/equipment";
+import { formatDayLabel, formatWeekStartDate } from "@/lib/schedule-utils";
+import { createClient } from "@/lib/supabase/client";
+import type { Exercise, FocusArea, GeneratedPlan, Goal, PlanDay, PlanInput } from "@/types/domain";
 
-// Step indicators for the generation wizard
-const STEPS = [
+type ScheduleDay = {
+  id: string;
+  dayOfWeek: number;
+  type: "workout" | "rest";
+  focus?: FocusArea;
+};
+
+const STEP_ICON = [
   { id: 1, name: "Configure", icon: Activity },
   { id: 2, name: "Review Plan", icon: Calendar },
   { id: 3, name: "Finalize", icon: CheckCircle2 }
 ];
 
+const daySequence = [1, 2, 3, 4, 5, 6, 0];
+
+const dayPresets: Record<number, number[]> = {
+  2: [1, 4],
+  3: [1, 3, 5],
+  4: [1, 3, 5, 6],
+  5: [1, 2, 3, 5, 6],
+  6: [1, 2, 3, 4, 5, 6]
+};
+
+const getDaysAvailable = (count: number) => dayPresets[count] ?? dayPresets[4];
+
+const formatFocusLabel = (value?: string) =>
+  value ? value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "";
+
+const formatEquipmentLabel = (equipment: Exercise["equipment"]) => {
+  if (!equipment || equipment.length === 0) return "";
+  const labels = equipment.map((option) => {
+    if (option.kind === "machine") {
+      return option.machineType ? option.machineType.replace(/_/g, " ") : "machine";
+    }
+    return option.kind;
+  });
+  return labels.join(", ");
+};
+
+const buildWeeklySchedule = (plan: GeneratedPlan): ScheduleDay[] => {
+  const planByDay = new Map(plan.schedule.map((day) => [day.dayOfWeek, day]));
+  return daySequence.map((dayOfWeek) => {
+    const scheduledDay = planByDay.get(dayOfWeek);
+    return {
+      id: `day-${dayOfWeek}`,
+      dayOfWeek,
+      type: scheduledDay ? "workout" : "rest",
+      focus: scheduledDay?.focus
+    };
+  });
+};
+
+const buildSessionMap = (plan: GeneratedPlan) =>
+  plan.schedule.reduce<Record<string, PlanDay>>((acc, day) => {
+    acc[`day-${day.dayOfWeek}`] = day;
+    return acc;
+  }, {});
+
 export default function GeneratePage() {
   const router = useRouter();
+  const supabase = createClient();
   const { user, loading: userLoading } = useUser();
-  
-  // State for generation configuration
-  const [goal, setGoal] = useState<string>("strength");
-  const [level, setLevel] = useState<string>("intermediate");
+
+  const [goal, setGoal] = useState<Goal>("strength");
+  const [level, setLevel] = useState<PlanInput["experienceLevel"]>("intermediate");
   const [daysPerWeek, setDaysPerWeek] = useState<number>(4);
-  const [equipment] = useState<string[]>(["gym"]); // Default to gym, selector to be added
+  const [equipmentPreset] = useState<keyof typeof equipmentPresets>("full_gym");
   const [duration, setDuration] = useState<number>(60);
-  
-  // State for generation process
+
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  
-  // State for the generated result
-  const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule | null>(null);
-  const [generatedSessions, setGeneratedSessions] = useState<Record<string, WorkoutSession>>({});
+
+  const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null);
+  const [weeklySchedule, setWeeklySchedule] = useState<ScheduleDay[] | null>(null);
+  const [generatedSessions, setGeneratedSessions] = useState<Record<string, PlanDay>>({});
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  // Redirect if not logged in
   useEffect(() => {
     if (!userLoading && !user) {
       router.push("/auth/login?redirect=/generate");
     }
   }, [user, userLoading, router]);
 
-  // Handle generating the weekly schedule structure
+  const buildPlanInput = (
+    daysAvailable: number[],
+    weeklyLayout?: PlanInput["schedule"]["weeklyLayout"]
+  ): Partial<PlanInput> => ({
+    intent: {
+      mode: "style",
+      style: goal
+    },
+    goals: {
+      primary: goal,
+      priority: "primary"
+    },
+    experienceLevel: level,
+    intensity: "moderate",
+    equipment: {
+      preset: equipmentPreset,
+      inventory: equipmentPresets[equipmentPreset]
+    },
+    time: {
+      minutesPerSession: duration
+    },
+    schedule: {
+      daysAvailable,
+      timeWindows: ["evening"],
+      minRestDays: 1,
+      weeklyLayout
+    },
+    preferences: {
+      focusAreas: [],
+      dislikedActivities: [],
+      accessibilityConstraints: [],
+      restPreference: "balanced"
+    }
+  });
+
   const handleGenerateSchedule = async () => {
     setIsGenerating(true);
     setGenerationError(null);
-    
+
     try {
-      // Simulate API delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const schedule = generateWeeklyPlan({
-        goal,
-        level,
-        daysPerWeek,
-        equipment,
-        durationMinutes: duration
-      });
-      
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      const { plan, errors } = generatePlan(buildPlanInput(getDaysAvailable(daysPerWeek)));
+      if (!plan || errors.length > 0) {
+        setGenerationError(errors[0] ?? "Failed to generate schedule. Please try again.");
+        return;
+      }
+
+      const schedule = buildWeeklySchedule(plan);
+      setGeneratedPlan(plan);
       setWeeklySchedule(schedule);
+      setGeneratedSessions(buildSessionMap(plan));
       setCurrentStep(2);
-      
-      // Auto-expand the first workout day
-      const firstWorkoutDay = schedule.find(d => d.type === 'workout');
+
+      const firstWorkoutDay = schedule.find((day) => day.type === "workout");
       if (firstWorkoutDay) {
         setExpandedDay(firstWorkoutDay.id);
       }
@@ -97,125 +176,121 @@ export default function GeneratePage() {
     }
   };
 
-  // Handle generating specific workout sessions for days
-  useEffect(() => {
-    if (currentStep === 2 && weeklySchedule) {
-      const generateSessions = async () => {
-        const sessions: Record<string, WorkoutSession> = {};
-        
-        // Find days that need workouts but don't have them yet
-        const workoutDays = weeklySchedule.filter(
-          day => day.type === 'workout' && !generatedSessions[day.id]
-        );
-        
-        if (workoutDays.length > 0) {
-          // Generate sessions for these days
-          workoutDays.forEach(day => {
-            if (day.focus) {
-              const session = generateWorkoutSession({
-                focus: day.focus,
-                level,
-                goal,
-                durationMinutes: duration,
-                equipment
-              });
-              sessions[day.id] = session;
-            }
-          });
-          
-          setGeneratedSessions(prev => ({ ...prev, ...sessions }));
-        }
-      };
-      
-      generateSessions();
-    }
-  }, [currentStep, weeklySchedule, level, goal, duration, equipment, generatedSessions]);
+  const handleRegenerateSession = async (dayId: string) => {
+    if (!generatedPlan || !weeklySchedule) return;
+    const scheduleDay = weeklySchedule.find((day) => day.id === dayId);
+    if (!scheduleDay || scheduleDay.type !== "workout") return;
 
-  // Regenerate a specific session
-  const handleRegenerateSession = (dayId: string) => {
-    const day = weeklySchedule?.find(d => d.id === dayId);
-    if (!day || day.type !== 'workout' || !day.focus) return;
-    
     setIsGenerating(true);
-    
-    // Small delay for UX
-    setTimeout(() => {
-      const newSession = regenerateSession(
-        generatedSessions[dayId], 
-        {
-          focus: day.focus!,
-          level,
-          goal,
-          durationMinutes: duration,
-          equipment
-        }
-      );
-      
-      setGeneratedSessions(prev => ({
-        ...prev,
-        [dayId]: newSession
+    setGenerationError(null);
+
+    try {
+      const daysAvailable = generatedPlan.schedule.map((day) => day.dayOfWeek);
+      const weeklyLayout = generatedPlan.schedule.map((day) => ({
+        dayOfWeek: day.dayOfWeek,
+        style: generatedPlan.goal,
+        focus: day.focus
       }));
+
+      const { plan, errors } = generatePlan(buildPlanInput(daysAvailable, weeklyLayout));
+      if (!plan || errors.length > 0) {
+        setGenerationError(errors[0] ?? "Unable to regenerate this session.");
+        return;
+      }
+
+      const refreshedDay = plan.schedule.find((day) => day.dayOfWeek === scheduleDay.dayOfWeek);
+      if (!refreshedDay) return;
+
+      setGeneratedSessions((prev) => ({
+        ...prev,
+        [dayId]: refreshedDay
+      }));
+
+      setGeneratedPlan((prev) => {
+        if (!prev) return prev;
+        const updatedSchedule = prev.schedule.map((day) =>
+          day.dayOfWeek === refreshedDay.dayOfWeek ? refreshedDay : day
+        );
+        const totalMinutes = updatedSchedule.reduce((sum, day) => sum + day.durationMinutes, 0);
+        return {
+          ...prev,
+          schedule: updatedSchedule,
+          summary: {
+            ...prev.summary,
+            totalMinutes,
+            impact: calculateWorkoutImpact(updatedSchedule)
+          }
+        };
+      });
+    } catch (error) {
+      console.error("Error regenerating session:", error);
+      setGenerationError("Unable to regenerate this session. Please try again.");
+    } finally {
       setIsGenerating(false);
-    }, 600);
+    }
   };
 
-  // Save the plan to the database
   const handleSavePlan = async () => {
-    if (!user || !weeklySchedule) return;
-    
+    if (!user || !generatedPlan || !weeklySchedule) return;
+
     setIsSaving(true);
+    setGenerationError(null);
+
     try {
-      // 1. Prepare the plan data
-      const planToSave: SavedWeeklyPlan = {
-        userId: user.uid,
-        name: `${goal.charAt(0).toUpperCase() + goal.slice(1)} Plan`,
-        description: `${daysPerWeek} days/week ${level} program`,
-        startDate: new Date().toISOString(),
-        durationWeeks: 4, // Default to 4 weeks
-        schedule: weeklySchedule.map(day => ({
-          dayOfWeek: day.dayOfWeek,
-          type: day.type,
-          focus: day.focus,
-          isRest: day.type === 'rest'
-        })),
-        metadata: {
-          generatedAt: new Date().toISOString(),
-          settings: {
-            goal,
-            level,
-            daysPerWeek,
-            equipment
-          }
-        }
+      const schedulePayload = weeklySchedule
+        .filter((day) => day.type === "workout")
+        .map((day) => generatedSessions[day.id])
+        .filter((day): day is PlanDay => Boolean(day));
+
+      const totalMinutes = schedulePayload.reduce((sum, day) => sum + day.durationMinutes, 0);
+      const impact = calculateWorkoutImpact(schedulePayload);
+      const summaryPayload = {
+        ...generatedPlan.summary,
+        totalMinutes,
+        impact
       };
 
-      // 2. Save the plan structure
-      const savedPlanId = await saveGeneratedPlan(planToSave);
-      
-      // 3. Save individual workout sessions
-      // We only save the "template" sessions for now
-      const saveSessionPromises = weeklySchedule
-        .filter(day => day.type === 'workout' && generatedSessions[day.id])
-        .map(day => {
-          const session = generatedSessions[day.id];
-          const sessionToSave: SavedWorkoutSession = {
-            userId: user.uid,
-            planId: savedPlanId,
-            name: session.name,
-            focus: session.focus,
-            exercises: session.exercises,
-            difficulty: session.difficulty,
-            estimatedDuration: session.estimatedDuration,
-            scheduledDay: day.dayOfWeek
-          };
-          return saveSessionToDb(sessionToSave);
-        });
-        
-      await Promise.all(saveSessionPromises);
-      
-      // 4. Navigate to dashboard or success page
-      router.push('/dashboard?planCreated=true');
-      
+      const exercisesPayload = {
+        schedule: schedulePayload,
+        summary: summaryPayload,
+        inputs: generatedPlan.inputs
+      };
+
+      const { data: workout, error: workoutError } = await supabase
+        .from("workouts")
+        .insert({
+          user_id: user.id,
+          title: generatedPlan.title,
+          description: generatedPlan.description,
+          goal: generatedPlan.goal,
+          level: generatedPlan.level,
+          exercises: exercisesPayload
+        })
+        .select("id")
+        .single();
+
+      if (workoutError || !workout) {
+        throw workoutError ?? new Error("Unable to save workout.");
+      }
+
+      const weekStartDate = formatWeekStartDate(new Date());
+      const scheduleRows = schedulePayload.map((day, index) => ({
+        user_id: user.id,
+        workout_id: workout.id,
+        day_of_week: day.dayOfWeek,
+        week_start_date: weekStartDate,
+        order_index: index,
+        is_active: true
+      }));
+
+      if (scheduleRows.length > 0) {
+        const { error: scheduleError } = await supabase.from("scheduled_sessions").insert(scheduleRows);
+        if (scheduleError) {
+          throw scheduleError;
+        }
+      }
+
+      router.push("/dashboard?planCreated=true");
     } catch (error) {
       console.error("Error saving plan:", error);
       setGenerationError("Failed to save your plan. Please try again.");
@@ -224,11 +299,9 @@ export default function GeneratePage() {
     }
   };
 
-  // Render Step 1: Configuration
   const renderConfigurationStep = () => (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Goal Selection */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center">
             <Activity className="w-5 h-5 mr-2 text-blue-600" />
@@ -236,19 +309,37 @@ export default function GeneratePage() {
           </h3>
           <div className="space-y-3">
             {[
-              { id: "strength", label: "Strength & Power", desc: "Focus on increasing raw strength and lifting capacity" },
-              { id: "hypertrophy", label: "Muscle Growth", desc: "Maximize muscle size and definition (Bodybuilding)" },
-              { id: "endurance", label: "Endurance", desc: "Improve stamina and cardiovascular health" },
-              { id: "weight-loss", label: "Weight Loss", desc: "High calorie burn with circuit-style training" }
+              {
+                id: "strength",
+                label: "Strength & Power",
+                desc: "Focus on increasing raw strength and lifting capacity"
+              },
+              {
+                id: "hypertrophy",
+                label: "Muscle Growth",
+                desc: "Maximize muscle size and definition (Bodybuilding)"
+              },
+              {
+                id: "endurance",
+                label: "Endurance",
+                desc: "Improve stamina and cardiovascular health"
+              },
+              {
+                id: "general_fitness",
+                label: "General Fitness",
+                desc: "Build a balanced routine with strength and conditioning"
+              }
             ].map((option) => (
-              <div 
+              <div
                 key={option.id}
-                onClick={() => setGoal(option.id)}
+                onClick={() => setGoal(option.id as Goal)}
                 className={`
                   p-4 rounded-xl border-2 cursor-pointer transition-all duration-200
-                  ${goal === option.id 
-                    ? "border-blue-600 bg-blue-50/50 dark:bg-blue-900/10" 
-                    : "border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800"}
+                  ${
+                    goal === option.id
+                      ? "border-blue-600 bg-blue-50/50 dark:bg-blue-900/10"
+                      : "border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800"
+                  }
                 `}
               >
                 <div className="font-medium text-gray-900 dark:text-gray-100">{option.label}</div>
@@ -258,7 +349,6 @@ export default function GeneratePage() {
           </div>
         </Card>
 
-        {/* Level & Schedule */}
         <div className="space-y-6">
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center">
@@ -266,18 +356,20 @@ export default function GeneratePage() {
               Experience Level
             </h3>
             <div className="grid grid-cols-3 gap-3">
-              {['beginner', 'intermediate', 'advanced'].map((l) => (
+              {["beginner", "intermediate", "advanced"].map((value) => (
                 <button
-                  key={l}
-                  onClick={() => setLevel(l)}
+                  key={value}
+                  onClick={() => setLevel(value as PlanInput["experienceLevel"])}
                   className={`
                     py-2 px-4 rounded-lg text-sm font-medium capitalize transition-colors
-                    ${level === l
-                      ? "bg-blue-600 text-white shadow-md shadow-blue-200 dark:shadow-none"
-                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"}
+                    ${
+                      level === value
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-200 dark:shadow-none"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    }
                   `}
                 >
-                  {l}
+                  {value}
                 </button>
               ))}
             </div>
@@ -299,7 +391,7 @@ export default function GeneratePage() {
                   max="6"
                   step="1"
                   value={daysPerWeek}
-                  onChange={(e) => setDaysPerWeek(parseInt(e.target.value))}
+                  onChange={(e) => setDaysPerWeek(Number.parseInt(e.target.value, 10))}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-2">
@@ -323,9 +415,11 @@ export default function GeneratePage() {
                   onClick={() => setDuration(mins)}
                   className={`
                     flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors border
-                    ${duration === mins
-                      ? "border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
-                      : "border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300"}
+                    ${
+                      duration === mins
+                        ? "border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+                        : "border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300"
+                    }
                   `}
                 >
                   {mins} min
@@ -337,8 +431,8 @@ export default function GeneratePage() {
       </div>
 
       <div className="flex justify-end pt-4">
-        <Button 
-          onClick={handleGenerateSchedule} 
+        <Button
+          onClick={handleGenerateSchedule}
           disabled={isGenerating}
           className="w-full md:w-auto text-lg px-8 py-6"
         >
@@ -357,7 +451,6 @@ export default function GeneratePage() {
     </div>
   );
 
-  // Render Step 2: Review Schedule
   const renderReviewStep = () => {
     if (!weeklySchedule) return null;
 
@@ -369,54 +462,64 @@ export default function GeneratePage() {
             <p className="text-gray-500 dark:text-gray-400">Here&apos;s your suggested {daysPerWeek}-day split.</p>
           </div>
           <div className="flex gap-3">
-             <Button variant="outline" onClick={() => setCurrentStep(1)}>
-               Back
-             </Button>
-             <Button onClick={() => handleSavePlan()} disabled={isSaving}>
-               {isSaving ? (
-                 <span className="flex items-center"><RefreshCw className="w-4 h-4 mr-2 animate-spin"/> Saving...</span>
-               ) : (
-                 <span className="flex items-center"><Save className="w-4 h-4 mr-2"/> Save Plan</span>
-               )}
-             </Button>
+            <Button variant="outline" onClick={() => setCurrentStep(1)}>
+              Back
+            </Button>
+            <Button onClick={handleSavePlan} disabled={isSaving}>
+              {isSaving ? (
+                <span className="flex items-center">
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Saving...
+                </span>
+              ) : (
+                <span className="flex items-center">
+                  <Save className="w-4 h-4 mr-2" /> Save Plan
+                </span>
+              )}
+            </Button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Weekly Overview Sidebar */}
           <div className="lg:col-span-1 space-y-3">
             {weeklySchedule.map((day) => (
-              <div 
+              <div
                 key={day.id}
-                onClick={() => day.type === 'workout' && setExpandedDay(day.id)}
+                onClick={() => day.type === "workout" && setExpandedDay(day.id)}
                 className={`
                   p-4 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between
-                  ${expandedDay === day.id 
-                    ? "border-blue-600 bg-white dark:bg-gray-800 shadow-lg scale-[1.02]" 
-                    : "border-transparent bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800"}
-                  ${day.type === 'rest' ? "opacity-60 grayscale" : ""}
+                  ${
+                    expandedDay === day.id
+                      ? "border-blue-600 bg-white dark:bg-gray-800 shadow-lg scale-[1.02]"
+                      : "border-transparent bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  }
+                  ${day.type === "rest" ? "opacity-60 grayscale" : ""}
                 `}
               >
                 <div className="flex items-center">
-                  <div className={`
+                  <div
+                    className={`
                     w-10 h-10 rounded-full flex items-center justify-center mr-3 font-bold text-sm
-                    ${day.type === 'workout' ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}
-                  `}>
-                    {day.dayOfWeek.substring(0, 3)}
+                    ${day.type === "workout" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}
+                  `}
+                  >
+                    {formatDayLabel(day.dayOfWeek, "short")}
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-900 dark:text-white">{day.type === 'workout' ? day.focus : "Rest Day"}</div>
+                    <div className="font-semibold text-gray-900 dark:text-white">
+                      {day.type === "workout" ? formatFocusLabel(day.focus) : "Rest Day"}
+                    </div>
                     <div className="text-xs text-gray-500 capitalize">{day.type}</div>
                   </div>
                 </div>
-                {day.type === 'workout' && (
-                  <ChevronRight className={`w-5 h-5 text-gray-400 ${expandedDay === day.id ? "rotate-90 text-blue-500" : ""}`} />
+                {day.type === "workout" && (
+                  <ChevronRight
+                    className={`w-5 h-5 text-gray-400 ${expandedDay === day.id ? "rotate-90 text-blue-500" : ""}`}
+                  />
                 )}
               </div>
             ))}
           </div>
 
-          {/* Detailed Session View */}
           <div className="lg:col-span-2">
             {expandedDay ? (
               <Card className="h-full overflow-hidden flex flex-col">
@@ -425,50 +528,70 @@ export default function GeneratePage() {
                     <div className="p-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-start">
                       <div>
                         <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                          {generatedSessions[expandedDay].name}
+                          {formatDayLabel(generatedSessions[expandedDay].dayOfWeek)} · {formatFocusLabel(generatedSessions[expandedDay].focus)}
                         </h3>
                         <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          <span className="flex items-center"><Clock className="w-4 h-4 mr-1"/> {generatedSessions[expandedDay].estimatedDuration} min</span>
-                          <span className="flex items-center"><Dumbbell className="w-4 h-4 mr-1"/> {generatedSessions[expandedDay].exercises.length} Exercises</span>
+                          <span className="flex items-center">
+                            <Clock className="w-4 h-4 mr-1" /> {generatedSessions[expandedDay].durationMinutes} min
+                          </span>
+                          <span className="flex items-center">
+                            <Dumbbell className="w-4 h-4 mr-1" /> {generatedSessions[expandedDay].exercises.length} Exercises
+                          </span>
                           <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium uppercase">
-                            {generatedSessions[expandedDay].difficulty}
+                            {level}
                           </span>
                         </div>
                       </div>
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         variant="outline"
                         onClick={() => handleRegenerateSession(expandedDay)}
                         disabled={isGenerating}
                       >
-                        <RefreshCw className={`w-4 h-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`w-4 h-4 mr-2 ${isGenerating ? "animate-spin" : ""}`} />
                         Regenerate
                       </Button>
                     </div>
-                    
+
                     <div className="flex-1 overflow-y-auto p-6 space-y-4 max-h-[600px]">
-                      {generatedSessions[expandedDay].exercises.map((ex, idx) => (
-                        <div key={ex.id} className="flex items-start p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-sm font-bold text-gray-500 mr-4 mt-1">
-                            {idx + 1}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex justify-between mb-1">
-                              <h4 className="font-semibold text-gray-900 dark:text-white">{ex.name}</h4>
-                              <span className="text-xs font-mono text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                                {ex.sets} x {ex.reps}
-                              </span>
+                      {generatedSessions[expandedDay].exercises.map((exercise, idx) => {
+                        const muscleLabel =
+                          exercise.primaryBodyParts?.[0] ??
+                          exercise.primaryMuscle ??
+                          exercise.focus ??
+                          "";
+                        const equipmentLabel = formatEquipmentLabel(exercise.equipment);
+                        const details = [muscleLabel, equipmentLabel].filter(Boolean).join(" • ");
+                        return (
+                          <div
+                            key={`${exercise.name}-${idx}`}
+                            className="flex items-start p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800"
+                          >
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-sm font-bold text-gray-500 mr-4 mt-1">
+                              {idx + 1}
                             </div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 line-clamp-1">{ex.targetMuscle} • {ex.equipment}</p>
-                            
-                            {ex.notes && (
-                              <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
-                                Tip: {ex.notes}
+                            <div className="flex-1">
+                              <div className="flex justify-between mb-1">
+                                <h4 className="font-semibold text-gray-900 dark:text-white">{exercise.name}</h4>
+                                <span className="text-xs font-mono text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                                  {exercise.sets} x {exercise.reps}
+                                </span>
                               </div>
-                            )}
+                              {details && (
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 line-clamp-1">
+                                  {details}
+                                </p>
+                              )}
+
+                              {exercise.instructions?.[0] && (
+                                <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
+                                  Tip: {exercise.instructions[0]}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </>
                 ) : (
@@ -496,8 +619,6 @@ export default function GeneratePage() {
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto p-8">
-          
-          {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight mb-2">
               Generate New Plan
@@ -507,28 +628,33 @@ export default function GeneratePage() {
             </p>
           </div>
 
-          {/* Progress Steps */}
           <div className="mb-12">
             <div className="flex items-center justify-between relative">
               <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200 dark:bg-gray-800 -z-10" />
-              {STEPS.map((step) => {
+              {STEP_ICON.map((step) => {
                 const Icon = step.icon;
                 const isCompleted = step.id < currentStep;
                 const isCurrent = step.id === currentStep;
-                
+
                 return (
                   <div key={step.id} className="flex flex-col items-center bg-white dark:bg-black px-4">
-                    <div className={`
+                    <div
+                      className={`
                       w-10 h-10 rounded-full flex items-center justify-center border-2 mb-2 transition-colors duration-300
-                      ${isCompleted 
-                        ? "bg-green-500 border-green-500 text-white" 
-                        : isCurrent 
-                          ? "bg-blue-600 border-blue-600 text-white" 
-                          : "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-400"}
-                    `}>
+                      ${
+                        isCompleted
+                          ? "bg-green-500 border-green-500 text-white"
+                          : isCurrent
+                            ? "bg-blue-600 border-blue-600 text-white"
+                            : "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-400"
+                      }
+                    `}
+                    >
                       {isCompleted ? <CheckCircle2 className="w-6 h-6" /> : <Icon className="w-5 h-5" />}
                     </div>
-                    <span className={`text-sm font-medium ${isCurrent ? "text-gray-900 dark:text-white" : "text-gray-500"}`}>
+                    <span
+                      className={`text-sm font-medium ${isCurrent ? "text-gray-900 dark:text-white" : "text-gray-500"}`}
+                    >
                       {step.name}
                     </span>
                   </div>
@@ -537,7 +663,6 @@ export default function GeneratePage() {
             </div>
           </div>
 
-          {/* Error Display */}
           {generationError && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center text-red-700">
               <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
@@ -545,12 +670,10 @@ export default function GeneratePage() {
             </div>
           )}
 
-          {/* Step Content */}
           <div className="min-h-[400px]">
             {currentStep === 1 && renderConfigurationStep()}
             {currentStep === 2 && renderReviewStep()}
           </div>
-
         </div>
       </main>
     </div>
