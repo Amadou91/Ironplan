@@ -26,7 +26,7 @@ import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
-import type { Exercise, PlanDay, WorkoutLog, WorkoutPlan } from '@/types/domain'
+import type { Exercise, PlanDay, PlanStatus, WorkoutLog, WorkoutPlan } from '@/types/domain'
 
 const formatDate = (value: string) => {
   const date = new Date(value)
@@ -49,6 +49,9 @@ const formatDuration = (start?: string | null, end?: string | null) => {
   const minutes = Math.round(diff / 60000)
   return `${minutes} min`
 }
+
+const isPlanStatus = (value?: string | null): value is PlanStatus =>
+  value === 'DRAFT' || value === 'ACTIVE' || value === 'ARCHIVED' || value === 'COMPLETED'
 
 const getWeekKey = (value: string) => {
   const date = new Date(value)
@@ -310,7 +313,7 @@ export default function DashboardPage() {
       goal: activePlan.goal ?? '',
       sessions: planSessions,
       createdAt: activePlan.created_at,
-      status: activePlan.status ?? undefined
+      status: isPlanStatus(activePlan.status) ? activePlan.status : undefined
     }
     const history: WorkoutLog[] = sessions.map((session) => ({
       workoutId: session.workout_id ?? '',
