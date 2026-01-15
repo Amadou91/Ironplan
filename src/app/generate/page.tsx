@@ -41,11 +41,7 @@ const focusOptions: { value: PlanInput['preferences']['focusAreas'][number]; lab
 ]
 const buildSavedSessionName = (plan: GeneratedPlan, day: PlanDay) => formatSessionName(day, plan.goal)
 
-const buildWorkoutTitle = (plan: GeneratedPlan) => {
-  const uniqueDays = Array.from(new Set(plan.schedule.map((day) => day.dayOfWeek))).sort((a, b) => a - b)
-  const dayLabels = uniqueDays.map((day) => formatDayLabel(day)).join(', ')
-  return dayLabels ? `${plan.title} · ${dayLabels}` : plan.title
-}
+const buildWorkoutTitle = (plan: GeneratedPlan) => plan.title
 
 export default function GeneratePage() {
   const router = useRouter()

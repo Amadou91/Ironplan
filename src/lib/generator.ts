@@ -827,11 +827,14 @@ export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: Generat
   })
 
   const totalMinutes = schedule.reduce((sum, day) => sum + day.durationMinutes, 0)
-  const uniqueStyles = Array.from(new Set(schedule.map((day) => weeklyLayout.find((entry) => entry.dayOfWeek === day.dayOfWeek)?.style ?? normalized.goals.primary)))
-  const title =
-    uniqueStyles.length === 1
-      ? `${uniqueStyles[0].replace('_', ' ').toUpperCase()} PLAN`
-      : 'CUSTOM WEEKLY PLAN'
+  const uniqueStyles = Array.from(
+    new Set(
+      schedule.map(
+        (day) => weeklyLayout.find((entry) => entry.dayOfWeek === day.dayOfWeek)?.style ?? normalized.goals.primary
+      )
+    )
+  )
+  const title = `${normalized.goals.primary.replace('_', ' ').toUpperCase()} WORKOUT PLAN`
   const description =
     uniqueStyles.length === 1
       ? `${sessionsPerWeek} sessions/week · ${minutesPerSession} min/session · Focus on ${uniqueStyles[0].replace('_', ' ')}.`
