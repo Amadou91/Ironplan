@@ -14,6 +14,7 @@ type ActiveSessionProps = {
 
 type SessionPayload = {
   id: string;
+  user_id: string | null;
   name: string;
   workout_id: string | null;
   started_at: string;
@@ -49,7 +50,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
   const mapSession = useCallback((payload: SessionPayload): WorkoutSession => {
     return {
       id: payload.id,
-      userId: '',
+      userId: payload.user_id ?? '',
       workoutId: payload.workout_id ?? undefined,
       name: payload.name,
       startedAt: payload.started_at,
@@ -89,7 +90,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-          'id, name, workout_id, started_at, ended_at, status, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
+          'id, user_id, name, workout_id, started_at, ended_at, status, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
         )
         .eq('id', sessionId)
         .single();

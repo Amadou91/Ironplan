@@ -127,6 +127,7 @@ type ScheduledSessionRow = {
 }
 
 const chartColors = ['#6366f1', '#22c55e', '#0ea5e9', '#f59e0b', '#ec4899']
+const SESSION_PAGE_SIZE = 20
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -152,6 +153,8 @@ export default function DashboardPage() {
   const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null)
   const [deletingWorkoutIds, setDeletingWorkoutIds] = useState<Record<string, boolean>>({})
   const [sessionsLoaded, setSessionsLoaded] = useState(false)
+  const [sessionPage, setSessionPage] = useState(0)
+  const [hasMoreSessions, setHasMoreSessions] = useState(true)
   const hasActiveSession = Boolean(activeSession)
   const activeSessionLink = activeSession?.workoutId
     ? `/workout/${activeSession.workoutId}?session=active&sessionId=${activeSession.id}`
@@ -175,9 +178,15 @@ export default function DashboardPage() {
     if (userLoading) return
     if (!user) return
 
+    setSessions([])
+    setSessionPage(0)
+    setHasMoreSessions(true)
+
     const loadSessions = async () => {
       setLoading(true)
       setSessionsLoaded(false)
+      const startIndex = 0
+      const endIndex = SESSION_PAGE_SIZE - 1
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
@@ -185,12 +194,15 @@ export default function DashboardPage() {
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
+        .range(startIndex, endIndex)
 
       if (fetchError) {
         console.error('Failed to load sessions', fetchError)
         setError('Unable to load sessions. Please try again.')
       } else {
-        setSessions((data as SessionRow[]) ?? [])
+        const nextSessions = (data as SessionRow[]) ?? []
+        setSessions(nextSessions)
+        setHasMoreSessions(nextSessions.length === SESSION_PAGE_SIZE)
         setSessionsLoaded(true)
       }
       setLoading(false)
@@ -198,6 +210,38 @@ export default function DashboardPage() {
 
     loadSessions()
   }, [supabase, user, userLoading])
+
+  useEffect(() => {
+    if (userLoading) return
+    if (!user) return
+    if (sessionPage === 0) return
+
+    const loadMoreSessions = async () => {
+      setLoading(true)
+      const startIndex = sessionPage * SESSION_PAGE_SIZE
+      const endIndex = startIndex + SESSION_PAGE_SIZE - 1
+      const { data, error: fetchError } = await supabase
+        .from('sessions')
+        .select(
+          'id, name, workout_id, started_at, ended_at, status, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
+        )
+        .eq('user_id', user.id)
+        .order('started_at', { ascending: false })
+        .range(startIndex, endIndex)
+
+      if (fetchError) {
+        console.error('Failed to load more sessions', fetchError)
+        setError('Unable to load more sessions. Please try again.')
+      } else {
+        const nextSessions = (data as SessionRow[]) ?? []
+        setSessions((prev) => [...prev, ...nextSessions])
+        setHasMoreSessions(nextSessions.length === SESSION_PAGE_SIZE)
+      }
+      setLoading(false)
+    }
+
+    loadMoreSessions()
+  }, [sessionPage, supabase, user, userLoading])
 
   useEffect(() => {
     if (!sessionsLoaded || !activeSession) return
@@ -208,9 +252,28 @@ export default function DashboardPage() {
       : false
 
     if (!isSessionActive) {
-      endSession()
+      if (!matchedSession) {
+        const refreshStatus = async () => {
+          const { data, error } = await supabase
+            .from('sessions')
+            .select('id, status, ended_at')
+            .eq('id', activeSession.id)
+            .single()
+          if (error) {
+            console.error('Failed to refresh active session', error)
+            return
+          }
+          const stillActive = data?.status === 'active' || (!data?.status && !data?.ended_at)
+          if (!stillActive) {
+            endSession()
+          }
+        }
+        refreshStatus()
+      } else {
+        endSession()
+      }
     }
-  }, [activeSession, endSession, sessions, sessionsLoaded])
+  }, [activeSession, endSession, sessions, sessionsLoaded, supabase])
 
   useEffect(() => {
     if (userLoading) return
@@ -965,6 +1028,17 @@ export default function DashboardPage() {
               })
             )}
           </div>
+          {hasMoreSessions && (
+            <div className="border-t border-[var(--color-border)] px-6 py-4">
+              <Button
+                variant="secondary"
+                onClick={() => setSessionPage((prev) => prev + 1)}
+                disabled={loading}
+              >
+                {loading ? 'Loading...' : 'Load more sessions'}
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
     </div>

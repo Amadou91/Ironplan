@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { WorkoutSession, WorkoutSet } from '@/types/domain';
+import { SessionExercise, WorkoutSession, WorkoutSet } from '@/types/domain';
 
 interface WorkoutState {
   activeSession: WorkoutSession | null;
   startSession: (session: WorkoutSession) => void;
   endSession: () => void;
+  replaceSessionExercise: (exerciseIndex: number, updates: Partial<SessionExercise>) => void;
   updateSet: (exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: string | number | boolean) => void;
   addSet: (exerciseIndex: number) => WorkoutSet | null;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
@@ -19,6 +20,14 @@ export const useWorkoutStore = create<WorkoutState>()(
       startSession: (session) => set({ activeSession: session }),
       
       endSession: () => set({ activeSession: null }),
+
+      replaceSessionExercise: (exerciseIndex, updates) => set((state) => {
+        if (!state.activeSession) return state;
+        const exercises = [...state.activeSession.exercises];
+        if (!exercises[exerciseIndex]) return state;
+        exercises[exerciseIndex] = { ...exercises[exerciseIndex], ...updates };
+        return { activeSession: { ...state.activeSession, exercises } };
+      }),
 
       addSet: (exerciseIndex) => {
         let createdSet: WorkoutSet | null = null;

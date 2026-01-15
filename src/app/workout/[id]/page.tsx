@@ -7,7 +7,7 @@ import { ChevronLeft, Activity, Clock, Flame, Trophy, Gauge, Shuffle, Undo2 } fr
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import type { PlanDay, PlanInput, WorkoutImpact } from '@/types/domain'
-import { enhanceExerciseData, toMuscleLabel } from '@/lib/muscle-utils'
+import { enhanceExerciseData, toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
 import { formatDayLabel } from '@/lib/schedule-utils'
 import { calculateExerciseImpact } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
@@ -73,6 +73,7 @@ export default function WorkoutDetailPage() {
   const [savingSwap, setSavingSwap] = useState(false)
   const startSession = useWorkoutStore((state) => state.startSession)
   const endSession = useWorkoutStore((state) => state.endSession)
+  const replaceSessionExercise = useWorkoutStore((state) => state.replaceSessionExercise)
   const activeSession = useWorkoutStore((state) => state.activeSession)
 
   useEffect(() => {
@@ -160,6 +161,48 @@ export default function WorkoutDetailPage() {
 
   const inventory = inputs?.equipment?.inventory
 
+  const updateActiveSessionSwap = async (replacement: Exercise, index: number) => {
+    if (!activeSession || activeSession.workoutId !== workout?.id) return
+    const sessionExercise = activeSession.exercises[index]
+    if (!sessionExercise?.id) return
+
+    const primaryMuscle = replacement.primaryBodyParts?.[0] ?? replacement.primaryMuscle ?? replacement.focus ?? 'Full Body'
+    const secondaryMuscles = replacement.secondaryBodyParts ?? replacement.secondaryMuscles ?? []
+    const primarySlug = toMuscleSlug(primaryMuscle, 'full_body') ?? 'full_body'
+    const secondarySlugs = secondaryMuscles
+      .map((muscle) => toMuscleSlug(muscle, null))
+      .filter((muscle): muscle is string => Boolean(muscle))
+
+    const { error: exerciseError } = await supabase
+      .from('session_exercises')
+      .update({
+        exercise_name: replacement.name,
+        primary_muscle: primarySlug,
+        secondary_muscles: secondarySlugs
+      })
+      .eq('id', sessionExercise.id)
+
+    if (exerciseError) {
+      throw exerciseError
+    }
+
+    const { error: setDeleteError } = await supabase
+      .from('sets')
+      .delete()
+      .eq('session_exercise_id', sessionExercise.id)
+
+    if (setDeleteError) {
+      throw setDeleteError
+    }
+
+    replaceSessionExercise(index, {
+      name: replacement.name,
+      primaryMuscle: toMuscleLabel(primarySlug),
+      secondaryMuscles: secondarySlugs.map((muscle) => toMuscleLabel(muscle)),
+      sets: []
+    })
+  }
+
   const persistSwap = async (updatedExercises: Exercise[]) => {
     if (!workout || !selectedSchedule || !workout.exercises || Array.isArray(workout.exercises)) return
     setSavingSwap(true)
@@ -181,12 +224,17 @@ export default function WorkoutDetailPage() {
 
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
+        const sessionName = `${workout.title} · ${formatDayLabel(selectedSchedule.dayOfWeek)}`
         const { error: savedSessionError } = await supabase
           .from('saved_sessions')
-          .update({ workouts: updatedExercises, updated_at: new Date().toISOString() })
-          .eq('user_id', user.id)
-          .eq('day_of_week', selectedSchedule.dayOfWeek)
-          .eq('workout_id', workout.id)
+          .upsert({
+            user_id: user.id,
+            workout_id: workout.id,
+            day_of_week: selectedSchedule.dayOfWeek,
+            session_name: sessionName,
+            workouts: updatedExercises,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id,workout_id,day_of_week' })
 
         if (savedSessionError) {
           console.error('Failed to update saved session', savedSessionError)
@@ -231,6 +279,10 @@ export default function WorkoutDetailPage() {
     if (!swapOptions) return
     const previous = sessionExercises[swapOptions.index]
     if (!previous) return
+    if (isCurrentSessionActive && activeSession?.exercises?.[swapOptions.index]?.sets?.length) {
+      const confirmed = confirm('This exercise already has logged sets. Swapping will clear those sets in the active session. Continue?')
+      if (!confirmed) return
+    }
 
     const updated = sessionExercises.map((exercise, idx) =>
       idx === swapOptions.index
@@ -250,7 +302,13 @@ export default function WorkoutDetailPage() {
     setSwapOptions(null)
     setSwapNotice(null)
     setLastSwap({ index: swapOptions.index, previous })
-    await persistSwap(updated)
+    try {
+      await persistSwap(updated)
+      await updateActiveSessionSwap(replacement, swapOptions.index)
+    } catch (error) {
+      console.error('Failed to apply swap', error)
+      setSwapError('Swap saved to the plan, but the active session did not update. Refresh or restart the session.')
+    }
   }
 
   const handleUndoSwap = async () => {
@@ -380,6 +438,11 @@ export default function WorkoutDetailPage() {
             {swapError && (
               <div className="alert-error px-3 py-2 text-xs">
                 {swapError}
+              </div>
+            )}
+            {isCurrentSessionActive && (
+              <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-muted">
+                Swaps made here will update your active session and reset any logged sets for the swapped exercise.
               </div>
             )}
             {lastSwap && (
