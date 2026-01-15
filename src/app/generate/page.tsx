@@ -459,7 +459,7 @@ export default function GeneratePage() {
         const selectedDays = plan.schedule.map(day => day.dayOfWeek)
         const { data: existingSessions, error: existingError } = await supabase
           .from('saved_sessions')
-          .select('id, day_of_week, session_name, updated_at')
+          .select('id, day_of_week, session_name, updated_at, workout_id')
           .eq('user_id', user.id)
           .in('day_of_week', selectedDays)
 
@@ -468,6 +468,18 @@ export default function GeneratePage() {
           setSaveError(`Plan generated, but saving sessions failed: ${existingError.message}`)
           return
         }
+
+        logEvent('info', 'saved_sessions_conflict_check', {
+          userId: user.id,
+          selectedDays,
+          existingSessions: (existingSessions ?? []).map((session) => ({
+            id: session.id,
+            dayOfWeek: session.day_of_week,
+            sessionName: session.session_name,
+            updatedAt: session.updated_at,
+            workoutId: session.workout_id
+          }))
+        })
 
         const { conflicts, availableDays } = resolveSavedSessionConflicts(selectedDays, existingSessions ?? [])
         const createdDays = [...availableDays]
@@ -500,6 +512,14 @@ export default function GeneratePage() {
           conflicts,
           workoutId: data.id
         })
+
+        if (conflicts.length > 0) {
+          logEvent('info', 'saved_sessions_conflicts_detected', {
+            userId: user.id,
+            conflicts,
+            availableDays
+          })
+        }
       } else {
         console.error('Failed to save plan', { error: 'No data returned from insert.' })
         setSaveError('Failed to generate plan. No data returned from insert.')
@@ -543,21 +563,35 @@ export default function GeneratePage() {
   const handleReplaceConflicts = async () => {
     if (!user || !saveSummary || !lastGeneratedPlan) return
     const conflictDays = saveSummary.conflicts.map((conflict) => conflict.dayOfWeek)
-    if (conflictDays.length === 0) return
+    const conflictSessionIds = saveSummary.conflicts.map((conflict) => conflict.sessionId)
+    if (conflictDays.length === 0 || conflictSessionIds.length === 0) return
     if (!confirm('Delete the existing sessions for these days and replace them with the new plan?')) return
 
     setIsReplacing(true)
     setSaveError(null)
 
     try {
-      const { error: deleteError } = await supabase
+      const { data: deletedSessions, error: deleteError } = await supabase
         .from('saved_sessions')
         .delete()
         .eq('user_id', user.id)
-        .in('day_of_week', conflictDays)
+        .in('id', conflictSessionIds)
+        .select('id, day_of_week')
 
       if (deleteError) {
         throw deleteError
+      }
+
+      const deletedSessionIds = (deletedSessions ?? []).map((session) => session.id)
+      logEvent('info', 'saved_sessions_conflicts_deleted', {
+        userId: user.id,
+        requestedSessionIds: conflictSessionIds,
+        deletedSessionIds,
+        deletedDays: (deletedSessions ?? []).map((session) => session.day_of_week)
+      })
+
+      if (deletedSessionIds.length === 0) {
+        throw new Error('No saved sessions were deleted for the selected conflict days.')
       }
 
       const replacementRows = lastGeneratedPlan.schedule
@@ -585,6 +619,15 @@ export default function GeneratePage() {
         ...saveSummary,
         createdDays: Array.from(new Set([...saveSummary.createdDays, ...conflictDays])),
         conflicts: []
+      })
+
+      logEvent('info', 'saved_sessions_conflicts_replaced', {
+        userId: user.id,
+        replacedDays: conflictDays,
+        insertedSessions: replacementRows.map((row) => ({
+          dayOfWeek: row.day_of_week,
+          sessionName: row.session_name
+        }))
       })
     } catch (error) {
       console.error('Failed to replace saved sessions', error)
