@@ -47,6 +47,8 @@ export default function WorkoutDetailPage() {
   const [startError, setStartError] = useState<string | null>(null)
   const [finishError, setFinishError] = useState<string | null>(null)
   const [finishingSession, setFinishingSession] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [cancelingSession, setCancelingSession] = useState(false)
   const [sessionExercises, setSessionExercises] = useState<Exercise[]>([])
   const [swapOptions, setSwapOptions] = useState<{
     index: number
@@ -392,6 +394,28 @@ export default function WorkoutDetailPage() {
     }
   }
 
+  const handleCancelSession = async () => {
+    if (!activeSession) return
+    if (!confirm('Cancel this session and discard any logged sets?')) return
+    setCancelError(null)
+    setCancelingSession(true)
+    try {
+      const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', activeSession.id)
+
+      if (error) throw error
+      endSession()
+      router.push('/dashboard')
+    } catch (error) {
+      console.error('Failed to cancel workout:', error)
+      setCancelError('Failed to cancel workout. Please try again.')
+    } finally {
+      setCancelingSession(false)
+    }
+  }
+
   return (
     <div className="page-shell">
       <div className="w-full px-4 py-8 sm:px-6 lg:px-10 2xl:px-16">
@@ -579,14 +603,29 @@ export default function WorkoutDetailPage() {
                   {finishError}
                 </div>
               )}
+              {cancelError && (
+                <div className="mt-4 alert-error px-3 py-2 text-xs">
+                  {cancelError}
+                </div>
+              )}
               {isCurrentSessionActive ? (
-                <Button
-                  className="w-full mt-6"
-                  onClick={handleFinishSession}
-                  disabled={finishingSession || !activeSession}
-                >
-                  {finishingSession ? 'Finishing…' : 'Finish Session'}
-                </Button>
+                <div className="mt-6 flex flex-col gap-2">
+                  <Button
+                    className="w-full"
+                    onClick={handleFinishSession}
+                    disabled={finishingSession || cancelingSession || !activeSession}
+                  >
+                    {finishingSession ? 'Finishing…' : 'Finish Session'}
+                  </Button>
+                  <Button
+                    className="w-full text-red-500 hover:text-red-600"
+                    variant="ghost"
+                    onClick={handleCancelSession}
+                    disabled={finishingSession || cancelingSession || !activeSession}
+                  >
+                    {cancelingSession ? 'Canceling…' : 'Cancel Session'}
+                  </Button>
+                </div>
               ) : (
                 <Button className="w-full mt-6" onClick={handleStartSession} disabled={startingSession || hasActiveSession}>
                   {startingSession ? 'Starting…' : 'Start Session'}
