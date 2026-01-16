@@ -9,13 +9,14 @@ import { Card } from '@/components/ui/Card'
 import type { Exercise, PlanDay, PlanInput, WorkoutImpact } from '@/types/domain'
 import { enhanceExerciseData, toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
 import { formatSessionName } from '@/lib/workout-metrics'
-import { calculateExerciseImpact } from '@/lib/generator'
+import { calculateExerciseImpact, generateSessionExercises, normalizePlanInput } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
 import ActiveSession from '@/components/workout/ActiveSession'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { getSwapSuggestions } from '@/lib/exercise-swap'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
 import { computeExerciseMetrics } from '@/lib/workout-metrics'
+import { promptForSessionMinutes } from '@/lib/session-time'
 
 type Workout = {
   id: string
@@ -25,7 +26,7 @@ type Workout = {
   level: string
   exercises:
     | {
-        schedule?: Array<{ order: number; name?: string; timeWindow: string; exercises?: Exercise[] }>
+        schedule?: Array<{ order: number; name?: string; exercises?: Exercise[]; focus?: PlanDay['focus'] }>
         summary?: { totalMinutes?: number; impact?: WorkoutImpact }
         inputs?: PlanInput
       }
@@ -291,6 +292,24 @@ export default function WorkoutDetailPage() {
   // default 2 minutes per set when duration/rest data is missing.
   // Missing data is handled by returning null and rendering a "—" placeholder.
 
+  const buildDynamicSession = (durationMinutes: number) => {
+    if (!workout?.exercises || Array.isArray(workout.exercises)) {
+      return { exercises: sessionExercises, nameSuffix: undefined }
+    }
+
+    const inputs = normalizePlanInput(workout.exercises.inputs ?? {})
+    const focus =
+      selectedSchedule?.focus ?? workout.exercises.schedule?.[0]?.focus ?? inputs.intent.bodyParts?.[0] ?? 'full_body'
+    const goal = workout.goal ?? inputs.goals.primary
+    const exercises = generateSessionExercises(inputs, focus, durationMinutes, goal as PlanInput['goals']['primary'])
+    const focusLabel = toMuscleLabel(focus)
+    const goalLabel = goal ? goal.replace('_', ' ') : ''
+    return {
+      exercises,
+      nameSuffix: goalLabel ? `${focusLabel} ${goalLabel}` : focusLabel
+    }
+  }
+
   const handleStartSession = async () => {
     setStartError(null)
     setFinishError(null)
@@ -298,6 +317,8 @@ export default function WorkoutDetailPage() {
       setStartError('Finish your current session before starting a new one.')
       return
     }
+    const durationMinutes = promptForSessionMinutes()
+    if (!durationMinutes) return
     setStartingSession(true)
     try {
       if (!workout?.id) throw new Error('Missing workout id.')
@@ -307,13 +328,14 @@ export default function WorkoutDetailPage() {
         return
       }
 
-      const nameSuffix = selectedSchedule ? formatSessionName(selectedSchedule, workout.goal) : undefined
+      const { exercises, nameSuffix } = buildDynamicSession(durationMinutes)
+      const impact = exercises.length ? calculateExerciseImpact(exercises) : undefined
       const { sessionId, startedAt, sessionName, exercises: createdExercises, impact: sessionImpact } = await createWorkoutSession({
         supabase,
         userId: user.id,
         workoutId: workout.id,
         workoutTitle: workout.title,
-        exercises: sessionExercises,
+        exercises,
         nameSuffix,
         impact
       })
@@ -383,7 +405,7 @@ export default function WorkoutDetailPage() {
               <p className="text-muted">{workout.description}</p>
               {selectedSchedule && (
                 <p className="mt-2 text-sm text-subtle">
-                  {formatSessionName(selectedSchedule, workout.goal)} · {selectedSchedule.timeWindow.replace('_', ' ')}
+                  {formatSessionName(selectedSchedule, workout.goal)}
                 </p>
               )}
             </div>
