@@ -76,8 +76,6 @@ export type MovementPattern = 'push' | 'pull' | 'squat' | 'hinge' | 'carry' | 'c
 
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
 
-export type TimeWindow = 'morning' | 'afternoon' | 'evening'
-
 export type RestPreference = 'balanced' | 'high_recovery' | 'minimal_rest'
 
 export type CardioActivity = 'skipping' | 'indoor_cycling' | 'outdoor_cycling' | 'running' | 'rowing'
@@ -116,7 +114,6 @@ export type WorkoutExercise = Exercise
 export interface PlanDay {
   order: number
   name?: string
-  timeWindow: TimeWindow
   focus: FocusArea
   durationMinutes: number
   rationale: string
@@ -155,7 +152,6 @@ export interface PlanInput {
   }
   schedule: {
     daysAvailable: number[]
-    timeWindows: TimeWindow[]
     minRestDays: number
     weeklyLayout?: Array<{
       sessionIndex: number

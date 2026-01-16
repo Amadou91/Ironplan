@@ -17,13 +17,7 @@ import {
   setWorkoutHistoryEntries
 } from '@/lib/workoutHistory'
 import { CARDIO_ACTIVITY_OPTIONS } from '@/lib/cardio-activities'
-import {
-  DEFAULT_PLAN_STATUS,
-  getFlowCompletion,
-  isEquipmentValid,
-  isMinutesPerSessionValid,
-  isTotalMinutesPerWeekValid
-} from '@/lib/generationFlow'
+import { getFlowCompletion, isEquipmentValid } from '@/lib/generationFlow'
 import { logEvent } from '@/lib/logger'
 import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanInput, GeneratedPlan } from '@/types/domain'
 
@@ -67,7 +61,6 @@ export default function GeneratePage() {
       time: { minutesPerSession: 45 },
       schedule: {
         daysAvailable: [0],
-        timeWindows: ['evening'],
         minRestDays: 1,
         weeklyLayout: [
           { sessionIndex: 0, style: 'strength', focus: 'chest' }
@@ -301,7 +294,6 @@ export default function GeneratePage() {
       goal: plan.goal,
       level: plan.level,
       tags: plan.tags,
-      status: DEFAULT_PLAN_STATUS,
       exercises: {
         schedule: plan.schedule,
         inputs: plan.inputs,
@@ -385,8 +377,6 @@ export default function GeneratePage() {
     }
   }
 
-  const invalidMinutes = !isMinutesPerSessionValid(formData.time.minutesPerSession)
-  const invalidTotalMinutes = !isTotalMinutesPerWeekValid(formData.time.totalMinutesPerWeek)
   const invalidEquipment = !isEquipmentValid(formData.equipment)
 
   const inventory = formData.equipment.inventory
@@ -534,108 +524,29 @@ export default function GeneratePage() {
                 </select>
               </div>
 
+              <div>
+                <label className="mb-2 block text-sm font-medium text-strong">Intensity</label>
+                <select
+                  value={formData.intensity}
+                  onChange={(e) =>
+                    updateFormData(prev => ({
+                      ...prev,
+                      intensity: e.target.value as PlanInput['intensity']
+                    }))
+                  }
+                  className="input-base"
+                >
+                  <option value="low">Low</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+
             </section>
 
             <section className="space-y-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 2</p>
-                <h2 className="text-xl font-semibold text-strong">Set your session timing</h2>
-                <p className="text-sm text-muted">Define how long each workout is and when you train.</p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-strong">Minutes per session</label>
-                  <input
-                    type="number"
-                    min={20}
-                    max={120}
-                    value={formData.time.minutesPerSession}
-                    onChange={(e) =>
-                      updateFormData(prev => ({
-                        ...prev,
-                        time: { ...prev.time, minutesPerSession: Number(e.target.value) }
-                      }))
-                    }
-                    className="input-base"
-                  />
-                  {invalidMinutes && (
-                    <p className="mt-2 text-xs text-[var(--color-danger)]">Enter 20 to 120 minutes per session.</p>
-                  )}
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-strong">Intensity</label>
-                  <select
-                    value={formData.intensity}
-                    onChange={(e) =>
-                      updateFormData(prev => ({
-                        ...prev,
-                        intensity: e.target.value as PlanInput['intensity']
-                      }))
-                    }
-                    className="input-base"
-                  >
-                    <option value="low">Low</option>
-                    <option value="moderate">Moderate</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-strong">Total minutes per week (optional)</label>
-                  <input
-                    type="number"
-                    min={40}
-                    max={480}
-                    value={formData.time.totalMinutesPerWeek ?? ''}
-                    onChange={(e) =>
-                      updateFormData(prev => ({
-                        ...prev,
-                        time: {
-                          ...prev.time,
-                          totalMinutesPerWeek: e.target.value ? Number(e.target.value) : undefined
-                        }
-                      }))
-                    }
-                    placeholder="e.g. 180"
-                    className="input-base"
-                  />
-                  {invalidTotalMinutes && (
-                    <p className="mt-2 text-xs text-[var(--color-danger)]">Keep totals between 40 and 480 minutes.</p>
-                  )}
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-strong">Time windows</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {(['morning', 'afternoon', 'evening'] as PlanInput['schedule']['timeWindows']).map(opt => (
-                      <label key={opt} className="flex items-center gap-2 text-sm text-muted">
-                        <input
-                          type="checkbox"
-                          checked={formData.schedule.timeWindows.includes(opt)}
-                          onChange={() =>
-                            updateFormData(prev => ({
-                              ...prev,
-                              schedule: {
-                                ...prev.schedule,
-                                timeWindows: toggleArrayValue(prev.schedule.timeWindows, opt)
-                              }
-                            }))
-                          }
-                          className="accent-[var(--color-primary)]"
-                        />
-                        {opt.replace(/\b\w/g, char => char.toUpperCase())}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 3</p>
                 <h2 className="text-xl font-semibold text-strong">Equipment & constraints</h2>
                 <p className="text-sm text-muted">Tell us what you have and any important preferences.</p>
               </div>
@@ -968,7 +879,7 @@ export default function GeneratePage() {
 
             <section className="space-y-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 4</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 3</p>
                 <h2 className="text-xl font-semibold text-strong">Review & generate</h2>
                 <p className="text-sm text-muted">Confirm the highlights before we build your plan.</p>
               </div>
@@ -993,18 +904,6 @@ export default function GeneratePage() {
                   <div>
                     <dt className="text-subtle">Intensity</dt>
                     <dd className="text-strong capitalize">{formData.intensity}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-subtle">Minutes per session</dt>
-                    <dd className="text-strong">{formData.time.minutesPerSession} min</dd>
-                  </div>
-                  <div>
-                    <dt className="text-subtle">Total minutes per week</dt>
-                    <dd className="text-strong">{formData.time.totalMinutesPerWeek ?? 'Not set'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-subtle">Time windows</dt>
-                    <dd className="text-strong">{formData.schedule.timeWindows.map(item => item.replace('_', ' ')).join(', ')}</dd>
                   </div>
                   <div>
                     <dt className="text-subtle">Equipment</dt>
@@ -1074,8 +973,8 @@ export default function GeneratePage() {
                     {new Date(entry.createdAt).toLocaleString()} · Score {entry.plan.summary.impact.score}
                   </p>
                   <p className="mt-1 text-xs text-subtle">
-                    {entry.plan.summary.totalMinutes} min · Focus on{' '}
-                    {(entry.plan.schedule?.[0]?.focus ?? entry.plan.inputs.intent.bodyParts?.[0] ?? entry.plan.goal).replace('_', ' ')}
+                    Focus on {(entry.plan.schedule?.[0]?.focus ?? entry.plan.inputs.intent.bodyParts?.[0] ?? entry.plan.goal).replace('_', ' ')}
+                    {' '}· {(entry.plan.goal ?? entry.plan.inputs.goals.primary).replace('_', ' ')}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
