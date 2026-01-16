@@ -17,6 +17,7 @@ import type {
 import { equipmentPresets, hasEquipment } from './equipment'
 import { computeExerciseMetrics } from '@/lib/workout-metrics'
 import { matchesCardioSelection } from '@/lib/cardio-activities'
+import { logEvent } from '@/lib/logger'
 
 const DEFAULT_INPUT: PlanInput = {
   intent: {
@@ -590,6 +591,46 @@ const focusMuscleMap: Record<
   mobility: {}
 }
 
+const focusAccessoryMap: Partial<Record<FocusArea, string[]>> = {
+  chest: ['Triceps', 'Shoulders'],
+  back: ['Biceps', 'Forearms'],
+  biceps: ['Forearms'],
+  triceps: ['Shoulders'],
+  legs: ['Core']
+}
+
+const formatFocusLabel = (focus: FocusArea) =>
+  focus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+
+const getPrimaryMuscleLabel = (exercise: Exercise) => {
+  if (exercise.primaryBodyParts?.length) return exercise.primaryBodyParts[0]
+  if (typeof exercise.primaryMuscle === 'string') return exercise.primaryMuscle
+  return ''
+}
+
+const matchesPrimaryMuscle = (exercise: Exercise, muscles: string[]) => {
+  const primary = getPrimaryMuscleLabel(exercise).toLowerCase()
+  return muscles.some((muscle) => primary.includes(muscle.toLowerCase()))
+}
+
+type FocusConstraint = {
+  focus: FocusArea
+  primaryMuscles: string[]
+  accessoryMuscles: string[]
+  minPrimarySetRatio: number
+}
+
+const getFocusConstraint = (focus: FocusArea): FocusConstraint | null => {
+  const focusConfig = focusMuscleMap[focus]
+  if (!focusConfig?.primaryMuscles?.length) return null
+  return {
+    focus,
+    primaryMuscles: focusConfig.primaryMuscles,
+    accessoryMuscles: focusAccessoryMap[focus] ?? [],
+    minPrimarySetRatio: 0.75
+  }
+}
+
 const bandLoadMap = {
   light: 10,
   medium: 20,
@@ -701,10 +742,7 @@ const matchesFocusArea = (focus: FocusArea, exercise: Exercise) => {
   if (focus === 'cardio') return exercise.focus === 'cardio'
   const focusConfig = focusMuscleMap[focus]
   if (focusConfig?.primaryMuscles?.length) {
-    const primaryMuscle = typeof exercise.primaryMuscle === 'string' ? exercise.primaryMuscle : ''
-    const matchesMuscle = focusConfig.primaryMuscles.some((muscle) =>
-      primaryMuscle.toLowerCase().includes(muscle.toLowerCase())
-    )
+    const matchesMuscle = matchesPrimaryMuscle(exercise, focusConfig.primaryMuscles)
     const matchesBase = focusConfig.baseFocus ? exercise.focus === focusConfig.baseFocus : true
     return matchesMuscle && matchesBase
   }
@@ -835,8 +873,9 @@ const buildSessionForTime = (
   accessoryPool: Exercise[],
   input: PlanInput,
   duration: number,
-  goal: Goal
-) => {
+  goal: Goal,
+  focusConstraint?: FocusConstraint | null
+): { exercises: Exercise[]; error?: string } => {
   const targetMinutes = clamp(duration, 20, 120)
   const reps = deriveReps(goal, input.intensity)
   const { min: minExercises, max: maxExercises } = getExerciseCaps(targetMinutes)
@@ -879,12 +918,54 @@ const buildSessionForTime = (
     }
   }
 
+  const isPrimaryMatch = (exercise: Exercise) =>
+    focusConstraint ? matchesPrimaryMuscle(exercise, focusConstraint.primaryMuscles) : false
+  const isAccessoryMatch = (exercise: Exercise) =>
+    focusConstraint ? matchesPrimaryMuscle(exercise, focusConstraint.accessoryMuscles) : false
+  const isAllowedFocusExercise = (exercise: Exercise) =>
+    focusConstraint ? (isPrimaryMatch(exercise) || isAccessoryMatch(exercise)) : true
+
+  const getSetTotals = (extra?: PlannedExercise) => {
+    const all = extra ? [...picks, extra] : picks
+    const totals = all.reduce(
+      (acc, item) => {
+        acc.total += item.prescription.sets
+        if (isPrimaryMatch(item.exercise)) acc.primary += item.prescription.sets
+        return acc
+      },
+      { primary: 0, total: 0 }
+    )
+    return totals
+  }
+
+  const canMeetPrimaryRatio = (extra?: PlannedExercise) => {
+    if (!focusConstraint) return true
+    const all = extra ? [...picks, extra] : picks
+    const maxPrimarySets = all.reduce((sum, item) =>
+      isPrimaryMatch(item.exercise) ? sum + item.maxSets : sum
+    , 0)
+    const nonPrimarySets = all.reduce((sum, item) =>
+      isPrimaryMatch(item.exercise) ? sum : sum + item.prescription.sets
+    , 0)
+    const potentialTotal = maxPrimarySets + nonPrimarySets
+    if (potentialTotal === 0) return false
+    return maxPrimarySets / potentialTotal >= focusConstraint.minPrimarySetRatio
+  }
+
   const canAdd = (exercise: Exercise, source: ExerciseSource, currentMinutes: number) => {
-    if (picks.length >= maxExercises || usedNames.has(exercise.name)) return false
+    const allowDuplicatePrimary = focusConstraint && isPrimaryMatch(exercise) && primaryPool.length < minExercises
+    if (picks.length >= maxExercises || (!allowDuplicatePrimary && usedNames.has(exercise.name))) return false
     const pattern = exercise.movementPattern ?? 'accessory'
-    if ((usedPatterns.get(pattern) ?? 0) >= 2) return false
+    const maxPatternUsage = focusConstraint ? 4 : 2
+    if ((usedPatterns.get(pattern) ?? 0) >= maxPatternUsage) return false
     const planned = createPlan(exercise, source)
     if (!planned) return false
+    if (focusConstraint && !isAllowedFocusExercise(exercise)) return false
+    if (focusConstraint && !isPrimaryMatch(exercise)) {
+      const totals = getSetTotals(planned)
+      const ratio = totals.total > 0 ? totals.primary / totals.total : 0
+      if (ratio < focusConstraint.minPrimarySetRatio && !canMeetPrimaryRatio(planned)) return false
+    }
     if (currentMinutes + planned.estimatedMinutes > targetMinutes + 6 && picks.length >= minExercises) {
       return false
     }
@@ -908,7 +989,7 @@ const buildSessionForTime = (
   const fillPools: Array<{ source: ExerciseSource; pool: Exercise[] }> = [
     { source: 'secondary', pool: secondaryPool },
     { source: 'accessory', pool: accessoryPool },
-    { source: 'secondary', pool: [...primaryPool, ...secondaryPool, ...accessoryPool] }
+    ...(focusConstraint ? [] : [{ source: 'secondary', pool: [...primaryPool, ...secondaryPool, ...accessoryPool] }])
   ]
 
   fillPools.forEach(({ source, pool }) => {
@@ -958,6 +1039,12 @@ const buildSessionForTime = (
     for (const source of increaseOrder) {
       const planned = picks.find((item) => item.source === source && item.prescription.sets < item.maxSets)
       if (!planned) continue
+      if (focusConstraint && !isAllowedFocusExercise(planned.exercise)) continue
+      if (focusConstraint && !isPrimaryMatch(planned.exercise)) {
+        const totals = getSetTotals({ ...planned, prescription: { ...planned.prescription, sets: planned.prescription.sets + 1 } })
+        const ratio = totals.total > 0 ? totals.primary / totals.total : 0
+        if (ratio < focusConstraint.minPrimarySetRatio) continue
+      }
       planned.prescription.sets += 1
       adjustEstimate(planned)
       recalcTotals()
@@ -973,6 +1060,22 @@ const buildSessionForTime = (
     safetyCounter += 1
   }
 
+  if (focusConstraint) {
+    let ratioCheck = getSetTotals()
+    let ratio = ratioCheck.total > 0 ? ratioCheck.primary / ratioCheck.total : 0
+    let ratioCounter = 0
+    while (ratio < focusConstraint.minPrimarySetRatio && ratioCounter < 200) {
+      const planned = picks.find((item) => isPrimaryMatch(item.exercise) && item.prescription.sets < item.maxSets)
+      if (!planned) break
+      planned.prescription.sets += 1
+      adjustEstimate(planned)
+      recalcTotals()
+      ratioCheck = getSetTotals()
+      ratio = ratioCheck.total > 0 ? ratioCheck.primary / ratioCheck.total : 0
+      ratioCounter += 1
+    }
+  }
+
   for (const exercise of accessoryPool) {
     if (picks.length >= maxExercises || totalMinutes >= targetMinutes - 5) break
     if (canAdd(exercise, 'accessory', totalMinutes)) {
@@ -980,10 +1083,20 @@ const buildSessionForTime = (
     }
   }
 
-  return picks.map(({ exercise, prescription }) => ({
-    ...exercise,
-    ...prescription
-  }))
+  if (focusConstraint) {
+    const totals = getSetTotals()
+    const ratio = totals.total > 0 ? totals.primary / totals.total : 0
+    if (totals.total === 0 || ratio < focusConstraint.minPrimarySetRatio || picks.length < minExercises) {
+      return { exercises: [], error: 'focus_constraints_unmet' }
+    }
+  }
+
+  return {
+    exercises: picks.map(({ exercise, prescription }) => ({
+      ...exercise,
+      ...prescription
+    }))
+  }
 }
 
 const buildSessionExercises = (
@@ -991,10 +1104,11 @@ const buildSessionExercises = (
   duration: number,
   input: PlanInput,
   goalOverride?: Goal
-): Exercise[] => {
+): { exercises: Exercise[]; error?: string } => {
   const targetGoal = goalOverride ?? input.goals.primary
   const baseFocus = focusMuscleMap[focus]?.baseFocus
-  const primaryPool = filterExercises(
+  const focusConstraint = getFocusConstraint(focus)
+  let primaryPool = filterExercises(
     focus,
     input.equipment.inventory,
     input.preferences.dislikedActivities,
@@ -1009,7 +1123,10 @@ const buildSessionExercises = (
     input.preferences.accessibilityConstraints,
     input.preferences.cardioActivities
   )
-  const accessoryPool = baseFocus && baseFocus !== focus
+  if (focusConstraint && primaryPool.length === 0) {
+    primaryPool = secondaryPool
+  }
+  let accessoryPool = baseFocus && baseFocus !== focus
     ? filterExercises(
         baseFocus,
         input.equipment.inventory,
@@ -1019,11 +1136,20 @@ const buildSessionExercises = (
       )
     : []
 
-  return buildSessionForTime(primaryPool, secondaryPool, accessoryPool, input, duration, targetGoal)
-}
+  if (focusConstraint) {
+    accessoryPool = focusConstraint.accessoryMuscles.length
+      ? accessoryPool.filter(exercise =>
+          matchesPrimaryMuscle(exercise, focusConstraint.accessoryMuscles)
+        )
+      : []
+  }
 
-const formatFocusLabel = (focus: FocusArea) =>
-  focus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+  if (focusConstraint && primaryPool.length === 0) {
+    return { exercises: [], error: 'focus_constraints_unmet' }
+  }
+
+  return buildSessionForTime(primaryPool, secondaryPool, accessoryPool, input, duration, targetGoal, focusConstraint)
+}
 
 const buildRationale = (
   focus: FocusArea,
@@ -1140,7 +1266,34 @@ export const generateSessionExercises = (
   focus: FocusArea,
   durationMinutes: number,
   goalOverride?: Goal
-) => buildSessionExercises(focus, durationMinutes, input, goalOverride)
+) => {
+  const result = buildSessionExercises(focus, durationMinutes, input, goalOverride)
+  if (result.error) {
+    const accessoryEligible = focusMuscleMap[focus]?.baseFocus
+      ? filterExercises(
+          focusMuscleMap[focus]?.baseFocus ?? focus,
+          input.equipment.inventory,
+          input.preferences.dislikedActivities,
+          input.preferences.accessibilityConstraints,
+          input.preferences.cardioActivities
+        ).length
+      : 0
+    logEvent('warn', 'focus_constraints_unsatisfied', {
+      focus,
+      primaryEligible: filterExercises(
+        focus,
+        input.equipment.inventory,
+        input.preferences.dislikedActivities,
+        input.preferences.accessibilityConstraints,
+        input.preferences.cardioActivities,
+        goalOverride ?? input.goals.primary
+      ).length,
+      accessoryEligible
+    })
+    return []
+  }
+  return result.exercises
+}
 
 export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: GeneratedPlan; errors: string[] } => {
   const normalized = applyRestPreference(normalizePlanInput(partialInput))
@@ -1158,7 +1311,42 @@ export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: Generat
     const focus = focusSequence[index]
     const style = normalized.goals.primary
     const duration = clamp(minutesPerSession, 20, 120)
-    const exercises = buildSessionExercises(focus, duration, normalized, style)
+    const { exercises, error } = buildSessionExercises(focus, duration, normalized, style)
+    if (error) {
+      const focusLabel = formatFocusLabel(focus)
+      const primaryEligible = filterExercises(
+        focus,
+        normalized.equipment.inventory,
+        normalized.preferences.dislikedActivities,
+        normalized.preferences.accessibilityConstraints,
+        normalized.preferences.cardioActivities,
+        style
+      ).length
+      const accessoryEligible = focusMuscleMap[focus]?.baseFocus
+        ? filterExercises(
+            focusMuscleMap[focus]?.baseFocus ?? focus,
+            normalized.equipment.inventory,
+            normalized.preferences.dislikedActivities,
+            normalized.preferences.accessibilityConstraints,
+            normalized.preferences.cardioActivities
+          ).length
+        : 0
+      logEvent('warn', 'focus_constraints_unsatisfied', {
+        focus,
+        primaryEligible,
+        accessoryEligible
+      })
+      errors.push(
+        `Not enough ${focusLabel} exercises available for your equipment selection. Add equipment or broaden focus (ex: Upper Body).`
+      )
+      return {
+        order: index,
+        focus,
+        durationMinutes: duration,
+        rationale: '',
+        exercises: []
+      }
+    }
     const name = buildSessionName(focus, exercises, style)
     return {
       order: index,
@@ -1169,6 +1357,9 @@ export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: Generat
       rationale: buildRationale(focus, duration, normalized.preferences.restPreference, style)
     }
   })
+  if (errors.length > 0) {
+    return { errors }
+  }
 
   const totalMinutes = schedule.reduce((sum, day) => sum + day.durationMinutes, 0)
   const uniqueStyles = [normalized.goals.primary]
