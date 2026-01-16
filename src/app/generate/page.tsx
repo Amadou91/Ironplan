@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
-import { ChevronLeft, Loader2, Wand2 } from 'lucide-react'
+import { Loader2, Wand2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { generatePlan, normalizePlanInput } from '@/lib/generator'
@@ -446,18 +446,22 @@ export default function GeneratePage() {
   return (
     <div className="page-shell">
       <div className="mb-8 px-4 pt-8 sm:px-6 lg:px-10 2xl:px-16">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="flex items-center text-sm text-muted transition-colors hover:text-strong"
-        >
-          <ChevronLeft className="w-4 h-4 mr-1" /> Back
-        </button>
-        <h1 className="flex items-center text-3xl font-semibold text-strong">
-          <Wand2 className="mr-3 h-8 w-8 text-accent" />
-          Generate Workout Plan
-        </h1>
-        <p className="mt-2 text-muted">Answer each step to create a plan that matches your goals, schedule, and preferences.</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="flex items-center text-3xl font-semibold text-strong">
+              <Wand2 className="mr-3 h-8 w-8 text-accent" />
+              Generate Workout Plan
+            </h1>
+            <p className="mt-2 text-muted">
+              Answer each step to create a plan that matches your goals, schedule, and preferences.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
+              <X className="h-4 w-4" /> Close
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="px-4 pb-10 sm:px-6 lg:px-10 2xl:px-16">

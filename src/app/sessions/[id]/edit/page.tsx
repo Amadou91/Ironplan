@@ -318,7 +318,7 @@ export default function SessionEditPage() {
     return (
       <div className="page-shell p-10 text-center text-muted">
         <p className="mb-4">Session not found.</p>
-        <Button onClick={() => router.push('/dashboard')}>Back to Dashboard</Button>
+        <Button onClick={() => router.push('/dashboard')}>Return to Dashboard</Button>
       </div>
     )
   }
@@ -328,19 +328,12 @@ export default function SessionEditPage() {
       <div className="w-full space-y-8 px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <button
-              onClick={handleCancel}
-              className="text-xs text-muted transition-colors hover:text-strong"
-              type="button"
-            >
-              ← Back to Dashboard
-            </button>
             <h1 className="mt-2 text-2xl font-semibold text-strong">Edit Session</h1>
             <p className="text-sm text-muted">{formatDateTime(session.startedAt)} · Adjust logged sets, reps, and notes.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="ghost" onClick={handleCancel} className="h-9 px-3">
-              Cancel
+              Close
             </Button>
             <Button onClick={handleSave} disabled={saving || !hasChanges} className="h-9 px-4">
               {saving ? 'Saving...' : 'Save changes'}
