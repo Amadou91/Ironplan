@@ -580,59 +580,86 @@ export default function GeneratePage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-strong">Dumbbell weights (lb)</label>
-                  <input
-                    type="text"
-                    value={formatWeightList(inventory.dumbbells)}
-                    onChange={(e) => setInventoryWeights('dumbbells', e.target.value)}
-                    placeholder="e.g. 10, 15, 20"
-                    className="input-base"
-                  />
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-strong">Free weights</p>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-strong">Dumbbell weights (lb)</label>
+                    <input
+                      type="text"
+                      value={formatWeightList(inventory.dumbbells)}
+                      onChange={(e) => setInventoryWeights('dumbbells', e.target.value)}
+                      placeholder="e.g. 10, 15, 20"
+                      className="input-base"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-strong">Kettlebell weights (lb)</label>
+                    <input
+                      type="text"
+                      value={formatWeightList(inventory.kettlebells)}
+                      onChange={(e) => setInventoryWeights('kettlebells', e.target.value)}
+                      placeholder="e.g. 20, 35"
+                      className="input-base"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-strong">Kettlebell weights (lb)</label>
-                  <input
-                    type="text"
-                    value={formatWeightList(inventory.kettlebells)}
-                    onChange={(e) => setInventoryWeights('kettlebells', e.target.value)}
-                    placeholder="e.g. 20, 35"
-                    className="input-base"
-                  />
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-strong">Resistance & bodyweight</p>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-strong">Bands (resistance levels)</label>
+                    <div className="flex flex-wrap gap-3">
+                      {(['light', 'medium', 'heavy'] as BandResistance[]).map(level => (
+                        <label key={level} className="flex items-center gap-2 text-sm text-muted">
+                          <input
+                            type="checkbox"
+                            checked={inventory.bands.includes(level)}
+                            onChange={() =>
+                              updateFormData(prev => ({
+                                ...prev,
+                                equipment: {
+                                  ...prev.equipment,
+                                  preset: 'custom',
+                                  inventory: {
+                                    ...prev.equipment.inventory,
+                                    bands: toggleArrayValue(prev.equipment.inventory.bands, level)
+                                  }
+                                }
+                              }))
+                            }
+                            className="accent-[var(--color-primary)]"
+                          />
+                          {bandLabels[level]}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-muted">
+                    <input
+                      type="checkbox"
+                      checked={inventory.bodyweight}
+                      onChange={() =>
+                        updateFormData(prev => ({
+                          ...prev,
+                          equipment: {
+                            ...prev.equipment,
+                            preset: 'custom',
+                            inventory: {
+                              ...prev.equipment.inventory,
+                              bodyweight: !prev.equipment.inventory.bodyweight
+                            }
+                          }
+                        }))
+                      }
+                      className="accent-[var(--color-primary)]"
+                    />
+                    Bodyweight movements available
+                  </label>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-strong">Bands (resistance levels)</label>
-                  <div className="flex flex-wrap gap-3">
-                    {(['light', 'medium', 'heavy'] as BandResistance[]).map(level => (
-                      <label key={level} className="flex items-center gap-2 text-sm text-muted">
-                        <input
-                          type="checkbox"
-                          checked={inventory.bands.includes(level)}
-                          onChange={() =>
-                            updateFormData(prev => ({
-                              ...prev,
-                              equipment: {
-                                ...prev.equipment,
-                                preset: 'custom',
-                                inventory: {
-                                  ...prev.equipment.inventory,
-                                  bands: toggleArrayValue(prev.equipment.inventory.bands, level)
-                                }
-                              }
-                            }))
-                          }
-                          className="accent-[var(--color-primary)]"
-                        />
-                        {bandLabels[level]}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-strong">Barbell + plates</label>
+                  <p className="mb-2 text-sm font-semibold text-strong">Barbell & plates</p>
                   <label className="mb-2 flex items-center gap-2 text-sm text-muted">
                     <input
                       type="checkbox"
@@ -666,37 +693,36 @@ export default function GeneratePage() {
                     disabled={!inventory.barbell.available}
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-strong">Machine availability</label>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {(Object.keys(machineLabels) as MachineType[]).map(machine => (
-                    <label key={machine} className="flex items-center gap-2 text-sm text-muted">
-                      <input
-                        type="checkbox"
-                        checked={inventory.machines[machine]}
-                        onChange={() =>
-                          updateFormData(prev => ({
-                            ...prev,
-                            equipment: {
-                              ...prev.equipment,
-                              preset: 'custom',
-                              inventory: {
-                                ...prev.equipment.inventory,
-                                machines: {
-                                  ...prev.equipment.inventory.machines,
-                                  [machine]: !prev.equipment.inventory.machines[machine]
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-strong">Machine availability</p>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {(Object.keys(machineLabels) as MachineType[]).map(machine => (
+                      <label key={machine} className="flex items-center gap-2 text-sm text-muted">
+                        <input
+                          type="checkbox"
+                          checked={inventory.machines[machine]}
+                          onChange={() =>
+                            updateFormData(prev => ({
+                              ...prev,
+                              equipment: {
+                                ...prev.equipment,
+                                preset: 'custom',
+                                inventory: {
+                                  ...prev.equipment.inventory,
+                                  machines: {
+                                    ...prev.equipment.inventory.machines,
+                                    [machine]: !prev.equipment.inventory.machines[machine]
+                                  }
                                 }
                               }
-                            }
-                          }))
-                        }
-                        className="accent-[var(--color-primary)]"
-                      />
-                      {machineLabels[machine]}
-                    </label>
-                  ))}
+                            }))
+                          }
+                          className="accent-[var(--color-primary)]"
+                        />
+                        {machineLabels[machine]}
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -725,28 +751,6 @@ export default function GeneratePage() {
                 </div>
                 <p className="mt-2 text-xs text-subtle">Leave blank to allow any cardio activity.</p>
               </div>
-
-              <label className="flex items-center gap-2 text-sm text-muted">
-                <input
-                  type="checkbox"
-                  checked={inventory.bodyweight}
-                  onChange={() =>
-                    updateFormData(prev => ({
-                      ...prev,
-                      equipment: {
-                        ...prev.equipment,
-                        preset: 'custom',
-                        inventory: {
-                          ...prev.equipment.inventory,
-                          bodyweight: !prev.equipment.inventory.bodyweight
-                        }
-                      }
-                    }))
-                  }
-                  className="accent-[var(--color-primary)]"
-                />
-                Bodyweight movements available
-              </label>
 
               {invalidEquipment && (
                 <p className="text-xs text-[var(--color-danger)]">Choose at least one equipment option.</p>
