@@ -437,11 +437,6 @@ export default function WorkoutDetailPage() {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {fromParam === 'generate' && (
-            <Button type="button" variant="secondary" onClick={() => router.push('/generate')}>
-              Generate another plan
-            </Button>
-          )}
           <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
             <X className="h-4 w-4" /> Close
           </Button>
