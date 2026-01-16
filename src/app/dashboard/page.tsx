@@ -720,16 +720,6 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <div className="mt-4 space-y-3 rounded-lg border border-dashed border-[var(--color-border)] p-4">
-              <p className="text-sm font-semibold text-strong">Pick a plan to start today</p>
-              <p className="text-xs text-subtle">Sessions are generated when you start based on the time you have.</p>
-              <div className="flex flex-wrap gap-2">
-                <Link href="/generate">
-                  <Button variant="secondary" size="sm">Browse Plans</Button>
-                </Link>
-              </div>
-            </div>
-
             <div className="mt-6 space-y-3">
               {recentWorkouts.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-sm text-muted">
