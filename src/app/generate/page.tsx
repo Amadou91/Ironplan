@@ -700,6 +700,32 @@ export default function GeneratePage() {
                 </div>
               </div>
 
+              <div>
+                <label className="mb-2 block text-sm font-medium text-strong">Cardio activities (optional)</label>
+                <div className="flex flex-wrap gap-3">
+                  {CARDIO_ACTIVITY_OPTIONS.map((option) => (
+                    <label key={option.value} className="flex items-center gap-2 text-sm text-muted">
+                      <input
+                        type="checkbox"
+                        checked={formData.preferences.cardioActivities.includes(option.value)}
+                        onChange={() =>
+                          updateFormData(prev => ({
+                            ...prev,
+                            preferences: {
+                              ...prev.preferences,
+                              cardioActivities: toggleArrayValue(prev.preferences.cardioActivities, option.value)
+                            }
+                          }))
+                        }
+                        className="accent-[var(--color-primary)]"
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-subtle">Leave blank to allow any cardio activity.</p>
+              </div>
+
               <label className="flex items-center gap-2 text-sm text-muted">
                 <input
                   type="checkbox"
@@ -725,160 +751,6 @@ export default function GeneratePage() {
               {invalidEquipment && (
                 <p className="text-xs text-[var(--color-danger)]">Choose at least one equipment option.</p>
               )}
-
-              <details className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <summary className="cursor-pointer text-sm font-semibold text-strong">
-                  Advanced preferences
-                </summary>
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Secondary goal</label>
-                    <select
-                      value={formData.goals.secondary ?? ''}
-                      onChange={(e) =>
-                        updateFormData(prev => ({
-                          ...prev,
-                          goals: { ...prev.goals, secondary: e.target.value ? (e.target.value as Goal) : undefined }
-                        }))
-                      }
-                      className="input-base"
-                    >
-                      <option value="">None</option>
-                      <option value="strength">Strength</option>
-                      <option value="hypertrophy">Hypertrophy</option>
-                      <option value="endurance">Endurance</option>
-                      <option value="cardio">Cardio</option>
-                      <option value="general_fitness">General Fitness</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Goal priority</label>
-                    <select
-                      value={formData.goals.priority}
-                      onChange={(e) =>
-                        updateFormData(prev => ({
-                          ...prev,
-                          goals: { ...prev.goals, priority: e.target.value as PlanInput['goals']['priority'] }
-                        }))
-                      }
-                      className="input-base"
-                    >
-                      <option value="primary">Primary Only</option>
-                      <option value="balanced">Balanced</option>
-                      <option value="secondary">Bias Toward Secondary</option>
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-strong">Minimum rest days between sessions</label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={2}
-                        value={formData.schedule.minRestDays}
-                        onChange={(e) =>
-                          updateFormData(prev => ({
-                            ...prev,
-                            schedule: { ...prev.schedule, minRestDays: Number(e.target.value) }
-                          }))
-                        }
-                        className="input-base"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-strong">Recovery preference</label>
-                      <select
-                        value={formData.preferences.restPreference}
-                        onChange={(e) =>
-                          updateFormData(prev => ({
-                            ...prev,
-                            preferences: { ...prev.preferences, restPreference: e.target.value as PlanInput['preferences']['restPreference'] }
-                          }))
-                        }
-                        className="input-base"
-                      >
-                        <option value="balanced">Balanced</option>
-                        <option value="high_recovery">High Recovery</option>
-                        <option value="minimal_rest">Minimal Rest</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Disliked activities</label>
-                    <input
-                      type="text"
-                      value={formData.preferences.dislikedActivities.join(', ')}
-                      onChange={(e) =>
-                        updateFormData(prev => ({
-                          ...prev,
-                          preferences: {
-                            ...prev.preferences,
-                            dislikedActivities: e.target.value
-                              ? e.target.value.split(',').map(item => item.trim()).filter(Boolean)
-                              : []
-                          }
-                        }))
-                      }
-                      placeholder="e.g. Running, Jumping"
-                      className="input-base"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Cardio activities (optional)</label>
-                    <div className="flex flex-wrap gap-3">
-                      {CARDIO_ACTIVITY_OPTIONS.map((option) => (
-                        <label key={option.value} className="flex items-center gap-2 text-sm text-muted">
-                          <input
-                            type="checkbox"
-                            checked={formData.preferences.cardioActivities.includes(option.value)}
-                            onChange={() =>
-                              updateFormData(prev => ({
-                                ...prev,
-                                preferences: {
-                                  ...prev.preferences,
-                                  cardioActivities: toggleArrayValue(prev.preferences.cardioActivities, option.value)
-                                }
-                              }))
-                            }
-                            className="accent-[var(--color-primary)]"
-                          />
-                          {option.label}
-                        </label>
-                      ))}
-                    </div>
-                    <p className="mt-2 text-xs text-subtle">Leave blank to allow any cardio activity.</p>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-strong">Accessibility constraints</label>
-                    <div className="flex flex-wrap gap-3">
-                      {['low-impact', 'joint-friendly', 'no-floor-work'].map(opt => (
-                        <label key={opt} className="flex items-center gap-2 text-sm text-muted">
-                          <input
-                            type="checkbox"
-                            checked={formData.preferences.accessibilityConstraints.includes(opt)}
-                            onChange={() =>
-                              updateFormData(prev => ({
-                                ...prev,
-                                preferences: {
-                                  ...prev.preferences,
-                                  accessibilityConstraints: toggleArrayValue(prev.preferences.accessibilityConstraints, opt)
-                                }
-                              }))
-                            }
-                            className="accent-[var(--color-primary)]"
-                          />
-                          {opt.replace(/\b\w/g, char => char.toUpperCase())}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </details>
             </section>
 
             <section className="space-y-4">
