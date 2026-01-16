@@ -418,7 +418,7 @@ export default function GeneratePage() {
             </div>
           )}
           {saveSummary.workoutId && (
-            <Button type="button" variant="secondary" onClick={() => router.push(`/workout/${saveSummary.workoutId}`)}>
+            <Button type="button" variant="secondary" onClick={() => router.push(`/workout/${saveSummary.workoutId}?from=generate`)}>
               View generated plan
             </Button>
           )}
@@ -988,7 +988,7 @@ export default function GeneratePage() {
                   {entry.remoteId ? (
                     <Button
                       type="button"
-                      onClick={() => router.push(`/workout/${entry.remoteId}`)}
+                      onClick={() => router.push(`/workout/${entry.remoteId}?from=generate`)}
                       className="px-3 py-2 text-xs"
                       variant="secondary"
                     >

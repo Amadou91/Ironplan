@@ -134,7 +134,7 @@ export default function DashboardPage() {
   const [hasMoreSessions, setHasMoreSessions] = useState(true)
   const hasActiveSession = Boolean(activeSession)
   const activeSessionLink = activeSession?.workoutId
-    ? `/workout/${activeSession.workoutId}?session=active&sessionId=${activeSession.id}`
+    ? `/workout/${activeSession.workoutId}?session=active&sessionId=${activeSession.id}&from=dashboard`
     : '/dashboard'
 
   const ensureSession = async () => {
@@ -415,6 +415,7 @@ export default function DashboardPage() {
     if (!user) return
     if (hasActiveSession) {
       setStartSessionError('Finish your current session before starting a new one.')
+      router.push(activeSessionLink)
       return
     }
     const durationMinutes = promptForSessionMinutes()
@@ -443,7 +444,7 @@ export default function DashboardPage() {
         impact: sessionImpact,
         exercises: sessionExercises
       })
-      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}`)
+      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}&from=dashboard`)
     } catch (startError) {
       console.error('Failed to start scheduled session', startError)
       setStartSessionError('Unable to start the session. Please try again.')
@@ -702,23 +703,27 @@ export default function DashboardPage() {
         {startSessionError && <div className="alert-error p-4 text-sm">{startSessionError}</div>}
 
         <div className="grid grid-cols-1 gap-6">
-          <Card className="p-6">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-strong">Continue / Start a Session</h2>
-                <p className="text-sm text-muted">Jump back into a recently generated session library.</p>
-              </div>
-            </div>
-
-            {hasActiveSession && (
-              <div className="mt-4 space-y-2 rounded-lg border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] p-4 text-[var(--color-primary-strong)]">
-                <p className="text-sm font-semibold">Session in progress</p>
-                <p className="text-xs text-subtle">Finish your active session before starting another.</p>
+          {hasActiveSession && (
+            <Card className="p-6 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold">Session in progress</p>
+                  <p className="text-xs text-subtle">Finish your active session before starting another.</p>
+                </div>
                 <Link href={activeSessionLink}>
                   <Button variant="secondary" size="sm">Resume session</Button>
                 </Link>
               </div>
-            )}
+            </Card>
+          )}
+
+          <Card className="p-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-strong">Suggested workouts</h2>
+                <p className="text-sm text-muted">Pick up with a recommended plan or start a fresh session.</p>
+              </div>
+            </div>
 
             <div className="mt-6 space-y-3">
               {recentWorkouts.length === 0 ? (
@@ -756,7 +761,7 @@ export default function DashboardPage() {
                                 ? 'Starting...'
                                 : 'Start Session'}
                           </Button>
-                          <Link href={`/workout/${workout.id}`}>
+                          <Link href={`/workout/${workout.id}?from=dashboard`}>
                             <Button variant="ghost" size="sm">View</Button>
                           </Link>
                           <Button
