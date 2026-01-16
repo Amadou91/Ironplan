@@ -1,7 +1,9 @@
 import type {
   CardioActivity,
   EquipmentInventory,
+  EquipmentOption,
   Exercise,
+  ExerciseLoad,
   FocusArea,
   GeneratedPlan,
   Goal,
@@ -747,6 +749,243 @@ const deriveReps = (goal: Goal, intensity: Intensity) => {
   return intensity === 'high' ? '8-10' : '8-12'
 }
 
+type ExerciseSource = 'primary' | 'secondary' | 'accessory'
+
+type ExercisePrescription = {
+  sets: number
+  reps: string | number
+  rpe: number
+  restSeconds: number
+  load?: ExerciseLoad
+}
+
+type PlannedExercise = {
+  exercise: Exercise
+  source: ExerciseSource
+  prescription: ExercisePrescription
+  estimatedMinutes: number
+  minSets: number
+  maxSets: number
+}
+
+const getExerciseCaps = (minutes: number) => {
+  if (minutes <= 30) return { min: 3, max: 5 }
+  if (minutes <= 45) return { min: 4, max: 6 }
+  if (minutes <= 60) return { min: 5, max: 8 }
+  if (minutes <= 90) return { min: 6, max: 9 }
+  return { min: 6, max: 10 }
+}
+
+const getSetCaps = (minutes: number) => {
+  if (minutes <= 30) return { min: 2, max: 4 }
+  if (minutes <= 60) return { min: 2, max: 5 }
+  return { min: 2, max: 6 }
+}
+
+const getRestModifier = (minutes: number, preference: RestPreference) => {
+  let modifier = minutes <= 30 ? 0.8 : minutes <= 45 ? 0.9 : minutes >= 90 ? 1.1 : 1
+  if (preference === 'minimal_rest') modifier -= 0.1
+  if (preference === 'high_recovery') modifier += 0.1
+  return clamp(modifier, 0.7, 1.3)
+}
+
+const getSetupMinutes = (option?: EquipmentOption | null) => {
+  switch (option?.kind) {
+    case 'bodyweight':
+      return 1
+    case 'dumbbell':
+    case 'kettlebell':
+    case 'band':
+      return 2
+    case 'barbell':
+    case 'machine':
+      return 3
+    default:
+      return 2
+  }
+}
+
+const getWorkSeconds = (goal: Goal, exercise: Exercise) => {
+  if (exercise.focus === 'cardio' || exercise.movementPattern === 'cardio') return 60
+  if (goal === 'strength') return 50
+  if (goal === 'endurance' || goal === 'cardio') return 60
+  return 45
+}
+
+export const estimateExerciseMinutes = (
+  exercise: Exercise,
+  prescription: ExercisePrescription,
+  option?: EquipmentOption | null,
+  goal?: Goal
+) => {
+  const setupMinutes = getSetupMinutes(option)
+  const workSeconds = getWorkSeconds(goal ?? exercise.goal ?? 'general_fitness', exercise)
+  const workMinutes = (prescription.sets * (workSeconds + prescription.restSeconds)) / 60
+  const fallbackPerSet = exercise.durationMinutes
+    ? exercise.durationMinutes / Math.max(exercise.sets, 1)
+    : null
+  const fallbackMinutes = fallbackPerSet ? setupMinutes + prescription.sets * fallbackPerSet : 0
+  const estimated = setupMinutes + workMinutes
+  return Math.max(1, Math.round(Math.max(estimated, fallbackMinutes) * 10) / 10)
+}
+
+const buildSessionForTime = (
+  primaryPool: Exercise[],
+  secondaryPool: Exercise[],
+  accessoryPool: Exercise[],
+  input: PlanInput,
+  duration: number,
+  goal: Goal
+) => {
+  const targetMinutes = clamp(duration, 20, 120)
+  const reps = deriveReps(goal, input.intensity)
+  const { min: minExercises, max: maxExercises } = getExerciseCaps(targetMinutes)
+  const { min: minSetCap, max: maxSetCap } = getSetCaps(targetMinutes)
+  const restModifier = getRestModifier(targetMinutes, input.preferences.restPreference)
+  const picks: PlannedExercise[] = []
+  const usedPatterns = new Map<string, number>()
+  const usedNames = new Set<string>()
+
+  const createPlan = (exercise: Exercise, source: ExerciseSource): PlannedExercise | null => {
+    const selectedOption = selectEquipmentOption(input.equipment.inventory, exercise.equipment)
+    if (!selectedOption) return null
+    const baseSets = adjustSets(exercise.sets, input.experienceLevel)
+    const isCardio = exercise.focus === 'cardio'
+    const minSets = isCardio ? 1 : minSetCap
+    const maxSets = isCardio ? Math.max(minSets, Math.min(4, maxSetCap)) : maxSetCap
+    let sets = clamp(baseSets, minSets, maxSets)
+    if (targetMinutes <= 35 && (source === 'accessory' || source === 'secondary')) {
+      sets = Math.max(minSets, sets - 1)
+    }
+    if (targetMinutes >= 90 && source === 'primary') {
+      sets = Math.min(maxSets, sets + 1)
+    }
+    const restSeconds = clamp(Math.round(exercise.restSeconds * restModifier), isCardio ? 30 : 45, 150)
+    const prescription: ExercisePrescription = {
+      sets,
+      reps: exercise.focus === 'cardio' ? exercise.reps : reps,
+      rpe: adjustRpe(exercise.rpe, input.intensity),
+      restSeconds,
+      load: buildLoad(selectedOption, exercise.loadTarget, input.equipment.inventory)
+    }
+    const estimatedMinutes = estimateExerciseMinutes(exercise, prescription, selectedOption, goal)
+    return {
+      exercise,
+      source,
+      prescription,
+      estimatedMinutes,
+      minSets,
+      maxSets
+    }
+  }
+
+  const canAdd = (exercise: Exercise, source: ExerciseSource, currentMinutes: number) => {
+    if (picks.length >= maxExercises || usedNames.has(exercise.name)) return false
+    const pattern = exercise.movementPattern ?? 'accessory'
+    if ((usedPatterns.get(pattern) ?? 0) >= 2) return false
+    const planned = createPlan(exercise, source)
+    if (!planned) return false
+    if (currentMinutes + planned.estimatedMinutes > targetMinutes + 6 && picks.length >= minExercises) {
+      return false
+    }
+    picks.push(planned)
+    usedNames.add(exercise.name)
+    usedPatterns.set(pattern, (usedPatterns.get(pattern) ?? 0) + 1)
+    return true
+  }
+
+  const seedPool = primaryPool.length ? primaryPool : secondaryPool
+  const sortedSeed = seedPool.slice().sort((a, b) => b.durationMinutes - a.durationMinutes)
+  let totalMinutes = 0
+  sortedSeed.some((exercise) => {
+    const added = canAdd(exercise, primaryPool.includes(exercise) ? 'primary' : 'secondary', totalMinutes)
+    if (added) {
+      totalMinutes = picks.reduce((sum, item) => sum + item.estimatedMinutes, 0)
+    }
+    return added
+  })
+
+  const fillPools: Array<{ source: ExerciseSource; pool: Exercise[] }> = [
+    { source: 'secondary', pool: secondaryPool },
+    { source: 'accessory', pool: accessoryPool },
+    { source: 'secondary', pool: [...primaryPool, ...secondaryPool, ...accessoryPool] }
+  ]
+
+  fillPools.forEach(({ source, pool }) => {
+    for (const exercise of pool) {
+      if (picks.length >= minExercises) break
+      if (canAdd(exercise, source, totalMinutes)) {
+        totalMinutes = picks.reduce((sum, item) => sum + item.estimatedMinutes, 0)
+      }
+    }
+  })
+
+  const recalcTotals = () => {
+    totalMinutes = picks.reduce((sum, item) => sum + item.estimatedMinutes, 0)
+  }
+
+  const adjustEstimate = (planned: PlannedExercise) => {
+    const selectedOption = selectEquipmentOption(input.equipment.inventory, planned.exercise.equipment)
+    planned.estimatedMinutes = estimateExerciseMinutes(
+      planned.exercise,
+      planned.prescription,
+      selectedOption,
+      goal
+    )
+  }
+
+  const reduceOrder: ExerciseSource[] = ['accessory', 'secondary', 'primary']
+  let safetyCounter = 0
+  while (totalMinutes > targetMinutes && safetyCounter < 200) {
+    let changed = false
+    for (const source of reduceOrder) {
+      const planned = picks.find((item) => item.source === source && item.prescription.sets > item.minSets)
+      if (!planned) continue
+      planned.prescription.sets -= 1
+      adjustEstimate(planned)
+      changed = true
+      recalcTotals()
+      if (totalMinutes <= targetMinutes) break
+    }
+    if (!changed) break
+    safetyCounter += 1
+  }
+
+  const increaseOrder: ExerciseSource[] = ['primary', 'secondary', 'accessory']
+  safetyCounter = 0
+  while (totalMinutes < targetMinutes - 6 && safetyCounter < 200) {
+    let increased = false
+    for (const source of increaseOrder) {
+      const planned = picks.find((item) => item.source === source && item.prescription.sets < item.maxSets)
+      if (!planned) continue
+      planned.prescription.sets += 1
+      adjustEstimate(planned)
+      recalcTotals()
+      if (totalMinutes <= targetMinutes) {
+        increased = true
+        break
+      }
+      planned.prescription.sets -= 1
+      adjustEstimate(planned)
+      recalcTotals()
+    }
+    if (!increased) break
+    safetyCounter += 1
+  }
+
+  for (const exercise of accessoryPool) {
+    if (picks.length >= maxExercises || totalMinutes >= targetMinutes - 5) break
+    if (canAdd(exercise, 'accessory', totalMinutes)) {
+      recalcTotals()
+    }
+  }
+
+  return picks.map(({ exercise, prescription }) => ({
+    ...exercise,
+    ...prescription
+  }))
+}
+
 const buildSessionExercises = (
   focus: FocusArea,
   duration: number,
@@ -780,68 +1019,7 @@ const buildSessionExercises = (
       )
     : []
 
-  const pool = [...primaryPool, ...secondaryPool, ...accessoryPool].filter(
-    (exercise, index, array) => array.findIndex((item) => item.name === exercise.name) === index
-  )
-
-  const maxExercises = clamp(Math.round(duration / 10), 3, 6)
-  const targetMinutes = clamp(duration, 20, 120)
-  const reps = deriveReps(targetGoal, input.intensity)
-  const picks: Exercise[] = []
-  const usedPatterns = new Map<string, number>()
-  const usedNames = new Set<string>()
-  let totalMinutes = 0
-
-  const addExercise = (exercise: Exercise) => {
-    const pattern = exercise.movementPattern ?? 'accessory'
-    const count = usedPatterns.get(pattern) ?? 0
-    if (count >= 2) return false
-    if (usedNames.has(exercise.name)) return false
-    picks.push(exercise)
-    usedNames.add(exercise.name)
-    usedPatterns.set(pattern, count + 1)
-    totalMinutes += exercise.durationMinutes
-    return true
-  }
-
-  const seedPool = primaryPool.length ? primaryPool : secondaryPool
-  seedPool
-    .slice()
-    .sort((a, b) => b.durationMinutes - a.durationMinutes)
-    .some((exercise) => addExercise(exercise))
-
-  const fillPools = [
-    secondaryPool,
-    accessoryPool,
-    pool
-  ]
-
-  fillPools.forEach((candidatePool) => {
-    if (picks.length >= maxExercises || totalMinutes >= targetMinutes - 5) return
-    for (const exercise of candidatePool) {
-      if (picks.length >= maxExercises || totalMinutes >= targetMinutes - 5) break
-      addExercise(exercise)
-    }
-  })
-
-  if (picks.length < maxExercises) {
-    pool.forEach((exercise) => {
-      if (picks.length >= maxExercises || totalMinutes >= targetMinutes - 5) return
-      addExercise(exercise)
-    })
-  }
-
-  return picks.map(exercise => {
-    const selectedOption = selectEquipmentOption(input.equipment.inventory, exercise.equipment)
-    const load = buildLoad(selectedOption, exercise.loadTarget, input.equipment.inventory)
-    return {
-      ...exercise,
-      sets: adjustSets(exercise.sets, input.experienceLevel),
-      reps: exercise.focus === 'cardio' ? exercise.reps : reps,
-      rpe: adjustRpe(exercise.rpe, input.intensity),
-      load
-    }
-  })
+  return buildSessionForTime(primaryPool, secondaryPool, accessoryPool, input, duration, targetGoal)
 }
 
 const formatFocusLabel = (focus: FocusArea) =>

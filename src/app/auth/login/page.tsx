@@ -32,7 +32,7 @@ export default function LoginPage() {
       setLoading(false)
     } else {
       setUser(toAuthUser(data.session?.user ?? null))
-      router.push('/')
+      router.push('/dashboard')
       router.refresh()
     }
   }

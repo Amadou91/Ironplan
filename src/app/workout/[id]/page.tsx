@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ChevronLeft, Activity, Clock, Flame, Trophy, Gauge, Shuffle, Undo2 } from 'lucide-react'
+import { Activity, Clock, Flame, Trophy, Gauge, Shuffle, Undo2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import type { Exercise, PlanDay, PlanInput, WorkoutImpact } from '@/types/domain'
@@ -128,12 +129,6 @@ export default function WorkoutDetailPage() {
   const fromParam = searchParams.get('from')
   const hasActiveSession = Boolean(activeSession)
   const isCurrentSessionActive = sessionActive || (activeSession?.workoutId === workout?.id)
-  const backHref = sessionActive || isCurrentSessionActive
-    ? '/dashboard'
-    : fromParam === 'generate'
-      ? '/generate'
-      : '/dashboard'
-  const backLabel = backHref === '/generate' ? 'Back to Generate Plan' : 'Back to Dashboard'
   const activeSessionLink = activeSession?.workoutId
     ? `/workout/${activeSession.workoutId}?session=active&sessionId=${activeSession.id}&from=dashboard`
     : '/dashboard'
@@ -400,28 +395,40 @@ export default function WorkoutDetailPage() {
   return (
     <div className="page-shell">
       <div className="w-full px-4 py-8 sm:px-6 lg:px-10 2xl:px-16">
-      <button onClick={() => router.push(backHref)} className="mb-6 flex items-center text-sm text-muted transition-colors hover:text-strong">
-        <ChevronLeft className="mr-1 h-4 w-4" /> {backLabel}
-      </button>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+            <Link href="/dashboard" className="transition-colors hover:text-strong">
+              Dashboard
+            </Link>
+            <span>/</span>
+            <span className="text-subtle">{workout.title}</span>
+          </div>
+          <h1 className="text-3xl font-semibold text-strong">{workout.title}</h1>
+          <p className="text-muted">{workout.description}</p>
+          {selectedSchedule && (
+            <p className="text-sm text-subtle">
+              {formatSessionName(selectedSchedule, workout.goal)}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {fromParam === 'generate' && (
+            <Button type="button" variant="secondary" onClick={() => router.push('/generate')}>
+              Generate another plan
+            </Button>
+          )}
+          <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
+            <X className="h-4 w-4" /> Close
+          </Button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {sessionActive && (activeSession || sessionId) && <ActiveSession sessionId={sessionId} />}
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="mb-2 text-3xl font-semibold text-strong">{workout.title}</h1>
-              <p className="text-muted">{workout.description}</p>
-              {selectedSchedule && (
-                <p className="mt-2 text-sm text-subtle">
-                  {formatSessionName(selectedSchedule, workout.goal)}
-                </p>
-              )}
-            </div>
-            <span className="badge-accent">
-              {workout.goal}
-            </span>
-          </div>
+          <span className="badge-accent">{workout.goal}</span>
 
           <div className="space-y-4">
             <h3 className="flex items-center text-lg font-semibold text-strong">

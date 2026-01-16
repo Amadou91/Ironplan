@@ -19,7 +19,7 @@ export default function Sidebar() {
     clearUser();
     authStore.persist.clearStorage();
     await supabase.auth.signOut();
-    router.push('/');
+    router.push('/auth/login');
     router.refresh();
   };
 
