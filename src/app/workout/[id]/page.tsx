@@ -125,10 +125,17 @@ export default function WorkoutDetailPage() {
   const planImpact = summary?.impact
   const sessionActive = searchParams.get('session') === 'active'
   const sessionId = searchParams.get('sessionId')
+  const fromParam = searchParams.get('from')
   const hasActiveSession = Boolean(activeSession)
   const isCurrentSessionActive = sessionActive || (activeSession?.workoutId === workout?.id)
+  const backHref = sessionActive || isCurrentSessionActive
+    ? '/dashboard'
+    : fromParam === 'generate'
+      ? '/generate'
+      : '/dashboard'
+  const backLabel = backHref === '/generate' ? 'Back to Generate Plan' : 'Back to Dashboard'
   const activeSessionLink = activeSession?.workoutId
-    ? `/workout/${activeSession.workoutId}?session=active&sessionId=${activeSession.id}`
+    ? `/workout/${activeSession.workoutId}?session=active&sessionId=${activeSession.id}&from=dashboard`
     : '/dashboard'
   const enrichedExercises = useMemo(
     () =>
@@ -313,8 +320,9 @@ export default function WorkoutDetailPage() {
   const handleStartSession = async () => {
     setStartError(null)
     setFinishError(null)
-    if (hasActiveSession) {
+    if (hasActiveSession && !isCurrentSessionActive) {
       setStartError('Finish your current session before starting a new one.')
+      router.push(activeSessionLink)
       return
     }
     const durationMinutes = promptForSessionMinutes()
@@ -352,7 +360,8 @@ export default function WorkoutDetailPage() {
       })
 
       const indexParam = selectedSchedule ? `&sessionIndex=${selectedScheduleIndex}` : ''
-      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}${indexParam}`)
+      const fromQuery = fromParam ? `&from=${fromParam}` : ''
+      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}${indexParam}${fromQuery}`)
     } catch (error) {
       console.error('Failed to start session', error)
       setStartError('Unable to start the session. Please try again.')
@@ -391,8 +400,8 @@ export default function WorkoutDetailPage() {
   return (
     <div className="page-shell">
       <div className="w-full px-4 py-8 sm:px-6 lg:px-10 2xl:px-16">
-      <button onClick={() => router.back()} className="mb-6 flex items-center text-sm text-muted transition-colors hover:text-strong">
-        <ChevronLeft className="mr-1 h-4 w-4" /> Back to Dashboard
+      <button onClick={() => router.push(backHref)} className="mb-6 flex items-center text-sm text-muted transition-colors hover:text-strong">
+        <ChevronLeft className="mr-1 h-4 w-4" /> {backLabel}
       </button>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
