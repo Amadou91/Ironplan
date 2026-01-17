@@ -42,17 +42,23 @@ test('workout history persists and reloads entries', () => {
   const storage = new MemoryStorage()
   const entry = {
     id: 'entry-1',
-    title: 'Test Plan',
+    title: 'Test Template',
     createdAt: '2024-01-01T00:00:00.000Z',
-    plan: {
-      title: 'Test Plan',
+    template: {
+      title: 'Test Template',
       description: 'Test Description',
-      goal: 'strength',
-      level: 'beginner',
-      tags: ['strength'],
-      schedule: [],
-      inputs: {},
-      summary: { sessionsPerWeek: 1, totalMinutes: 30, focusDistribution: { upper: 0, lower: 0, full_body: 0, core: 0, cardio: 0, mobility: 0 }, impact: { score: 10, breakdown: { volume: 4, intensity: 4, density: 2 } } }
+      focus: 'chest',
+      style: 'strength',
+      inputs: {
+        intent: { mode: 'body_part', bodyParts: ['chest'], style: 'strength' },
+        goals: { primary: 'strength', priority: 'primary' },
+        experienceLevel: 'beginner',
+        intensity: 'low',
+        equipment: { preset: 'full_gym', inventory: { bodyweight: true, dumbbells: [], kettlebells: [], bands: [], barbell: { available: false, plates: [] }, machines: { cable: false, leg_press: false, treadmill: false, rower: false } } },
+        time: { minutesPerSession: 30 },
+        schedule: { daysAvailable: [0], minRestDays: 1 },
+        preferences: { focusAreas: ['chest'], dislikedActivities: [], cardioActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
+      }
     }
   }
 
@@ -60,6 +66,6 @@ test('workout history persists and reloads entries', () => {
   const loaded = loadWorkoutHistory(storage)
 
   assert.equal(loaded.length, 1)
-  assert.equal(loaded[0].title, 'Test Plan')
-  assert.equal(loaded[0].plan.summary.impact.score, 10)
+  assert.equal(loaded[0].title, 'Test Template')
+  assert.equal(loaded[0].template.style, 'strength')
 })

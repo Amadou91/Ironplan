@@ -7,7 +7,7 @@ import { useUser } from '@/hooks/useUser'
 import { Loader2, Wand2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { generatePlan, normalizePlanInput } from '@/lib/generator'
+import { buildWorkoutTemplate, normalizePlanInput } from '@/lib/generator'
 import { bandLabels, cloneInventory, equipmentPresets, formatWeightList, machineLabels, parseWeightList } from '@/lib/equipment'
 import {
   buildWorkoutHistoryEntry,
@@ -19,7 +19,7 @@ import {
 import { CARDIO_ACTIVITY_OPTIONS } from '@/lib/cardio-activities'
 import { getFlowCompletion, isEquipmentValid } from '@/lib/generationFlow'
 import { logEvent } from '@/lib/logger'
-import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanInput, GeneratedPlan } from '@/types/domain'
+import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanInput, WorkoutTemplateDraft } from '@/types/domain'
 
 const styleOptions: { value: Goal; label: string; description: string }[] = [
   { value: 'strength', label: 'Strength', description: 'Heavier loads, lower reps, power focus.' },
@@ -34,7 +34,7 @@ const focusOptions: { value: PlanInput['preferences']['focusAreas'][number]; lab
   { value: 'chest', label: 'Chest' },
   { value: 'back', label: 'Back' }
 ]
-const buildWorkoutTitle = (plan: GeneratedPlan) => plan.title
+const buildWorkoutTitle = (template: WorkoutTemplateDraft) => template.title
 
 export default function GeneratePage() {
   const router = useRouter()
@@ -44,7 +44,7 @@ export default function GeneratePage() {
   const [errors, setErrors] = useState<string[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSummary, setSaveSummary] = useState<{
-    workoutId?: string
+    templateId?: string
     title?: string
   } | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
@@ -87,11 +87,11 @@ export default function GeneratePage() {
   const getSavePlanHint = (error: { code?: string } | null) => {
     switch (error?.code) {
       case '42P01':
-        return 'Missing workouts table. Run the SQL in supabase/schema.sql or create the table in Supabase.'
+        return 'Missing workout_templates table. Run the SQL in supabase/schema.sql or create the table in Supabase.'
       case '42501':
-        return 'Insert blocked by Row Level Security. Add an insert policy for the workouts table.'
+        return 'Insert blocked by Row Level Security. Add an insert policy for the workout_templates table.'
       case '23502':
-        return 'A required column is missing. Confirm workouts.user_id, title, and exercises are provided.'
+        return 'A required column is missing. Confirm workout_templates.user_id, title, focus, style, and template_inputs are provided.'
       default:
         return null
     }
@@ -192,8 +192,8 @@ export default function GeneratePage() {
 
   const handleHistoryLoad = (entry: (typeof historyEntries)[number]) => {
     updateFormData(() => {
-      const normalized = normalizePlanInput(entry.plan.inputs)
-      const storedFocus = normalized.intent.bodyParts?.[0] ?? entry.plan.schedule?.[0]?.focus ?? 'chest'
+      const normalized = normalizePlanInput(entry.template.inputs)
+      const storedFocus = normalized.intent.bodyParts?.[0] ?? entry.template.focus ?? 'chest'
       return {
         ...normalized,
         intent: {
@@ -215,7 +215,7 @@ export default function GeneratePage() {
   }
 
   const handleHistoryDelete = async (entry: (typeof historyEntries)[number]) => {
-    if (!confirm(`Delete "${entry.title}" from your saved workouts? This cannot be undone.`)) return
+    if (!confirm(`Delete "${entry.title}" from your saved templates? This cannot be undone.`)) return
     if (!user) return
     setHistoryError(null)
     setDeletingHistoryIds(prev => ({ ...prev, [entry.id]: true }))
@@ -223,7 +223,7 @@ export default function GeneratePage() {
     try {
       if (entry.remoteId) {
         const { error } = await supabase
-          .from('workouts')
+          .from('workout_templates')
           .delete()
           .eq('id', entry.remoteId)
           .eq('user_id', user.id)
@@ -262,7 +262,7 @@ export default function GeneratePage() {
 
     const syncHistory = async () => {
       const { data, error } = await supabase
-        .from('workouts')
+        .from('workout_templates')
         .select('id')
         .eq('user_id', user.id)
 
@@ -284,46 +284,45 @@ export default function GeneratePage() {
     syncHistory()
   }, [supabase, user])
 
-  const savePlanToDatabase = async (plan: GeneratedPlan) => {
+  const savePlanToDatabase = async (template: WorkoutTemplateDraft) => {
     if (!user) return null
 
-    const newPlan = {
+    const newTemplate = {
       user_id: user.id,
-      title: buildWorkoutTitle(plan),
-      description: plan.description,
-      goal: plan.goal,
-      level: plan.level,
-      tags: plan.tags,
-      exercises: {
-        schedule: plan.schedule,
-        inputs: plan.inputs,
-        summary: plan.summary
-      }
+      title: buildWorkoutTitle(template),
+      description: template.description,
+      focus: template.focus,
+      style: template.style,
+      experience_level: template.inputs.experienceLevel,
+      intensity: template.inputs.intensity,
+      equipment: template.inputs.equipment,
+      preferences: template.inputs.preferences,
+      template_inputs: template.inputs
     }
 
     const { data, error } = await supabase
-      .from('workouts')
-      .insert([newPlan])
+      .from('workout_templates')
+      .insert([newTemplate])
       .select()
       .single()
 
     if (error) {
       const hint = getSavePlanHint(error)
-      console.error('Failed to save plan', { error, hint })
-      setSaveError(`Failed to generate plan: ${error.message}${hint ? ` ${hint}` : ''}`)
+      console.error('Failed to save template', { error, hint })
+      setSaveError(`Failed to save template: ${error.message}${hint ? ` ${hint}` : ''}`)
       return null
     }
 
     if (!data) {
-      console.error('Failed to save plan', { error: 'No data returned from insert.' })
-      setSaveError('Failed to generate plan. No data returned from insert.')
+      console.error('Failed to save template', { error: 'No data returned from insert.' })
+      setSaveError('Failed to save template. No data returned from insert.')
       return null
     }
 
     if (typeof window !== 'undefined') {
       try {
-        const entry = buildWorkoutHistoryEntry(plan, data.id)
-        const titledEntry = { ...entry, title: buildWorkoutTitle(plan) }
+        const entry = buildWorkoutHistoryEntry(template, data.id)
+        const titledEntry = { ...entry, title: buildWorkoutTitle(template) }
         saveWorkoutHistoryEntry(titledEntry, window.localStorage)
         setHistoryEntries((prev) => [titledEntry, ...prev.filter(item => item.id !== titledEntry.id)])
       } catch (error) {
@@ -333,8 +332,8 @@ export default function GeneratePage() {
     }
 
     return {
-      workoutId: data.id,
-      title: plan.title
+      templateId: data.id,
+      title: template.title
     }
   }
 
@@ -343,8 +342,8 @@ export default function GeneratePage() {
     setLoading(true)
     setSaveError(null)
 
-    const { plan, errors: validationErrors } = generatePlan(formData)
-    if (validationErrors.length > 0 || !plan) {
+    const { template, errors: validationErrors } = buildWorkoutTemplate(formData)
+    if (validationErrors.length > 0 || !template) {
       setErrors(validationErrors)
       logEvent('warn', 'plan_validation_failed', { errors: validationErrors })
       setLoading(false)
@@ -355,23 +354,24 @@ export default function GeneratePage() {
     setSaveSummary(null)
     logEvent('info', 'plan_generated', {
       userId: user.id,
-      sessionsPerWeek: plan.summary.sessionsPerWeek,
-      totalMinutes: plan.summary.totalMinutes,
-      goals: plan.inputs.goals,
-      equipment: plan.inputs.equipment
+      focus: template.focus,
+      style: template.style,
+      experienceLevel: template.inputs.experienceLevel,
+      intensity: template.inputs.intensity,
+      equipment: template.inputs.equipment
     })
 
     try {
-      const saveResult = await savePlanToDatabase(plan)
+      const saveResult = await savePlanToDatabase(template)
       if (!saveResult) return
 
       setSaveSummary({
-        workoutId: saveResult.workoutId,
+        templateId: saveResult.templateId,
         title: saveResult.title
       })
     } catch (err) {
-      console.error('Failed to save plan', err)
-      setSaveError('Failed to generate plan. Check console for details.')
+      console.error('Failed to save template', err)
+      setSaveError('Failed to save template. Check console for details.')
     } finally {
       setLoading(false)
     }
@@ -400,7 +400,7 @@ export default function GeneratePage() {
       return (
         <div className="flex items-center gap-2 text-sm text-accent">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          Generating your workout plan...
+          Saving your workout template...
         </div>
       )
     }
@@ -414,13 +414,8 @@ export default function GeneratePage() {
         <div className="space-y-3 text-sm text-muted">
           {saveSummary.title && (
             <div className="rounded-lg border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] px-3 py-2 text-[var(--color-primary-strong)]">
-              Saved plan: {saveSummary.title}
+              Saved template: {saveSummary.title}
             </div>
-          )}
-          {saveSummary.workoutId && (
-            <Button type="button" variant="secondary" onClick={() => router.push(`/workout/${saveSummary.workoutId}?from=generate`)}>
-              View generated plan
-            </Button>
           )}
         </div>
       )
@@ -429,7 +424,7 @@ export default function GeneratePage() {
     if (errors.length > 0) {
       return (
         <div className="text-sm text-[var(--color-danger)]">
-          Review the items below and resolve them before generating your plan.
+          Review the items below and resolve them before saving your template.
         </div>
       )
     }
@@ -438,7 +433,7 @@ export default function GeneratePage() {
       return <div className="text-sm text-muted">Complete the required steps to unlock generation.</div>
     }
 
-    return <div className="text-sm text-muted">Everything looks good. Generate your plan when ready.</div>
+    return <div className="text-sm text-muted">Everything looks good. Save your template when ready.</div>
   }
 
   if (userLoading) return <div className="page-shell p-8 text-center text-muted">Loading...</div>
@@ -453,7 +448,7 @@ export default function GeneratePage() {
               Generate Workout Plan
             </h1>
             <p className="mt-2 text-muted">
-              Answer each step to create a plan that matches your goals, schedule, and preferences.
+              Answer each step to create a template that matches your goals, schedule, and preferences.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -472,7 +467,7 @@ export default function GeneratePage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 1</p>
                 <h2 className="text-xl font-semibold text-strong">Choose your workout focus</h2>
                 <p className="text-sm text-muted">
-                  Pick the muscle group you want to train and the training style for this plan.
+                  Pick the muscle group you want to train and the training style for this template.
                 </p>
               </div>
 
@@ -490,7 +485,7 @@ export default function GeneratePage() {
                     aria-pressed={formData.intent.bodyParts?.[0] === option.value}
                   >
                     <p className="text-sm font-semibold text-strong">{option.label}</p>
-                    <p className="mt-1 text-xs text-subtle">Generate a dedicated {option.label.toLowerCase()} plan.</p>
+                    <p className="mt-1 text-xs text-subtle">Create a dedicated {option.label.toLowerCase()} template.</p>
                   </button>
                 ))}
               </div>
@@ -761,7 +756,7 @@ export default function GeneratePage() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 3</p>
                 <h2 className="text-xl font-semibold text-strong">Review & generate</h2>
-                <p className="text-sm text-muted">Confirm the highlights before we build your plan.</p>
+                <p className="text-sm text-muted">Confirm the highlights before we save your template.</p>
               </div>
 
               <div className="surface-card-subtle p-4">
@@ -829,8 +824,8 @@ export default function GeneratePage() {
       <Card className="mt-8 p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-strong">Saved Workouts</h2>
-            <p className="text-xs text-subtle">Quickly reload or open a recently generated plan.</p>
+            <h2 className="text-lg font-semibold text-strong">Saved Templates</h2>
+            <p className="text-xs text-subtle">Quickly reload a recently saved template.</p>
           </div>
         </div>
 
@@ -838,7 +833,7 @@ export default function GeneratePage() {
 
         {historyEntries.length === 0 ? (
           <div className="rounded-lg border border-dashed border-[var(--color-border)] p-6 text-sm text-muted">
-            No saved workouts yet. Generate a plan to start building your history.
+            No saved templates yet. Save a template to start building your history.
           </div>
         ) : (
           <div className="space-y-3">
@@ -850,11 +845,10 @@ export default function GeneratePage() {
                 <div>
                   <p className="text-sm font-semibold text-strong">{entry.title}</p>
                   <p className="text-xs text-subtle">
-                    {new Date(entry.createdAt).toLocaleString()} · Score {entry.plan.summary.impact.score}
+                    {new Date(entry.createdAt).toLocaleString()} · {entry.template.focus.replace('_', ' ')}
                   </p>
                   <p className="mt-1 text-xs text-subtle">
-                    Focus on {(entry.plan.schedule?.[0]?.focus ?? entry.plan.inputs.intent.bodyParts?.[0] ?? entry.plan.goal).replace('_', ' ')}
-                    {' '}· {(entry.plan.goal ?? entry.plan.inputs.goals.primary).replace('_', ' ')}
+                    {entry.template.style.replace('_', ' ')} · {entry.template.inputs.experienceLevel} · {entry.template.inputs.intensity}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -865,16 +859,6 @@ export default function GeneratePage() {
                   >
                     Reload Setup
                   </Button>
-                  {entry.remoteId ? (
-                    <Button
-                      type="button"
-                      onClick={() => router.push(`/workout/${entry.remoteId}?from=generate`)}
-                      className="px-3 py-2 text-xs"
-                      variant="secondary"
-                    >
-                      Quick View
-                    </Button>
-                  ) : null}
                   <Button
                     type="button"
                     onClick={() => handleHistoryDelete(entry)}

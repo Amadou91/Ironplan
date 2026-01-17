@@ -5,13 +5,14 @@ import type {
   Exercise,
   ExerciseLoad,
   FocusArea,
-  GeneratedPlan,
   Goal,
   GoalPriority,
   Intensity,
+  MovementPattern,
   PlanDay,
   PlanInput,
   RestPreference,
+  WorkoutTemplateDraft,
   WorkoutImpact
 } from '@/types/domain'
 import { equipmentPresets, hasEquipment } from './equipment'
@@ -919,6 +920,65 @@ const filterExercises = (
   return matchesFocus && matchesGoal && matchesCardio && Boolean(option) && !isDisliked && !(lowImpact && isHighImpact)
 })
 
+type SessionHistory = {
+  recentExerciseNames?: string[]
+  recentMovementPatterns?: MovementPattern[]
+  recentPrimaryMuscles?: string[]
+}
+
+const normalizeExerciseKey = (name: string) => name.trim().toLowerCase()
+
+const hashSeed = (seed: string) => {
+  let hash = 2166136261
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+const createSeededRandom = (seed: string) => {
+  let state = hashSeed(seed)
+  return () => {
+    state += 0x6d2b79f5
+    let t = state
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+const getPrimaryMuscleKey = (exercise: Exercise) =>
+  String(exercise.primaryMuscle ?? '').trim().toLowerCase()
+
+const isCompoundMovement = (exercise: Exercise) =>
+  ['squat', 'hinge', 'push', 'pull', 'carry'].includes(exercise.movementPattern ?? '')
+
+const getExperienceScore = (exercise: Exercise, experience: PlanInput['experienceLevel']) => {
+  if (!exercise.difficulty) return 0
+  if (experience === 'beginner') {
+    if (exercise.difficulty === 'beginner') return 2
+    if (exercise.difficulty === 'intermediate') return 0.5
+    return -2
+  }
+  if (experience === 'advanced') {
+    if (exercise.difficulty === 'advanced') return 2
+    if (exercise.difficulty === 'intermediate') return 1
+    return -1
+  }
+  if (exercise.difficulty === 'intermediate') return 1.5
+  return 0.5
+}
+
+const getIntensityScore = (exercise: Exercise, intensity: Intensity) => {
+  if (intensity === 'high') {
+    return isCompoundMovement(exercise) ? 2 : 0
+  }
+  if (intensity === 'low') {
+    return isCompoundMovement(exercise) ? -0.5 : 1
+  }
+  return 0
+}
 const adjustRpe = (baseRpe: number, intensity: Intensity) => {
   if (intensity === 'low') return clamp(baseRpe - 1, 5, 9)
   if (intensity === 'high') return clamp(baseRpe + 1, 5, 9)
@@ -931,10 +991,22 @@ const adjustSets = (baseSets: number, experience: PlanInput['experienceLevel']) 
   return baseSets
 }
 
+const adjustSetsForIntensity = (sets: number, intensity: Intensity) => {
+  if (intensity === 'low') return Math.max(2, sets + 1)
+  if (intensity === 'high') return Math.max(2, sets - 1)
+  return sets
+}
+
 const deriveReps = (goal: Goal, intensity: Intensity) => {
   if (goal === 'strength') return intensity === 'high' ? '3-6' : '4-6'
   if (goal === 'endurance') return intensity === 'high' ? '15-20' : '12-15'
   return intensity === 'high' ? '8-10' : '8-12'
+}
+
+const getIntensityRestModifier = (intensity: Intensity) => {
+  if (intensity === 'low') return 0.85
+  if (intensity === 'high') return 1.15
+  return 1
 }
 
 type ExerciseSource = 'primary' | 'secondary' | 'accessory'
@@ -1024,21 +1096,52 @@ const buildSessionForTime = (
   input: PlanInput,
   duration: number,
   goal: Goal,
-  focusConstraint?: FocusConstraint | null
+  focusConstraint?: FocusConstraint | null,
+  history?: SessionHistory,
+  seed?: string
 ): { exercises: Exercise[]; error?: string } => {
   const targetMinutes = clamp(duration, 20, 120)
   const reps = deriveReps(goal, input.intensity)
   const { min: minExercises, max: maxExercises } = getExerciseCaps(targetMinutes)
   const { min: minSetCap, max: maxSetCap } = getSetCaps(targetMinutes)
-  const restModifier = getRestModifier(targetMinutes, input.preferences.restPreference)
+  const restModifier = getRestModifier(targetMinutes, input.preferences.restPreference) * getIntensityRestModifier(input.intensity)
   const picks: PlannedExercise[] = []
   const usedPatterns = new Map<string, number>()
   const usedNames = new Set<string>()
+  const rng = createSeededRandom(seed ?? `${input.goals.primary}-${targetMinutes}`)
+  const recentNames = new Set((history?.recentExerciseNames ?? []).map(normalizeExerciseKey))
+  const recentPatterns = new Set((history?.recentMovementPatterns ?? []).filter(Boolean))
+  const recentPrimaryMuscles = new Set(
+    (history?.recentPrimaryMuscles ?? []).map((muscle) => muscle.trim().toLowerCase())
+  )
+
+  const scoreExercise = (exercise: Exercise, source: ExerciseSource) => {
+    let score = 0
+    const nameKey = normalizeExerciseKey(exercise.name)
+    if (recentNames.has(nameKey)) score -= 3
+    if (!recentNames.has(nameKey)) score += 2
+    if (exercise.movementPattern && recentPatterns.has(exercise.movementPattern)) score -= 1
+    const primaryKey = getPrimaryMuscleKey(exercise)
+    if (primaryKey && recentPrimaryMuscles.has(primaryKey)) score -= 1
+    score += getExperienceScore(exercise, input.experienceLevel)
+    score += getIntensityScore(exercise, input.intensity)
+    if (source === 'primary') score += 1
+    return score
+  }
+
+  const orderPool = (pool: Exercise[], source: ExerciseSource) =>
+    pool
+      .map((exercise) => ({
+        exercise,
+        score: scoreExercise(exercise, source) + rng() * 0.2
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map((item) => item.exercise)
 
   const createPlan = (exercise: Exercise, source: ExerciseSource): PlannedExercise | null => {
     const selectedOption = selectEquipmentOption(input.equipment.inventory, exercise.equipment)
     if (!selectedOption) return null
-    const baseSets = adjustSets(exercise.sets, input.experienceLevel)
+    const baseSets = adjustSetsForIntensity(adjustSets(exercise.sets, input.experienceLevel), input.intensity)
     const isCardio = exercise.focus === 'cardio'
     const minSets = isCardio ? 1 : minSetCap
     const maxSets = isCardio ? Math.max(minSets, Math.min(4, maxSetCap)) : maxSetCap
@@ -1106,6 +1209,14 @@ const buildSessionForTime = (
     const allowDuplicatePrimary = focusConstraint && isPrimaryMatch(exercise) && primaryPool.length < minExercises
     if (picks.length >= maxExercises || (!allowDuplicatePrimary && usedNames.has(exercise.name))) return false
     const pattern = exercise.movementPattern ?? 'accessory'
+    const lastPick = picks[picks.length - 1]
+    const lastPattern = lastPick?.exercise.movementPattern ?? null
+    const lastPrimary = lastPick ? getPrimaryMuscleKey(lastPick.exercise) : null
+    const nextPrimary = getPrimaryMuscleKey(exercise)
+    const isAdjacentRepeat = Boolean(
+      lastPick && ((lastPattern && lastPattern === pattern) || (lastPrimary && lastPrimary === nextPrimary))
+    )
+    if (isAdjacentRepeat && picks.length >= minExercises) return false
     const maxPatternUsage = focusConstraint ? 4 : 2
     if ((usedPatterns.get(pattern) ?? 0) >= maxPatternUsage) return false
     const planned = createPlan(exercise, source)
@@ -1126,7 +1237,8 @@ const buildSessionForTime = (
   }
 
   const seedPool = primaryPool.length ? primaryPool : secondaryPool
-  const sortedSeed = seedPool.slice().sort((a, b) => b.durationMinutes - a.durationMinutes)
+  const seedSource: ExerciseSource = primaryPool.length ? 'primary' : 'secondary'
+  const sortedSeed = orderPool(seedPool, seedSource)
   let totalMinutes = 0
   sortedSeed.some((exercise) => {
     const added = canAdd(exercise, primaryPool.includes(exercise) ? 'primary' : 'secondary', totalMinutes)
@@ -1143,7 +1255,8 @@ const buildSessionForTime = (
   ]
 
   fillPools.forEach(({ source, pool }) => {
-    for (const exercise of pool) {
+    const orderedPool = orderPool(pool, source)
+    for (const exercise of orderedPool) {
       if (picks.length >= minExercises) break
       if (canAdd(exercise, source, totalMinutes)) {
         totalMinutes = picks.reduce((sum, item) => sum + item.estimatedMinutes, 0)
@@ -1226,7 +1339,8 @@ const buildSessionForTime = (
     }
   }
 
-  for (const exercise of accessoryPool) {
+  const orderedAccessoryPool = orderPool(accessoryPool, 'accessory')
+  for (const exercise of orderedAccessoryPool) {
     if (picks.length >= maxExercises || totalMinutes >= targetMinutes - 5) break
     if (canAdd(exercise, 'accessory', totalMinutes)) {
       recalcTotals()
@@ -1241,8 +1355,58 @@ const buildSessionForTime = (
     }
   }
 
+  const reorderForVariety = () => {
+    const remaining = [...picks]
+    const ordered: PlannedExercise[] = []
+
+    const isAdjacentRepeat = (prev: PlannedExercise | undefined, next: PlannedExercise) => {
+      if (!prev) return false
+      const prevPattern = prev.exercise.movementPattern ?? null
+      const nextPattern = next.exercise.movementPattern ?? null
+      const prevPrimary = getPrimaryMuscleKey(prev.exercise)
+      const nextPrimary = getPrimaryMuscleKey(next.exercise)
+      return Boolean(
+        (prevPattern && nextPattern && prevPattern === nextPattern) ||
+        (prevPrimary && nextPrimary && prevPrimary === nextPrimary)
+      )
+    }
+
+    while (remaining.length) {
+      const previous = ordered[ordered.length - 1]
+      const candidates = remaining.filter((item) => !isAdjacentRepeat(previous, item))
+      const primaryVariedCandidates = remaining.filter((item) => {
+        if (!previous) return true
+        const prevPrimary = getPrimaryMuscleKey(previous.exercise)
+        const nextPrimary = getPrimaryMuscleKey(item.exercise)
+        return prevPrimary && nextPrimary && prevPrimary !== nextPrimary
+      })
+      const pickPool =
+        candidates.length > 0
+          ? candidates
+          : primaryVariedCandidates.length > 0
+            ? primaryVariedCandidates
+            : remaining
+      let best: PlannedExercise | null = null
+      let bestScore = -Infinity
+      pickPool.forEach((item) => {
+        const itemScore = scoreExercise(item.exercise, item.source) + rng() * 0.1
+        if (itemScore > bestScore) {
+          bestScore = itemScore
+          best = item
+        }
+      })
+      const selected = best ?? pickPool[0]
+      ordered.push(selected)
+      const index = remaining.indexOf(selected)
+      if (index >= 0) remaining.splice(index, 1)
+    }
+
+    return ordered
+  }
+
+  const orderedPicks = reorderForVariety()
   return {
-    exercises: picks.map(({ exercise, prescription }) => ({
+    exercises: orderedPicks.map(({ exercise, prescription }) => ({
       ...exercise,
       ...prescription
     }))
@@ -1253,7 +1417,9 @@ const buildSessionExercises = (
   focus: FocusArea,
   duration: number,
   input: PlanInput,
-  goalOverride?: Goal
+  goalOverride?: Goal,
+  history?: SessionHistory,
+  seed?: string
 ): { exercises: Exercise[]; error?: string } => {
   const targetGoal = goalOverride ?? input.goals.primary
   const baseFocus = focusMuscleMap[focus]?.baseFocus
@@ -1298,7 +1464,17 @@ const buildSessionExercises = (
     return { exercises: [], error: 'focus_constraints_unmet' }
   }
 
-  return buildSessionForTime(primaryPool, secondaryPool, accessoryPool, input, duration, targetGoal, focusConstraint)
+  return buildSessionForTime(
+    primaryPool,
+    secondaryPool,
+    accessoryPool,
+    input,
+    duration,
+    targetGoal,
+    focusConstraint,
+    history,
+    seed
+  )
 }
 
 const buildRationale = (
@@ -1415,9 +1591,17 @@ export const generateSessionExercises = (
   input: PlanInput,
   focus: FocusArea,
   durationMinutes: number,
-  goalOverride?: Goal
+  goalOverride?: Goal,
+  options?: { seed?: string; history?: SessionHistory }
 ) => {
-  const result = buildSessionExercises(focus, durationMinutes, input, goalOverride)
+  const result = buildSessionExercises(
+    focus,
+    durationMinutes,
+    input,
+    goalOverride,
+    options?.history,
+    options?.seed
+  )
   if (result.error) {
     const accessoryEligible = focusMuscleMap[focus]?.baseFocus
       ? filterExercises(
@@ -1445,7 +1629,9 @@ export const generateSessionExercises = (
   return result.exercises
 }
 
-export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: GeneratedPlan; errors: string[] } => {
+export const buildWorkoutTemplate = (
+  partialInput: Partial<PlanInput>
+): { template?: WorkoutTemplateDraft; errors: string[] } => {
   const normalized = applyRestPreference(normalizePlanInput(partialInput))
   const errors = validatePlanInput(normalized)
   if (errors.length > 0) {
@@ -1455,91 +1641,18 @@ export const generatePlan = (partialInput: Partial<PlanInput>): { plan?: Generat
   const focusSequence = normalized.intent.mode === 'body_part' && normalized.intent.bodyParts?.length
     ? [normalized.intent.bodyParts[0]]
     : buildFocusSequence(1, normalized.preferences, normalized.goals)
-  const sessionsPerWeek = 1
-  const minutesPerSession = adjustMinutesPerSession(normalized, sessionsPerWeek)
-  const schedule: PlanDay[] = Array.from({ length: sessionsPerWeek }, (_, index) => {
-    const focus = focusSequence[index]
-    const style = normalized.goals.primary
-    const duration = clamp(minutesPerSession, 20, 120)
-    const { exercises, error } = buildSessionExercises(focus, duration, normalized, style)
-    if (error) {
-      const focusLabel = formatFocusLabel(focus)
-      const primaryEligible = filterExercises(
-        focus,
-        normalized.equipment.inventory,
-        normalized.preferences.dislikedActivities,
-        normalized.preferences.accessibilityConstraints,
-        normalized.preferences.cardioActivities,
-        style
-      ).length
-      const accessoryEligible = focusMuscleMap[focus]?.baseFocus
-        ? filterExercises(
-            focusMuscleMap[focus]?.baseFocus ?? focus,
-            normalized.equipment.inventory,
-            normalized.preferences.dislikedActivities,
-            normalized.preferences.accessibilityConstraints,
-            normalized.preferences.cardioActivities
-          ).length
-        : 0
-      logEvent('warn', 'focus_constraints_unsatisfied', {
-        focus,
-        primaryEligible,
-        accessoryEligible
-      })
-      errors.push(
-        `Not enough ${focusLabel} exercises available for your equipment selection. Add equipment or broaden focus (ex: Upper Body).`
-      )
-      return {
-        order: index,
-        focus,
-        durationMinutes: duration,
-        rationale: '',
-        exercises: []
-      }
-    }
-    const name = buildSessionName(focus, exercises, style)
-    return {
-      order: index,
-      name,
+  const focus = focusSequence[0]
+  const title = buildPlanTitle(focus, normalized.goals.primary)
+  const description = `${formatFocusLabel(focus)} focus · ${normalized.goals.primary.replace('_', ' ')} goal.`
+
+  return {
+    template: {
+      title,
+      description,
       focus,
-      durationMinutes: duration,
-      exercises,
-      rationale: buildRationale(focus, duration, normalized.preferences.restPreference, style)
-    }
-  })
-  if (errors.length > 0) {
-    return { errors }
+      style: normalized.goals.primary,
+      inputs: normalized
+    },
+    errors: []
   }
-
-  const totalMinutes = schedule.reduce((sum, day) => sum + day.durationMinutes, 0)
-  const uniqueStyles = [normalized.goals.primary]
-  const title = buildPlanTitle(focusSequence[0], normalized.goals.primary)
-  const description =
-    uniqueStyles.length === 1
-      ? `${formatFocusLabel(focusSequence[0])} focus · ${uniqueStyles[0].replace('_', ' ')} goal.`
-      : `Mixed styles across your focus rotation.`
-  const impact = calculateWorkoutImpact(schedule)
-
-  const plan: GeneratedPlan = {
-    title,
-    description,
-    goal: normalized.goals.primary,
-    level: normalized.experienceLevel,
-    tags: [
-      normalized.goals.primary,
-      normalized.goals.secondary ?? 'none',
-      normalized.intensity,
-      normalized.experienceLevel
-    ],
-    schedule,
-    inputs: normalized,
-    summary: {
-      sessionsPerWeek,
-      totalMinutes,
-      focusDistribution: buildFocusDistribution(schedule),
-      impact
-    }
-  }
-
-  return { plan, errors: [] }
 }
