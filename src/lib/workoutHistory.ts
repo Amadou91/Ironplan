@@ -1,10 +1,10 @@
-import type { GeneratedPlan } from '@/types/domain'
+import type { WorkoutTemplateDraft } from '@/types/domain'
 
 export type WorkoutHistoryEntry = {
   id: string
   title: string
   createdAt: string
-  plan: GeneratedPlan
+  template: WorkoutTemplateDraft
   remoteId?: string
 }
 
@@ -55,10 +55,10 @@ export const removeWorkoutHistoryEntry = (entryId: string, storage?: Storage) =>
   }
 }
 
-export const buildWorkoutHistoryEntry = (plan: GeneratedPlan, remoteId?: string): WorkoutHistoryEntry => ({
+export const buildWorkoutHistoryEntry = (template: WorkoutTemplateDraft, remoteId?: string): WorkoutHistoryEntry => ({
   id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-  title: plan.title,
+  title: template.title,
   createdAt: new Date().toISOString(),
-  plan,
+  template,
   remoteId
 })

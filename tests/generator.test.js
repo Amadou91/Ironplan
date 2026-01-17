@@ -65,13 +65,13 @@ function loadTsModule(modulePath) {
 const factory = new Function('module', 'exports', 'require', outputText)
 factory(moduleShim, moduleShim.exports, requireWithEquipment)
 
-const { calculateWorkoutImpact, generatePlan } = moduleShim.exports
+const { calculateWorkoutImpact, buildWorkoutTemplate, generateSessionExercises, normalizePlanInput } = moduleShim.exports
 
 const getPrimaryMuscle = (exercise) =>
   (exercise.primaryBodyParts && exercise.primaryBodyParts[0]) || exercise.primaryMuscle || ''
 
 test('validate input errors when required fields are missing', () => {
-  const { errors } = generatePlan({
+  const { errors } = buildWorkoutTemplate({
     intent: { mode: 'body_part', bodyParts: [] },
     schedule: { daysAvailable: [], timeWindows: [], minRestDays: 1 },
     equipment: { preset: 'custom', inventory: { bodyweight: false, dumbbells: [], kettlebells: [], bands: [], barbell: { available: false, plates: [] }, machines: { cable: false, leg_press: false, treadmill: false, rower: false } } }
@@ -81,15 +81,12 @@ test('validate input errors when required fields are missing', () => {
 })
 
 test('chest focus stays chest-dominant with allowed accessories', () => {
-  const { plan, errors } = generatePlan({
+  const input = normalizePlanInput({
     intent: { mode: 'body_part', bodyParts: ['chest'] },
     preferences: { focusAreas: ['chest'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
   })
 
-  assert.equal(errors.length, 0)
-  assert.ok(plan)
-
-  const exercises = plan.schedule.flatMap(day => day.exercises)
+  const exercises = generateSessionExercises(input, 'chest', 45, input.goals.primary, { seed: 'seed-chest' })
   assert.ok(exercises.length > 0)
 
   const totalSets = exercises.reduce((sum, ex) => sum + (ex.sets || 0), 0)
@@ -108,7 +105,7 @@ test('chest focus stays chest-dominant with allowed accessories', () => {
 })
 
 test('returns an error when chest focus cannot be satisfied by equipment', () => {
-  const { plan, errors } = generatePlan({
+  const input = normalizePlanInput({
     intent: { mode: 'body_part', bodyParts: ['chest'] },
     preferences: { focusAreas: ['chest'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' },
     equipment: {
@@ -123,21 +120,17 @@ test('returns an error when chest focus cannot be satisfied by equipment', () =>
       }
     }
   })
-
-  assert.ok(errors.length > 0)
-  assert.equal(plan, undefined)
+  const exercises = generateSessionExercises(input, 'chest', 45, input.goals.primary, { seed: 'seed-empty' })
+  assert.equal(exercises.length, 0)
 })
 
 test('back focus avoids unrelated primary muscles', () => {
-  const { plan, errors } = generatePlan({
+  const input = normalizePlanInput({
     intent: { mode: 'body_part', bodyParts: ['back'] },
     preferences: { focusAreas: ['back'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
   })
 
-  assert.equal(errors.length, 0)
-  assert.ok(plan)
-
-  const exercises = plan.schedule.flatMap(day => day.exercises)
+  const exercises = generateSessionExercises(input, 'back', 45, input.goals.primary, { seed: 'seed-back' })
   assert.ok(exercises.length > 0)
 
   const forbidden = exercises.filter(ex => {
@@ -148,12 +141,10 @@ test('back focus avoids unrelated primary muscles', () => {
   assert.ok(forbidden.length === 0)
 })
 
-test('respects time and schedule constraints when generating sessions', () => {
-  const { plan, errors } = generatePlan({
-    intent: { mode: 'body_part', bodyParts: ['cardio'] },
+test('time availability scales exercise count and volume', () => {
+  const input = normalizePlanInput({
+    intent: { mode: 'body_part', bodyParts: ['upper'] },
     goals: { primary: 'endurance', priority: 'primary' },
-    time: { minutesPerSession: 40, totalMinutesPerWeek: 120 },
-    schedule: { daysAvailable: [1, 2, 4, 6], timeWindows: ['morning'], minRestDays: 1 },
     equipment: {
       preset: 'custom',
       inventory: {
@@ -165,18 +156,21 @@ test('respects time and schedule constraints when generating sessions', () => {
         machines: { cable: false, leg_press: false, treadmill: false, rower: false }
       }
     },
-    preferences: { focusAreas: ['cardio'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
+    preferences: { focusAreas: ['upper'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
   })
 
-  assert.equal(errors.length, 0)
-  assert.ok(plan)
-  assert.equal(plan.schedule.length, 1)
-  assert.ok(plan.schedule.every(day => day.durationMinutes <= 120))
-  assert.ok(plan.summary.totalMinutes <= 120)
+  const shortSession = generateSessionExercises(input, 'upper', 30, input.goals.primary, { seed: 'seed-short' })
+  const longSession = generateSessionExercises(input, 'upper', 120, input.goals.primary, { seed: 'seed-long' })
+
+  assert.ok(shortSession.length > 0)
+  assert.ok(longSession.length >= shortSession.length)
+  const shortSets = shortSession.reduce((sum, ex) => sum + ex.sets, 0)
+  const longSets = longSession.reduce((sum, ex) => sum + ex.sets, 0)
+  assert.ok(longSets >= shortSets)
 })
 
 test('filters exercises to available equipment inventory', () => {
-  const { plan, errors } = generatePlan({
+  const input = normalizePlanInput({
     intent: { mode: 'body_part', bodyParts: ['core'] },
     equipment: {
       preset: 'custom',
@@ -192,12 +186,91 @@ test('filters exercises to available equipment inventory', () => {
     preferences: { focusAreas: ['core'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
   })
 
-  assert.equal(errors.length, 0)
-  assert.ok(plan)
-
-  const allExercises = plan.schedule.flatMap(day => day.exercises)
+  const allExercises = generateSessionExercises(input, 'core', 40, input.goals.primary, { seed: 'seed-core' })
   assert.ok(allExercises.length > 0)
   assert.ok(allExercises.every(exercise => exercise.equipment.some(option => option.kind === 'bodyweight')))
+})
+
+test('intensity and experience change prescriptions', () => {
+  const baseInput = normalizePlanInput({
+    intent: { mode: 'body_part', bodyParts: ['upper'] },
+    preferences: { focusAreas: ['upper'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
+  })
+
+  const lowIntensity = generateSessionExercises(
+    { ...baseInput, intensity: 'low' },
+    'upper',
+    45,
+    baseInput.goals.primary,
+    { seed: 'seed-intensity' }
+  )
+  const highIntensity = generateSessionExercises(
+    { ...baseInput, intensity: 'high' },
+    'upper',
+    45,
+    baseInput.goals.primary,
+    { seed: 'seed-intensity' }
+  )
+
+  const lowRest = lowIntensity.reduce((sum, ex) => sum + ex.restSeconds, 0)
+  const highRest = highIntensity.reduce((sum, ex) => sum + ex.restSeconds, 0)
+  assert.notEqual(lowRest, highRest)
+
+  const beginner = generateSessionExercises(
+    { ...baseInput, experienceLevel: 'beginner' },
+    'upper',
+    45,
+    baseInput.goals.primary,
+    { seed: 'seed-experience' }
+  )
+  const advanced = generateSessionExercises(
+    { ...baseInput, experienceLevel: 'advanced' },
+    'upper',
+    45,
+    baseInput.goals.primary,
+    { seed: 'seed-experience' }
+  )
+  const beginnerSets = beginner.reduce((sum, ex) => sum + ex.sets, 0)
+  const advancedSets = advanced.reduce((sum, ex) => sum + ex.sets, 0)
+  assert.notEqual(beginnerSets, advancedSets)
+})
+
+test('repeated runs vary while avoiding back-to-back duplicates', () => {
+  const input = normalizePlanInput({
+    intent: { mode: 'body_part', bodyParts: ['back'] },
+    preferences: { focusAreas: ['back'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
+  })
+
+  const firstRun = generateSessionExercises(input, 'back', 45, input.goals.primary, { seed: 'run-1' })
+  const history = {
+    recentExerciseNames: firstRun.map(ex => ex.name),
+    recentMovementPatterns: firstRun.map(ex => ex.movementPattern).filter(Boolean),
+    recentPrimaryMuscles: firstRun.map(ex => ex.primaryMuscle).filter(Boolean)
+  }
+  const secondRun = generateSessionExercises(input, 'back', 45, input.goals.primary, { seed: 'run-2', history })
+
+  assert.notEqual(firstRun.map(ex => ex.name).join('|'), secondRun.map(ex => ex.name).join('|'))
+
+  const uniquePatterns = new Set(secondRun.map(ex => ex.movementPattern).filter(Boolean))
+  const primaryList = secondRun.map(ex => ex.primaryMuscle).filter(Boolean)
+  const uniquePrimary = new Set(primaryList)
+  const primaryCounts = primaryList.reduce((acc, muscle) => {
+    acc[muscle] = (acc[muscle] ?? 0) + 1
+    return acc
+  }, {})
+  const maxPrimaryCount = Math.max(0, ...Object.values(primaryCounts))
+  secondRun.forEach((exercise, index) => {
+    const previous = secondRun[index - 1]
+    if (!previous) return
+    if (uniquePatterns.size > 1 && exercise.movementPattern && previous.movementPattern) {
+      assert.notEqual(exercise.movementPattern, previous.movementPattern)
+    }
+    const prevPrimary = String(previous.primaryMuscle ?? '').toLowerCase()
+    const nextPrimary = String(exercise.primaryMuscle ?? '').toLowerCase()
+    if (uniquePrimary.size > 1 && maxPrimaryCount <= Math.ceil(secondRun.length / 2) && prevPrimary && nextPrimary) {
+      assert.notEqual(prevPrimary, nextPrimary)
+    }
+  })
 })
 
 test('calculates a stable impact score for a known fixture', () => {

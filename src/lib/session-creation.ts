@@ -1,6 +1,7 @@
+import { generateSessionExercises, calculateExerciseImpact } from '@/lib/generator'
 import { toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { SessionExercise, WorkoutImpact } from '@/types/domain'
+import type { FocusArea, Goal, MovementPattern, PlanInput, SessionExercise, WorkoutImpact } from '@/types/domain'
 
 type SessionExerciseSeed = {
   name: string
@@ -14,11 +15,18 @@ type SessionExerciseSeed = {
 type CreateSessionParams = {
   supabase: SupabaseClient
   userId: string
-  workoutId: string
-  workoutTitle: string
-  exercises: SessionExerciseSeed[]
+  templateId: string
+  templateTitle: string
+  focus: FocusArea
+  goal: Goal
+  input: PlanInput
+  minutesAvailable: number
+  history?: {
+    recentExerciseNames?: string[]
+    recentMovementPatterns?: MovementPattern[]
+    recentPrimaryMuscles?: string[]
+  }
   nameSuffix?: string
-  impact?: WorkoutImpact
 }
 
 type CreateSessionResult = {
@@ -38,22 +46,26 @@ const getSecondaryMuscles = (exercise: SessionExerciseSeed) =>
 export const createWorkoutSession = async ({
   supabase,
   userId,
-  workoutId,
-  workoutTitle,
-  exercises,
-  nameSuffix,
-  impact
+  templateId,
+  templateTitle,
+  focus,
+  goal,
+  input,
+  minutesAvailable,
+  history,
+  nameSuffix
 }: CreateSessionParams): Promise<CreateSessionResult> => {
   const startedAt = new Date().toISOString()
-  const sessionName = nameSuffix ? `${workoutTitle} · ${nameSuffix}` : workoutTitle
+  const sessionName = nameSuffix ? `${templateTitle} · ${nameSuffix}` : templateTitle
   const { data: sessionData, error: sessionError } = await supabase
     .from('sessions')
     .insert({
       user_id: userId,
-      workout_id: workoutId,
+      template_id: templateId,
       name: sessionName,
       started_at: startedAt,
-      impact: impact ?? null
+      status: 'in_progress',
+      minutes_available: minutesAvailable
     })
     .select()
     .single()
@@ -63,6 +75,11 @@ export const createWorkoutSession = async ({
   }
 
   try {
+    const exercises = generateSessionExercises(input, focus, minutesAvailable, goal, {
+      seed: sessionData.id,
+      history
+    })
+    const impact = exercises.length ? calculateExerciseImpact(exercises) : undefined
     const exercisePayload = exercises.map((exercise, index) => {
       const primaryMuscle = toMuscleSlug(getPrimaryMuscle(exercise), 'full_body')
       const secondaryMuscles = getSecondaryMuscles(exercise)
@@ -105,6 +122,26 @@ export const createWorkoutSession = async ({
       sets: [],
       orderIndex: exercise.order_index ?? idx
     }))
+
+    const generatedPayload = exercises.map((exercise) => ({
+      name: exercise.name,
+      movementPattern: exercise.movementPattern ?? null,
+      primaryMuscle: exercise.primaryMuscle ?? null,
+      secondaryMuscles: exercise.secondaryMuscles ?? [],
+      sets: exercise.sets,
+      reps: exercise.reps,
+      rpe: exercise.rpe,
+      restSeconds: exercise.restSeconds
+    }))
+
+    const { error: updateError } = await supabase
+      .from('sessions')
+      .update({
+        impact: impact ?? null,
+        generated_exercises: generatedPayload
+      })
+      .eq('id', sessionData.id)
+    if (updateError) throw updateError
 
     return {
       sessionId: sessionData.id,

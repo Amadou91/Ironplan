@@ -184,6 +184,29 @@ export interface GeneratedPlan {
   }
 }
 
+export interface WorkoutTemplate {
+  id: string
+  userId: string
+  title: string
+  description?: string | null
+  focus: FocusArea
+  style: Goal
+  experienceLevel: PlanInput['experienceLevel']
+  intensity: Intensity
+  equipment: PlanInput['equipment']
+  preferences: PlanInput['preferences']
+  inputs: PlanInput
+  createdAt: string
+}
+
+export interface WorkoutTemplateDraft {
+  title: string
+  description: string
+  focus: FocusArea
+  style: Goal
+  inputs: PlanInput
+}
+
 export type PlanStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED' | 'COMPLETED'
 
 export interface WorkoutPlan {
@@ -206,17 +229,17 @@ export interface WorkoutSession {
   id: string
   userId: string
   planId?: string
-  workoutId?: string
+  templateId?: string
   name: string
   startedAt: string
   endedAt?: string
-  status?: 'active' | 'completed' | 'cancelled'
+  status?: 'in_progress' | 'completed' | 'cancelled'
   impact?: WorkoutImpact
   exercises: SessionExercise[]
 }
 
 export interface WorkoutLog {
-  workoutId: string
+  templateId: string
   sessionName: string | null
   startedAt: string
   completedAt: string | null

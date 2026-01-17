@@ -54,21 +54,46 @@ create table if not exists public.workouts (
 create index if not exists workouts_user_created_idx
   on public.workouts (user_id, created_at desc);
 
+create table if not exists public.workout_templates (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  description text,
+  focus text not null,
+  style text not null,
+  experience_level text not null,
+  intensity text not null,
+  equipment jsonb not null default '{}'::jsonb,
+  preferences jsonb not null default '{}'::jsonb,
+  template_inputs jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists workout_templates_user_created_idx
+  on public.workout_templates (user_id, created_at desc);
+
 alter table public.workouts enable row level security;
+alter table public.workout_templates enable row level security;
 
 drop policy if exists "Users can manage their workouts" on public.workouts;
+drop policy if exists "Users can manage their workout templates" on public.workout_templates;
 
 create policy "Users can manage their workouts" on public.workouts
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "Users can manage their workout templates" on public.workout_templates
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create table if not exists public.sessions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  workout_id uuid references public.workouts(id) on delete set null,
+  template_id uuid references public.workout_templates(id) on delete set null,
   name text not null,
-  status text not null default 'active' check (status in ('active', 'completed', 'cancelled')),
+  status text not null default 'in_progress' check (status in ('in_progress', 'completed', 'cancelled')),
   started_at timestamptz not null default now(),
   ended_at timestamptz,
+  minutes_available int,
+  generated_exercises jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -201,6 +226,7 @@ grant select on public.muscle_groups to anon, authenticated;
 grant select on public.exercise_catalog to anon, authenticated;
 
 grant select, insert, update, delete on public.workouts to authenticated;
+grant select, insert, update, delete on public.workout_templates to authenticated;
 grant select, insert, update, delete on public.sessions to authenticated;
 grant select, insert, update, delete on public.session_exercises to authenticated;
 grant select, insert, update, delete on public.sets to authenticated;

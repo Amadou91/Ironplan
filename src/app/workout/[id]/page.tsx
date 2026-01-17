@@ -3,36 +3,29 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { Activity, Clock, Flame, Trophy, Gauge, Shuffle, Undo2, X } from 'lucide-react'
+import { Activity, Clock, Gauge, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import type { Exercise, PlanDay, PlanInput, WorkoutImpact } from '@/types/domain'
-import { enhanceExerciseData, toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
-import { formatSessionName } from '@/lib/workout-metrics'
-import { calculateExerciseImpact, generateSessionExercises, normalizePlanInput } from '@/lib/generator'
-import { createWorkoutSession } from '@/lib/session-creation'
 import ActiveSession from '@/components/workout/ActiveSession'
-import { useWorkoutStore } from '@/store/useWorkoutStore'
-import { getSwapSuggestions } from '@/lib/exercise-swap'
-import { EXERCISE_LIBRARY } from '@/lib/generator'
-import { computeExerciseMetrics } from '@/lib/workout-metrics'
+import { createClient } from '@/lib/supabase/client'
+import { normalizePlanInput } from '@/lib/generator'
+import { createWorkoutSession } from '@/lib/session-creation'
+import { fetchTemplateHistory } from '@/lib/session-history'
 import { promptForSessionMinutes } from '@/lib/session-time'
+import { toMuscleLabel } from '@/lib/muscle-utils'
+import { useUser } from '@/hooks/useUser'
+import { useWorkoutStore } from '@/store/useWorkoutStore'
+import type { FocusArea, PlanInput } from '@/types/domain'
 
-type Workout = {
+type WorkoutTemplate = {
   id: string
   title: string
-  description: string
-  goal: string
-  level: string
-  exercises:
-    | {
-        schedule?: Array<{ order: number; name?: string; exercises?: Exercise[]; focus?: PlanDay['focus'] }>
-        summary?: { totalMinutes?: number; impact?: WorkoutImpact }
-        inputs?: PlanInput
-      }
-    | Exercise[]
-    | null
+  description: string | null
+  focus: FocusArea
+  style: PlanInput['goals']['primary']
+  experience_level: PlanInput['experienceLevel']
+  intensity: PlanInput['intensity']
+  template_inputs: PlanInput | null
   created_at: string
 }
 
@@ -41,7 +34,8 @@ export default function WorkoutDetailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
-  const [workout, setWorkout] = useState<Workout | null>(null)
+  const { user } = useUser()
+  const [template, setTemplate] = useState<WorkoutTemplate | null>(null)
   const [loading, setLoading] = useState(true)
   const [startingSession, setStartingSession] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
@@ -49,316 +43,103 @@ export default function WorkoutDetailPage() {
   const [finishingSession, setFinishingSession] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
   const [cancelingSession, setCancelingSession] = useState(false)
-  const [sessionExercises, setSessionExercises] = useState<Exercise[]>([])
-  const [swapOptions, setSwapOptions] = useState<{
-    index: number
-    suggestions: Exercise[]
-    usedFallback: boolean
-  } | null>(null)
-  const [lastSwap, setLastSwap] = useState<{ index: number; previous: Exercise } | null>(null)
-  const [swapError, setSwapError] = useState<string | null>(null)
-  const [swapNotice, setSwapNotice] = useState<string | null>(null)
-  const [savingSwap, setSavingSwap] = useState(false)
   const startSession = useWorkoutStore((state) => state.startSession)
   const endSession = useWorkoutStore((state) => state.endSession)
-  const replaceSessionExercise = useWorkoutStore((state) => state.replaceSessionExercise)
   const activeSession = useWorkoutStore((state) => state.activeSession)
 
   useEffect(() => {
-    const fetchWorkout = async () => {
+    const fetchTemplate = async () => {
       const { data, error } = await supabase
-        .from('workouts')
+        .from('workout_templates')
         .select('*')
         .eq('id', params.id)
         .single()
 
       if (error) {
-        console.error('Error fetching workout:', error)
+        console.error('Error fetching template:', error)
       } else {
-        setWorkout(data)
+        setTemplate(data)
       }
       setLoading(false)
     }
 
-    if (params.id) fetchWorkout()
+    if (params.id) fetchTemplate()
   }, [params.id, supabase])
 
-  const schedule = useMemo<PlanDay[]>(
-    () => (!workout?.exercises || Array.isArray(workout.exercises) ? [] : workout.exercises.schedule ?? []),
-    [workout]
-  )
-
-  const selectedScheduleIndex = useMemo(() => {
-    if (!schedule.length) return 0
-    const sessionIndexParam = Number.parseInt(searchParams.get('sessionIndex') ?? '', 10)
-    return Number.isFinite(sessionIndexParam) && sessionIndexParam >= 0 && sessionIndexParam < schedule.length
-      ? sessionIndexParam
-      : 0
-  }, [schedule, searchParams])
-
-  const selectedSchedule = schedule[selectedScheduleIndex] ?? schedule[0] ?? null
-
-  const exercises = useMemo(() => {
-    if (!workout?.exercises) return []
-    if (Array.isArray(workout.exercises)) return workout.exercises
-    return selectedSchedule?.exercises ?? []
-  }, [selectedSchedule, workout])
-
-  useEffect(() => {
-    setSessionExercises(exercises)
-    setSwapOptions(null)
-    setSwapNotice(null)
-    setSwapError(null)
-    setLastSwap(null)
-  }, [exercises, selectedSchedule])
-
-  const summary = useMemo(
-    () => (!workout?.exercises || Array.isArray(workout.exercises) ? undefined : workout.exercises.summary),
-    [workout]
-  )
-
-  const inputs = useMemo(
-    () => (!workout?.exercises || Array.isArray(workout.exercises) ? undefined : workout.exercises.inputs),
-    [workout]
-  )
-  const impact = useMemo(() => {
-    if (!sessionExercises.length) return undefined
-    return calculateExerciseImpact(sessionExercises)
-  }, [sessionExercises])
-  const planImpact = summary?.impact
   const sessionActive = searchParams.get('session') === 'active'
   const sessionId = searchParams.get('sessionId')
   const fromParam = searchParams.get('from')
   const hasActiveSession = Boolean(activeSession)
-  const isCurrentSessionActive = sessionActive || (activeSession?.workoutId === workout?.id)
-  const activeSessionLink = activeSession?.workoutId
-    ? `/workout/${activeSession.workoutId}?session=active&sessionId=${activeSession.id}&from=dashboard`
+  const isCurrentSessionActive = sessionActive || (activeSession?.templateId === template?.id)
+  const activeSessionLink = activeSession?.templateId
+    ? `/workout/${activeSession.templateId}?session=active&sessionId=${activeSession.id}&from=dashboard`
     : '/dashboard'
-  const enrichedExercises = useMemo(
-    () =>
-      sessionExercises.map((exercise) =>
-        enhanceExerciseData({
-          ...exercise,
-          primaryMuscle: exercise.primaryBodyParts?.[0] ?? exercise.primaryMuscle ?? exercise.focus ?? ''
-        })
-      ),
-    [sessionExercises]
-  )
 
-  const inventory = inputs?.equipment?.inventory
-
-  const updateActiveSessionSwap = async (replacement: Exercise, index: number) => {
-    if (!activeSession || activeSession.workoutId !== workout?.id) return
-    const sessionExercise = activeSession.exercises[index]
-    if (!sessionExercise?.id) return
-
-    const primaryMuscle = replacement.primaryBodyParts?.[0] ?? replacement.primaryMuscle ?? replacement.focus ?? 'Full Body'
-    const secondaryMuscles = replacement.secondaryBodyParts ?? replacement.secondaryMuscles ?? []
-    const primarySlug = toMuscleSlug(primaryMuscle, 'full_body') ?? 'full_body'
-    const secondarySlugs = secondaryMuscles
-      .map((muscle) => toMuscleSlug(muscle, null))
-      .filter((muscle): muscle is string => Boolean(muscle))
-
-    const { error: exerciseError } = await supabase
-      .from('session_exercises')
-      .update({
-        exercise_name: replacement.name,
-        primary_muscle: primarySlug,
-        secondary_muscles: secondarySlugs
-      })
-      .eq('id', sessionExercise.id)
-
-    if (exerciseError) {
-      throw exerciseError
-    }
-
-    const { error: setDeleteError } = await supabase
-      .from('sets')
-      .delete()
-      .eq('session_exercise_id', sessionExercise.id)
-
-    if (setDeleteError) {
-      throw setDeleteError
-    }
-
-    replaceSessionExercise(index, {
-      name: replacement.name,
-      primaryMuscle: toMuscleLabel(primarySlug),
-      secondaryMuscles: secondarySlugs.map((muscle) => toMuscleLabel(muscle)),
-      sets: []
-    })
-  }
-
-  const persistSwap = async (updatedExercises: Exercise[]) => {
-    if (!workout || selectedScheduleIndex < 0 || !workout.exercises || Array.isArray(workout.exercises)) return
-    setSavingSwap(true)
-    setSwapError(null)
-    try {
-      const updatedSchedule = (workout.exercises.schedule ?? []).map((day, idx) =>
-        idx === selectedScheduleIndex ? { ...day, exercises: updatedExercises } : day
-      )
-      const updatedExercisesPayload = { ...workout.exercises, schedule: updatedSchedule }
-
-      const { error: updateError } = await supabase
-        .from('workouts')
-        .update({ exercises: updatedExercisesPayload })
-        .eq('id', workout.id)
-
-      if (updateError) {
-        throw updateError
-      }
-
-      setWorkout((prev) => (prev ? { ...prev, exercises: updatedExercisesPayload } : prev))
-    } catch (error) {
-      console.error('Failed to persist swap', error)
-      setSwapError('Unable to save the swap. Please try again.')
-    } finally {
-      setSavingSwap(false)
-    }
-  }
-
-  const handleSwapRequest = (exercise: Exercise, index: number) => {
-    setSwapError(null)
-    if (!inventory) {
-      setSwapError('Equipment inventory is missing. Update your plan preferences before swapping.')
-      return
-    }
-    const { suggestions, usedFallback } = getSwapSuggestions({
-      current: exercise,
-      sessionExercises,
-      inventory,
-      library: EXERCISE_LIBRARY
-    })
-    setSwapOptions({
-      index,
-      suggestions: suggestions.map((item) => item.exercise),
-      usedFallback
-    })
-    setSwapNotice(
-      usedFallback ? 'Closest match found based on equipment and muscle group.' : null
-    )
-    if (suggestions.length === 0) {
-      setSwapError('No suitable swaps were found for this exercise.')
-    }
-  }
-
-  const handleSwapSelect = async (replacement: Exercise) => {
-    if (!swapOptions) return
-    const previous = sessionExercises[swapOptions.index]
-    if (!previous) return
-    if (isCurrentSessionActive && activeSession?.exercises?.[swapOptions.index]?.sets?.length) {
-      const confirmed = confirm('This exercise already has logged sets. Swapping will clear those sets in the active session. Continue?')
-      if (!confirmed) return
-    }
-
-    const updated = sessionExercises.map((exercise, idx) =>
-      idx === swapOptions.index
-        ? {
-            ...replacement,
-            load: replacement.load ?? exercise.load,
-            sets: replacement.sets ?? exercise.sets,
-            reps: replacement.reps ?? exercise.reps,
-            rpe: replacement.rpe ?? exercise.rpe,
-            durationMinutes: replacement.durationMinutes ?? exercise.durationMinutes,
-            restSeconds: replacement.restSeconds ?? exercise.restSeconds
-          }
-        : exercise
-    )
-
-    setSessionExercises(updated)
-    setSwapOptions(null)
-    setSwapNotice(null)
-    setLastSwap({ index: swapOptions.index, previous })
-    try {
-      await persistSwap(updated)
-      await updateActiveSessionSwap(replacement, swapOptions.index)
-    } catch (error) {
-      console.error('Failed to apply swap', error)
-      setSwapError('Swap saved to the plan, but the active session did not update. Refresh or restart the session.')
-    }
-  }
-
-  const handleUndoSwap = async () => {
-    if (!lastSwap) return
-    const updated = sessionExercises.map((exercise, idx) =>
-      idx === lastSwap.index ? lastSwap.previous : exercise
-    )
-    setSessionExercises(updated)
-    setLastSwap(null)
-    await persistSwap(updated)
-  }
-
-  if (loading) return <div className="page-shell p-10 text-center text-muted">Loading workout...</div>
-  if (!workout) return <div className="page-shell p-10 text-center text-muted">Workout not found.</div>
-
-  // Per-workout metrics are computed from each exercise's sets/reps/RPE data.
-  // Assumptions: reps ranges are averaged, RPE is on a 1–10 scale, and density uses a
-  // default 2 minutes per set when duration/rest data is missing.
-  // Missing data is handled by returning null and rendering a "—" placeholder.
-
-  const buildDynamicSession = (durationMinutes: number) => {
-    if (!workout?.exercises || Array.isArray(workout.exercises)) {
-      return { exercises: sessionExercises, nameSuffix: undefined }
-    }
-
-    const inputs = normalizePlanInput(workout.exercises.inputs ?? {})
-    const focus =
-      selectedSchedule?.focus ?? workout.exercises.schedule?.[0]?.focus ?? inputs.intent.bodyParts?.[0] ?? 'full_body'
-    const goal = workout.goal ?? inputs.goals.primary
-    const exercises = generateSessionExercises(inputs, focus, durationMinutes, goal as PlanInput['goals']['primary'])
-    const focusLabel = toMuscleLabel(focus)
-    const goalLabel = goal ? goal.replace('_', ' ') : ''
-    return {
-      exercises,
-      nameSuffix: goalLabel ? `${focusLabel} ${goalLabel}` : focusLabel
-    }
-  }
+  const equipmentSummary = useMemo(() => {
+    const inventory = template?.template_inputs?.equipment?.inventory
+    if (!inventory) return []
+    const labels = [] as string[]
+    if (inventory.bodyweight) labels.push('Bodyweight')
+    if (inventory.dumbbells?.length) labels.push(`Dumbbells (${inventory.dumbbells.join(', ')} lb)`)
+    if (inventory.kettlebells?.length) labels.push(`Kettlebells (${inventory.kettlebells.join(', ')} lb)`)
+    if (inventory.bands?.length) labels.push(`Bands (${inventory.bands.join(', ')})`)
+    if (inventory.barbell?.available) labels.push('Barbell')
+    const machines = inventory.machines
+      ? Object.entries(inventory.machines)
+          .filter(([, available]) => available)
+          .map(([machine]) => machine.replace('_', ' '))
+      : []
+    if (machines.length) labels.push(`Machines (${machines.join(', ')})`)
+    return labels
+  }, [template])
 
   const handleStartSession = async () => {
-    setStartError(null)
-    setFinishError(null)
-    if (hasActiveSession && !isCurrentSessionActive) {
+    if (!template) return
+    if (!user) {
+      setStartError('Please sign in again to start a session.')
+      return
+    }
+    if (hasActiveSession) {
       setStartError('Finish your current session before starting a new one.')
       router.push(activeSessionLink)
       return
     }
-    const durationMinutes = promptForSessionMinutes()
+    const durationMinutes = promptForSessionMinutes(template.template_inputs?.time?.minutesPerSession ?? 45)
     if (!durationMinutes) return
+    setStartError(null)
     setStartingSession(true)
-    try {
-      if (!workout?.id) throw new Error('Missing workout id.')
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
 
-      const { exercises, nameSuffix } = buildDynamicSession(durationMinutes)
-      const impact = exercises.length ? calculateExerciseImpact(exercises) : undefined
-      const { sessionId, startedAt, sessionName, exercises: createdExercises, impact: sessionImpact } = await createWorkoutSession({
-        supabase,
-        userId: user.id,
-        workoutId: workout.id,
-        workoutTitle: workout.title,
-        exercises,
-        nameSuffix,
-        impact
-      })
+    try {
+      const normalizedInputs = normalizePlanInput(template.template_inputs ?? {})
+      const history = await fetchTemplateHistory(supabase, template.id)
+      const nameSuffix = `${toMuscleLabel(template.focus)} ${template.style.replace('_', ' ')}`
+      const { sessionId: createdSessionId, startedAt, sessionName, exercises, impact } =
+        await createWorkoutSession({
+          supabase,
+          userId: user.id,
+          templateId: template.id,
+          templateTitle: template.title,
+          focus: template.focus,
+          goal: template.style,
+          input: normalizedInputs,
+          minutesAvailable: durationMinutes,
+          history,
+          nameSuffix
+        })
 
       startSession({
-        id: sessionId,
+        id: createdSessionId,
         userId: user.id,
-        workoutId: workout.id,
+        templateId: template.id,
         name: sessionName,
         startedAt,
-        status: 'active',
-        impact: sessionImpact,
-        exercises: createdExercises
+        status: 'in_progress',
+        impact,
+        exercises
       })
 
-      const indexParam = selectedSchedule ? `&sessionIndex=${selectedScheduleIndex}` : ''
       const fromQuery = fromParam ? `&from=${fromParam}` : ''
-      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}${indexParam}${fromQuery}`)
+      router.push(`/workout/${template.id}?session=active&sessionId=${createdSessionId}${fromQuery}`)
     } catch (error) {
       console.error('Failed to start session', error)
       setStartError('Unable to start the session. Please try again.')
@@ -368,7 +149,8 @@ export default function WorkoutDetailPage() {
   }
 
   const handleFinishSession = async () => {
-    if (!activeSession) return
+    const currentSessionId = activeSession?.id ?? sessionId
+    if (!currentSessionId) return
     if (!confirm('Are you sure you want to finish this workout?')) return
     setFinishError(null)
     setFinishingSession(true)
@@ -376,12 +158,12 @@ export default function WorkoutDetailPage() {
       const sessionUpdate = {
         ended_at: new Date().toISOString(),
         status: 'completed',
-        ...(activeSession.impact ? { impact: activeSession.impact } : {})
+        ...(activeSession?.impact ? { impact: activeSession.impact } : {})
       }
       const { error } = await supabase
         .from('sessions')
         .update(sessionUpdate)
-        .eq('id', activeSession.id)
+        .eq('id', currentSessionId)
 
       if (error) throw error
       endSession()
@@ -395,15 +177,19 @@ export default function WorkoutDetailPage() {
   }
 
   const handleCancelSession = async () => {
-    if (!activeSession) return
+    const currentSessionId = activeSession?.id ?? sessionId
+    if (!currentSessionId) return
     if (!confirm('Cancel this session and discard any logged sets?')) return
     setCancelError(null)
     setCancelingSession(true)
     try {
       const { error } = await supabase
         .from('sessions')
-        .delete()
-        .eq('id', activeSession.id)
+        .update({
+          status: 'cancelled',
+          ended_at: new Date().toISOString()
+        })
+        .eq('id', currentSessionId)
 
       if (error) throw error
       endSession()
@@ -416,243 +202,133 @@ export default function WorkoutDetailPage() {
     }
   }
 
+  if (loading) return <div className="page-shell p-10 text-center text-muted">Loading template...</div>
+  if (!template) return <div className="page-shell p-10 text-center text-muted">Template not found.</div>
+
   return (
     <div className="page-shell">
       <div className="w-full px-4 py-8 sm:px-6 lg:px-10 2xl:px-16">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-            <Link href="/dashboard" className="transition-colors hover:text-strong">
-              Dashboard
-            </Link>
-            <span>/</span>
-            <span className="text-subtle">{workout.title}</span>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+              <Link href="/dashboard" className="transition-colors hover:text-strong">
+                Dashboard
+              </Link>
+              <span>/</span>
+              <span className="text-subtle">{template.title}</span>
+            </div>
+            <h1 className="text-3xl font-semibold text-strong">{template.title}</h1>
+            {template.description && <p className="text-muted">{template.description}</p>}
           </div>
-          <h1 className="text-3xl font-semibold text-strong">{workout.title}</h1>
-          <p className="text-muted">{workout.description}</p>
-          {selectedSchedule && (
-            <p className="text-sm text-subtle">
-              {formatSessionName(selectedSchedule, workout.goal)}
-            </p>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
+              <X className="h-4 w-4" /> Close
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
-            <X className="h-4 w-4" /> Close
-          </Button>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {sessionActive && (activeSession || sessionId) && <ActiveSession sessionId={sessionId} />}
-          <span className="badge-accent">{workout.goal}</span>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            {sessionActive && (activeSession || sessionId) && <ActiveSession sessionId={sessionId} />}
+
+            {!sessionActive && (
+              <Card className="p-6">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-accent" />
+                  <h2 className="text-lg font-semibold text-strong">Template overview</h2>
+                </div>
+                <p className="mt-2 text-sm text-muted">
+                  Exercises will be generated when you start a session and enter your available time.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
+                    <p className="text-xs text-subtle">Focus</p>
+                    <p className="font-semibold text-strong">{toMuscleLabel(template.focus)}</p>
+                  </div>
+                  <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
+                    <p className="text-xs text-subtle">Style</p>
+                    <p className="font-semibold text-strong">{template.style.replace('_', ' ')}</p>
+                  </div>
+                  <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
+                    <p className="text-xs text-subtle">Experience</p>
+                    <p className="font-semibold text-strong">{template.experience_level}</p>
+                  </div>
+                  <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
+                    <p className="text-xs text-subtle">Intensity</p>
+                    <p className="font-semibold text-strong">{template.intensity}</p>
+                  </div>
+                </div>
+                {equipmentSummary.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs text-subtle">Equipment</p>
+                    <p className="text-sm text-muted">{equipmentSummary.join(' · ')}</p>
+                  </div>
+                )}
+              </Card>
+            )}
+          </div>
 
           <div className="space-y-4">
-            <h3 className="flex items-center text-lg font-semibold text-strong">
-              <Activity className="mr-2 h-5 w-5 text-accent" />
-              Regimen
-            </h3>
-            {swapError && (
-              <div className="alert-error px-3 py-2 text-xs">
-                {swapError}
+            <Card className="p-6">
+              <div className="flex items-center gap-2">
+                <Gauge className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold text-strong">Session controls</h2>
               </div>
-            )}
-            {isCurrentSessionActive && (
-              <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-muted">
-                Swaps made here will update your active session and reset any logged sets for the swapped exercise.
-              </div>
-            )}
-            {lastSwap && (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] px-3 py-2 text-xs text-[var(--color-primary-strong)]">
-                <span>Swap applied. Not the right fit?</span>
-                <Button type="button" variant="secondary" size="sm" onClick={handleUndoSwap} disabled={savingSwap}>
-                  <Undo2 className="h-4 w-4" /> Undo
+              {startError && <div className="mt-3 alert-error px-3 py-2 text-xs">{startError}</div>}
+              {finishError && <div className="mt-3 alert-error px-3 py-2 text-xs">{finishError}</div>}
+              {cancelError && <div className="mt-3 alert-error px-3 py-2 text-xs">{cancelError}</div>}
+
+              <div className="mt-4 space-y-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleStartSession}
+                  disabled={startingSession || hasActiveSession}
+                  className="w-full justify-center"
+                >
+                  {hasActiveSession
+                    ? 'Session Active'
+                    : startingSession
+                      ? 'Starting...'
+                      : 'Start Session'}
                 </Button>
-              </div>
-            )}
-            <div className="space-y-3">
-              {enrichedExercises.map((ex, idx) => {
-                const metrics = computeExerciseMetrics(ex)
-                const primaryParts = ex.primaryMuscle ? toMuscleLabel(ex.primaryMuscle) : '—'
-                const secondaryParts = ex.secondaryMuscles?.length ? ex.secondaryMuscles.map((muscle) => toMuscleLabel(muscle)).join(', ') : '—'
-
-                return (
-                  <div key={idx} className="surface-card-muted p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary-soft)] text-sm font-semibold text-[var(--color-primary-strong)]">
-                          {idx + 1}
-                        </div>
-                        <div className="space-y-2">
-                          <div>
-                            <h4 className="font-medium text-strong">{ex.name}</h4>
-                            <p className="text-xs text-subtle">{ex.load?.label ?? 'Target: General'}</p>
-                          </div>
-                          <div className="flex flex-wrap gap-2 text-[11px] text-muted">
-                            <span className="badge-neutral">
-                              Primary: {primaryParts ?? '—'}
-                            </span>
-                            <span className="badge-neutral">
-                              Secondary: {secondaryParts ?? '—'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-start gap-2 sm:items-end">
-                        <div className="flex flex-wrap gap-3 text-xs font-mono text-muted">
-                          <span>{ex.sets} sets</span>
-                          <span>{ex.reps} reps</span>
-                          <span>Vol {metrics.volume ?? '—'}</span>
-                          <span>Int {metrics.intensity ?? '—'}</span>
-                          <span>Den {metrics.density ?? '—'}</span>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSwapRequest(ex, idx)}
-                          disabled={savingSwap}
-                        >
-                          <Shuffle className="h-4 w-4" /> Swap
-                        </Button>
-                      </div>
-                    </div>
-                    {swapOptions?.index === idx && (
-                      <div className="mt-3 space-y-2">
-                        {swapNotice && (
-                          <p className="text-xs text-subtle">{swapNotice}</p>
-                        )}
-                        {swapOptions.suggestions.length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {swapOptions.suggestions.map((suggestion) => (
-                              <button
-                                key={suggestion.name}
-                                type="button"
-                                onClick={() => handleSwapSelect(suggestion)}
-                                className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs text-muted transition hover:border-[var(--color-border-strong)] hover:text-strong"
-                              >
-                                {suggestion.name}
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-subtle">No alternatives found for this exercise.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-           <Card className="p-6">
-              <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Program Stats</h3>
-              <div className="space-y-4 text-sm text-muted">
-                <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
-                   <div className="flex items-center">
-                     <Clock className="mr-2 h-4 w-4 text-subtle" /> Duration
-                   </div>
-                   <span className="font-medium text-strong">{selectedSchedule?.durationMinutes ?? summary?.totalMinutes ?? '~60'} min</span>
-                </div>
-                <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
-                   <div className="flex items-center">
-                     <Flame className="mr-2 h-4 w-4 text-subtle" /> Intensity
-                   </div>
-                   <span className="font-medium text-strong capitalize">{inputs?.intensity ?? 'Moderate'}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                   <div className="flex items-center">
-                     <Trophy className="mr-2 h-4 w-4 text-subtle" /> Level
-                   </div>
-                   <span className="font-medium text-strong capitalize">{workout.level}</span>
-                </div>
-              </div>
-              {isCurrentSessionActive && (
-                <div className="mt-4 rounded-md border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] px-3 py-2 text-xs font-medium text-[var(--color-primary-strong)]">
-                  Session active. Log your sets below to track progress.
-                </div>
-              )}
-              {hasActiveSession && !isCurrentSessionActive && (
-                <div className="mt-4 rounded-md border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] px-3 py-2 text-xs font-medium text-[var(--color-primary-strong)]">
-                  You already have a session in progress. Return to it before starting a new one.
-                  <div className="mt-2">
-                    <Button type="button" variant="secondary" size="sm" onClick={() => router.push(activeSessionLink)}>
-                      Resume active session
+                {isCurrentSessionActive && (
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={handleFinishSession}
+                      disabled={finishingSession}
+                      className="w-full justify-center"
+                    >
+                      {finishingSession ? 'Finishing...' : 'Finish Session'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={handleCancelSession}
+                      disabled={cancelingSession}
+                      className="w-full justify-center text-red-500 hover:text-red-600"
+                    >
+                      {cancelingSession ? 'Cancelling...' : 'Cancel Session'}
                     </Button>
                   </div>
-                </div>
-              )}
-              {startError && (
-                <div className="mt-4 alert-error px-3 py-2 text-xs">
-                  {startError}
-                </div>
-              )}
-              {finishError && (
-                <div className="mt-4 alert-error px-3 py-2 text-xs">
-                  {finishError}
-                </div>
-              )}
-              {cancelError && (
-                <div className="mt-4 alert-error px-3 py-2 text-xs">
-                  {cancelError}
-                </div>
-              )}
-              {isCurrentSessionActive ? (
-                <div className="mt-6 flex flex-col gap-2">
-                  <Button
-                    className="w-full"
-                    onClick={handleFinishSession}
-                    disabled={finishingSession || cancelingSession || !activeSession}
-                  >
-                    {finishingSession ? 'Finishing…' : 'Finish Session'}
-                  </Button>
-                  <Button
-                    className="w-full text-red-500 hover:text-red-600"
-                    variant="ghost"
-                    onClick={handleCancelSession}
-                    disabled={finishingSession || cancelingSession || !activeSession}
-                  >
-                    {cancelingSession ? 'Canceling…' : 'Cancel Session'}
-                  </Button>
-                </div>
-              ) : (
-                <Button className="w-full mt-6" onClick={handleStartSession} disabled={startingSession || hasActiveSession}>
-                  {startingSession ? 'Starting…' : 'Start Session'}
-                </Button>
-              )}
-           </Card>
+                )}
+              </div>
+            </Card>
 
-           <Card className="p-6">
-              <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Workout Impact</h3>
-              {impact ? (
-                <div className="space-y-4 text-sm text-muted">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center text-muted">
-                      <Gauge className="mr-2 h-4 w-4 text-subtle" /> Score
-                    </div>
-                    <span className="font-semibold text-strong">{impact.score}</span>
-                  </div>
-                  <div className="text-xs text-subtle">
-                    Volume +{impact.breakdown.volume}, Intensity +{impact.breakdown.intensity}, Density +{impact.breakdown.density}
-                  </div>
-                </div>
-              ) : planImpact ? (
-                <div className="space-y-2 text-sm text-muted">
-                  <p>Session impact requires loaded exercises. Showing plan total instead.</p>
-                  <p className="text-xs text-subtle">Plan score {planImpact.score}.</p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted">Impact score will appear after generation.</p>
-              )}
-           </Card>
+            <Card className="p-6">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold text-strong">Next steps</h2>
+              </div>
+              <p className="mt-2 text-sm text-muted">
+                Start a session to generate a customized exercise list. Each session uses your focus, equipment,
+                intensity, and available time to keep workouts fresh.
+              </p>
+            </Card>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   )
