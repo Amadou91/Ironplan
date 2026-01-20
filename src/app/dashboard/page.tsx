@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -132,7 +132,7 @@ export default function DashboardPage() {
     ? `/workout/${activeSession.templateId}?session=active&sessionId=${activeSession.id}&from=dashboard`
     : '/dashboard'
 
-  const ensureSession = async () => {
+  const ensureSession = useCallback(async () => {
     const { data, error: sessionError } = await supabase.auth.getSession()
     if (sessionError || !data.session) {
       setUser(null)
@@ -140,7 +140,7 @@ export default function DashboardPage() {
       return null
     }
     return data.session
-  }
+  }, [setUser, supabase])
 
   useEffect(() => {
     if (userLoading) return
@@ -203,7 +203,7 @@ export default function DashboardPage() {
     }
 
     loadSessions()
-  }, [supabase, user, userLoading, setUser])
+  }, [ensureSession, supabase, user, userLoading, setUser])
 
   useEffect(() => {
     if (userLoading) return
@@ -247,7 +247,7 @@ export default function DashboardPage() {
     }
 
     loadMoreSessions()
-  }, [sessionPage, supabase, user, userLoading, setUser])
+  }, [ensureSession, sessionPage, supabase, user, userLoading, setUser])
 
   useEffect(() => {
     if (!sessionsLoaded || !activeSession) return
@@ -311,7 +311,7 @@ export default function DashboardPage() {
     }
 
     loadTemplates()
-  }, [supabase, user, userLoading, setUser])
+  }, [ensureSession, supabase, user, userLoading, setUser])
 
   const isLoading = userLoading || loading
 
