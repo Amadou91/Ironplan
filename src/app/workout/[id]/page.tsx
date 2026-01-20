@@ -13,6 +13,7 @@ import { createWorkoutSession } from '@/lib/session-creation'
 import { fetchTemplateHistory } from '@/lib/session-history'
 import { promptForSessionMinutes } from '@/lib/session-time'
 import { toMuscleLabel } from '@/lib/muscle-utils'
+import { calculateSessionImpactFromSets } from '@/lib/workout-metrics'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import type { FocusArea, PlanInput } from '@/types/domain'
@@ -155,10 +156,18 @@ export default function WorkoutDetailPage() {
     setFinishError(null)
     setFinishingSession(true)
     try {
+      const endedAt = new Date().toISOString()
+      const recalculatedImpact = activeSession
+        ? calculateSessionImpactFromSets(activeSession, endedAt)
+        : null
       const sessionUpdate = {
-        ended_at: new Date().toISOString(),
+        ended_at: endedAt,
         status: 'completed',
-        ...(activeSession?.impact ? { impact: activeSession.impact } : {})
+        ...(recalculatedImpact
+          ? { impact: recalculatedImpact }
+          : activeSession?.impact
+            ? { impact: activeSession.impact }
+            : {})
       }
       const { error } = await supabase
         .from('sessions')
