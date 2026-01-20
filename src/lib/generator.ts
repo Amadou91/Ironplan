@@ -9,6 +9,7 @@ import type {
   GoalPriority,
   Intensity,
   MovementPattern,
+  GeneratedPlan,
   PlanDay,
   PlanInput,
   RestPreference,
@@ -1652,6 +1653,74 @@ export const buildWorkoutTemplate = (
       focus,
       style: normalized.goals.primary,
       inputs: normalized
+    },
+    errors: []
+  }
+}
+
+export const generateWorkoutPlan = (
+  partialInput: Partial<PlanInput>
+): { plan?: GeneratedPlan; errors: string[] } => {
+  const normalized = applyRestPreference(normalizePlanInput(partialInput))
+  const errors = validatePlanInput(normalized)
+  const layoutCount = normalized.schedule.weeklyLayout?.length ?? 0
+  const sessionsPerWeek = layoutCount || normalized.schedule.daysAvailable.length
+
+  if (sessionsPerWeek === 0) {
+    errors.push('Select at least one training day.')
+  }
+
+  if (errors.length > 0) {
+    return { errors }
+  }
+
+  const layout = layoutCount > 0
+    ? [...(normalized.schedule.weeklyLayout ?? [])].sort((a, b) => a.sessionIndex - b.sessionIndex)
+    : buildFocusSequence(sessionsPerWeek, normalized.preferences, normalized.goals).map((focus, index) => ({
+      sessionIndex: index,
+      style: normalized.goals.primary,
+      focus
+    }))
+
+  const durationMinutes = adjustMinutesPerSession(normalized, sessionsPerWeek)
+  const schedule = layout.map((entry, index) => {
+    const exercises = generateSessionExercises(
+      normalized,
+      entry.focus,
+      durationMinutes,
+      entry.style,
+      { seed: `${entry.sessionIndex}-${entry.focus}-${entry.style}` }
+    )
+    return {
+      order: entry.sessionIndex ?? index,
+      name: buildSessionName(entry.focus, exercises, entry.style),
+      focus: entry.focus,
+      durationMinutes,
+      rationale: buildRationale(entry.focus, durationMinutes, normalized.preferences.restPreference, entry.style),
+      exercises
+    }
+  })
+
+  const focus = layout[0]?.focus ?? normalized.preferences.focusAreas[0] ?? normalized.intent.bodyParts?.[0] ?? 'full_body'
+  const title = buildPlanTitle(focus, normalized.goals.primary)
+  const description = `${sessionsPerWeek} sessions per week · ${formatFocusLabel(focus)} focus.`
+  const impact = calculateWorkoutImpact(schedule)
+
+  return {
+    plan: {
+      title,
+      description,
+      goal: normalized.goals.primary,
+      level: normalized.experienceLevel,
+      tags: [formatFocusLabel(focus), normalized.goals.primary.replace('_', ' ')],
+      schedule,
+      inputs: normalized,
+      summary: {
+        sessionsPerWeek,
+        totalMinutes: durationMinutes * sessionsPerWeek,
+        focusDistribution: buildFocusDistribution(schedule),
+        impact
+      }
     },
     errors: []
   }
