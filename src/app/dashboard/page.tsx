@@ -702,7 +702,9 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-strong">Templates</h2>
-                <p className="text-sm text-muted">Pick a template and start a new session when you're ready.</p>
+                <p className="text-sm text-muted">
+                  Pick a template and start a new session when you&apos;re ready.
+                </p>
               </div>
             </div>
 
