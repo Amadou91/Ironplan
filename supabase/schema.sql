@@ -94,6 +94,7 @@ create table if not exists public.sessions (
   ended_at timestamptz,
   minutes_available int,
   generated_exercises jsonb not null default '[]'::jsonb,
+  impact jsonb,
   created_at timestamptz not null default now()
 );
 
