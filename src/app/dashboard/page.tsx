@@ -842,9 +842,11 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card className="p-6">
+          {/* ADDED min-w-0 to fix Recharts width calculation */}
+          <Card className="p-6 min-w-0">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Volume by week</h3>
-            <div className="h-64">
+            {/* ADDED w-full to fix Recharts width calculation */}
+            <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
               <LineChart data={volumeTrend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -857,9 +859,11 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-          <Card className="p-6">
+          {/* ADDED min-w-0 to fix Recharts width calculation */}
+          <Card className="p-6 min-w-0">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Effort trend</h3>
-            <div className="h-64">
+            {/* ADDED w-full to fix Recharts width calculation */}
+            <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
               <LineChart data={effortTrend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -874,9 +878,11 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card className="p-6">
+          {/* ADDED min-w-0 to fix Recharts width calculation */}
+          <Card className="p-6 min-w-0">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">e1RM trend</h3>
-            <div className="h-64">
+            {/* ADDED w-full to fix Recharts width calculation */}
+            <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
               <LineChart data={exerciseTrend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -891,9 +897,11 @@ export default function DashboardPage() {
               <p className="mt-3 text-xs text-subtle">Select an exercise to see e1RM trends.</p>
             )}
           </Card>
-          <Card className="p-6">
+          {/* ADDED min-w-0 to fix Recharts width calculation */}
+          <Card className="p-6 min-w-0">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Muscle group volume</h3>
-            <div className="h-64">
+            {/* ADDED w-full to fix Recharts width calculation */}
+            <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <PieChart>
                   <Pie data={muscleBreakdown} dataKey="volume" nameKey="muscle" outerRadius={90}>
