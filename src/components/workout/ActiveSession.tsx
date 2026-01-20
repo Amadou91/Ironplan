@@ -16,7 +16,7 @@ type SessionPayload = {
   id: string;
   user_id: string | null;
   name: string;
-  workout_id: string | null;
+  template_id: string | null;
   started_at: string;
   ended_at: string | null;
   status: string | null;
@@ -51,11 +51,11 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
     return {
       id: payload.id,
       userId: payload.user_id ?? '',
-      workoutId: payload.workout_id ?? undefined,
+      templateId: payload.template_id ?? undefined,
       name: payload.name,
       startedAt: payload.started_at,
       endedAt: payload.ended_at ?? undefined,
-      status: (payload.status as WorkoutSession['status']) ?? 'active',
+      status: (payload.status as WorkoutSession['status']) ?? 'in_progress',
       impact: payload.impact ?? undefined,
       exercises: payload.session_exercises
         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
@@ -89,7 +89,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-          'id, user_id, name, workout_id, started_at, ended_at, status, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
+          'id, user_id, name, template_id, started_at, ended_at, status, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
         )
         .eq('id', sessionId)
         .single();
@@ -98,6 +98,10 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
         console.error('Failed to load session', error);
         setErrorMessage('Unable to load the active session. Please try again.');
       } else if (data) {
+        if (data.status && data.status !== 'in_progress') {
+          setErrorMessage('This session is no longer active.');
+          return;
+        }
         startSession(mapSession(data as SessionPayload));
       }
     };

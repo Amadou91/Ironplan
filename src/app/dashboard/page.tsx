@@ -17,8 +17,9 @@ import {
   Legend
 } from 'recharts'
 import { createClient } from '@/lib/supabase/client'
-import { calculateExerciseImpact, generateSessionExercises, normalizePlanInput } from '@/lib/generator'
+import { normalizePlanInput } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
+import { fetchTemplateHistory } from '@/lib/session-history'
 import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
@@ -26,7 +27,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
 import { promptForSessionMinutes } from '@/lib/session-time'
-import type { Exercise, FocusArea, PlanDay, PlanInput } from '@/types/domain'
+import type { FocusArea, PlanInput } from '@/types/domain'
 
 const formatDate = (value: string) => {
   const date = new Date(value)
@@ -61,15 +62,10 @@ const getWeekKey = (value: string) => {
   return `${temp.getUTCFullYear()}-W${week}`
 }
 
-const getWorkoutFocus = (workout: WorkoutRow) => {
-  if (!workout.exercises || Array.isArray(workout.exercises)) return null
-  return workout.exercises.schedule?.[0]?.focus ?? workout.exercises.inputs?.intent.bodyParts?.[0] ?? null
-}
-
 type SessionRow = {
   id: string
   name: string
-  workout_id: string | null
+  template_id: string | null
   started_at: string
   ended_at: string | null
   status: string | null
@@ -93,16 +89,15 @@ type SessionRow = {
   }>
 }
 
-type WorkoutRow = {
+type TemplateRow = {
   id: string
   title: string
-  goal?: string | null
-  status?: string | null
+  focus: FocusArea
+  style: PlanInput['goals']['primary']
+  experience_level: PlanInput['experienceLevel']
+  intensity: PlanInput['intensity']
   created_at: string
-  exercises:
-    | { schedule?: PlanDay[]; inputs?: PlanInput }
-    | Exercise[]
-    | null
+  template_inputs: PlanInput | null
 }
 
 const chartColors = ['#6366f1', '#22c55e', '#0ea5e9', '#f59e0b', '#ec4899']
@@ -126,15 +121,15 @@ export default function DashboardPage() {
   const [selectedExercise, setSelectedExercise] = useState('all')
   const [deletingSessionIds, setDeletingSessionIds] = useState<Record<string, boolean>>({})
   const [expandedSessions, setExpandedSessions] = useState<Record<string, boolean>>({})
-  const [recentWorkouts, setRecentWorkouts] = useState<WorkoutRow[]>([])
+  const [templates, setTemplates] = useState<TemplateRow[]>([])
   const [startingSessionKey, setStartingSessionKey] = useState<string | null>(null)
   const [deletingWorkoutIds, setDeletingWorkoutIds] = useState<Record<string, boolean>>({})
   const [sessionsLoaded, setSessionsLoaded] = useState(false)
   const [sessionPage, setSessionPage] = useState(0)
   const [hasMoreSessions, setHasMoreSessions] = useState(true)
   const hasActiveSession = Boolean(activeSession)
-  const activeSessionLink = activeSession?.workoutId
-    ? `/workout/${activeSession.workoutId}?session=active&sessionId=${activeSession.id}&from=dashboard`
+  const activeSessionLink = activeSession?.templateId
+    ? `/workout/${activeSession.templateId}?session=active&sessionId=${activeSession.id}&from=dashboard`
     : '/dashboard'
 
   const ensureSession = async () => {
@@ -182,7 +177,7 @@ export default function DashboardPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, workout_id, started_at, ended_at, status, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
+          'id, name, template_id, started_at, ended_at, status, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -225,7 +220,7 @@ export default function DashboardPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, workout_id, started_at, ended_at, status, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
+          'id, name, template_id, started_at, ended_at, status, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -255,7 +250,7 @@ export default function DashboardPage() {
 
     const matchedSession = sessions.find((session) => session.id === activeSession.id)
     const isSessionActive = matchedSession
-      ? matchedSession.status === 'active' || (!matchedSession.status && !matchedSession.ended_at)
+      ? matchedSession.status === 'in_progress' || (!matchedSession.status && !matchedSession.ended_at)
       : false
 
     if (!isSessionActive) {
@@ -274,7 +269,7 @@ export default function DashboardPage() {
             endSession()
             return
           }
-          const stillActive = data.status === 'active' || (!data.status && !data.ended_at)
+          const stillActive = data.status === 'in_progress' || (!data.status && !data.ended_at)
           if (!stillActive) {
             endSession()
           }
@@ -290,42 +285,39 @@ export default function DashboardPage() {
     if (userLoading) return
     if (!user) return
 
-    const loadRecentWorkouts = async () => {
+    const loadTemplates = async () => {
       const session = await ensureSession()
       if (!session) return
       const { data, error: fetchError } = await supabase
-        .from('workouts')
-        .select('id, title, goal, status, exercises, created_at')
+        .from('workout_templates')
+        .select('id, title, focus, style, experience_level, intensity, template_inputs, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(6)
 
       if (fetchError) {
-        console.error('Failed to load recent workouts', fetchError)
+        console.error('Failed to load templates', fetchError)
         if (fetchError.status === 401 || fetchError.status === 403) {
           setUser(null)
           setError('Your session has expired. Please sign in again.')
         }
         return
       }
-      setRecentWorkouts((data as WorkoutRow[]) ?? [])
+      setTemplates((data as TemplateRow[]) ?? [])
     }
 
-    loadRecentWorkouts()
+    loadTemplates()
   }, [supabase, user, userLoading, setUser])
 
   const isLoading = userLoading || loading
 
-  const focusByWorkoutId = useMemo(() => {
+  const focusByTemplateId = useMemo(() => {
     const map = new Map<string, string>()
-    recentWorkouts.forEach((workout) => {
-      const focus = getWorkoutFocus(workout)
-      if (focus) {
-        map.set(workout.id, focus)
-      }
+    templates.forEach((template) => {
+      map.set(template.id, template.focus)
     })
     return map
-  }, [recentWorkouts])
+  }, [templates])
 
   const focusStats = useMemo(() => {
     const totals = new Map<string, { count: number; sets: number }>()
@@ -334,8 +326,8 @@ export default function DashboardPage() {
     const loadWindow = 7 * 24 * 60 * 60 * 1000
 
     sessions.forEach((session) => {
-      if (!session.workout_id) return
-      const focus = focusByWorkoutId.get(session.workout_id)
+      if (!session.template_id) return
+      const focus = focusByTemplateId.get(session.template_id)
       if (!focus) return
       const completedAt = session.ended_at ?? session.started_at
       const completedTime = completedAt ? new Date(completedAt).getTime() : 0
@@ -353,20 +345,20 @@ export default function DashboardPage() {
     })
 
     return totals
-  }, [focusByWorkoutId, sessions])
+  }, [focusByTemplateId, sessions])
 
-  const recommendedWorkoutId = useMemo(() => {
-    if (!recentWorkouts.length) return null
+  const recommendedTemplateId = useMemo(() => {
+    if (!templates.length) return null
     const now = Date.now()
     let bestId: string | null = null
     let bestScore = -Infinity
 
-    recentWorkouts.forEach((workout) => {
-      const focus = focusByWorkoutId.get(workout.id) ?? 'full_body'
-      const workoutSessions = sessions.filter(
-        (session) => session.workout_id === workout.id && (session.status === 'completed' || session.ended_at)
+    templates.forEach((template) => {
+      const focus = focusByTemplateId.get(template.id) ?? 'full_body'
+      const templateSessions = sessions.filter(
+        (session) => session.template_id === template.id && (session.status === 'completed' || session.ended_at)
       )
-      const lastCompletedAt = workoutSessions.reduce((latest, session) => {
+      const lastCompletedAt = templateSessions.reduce((latest, session) => {
         const completedAt = session.ended_at ?? session.started_at
         const timestamp = completedAt ? new Date(completedAt).getTime() : 0
         return timestamp > latest ? timestamp : latest
@@ -379,39 +371,19 @@ export default function DashboardPage() {
       const balanceScore = Math.max(0, 6 - recentCount) * 4
       const recoveryScore = Math.min(daysSince, 14) * 3
       const loadPenalty = Math.min(recentSets / 4, 20)
-      const firstTimeBoost = workoutSessions.length === 0 ? 8 : 0
+      const firstTimeBoost = templateSessions.length === 0 ? 8 : 0
       const score = balanceScore + recoveryScore + firstTimeBoost - loadPenalty
 
       if (score > bestScore) {
         bestScore = score
-        bestId = workout.id
+        bestId = template.id
       }
     })
 
     return bestId
-  }, [focusByWorkoutId, focusStats, recentWorkouts, sessions])
+  }, [focusByTemplateId, focusStats, templates, sessions])
 
-  const buildDynamicSession = (workout: WorkoutRow, durationMinutes: number) => {
-    if (!workout.exercises || Array.isArray(workout.exercises)) {
-      return {
-        exercises: workout.exercises ?? [],
-        nameSuffix: workout.goal ? workout.goal.replace('_', ' ') : undefined
-      }
-    }
-
-    const inputs = normalizePlanInput(workout.exercises.inputs ?? {})
-    const focus = workout.exercises.schedule?.[0]?.focus ?? inputs.intent.bodyParts?.[0] ?? 'full_body'
-    const goal = workout.goal ?? inputs.goals.primary
-    const exercises = generateSessionExercises(inputs, focus as FocusArea, durationMinutes, goal as PlanInput['goals']['primary'])
-    const focusLabel = toMuscleLabel(focus)
-    const goalLabel = goal ? goal.replace('_', ' ') : ''
-    return {
-      exercises,
-      nameSuffix: goalLabel ? `${focusLabel} ${goalLabel}` : focusLabel
-    }
-  }
-
-  const handleStartWorkout = async (workout: WorkoutRow, sessionKey: string) => {
+  const handleStartTemplate = async (template: TemplateRow, sessionKey: string) => {
     if (!user) return
     if (hasActiveSession) {
       setStartSessionError('Finish your current session before starting a new one.')
@@ -423,28 +395,33 @@ export default function DashboardPage() {
     setStartSessionError(null)
     setStartingSessionKey(sessionKey)
     try {
-      const { exercises, nameSuffix } = buildDynamicSession(workout, durationMinutes)
-      const impact = exercises.length ? calculateExerciseImpact(exercises) : undefined
-      const { sessionId, startedAt, sessionName, exercises: sessionExercises, impact: sessionImpact } = await createWorkoutSession({
-        supabase,
-        userId: user.id,
-        workoutId: workout.id,
-        workoutTitle: workout.title,
-        exercises,
-        nameSuffix,
-        impact
-      })
+      const normalizedInputs = normalizePlanInput(template.template_inputs ?? {})
+      const history = await fetchTemplateHistory(supabase, template.id)
+      const nameSuffix = `${toMuscleLabel(template.focus)} ${template.style.replace('_', ' ')}`
+      const { sessionId, startedAt, sessionName, exercises: sessionExercises, impact: sessionImpact } =
+        await createWorkoutSession({
+          supabase,
+          userId: user.id,
+          templateId: template.id,
+          templateTitle: template.title,
+          focus: template.focus,
+          goal: template.style,
+          input: normalizedInputs,
+          minutesAvailable: durationMinutes,
+          history,
+          nameSuffix
+        })
       startSession({
         id: sessionId,
         userId: user.id,
-        workoutId: workout.id,
+        templateId: template.id,
         name: sessionName,
         startedAt,
-        status: 'active',
+        status: 'in_progress',
         impact: sessionImpact,
         exercises: sessionExercises
       })
-      router.push(`/workout/${workout.id}?session=active&sessionId=${sessionId}&from=dashboard`)
+      router.push(`/workout/${template.id}?session=active&sessionId=${sessionId}&from=dashboard`)
     } catch (startError) {
       console.error('Failed to start scheduled session', startError)
       setStartSessionError('Unable to start the session. Please try again.')
@@ -479,29 +456,29 @@ export default function DashboardPage() {
     setExpandedSessions(prev => ({ ...prev, [sessionId]: !prev[sessionId] }))
   }
 
-  const handleDeleteWorkout = async (workout: WorkoutRow) => {
+  const handleDeleteTemplate = async (template: TemplateRow) => {
     if (!user) return
-    if (!confirm(`Delete "${workout.title}"? This will remove the plan and its schedule.`)) return
+    if (!confirm(`Delete "${template.title}"? This will remove the template.`)) return
     setError(null)
-    setDeletingWorkoutIds(prev => ({ ...prev, [workout.id]: true }))
+    setDeletingWorkoutIds(prev => ({ ...prev, [template.id]: true }))
 
     try {
-      const { error: workoutDeleteError } = await supabase
-        .from('workouts')
+      const { error: templateDeleteError } = await supabase
+        .from('workout_templates')
         .delete()
-        .eq('id', workout.id)
+        .eq('id', template.id)
         .eq('user_id', user.id)
 
-      if (workoutDeleteError) {
-        throw workoutDeleteError
+      if (templateDeleteError) {
+        throw templateDeleteError
       }
 
-      setRecentWorkouts(prev => prev.filter(item => item.id !== workout.id))
+      setTemplates(prev => prev.filter(item => item.id !== template.id))
     } catch (deleteError) {
-      console.error('Failed to delete workout', deleteError)
-      setError('Unable to delete this session. Please try again.')
+      console.error('Failed to delete template', deleteError)
+      setError('Unable to delete this template. Please try again.')
     } finally {
-      setDeletingWorkoutIds(prev => ({ ...prev, [workout.id]: false }))
+      setDeletingWorkoutIds(prev => ({ ...prev, [template.id]: false }))
     }
   }
 
@@ -720,39 +697,39 @@ export default function DashboardPage() {
           <Card className="p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-strong">Suggested workouts</h2>
-                <p className="text-sm text-muted">Pick up with a recommended plan or start a fresh session.</p>
+                <h2 className="text-lg font-semibold text-strong">Templates</h2>
+                <p className="text-sm text-muted">Pick a template and start a new session when you're ready.</p>
               </div>
             </div>
 
             <div className="mt-6 space-y-3">
-              {recentWorkouts.length === 0 ? (
+              {templates.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-sm text-muted">
-                  No previous plans yet. Generate a workout to get started.
+                  No templates yet. Generate one to get started.
                 </div>
               ) : (
-                recentWorkouts.map((workout) => {
-                  const sessionKey = `${workout.id}-0`
-                  const focus = focusByWorkoutId.get(workout.id)
-                  const isRecommended = recommendedWorkoutId === workout.id
+                templates.map((template) => {
+                  const sessionKey = `${template.id}-0`
+                  const focus = focusByTemplateId.get(template.id)
+                  const isRecommended = recommendedTemplateId === template.id
                   return (
-                    <div key={workout.id} className="rounded-lg border border-[var(--color-border)] p-4">
+                    <div key={template.id} className="rounded-lg border border-[var(--color-border)] p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-strong">{workout.title}</p>
+                            <p className="text-sm font-semibold text-strong">{template.title}</p>
                             {isRecommended && <span className="badge-accent">Best for Today</span>}
                           </div>
                           <p className="text-xs text-subtle">
                             {focus ? `${toMuscleLabel(focus)} focus` : 'Focus not set'} ·{' '}
-                            {workout.goal ? workout.goal.replace('_', ' ') : 'Goal not set'} · Last generated {formatDate(workout.created_at)}
+                            {template.style ? template.style.replace('_', ' ') : 'Goal not set'} · Created {formatDate(template.created_at)}
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <Button
                             variant="secondary"
                             size="sm"
-                            onClick={() => handleStartWorkout(workout, sessionKey)}
+                            onClick={() => handleStartTemplate(template, sessionKey)}
                             disabled={startingSessionKey === sessionKey || hasActiveSession}
                           >
                             {hasActiveSession
@@ -761,17 +738,17 @@ export default function DashboardPage() {
                                 ? 'Starting...'
                                 : 'Start Session'}
                           </Button>
-                          <Link href={`/workout/${workout.id}?from=dashboard`}>
+                          <Link href={`/workout/${template.id}?from=dashboard`}>
                             <Button variant="ghost" size="sm">View</Button>
                           </Link>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="text-red-500 hover:text-red-600"
-                            onClick={() => handleDeleteWorkout(workout)}
-                            disabled={Boolean(deletingWorkoutIds[workout.id])}
+                            onClick={() => handleDeleteTemplate(template)}
+                            disabled={Boolean(deletingWorkoutIds[template.id])}
                           >
-                            {deletingWorkoutIds[workout.id] ? 'Deleting...' : 'Delete'}
+                            {deletingWorkoutIds[template.id] ? 'Deleting...' : 'Delete'}
                           </Button>
                         </div>
                       </div>
