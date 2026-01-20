@@ -845,7 +845,7 @@ export default function GeneratePage() {
                 <div>
                   <p className="text-sm font-semibold text-strong">{entry.title}</p>
                   <p className="text-xs text-subtle">
-                    {new Date(entry.createdAt).toLocaleString()} · {entry.template.focus.replace('_', ' ')}
+                    {new Date(entry.createdAt).toLocaleString()} · {entry.template.focus?.replace('_', ' ') ?? 'Focus not set'}
                   </p>
                   <p className="mt-1 text-xs text-subtle">
                     {entry.template.style.replace('_', ' ')} · {entry.template.inputs.experienceLevel} · {entry.template.inputs.intensity}

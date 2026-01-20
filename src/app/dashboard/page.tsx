@@ -188,6 +188,8 @@ export default function DashboardPage() {
         if (fetchError.status === 401 || fetchError.status === 403) {
           setUser(null)
           setError('Your session has expired. Please sign in again.')
+        } else if (fetchError.status === 400) {
+          setError('No sessions yet. Start a workout to see your history here.')
         } else {
           setError('Unable to load sessions. Please try again.')
         }
@@ -231,6 +233,8 @@ export default function DashboardPage() {
         if (fetchError.status === 401 || fetchError.status === 403) {
           setUser(null)
           setError('Your session has expired. Please sign in again.')
+        } else if (fetchError.status === 400) {
+          setError('No sessions yet. Start a workout to see your history here.')
         } else {
           setError('Unable to load more sessions. Please try again.')
         }

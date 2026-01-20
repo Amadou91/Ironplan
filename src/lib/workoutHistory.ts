@@ -11,13 +11,31 @@ export type WorkoutHistoryEntry = {
 const HISTORY_KEY = 'ironplan.workoutHistory'
 const MAX_ENTRIES = 12
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const isValidHistoryEntry = (entry: unknown): entry is WorkoutHistoryEntry => {
+  if (!isRecord(entry)) return false
+  if (typeof entry.id !== 'string') return false
+  if (typeof entry.title !== 'string') return false
+  if (typeof entry.createdAt !== 'string') return false
+  if (!isRecord(entry.template)) return false
+  if (!('inputs' in entry.template) || !isRecord(entry.template.inputs)) return false
+  return true
+}
+
 export const loadWorkoutHistory = (storage?: Storage): WorkoutHistoryEntry[] => {
   if (!storage) return []
   try {
     const raw = storage.getItem(HISTORY_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as WorkoutHistoryEntry[]
-    return Array.isArray(parsed) ? parsed : []
+    if (!Array.isArray(parsed)) return []
+    const sanitized = parsed.filter(isValidHistoryEntry)
+    if (sanitized.length !== parsed.length) {
+      storage.setItem(HISTORY_KEY, JSON.stringify(sanitized))
+    }
+    return sanitized
   } catch (error) {
     console.error('Failed to load workout history', error)
     return []
