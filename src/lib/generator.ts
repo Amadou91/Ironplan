@@ -75,7 +75,8 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     equipment: [{ kind: 'barbell' }],
     durationMinutes: 12,
     loadTarget: 135,
-    restSeconds: 120
+    restSeconds: 120,
+    e1rmEligible: true
   },
   {
     name: 'Dumbbell Goblet Squat',
@@ -105,21 +106,13 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     equipment: [{ kind: 'barbell' }, { kind: 'dumbbell' }],
     durationMinutes: 10,
     loadTarget: 115,
-    restSeconds: 120
+    restSeconds: 120,
+    e1rmEligible: true
   },
   {
-    name: 'Push-Up',
-    focus: 'upper',
-    movementPattern: 'push',
-    difficulty: 'beginner',
-    goal: 'hypertrophy',
-    primaryMuscle: 'Chest',
-    sets: 3,
-    reps: '10-15',
-    rpe: 7,
-    equipment: [{ kind: 'bodyweight' }],
     durationMinutes: 8,
-    restSeconds: 75
+    restSeconds: 75,
+    e1rmEligible: false
   },
   {
     name: 'Bench Press',
@@ -134,7 +127,8 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     equipment: [{ kind: 'barbell' }],
     durationMinutes: 12,
     loadTarget: 115,
-    restSeconds: 120
+    restSeconds: 120,
+    e1rmEligible: true
   },
   {
     name: 'Dumbbell Bench Press',
@@ -149,7 +143,8 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     equipment: [{ kind: 'dumbbell' }],
     durationMinutes: 10,
     loadTarget: 40,
-    restSeconds: 90
+    restSeconds: 90,
+    e1rmEligible: false
   },
   {
     name: 'Incline Barbell Press',
@@ -164,7 +159,8 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     equipment: [{ kind: 'barbell' }],
     durationMinutes: 11,
     loadTarget: 95,
-    restSeconds: 120
+    restSeconds: 120,
+    e1rmEligible: true
   },
   {
     name: 'Decline Bench Press',
@@ -179,7 +175,8 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     equipment: [{ kind: 'barbell' }],
     durationMinutes: 10,
     loadTarget: 105,
-    restSeconds: 120
+    restSeconds: 120,
+    e1rmEligible: true
   },
   {
     name: 'Chest Dip',
@@ -193,7 +190,8 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     rpe: 8,
     equipment: [{ kind: 'bodyweight' }],
     durationMinutes: 9,
-    restSeconds: 90
+    restSeconds: 90,
+    e1rmEligible: false
   },
   {
     name: 'Cable Chest Fly',
@@ -205,9 +203,9 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     sets: 3,
     reps: '10-15',
     rpe: 7,
-    equipment: [{ kind: 'machine', machineType: 'cable' }],
     durationMinutes: 8,
-    restSeconds: 75
+    restSeconds: 75,
+    e1rmEligible: false
   },
   {
     name: 'Pec Deck Fly',
@@ -221,7 +219,8 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     rpe: 7,
     equipment: [{ kind: 'machine' }],
     durationMinutes: 8,
-    restSeconds: 75
+    restSeconds: 75,
+    e1rmEligible: false
   },
   {
     name: 'Floor Press',
@@ -236,7 +235,8 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     equipment: [{ kind: 'dumbbell' }, { kind: 'barbell' }],
     durationMinutes: 9,
     loadTarget: 85,
-    restSeconds: 90
+    restSeconds: 90,
+    e1rmEligible: true
   },
   {
     name: 'Dumbbell Row',
@@ -251,7 +251,8 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     equipment: [{ kind: 'dumbbell' }],
     durationMinutes: 10,
     loadTarget: 25,
-    restSeconds: 90
+    restSeconds: 90,
+    e1rmEligible: false
   },
   {
     name: 'Overhead Press',
@@ -266,7 +267,8 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     equipment: [{ kind: 'barbell' }, { kind: 'dumbbell' }],
     durationMinutes: 10,
     loadTarget: 75,
-    restSeconds: 120
+    restSeconds: 120,
+    e1rmEligible: true
   },
   {
     name: 'Walking Lunge',
@@ -281,7 +283,8 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     equipment: [{ kind: 'dumbbell' }, { kind: 'bodyweight' }],
     durationMinutes: 9,
     loadTarget: 20,
-    restSeconds: 75
+    restSeconds: 75,
+    e1rmEligible: false
   },
   {
     name: 'Dumbbell Biceps Curl',

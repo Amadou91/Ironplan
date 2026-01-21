@@ -11,8 +11,9 @@ import { computeSetE1rm, computeSetTonnage } from '@/lib/session-metrics'
 import { computeSessionMetrics, type ReadinessSurvey } from '@/lib/training-metrics'
 import { toMuscleLabel } from '@/lib/muscle-utils'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { EXERCISE_LIBRARY } from '@/lib/generator'
 import { useUser } from '@/hooks/useUser'
-import type { FocusArea, Intensity, PlanInput } from '@/types/domain'
+import type { FocusArea, Goal, Intensity, PlanInput } from '@/types/domain'
 
 type SessionDetail = {
   id: string
@@ -43,11 +44,6 @@ type SessionDetail = {
       completed: boolean | null
       performed_at: string | null
       weight_unit: string | null
-      failure: boolean | null
-      set_type: string | null
-      rest_seconds_actual: number | null
-      pain_score: number | null
-      pain_area: string | null
     }>
   }>
   template?: {
@@ -66,6 +62,7 @@ type SessionNotes = {
   readinessScore?: number
   readinessSurvey?: ReadinessSurvey
   minutesAvailable?: number
+  reflection?: string
 }
 
 const formatDateTime = (value: string) => {
@@ -146,7 +143,7 @@ export default function WorkoutSummaryPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, started_at, ended_at, status, session_notes, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure, set_type, rest_seconds_actual, pain_score, pain_area)), template:workout_templates(id, title, focus, style, intensity, template_inputs)'
+          'id, name, started_at, ended_at, status, session_notes, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit)), template:workout_templates(id, title, focus, style, intensity, template_inputs)'
         )
         .eq('id', sessionId)
         .single()
@@ -154,8 +151,9 @@ export default function WorkoutSummaryPage() {
         console.error('Failed to load session summary', fetchError)
         setError('Unable to load session summary. Please try again.')
       } else {
-        setSession(data as SessionDetail)
-        setNotes(data?.session_notes ?? '')
+        setSession(data as unknown as SessionDetail)
+        const parsed = parseSessionNotes(data?.session_notes)
+        setNotes(parsed?.reflection ?? '')
       }
       setLoading(false)
     }
@@ -181,8 +179,14 @@ export default function WorkoutSummaryPage() {
       }
     }
 
-    const metricSets = session.session_exercises.flatMap((exercise) =>
-      exercise.sets
+    const sessionGoal = session.template?.style as Goal | undefined
+    const exerciseLibraryByName = new Map(EXERCISE_LIBRARY.map((ex) => [ex.name.toLowerCase(), ex]))
+
+    const metricSets = session.session_exercises.flatMap((exercise) => {
+      const libMatch = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())
+      const isEligible = libMatch?.e1rmEligible
+
+      return exercise.sets
         .filter((set) => set.completed !== false)
         .map((set) => ({
           reps: set.reps ?? null,
@@ -190,12 +194,12 @@ export default function WorkoutSummaryPage() {
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
           rpe: typeof set.rpe === 'number' ? set.rpe : null,
           rir: typeof set.rir === 'number' ? set.rir : null,
-          failure: set.failure ?? null,
-          setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
           performedAt: set.performed_at ?? null,
-          restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+          completed: set.completed,
+          sessionGoal,
+          isEligible
         }))
-    )
+    })
 
     const metrics = computeSessionMetrics({
       startedAt: session.started_at,
@@ -204,15 +208,9 @@ export default function WorkoutSummaryPage() {
       sets: metricSets
     })
 
-    const bestE1rm = metricSets.reduce((best, set) => {
-      return Math.max(
-        best,
-        computeSetE1rm({
-          reps: set.reps ?? null,
-          weight: set.weight ?? null,
-          weightUnit: set.weightUnit ?? null
-        })
-      )
+    const bestE1rm = metricSets.reduce((best, item) => {
+      const val = computeSetE1rm(item, item.sessionGoal, item.isEligible)
+      return val ? Math.max(best, val) : best
     }, 0)
 
     return {
@@ -220,21 +218,6 @@ export default function WorkoutSummaryPage() {
       bestE1rm: Math.round(bestE1rm)
     }
   }, [parsedNotes, session])
-
-  const painHighlights = useMemo(() => {
-    if (!session) return []
-    const highlights = new Map<string, number>()
-    session.session_exercises.forEach((exercise) => {
-      exercise.sets.forEach((set) => {
-        if (typeof set.pain_score !== 'number' || set.pain_score < 4) return
-        const area = set.pain_area ?? 'Other'
-        highlights.set(area, Math.max(highlights.get(area) ?? 0, set.pain_score))
-      })
-    })
-    return Array.from(highlights.entries())
-      .map(([area, score]) => ({ area, score }))
-      .sort((a, b) => b.score - a.score)
-  }, [session])
 
   const effortInsight = useMemo(() => {
     if (!sessionMetrics.avgEffort) return null
@@ -271,11 +254,24 @@ export default function WorkoutSummaryPage() {
     if (!sessionId) return
     setSavingNotes(true)
     try {
+      const currentNotes = parseSessionNotes(session?.session_notes)
+      const updatedNotes = {
+        ...currentNotes,
+        reflection: notes || undefined
+      }
+
       const { error: saveError } = await supabase
         .from('sessions')
-        .update({ session_notes: notes || null })
+        .update({ session_notes: JSON.stringify(updatedNotes) })
         .eq('id', sessionId)
+      
       if (saveError) throw saveError
+
+      // Update local session state to reflect changes
+      setSession((prev) => prev ? {
+        ...prev,
+        session_notes: JSON.stringify(updatedNotes)
+      } : null)
     } catch (saveError) {
       console.error('Failed to save session notes', saveError)
       setError('Unable to save session notes. Please try again.')
@@ -311,7 +307,7 @@ export default function WorkoutSummaryPage() {
       <div className="w-full px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-subtle">Workout complete</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--color-success)]">Workout complete</p>
             <h1 className="font-display text-3xl font-semibold text-strong">{sessionTitle}</h1>
             <p className="mt-2 text-sm text-muted">
               {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
@@ -343,12 +339,12 @@ export default function WorkoutSummaryPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <Card className="p-6 lg:col-span-2">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-accent" />
+              <CheckCircle2 className="h-5 w-5 text-[var(--color-success)]" />
               <h2 className="text-lg font-semibold text-strong">Session highlights</h2>
             </div>
             {session.impact?.score ? (
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
-                <span className="badge-accent">Impact score {Math.round(session.impact.score)}</span>
+                <span className="badge-success">Impact score {Math.round(session.impact.score)}</span>
                 <span className="text-subtle">
                   Volume {Math.round(session.impact.breakdown?.volume ?? 0)} · Intensity {Math.round(session.impact.breakdown?.intensity ?? 0)}
                 </span>
@@ -370,11 +366,13 @@ export default function WorkoutSummaryPage() {
                   {sessionMetrics.tonnage} tonnage · {sessionMetrics.hardSets} hard sets · sRPE {sessionMetrics.sRpeLoad ?? 'N/A'}
                 </p>
               </div>
-              <div className="rounded-lg border border-[var(--color-border)] p-4 text-sm">
-                <p className="text-xs text-subtle">Best e1RM</p>
-                <p className="text-2xl font-semibold text-strong">{sessionMetrics.bestE1rm}</p>
-                <p className="text-xs text-subtle">Avg intensity {sessionMetrics.avgIntensity ?? 'N/A'}</p>
-              </div>
+              {sessionMetrics.bestE1rm > 0 && (
+                <div className="rounded-lg border border-[var(--color-border)] p-4 text-sm">
+                  <p className="text-xs text-subtle">Best e1RM</p>
+                  <p className="text-2xl font-semibold text-strong">{sessionMetrics.bestE1rm}</p>
+                  <p className="text-xs text-subtle">Avg intensity {sessionMetrics.avgIntensity ?? 'N/A'}</p>
+                </div>
+              )}
               <div className="rounded-lg border border-[var(--color-border)] p-4 text-sm">
                 <p className="text-xs text-subtle">Average effort</p>
                 <p className="text-2xl font-semibold text-strong">
@@ -385,15 +383,6 @@ export default function WorkoutSummaryPage() {
                 </p>
               </div>
             </div>
-
-            {painHighlights.length > 0 && (
-              <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-xs text-muted">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-subtle">Pain flagged</p>
-                <p className="mt-2 text-sm text-strong">
-                  {painHighlights.map((entry) => `${entry.area} (${entry.score}/10)`).join(' · ')}
-                </p>
-              </div>
-            )}
 
             <div className="mt-6">
               <p className="text-xs uppercase tracking-[0.2em] text-subtle">Top exercises</p>

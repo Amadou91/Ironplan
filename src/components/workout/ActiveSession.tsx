@@ -5,8 +5,8 @@ import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { createClient } from '@/lib/supabase/client';
 import { SetLogger } from './SetLogger';
 import { Plus, Clock } from 'lucide-react';
-import type { EquipmentInventory, Intensity, SessionExercise, WeightUnit, WorkoutImpact, WorkoutSession, WorkoutSet } from '@/types/domain';
-import { enhanceExerciseData, toMuscleLabel } from '@/lib/muscle-utils';
+import type { Intensity, SessionExercise, WeightUnit, WorkoutImpact, WorkoutSession, WorkoutSet } from '@/types/domain';
+import { enhanceExerciseData, isTimeBasedExercise, toMuscleLabel } from '@/lib/muscle-utils';
 import { EXERCISE_LIBRARY } from '@/lib/generator';
 import { buildWeightOptions, equipmentPresets } from '@/lib/equipment';
 import { normalizePreferences } from '@/lib/preferences';
@@ -44,11 +44,9 @@ type SessionPayload = {
       completed: boolean | null;
       performed_at: string | null;
       weight_unit: string | null;
-      failure: boolean | null;
-      set_type: string | null;
-      rest_seconds_actual: number | null;
-      pain_score: number | null;
-      pain_area: string | null;
+      duration_seconds?: number | null;
+      distance?: number | null;
+      distance_unit?: string | null;
     }>;
   }>;
 };
@@ -161,11 +159,9 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
               performedAt: set.performed_at ?? undefined,
               completed: set.completed ?? false,
               weightUnit: set.weight_unit === 'kg' ? 'kg' : 'lb',
-              failure: set.failure ?? false,
-              setType: (set.set_type as WorkoutSet['setType']) ?? 'working',
-              restSecondsActual: set.rest_seconds_actual ?? '',
-              painScore: set.pain_score ?? '',
-              painArea: set.pain_area ?? ''
+              durationSeconds: set.duration_seconds ?? undefined,
+              distance: set.distance ?? undefined,
+              distanceUnit: set.distance_unit ?? undefined
             }))
         }))
     };
@@ -177,7 +173,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
       const { data, error } = await supabase
         .from('sessions')
         .select(
-          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure, set_type, rest_seconds_actual, pain_score, pain_area))'
+          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit))'
         )
         .eq('id', sessionId)
         .single();
@@ -241,7 +237,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
       const generatedByName = new Map(
         generated
           .filter((exercise) => exercise.name)
-          .map((exercise) => [exercise.name?.toLowerCase() ?? '', exercise])
+          .map((exercise) => [exercise.name?.toLowerCase() ?? '', exercise] as [string, GeneratedExerciseTarget])
           .filter(([key]) => Boolean(key))
       );
 
@@ -292,11 +288,9 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
         completed: set.completed,
         performed_at: set.performedAt ?? new Date().toISOString(),
         weight_unit: set.weightUnit ?? 'lb',
-        failure: Boolean(set.failure),
-        set_type: set.setType ?? 'working',
-        rest_seconds_actual: typeof set.restSecondsActual === 'number' ? set.restSecondsActual : null,
-        pain_score: typeof set.painScore === 'number' ? set.painScore : null,
-        pain_area: set.painArea ?? null
+        duration_seconds: typeof set.durationSeconds === 'number' ? set.durationSeconds : null,
+        distance: typeof set.distance === 'number' ? set.distance : null,
+        distance_unit: set.distanceUnit ?? null
       };
 
       if (set.id && !set.id.startsWith('temp-')) {
@@ -323,7 +317,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
       if (typeof value === 'number') {
         if (Number.isNaN(value)) return 0;
         if (value < 0) return 0;
-        if (field === 'rpe' || field === 'rir' || field === 'painScore') return Math.min(10, value);
+        if (field === 'rpe' || field === 'rir') return Math.min(10, value);
       }
       return value;
     })();
@@ -593,16 +587,24 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
             </div>
 
             <div className="space-y-2">
-              {exercise.sets.map((set: WorkoutSet, setIdx: number) => (
-                <SetLogger
-                  key={set.id}
-                  set={set}
-                  weightOptions={getWeightOptions(exercise)}
-                  onUpdate={(field, val) => handleSetUpdate(exIdx, setIdx, field, val)}
-                  onDelete={() => handleDeleteSet(exIdx, setIdx)}
-                  onToggleComplete={() => handleSetUpdate(exIdx, setIdx, 'completed', !set.completed)}
-                />
-              ))}
+              {exercise.sets.map((set: WorkoutSet, setIdx: number) => {
+                const target = exerciseTargets[exercise.name.toLowerCase()];
+                const isTimeBased = isTimeBasedExercise(exercise.name, target?.reps);
+                const repsLabel = isTimeBased ? 'Time (sec)' : 'Reps';
+                
+                return (
+                  <SetLogger
+                    key={set.id}
+                    set={set}
+                    weightOptions={getWeightOptions(exercise)}
+                    onUpdate={(field, val) => handleSetUpdate(exIdx, setIdx, field, val)}
+                    onDelete={() => handleDeleteSet(exIdx, setIdx)}
+                    onToggleComplete={() => handleSetUpdate(exIdx, setIdx, 'completed', !set.completed)}
+                    isCardio={exercise.primaryMuscle === 'Cardio'}
+                    repsLabel={repsLabel}
+                  />
+                );
+              })}
             </div>
 
             <button

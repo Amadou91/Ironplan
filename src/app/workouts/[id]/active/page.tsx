@@ -77,11 +77,7 @@ export default function WorkoutActivePage() {
       const sessionUpdate = {
         ended_at: endedAt,
         status: 'completed',
-        ...(recalculatedImpact
-          ? { impact: recalculatedImpact }
-          : activeSession?.impact
-            ? { impact: activeSession.impact }
-            : {})
+        impact: recalculatedImpact
       }
       const { error } = await supabase
         .from('sessions')

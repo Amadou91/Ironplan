@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Dumbbell, Sparkles } from 'lucide-react'
+import { ArrowRight, Dumbbell, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
@@ -38,9 +38,6 @@ type SessionRow = {
       completed: boolean | null
       performed_at: string | null
       weight_unit: string | null
-      failure: boolean | null
-      set_type: string | null
-      rest_seconds_actual: number | null
     }>
   }>
 }
@@ -84,6 +81,7 @@ export default function DashboardPage() {
   const [templates, setTemplates] = useState<TemplateRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [deletingWorkoutIds, setDeletingWorkoutIds] = useState<Record<string, boolean>>({})
 
   const ensureSession = useCallback(async () => {
     const { data, error: sessionError } = await supabase.auth.getSession()
@@ -115,7 +113,7 @@ export default function DashboardPage() {
           supabase
             .from('sessions')
             .select(
-              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure, set_type, rest_seconds_actual))'
+              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
             )
             .eq('user_id', user.id)
             .order('started_at', { ascending: false })
@@ -125,7 +123,7 @@ export default function DashboardPage() {
             .select('id, title, focus, style, experience_level, intensity, template_inputs, created_at')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
-            .limit(6)
+            .limit(12)
         ])
 
       if (sessionError) {
@@ -223,10 +221,7 @@ export default function DashboardPage() {
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
             rpe: typeof set.rpe === 'number' ? set.rpe : null,
             rir: typeof set.rir === 'number' ? set.rir : null,
-            failure: set.failure ?? null,
-            setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
-            performedAt: set.performed_at ?? null,
-            restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+            performedAt: set.performed_at ?? null
           }))
       )
     }))
@@ -279,6 +274,33 @@ export default function DashboardPage() {
     return bestId
   }, [focusByTemplateId, focusStats, templates, sessions, trainingLoadSummary.status])
 
+  const handleDeleteTemplate = async (template: TemplateRow) => {
+    if (!user) return
+    const displayTitle = buildWorkoutDisplayName({
+      focus: template.focus,
+      style: template.style,
+      intensity: template.intensity,
+      minutes: template.template_inputs?.time?.minutesPerSession,
+      fallback: template.title
+    })
+    if (!confirm(`Delete "${displayTitle}"? This cannot be undone.`)) return
+    setDeletingWorkoutIds((prev) => ({ ...prev, [template.id]: true }))
+    try {
+      const { error: deleteError } = await supabase
+        .from('workout_templates')
+        .delete()
+        .eq('id', template.id)
+        .eq('user_id', user.id)
+      if (deleteError) throw deleteError
+      setTemplates((prev) => prev.filter((item) => item.id !== template.id))
+    } catch (deleteError) {
+      console.error('Failed to delete template', deleteError)
+      setError('Unable to delete this template. Please try again.')
+    } finally {
+      setDeletingWorkoutIds((prev) => ({ ...prev, [template.id]: false }))
+    }
+  }
+
   const activeSessionLink = activeSession?.templateId
     ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=dashboard`
     : '/dashboard'
@@ -309,10 +331,7 @@ export default function DashboardPage() {
             weight: set.weight ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
             rpe: typeof set.rpe === 'number' ? set.rpe : null,
-            rir: typeof set.rir === 'number' ? set.rir : null,
-            failure: set.failure ?? null,
-            setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
-            restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+            rir: typeof set.rir === 'number' ? set.rir : null
           })
           hardSets += aggregateHardSets([
             {
@@ -320,10 +339,7 @@ export default function DashboardPage() {
               weight: set.weight ?? null,
               weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
               rpe: typeof set.rpe === 'number' ? set.rpe : null,
-              rir: typeof set.rir === 'number' ? set.rir : null,
-              failure: set.failure ?? null,
-              setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
-              restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+              rir: typeof set.rir === 'number' ? set.rir : null
             }
           ])
         })
@@ -380,9 +396,9 @@ export default function DashboardPage() {
             <h1 className="font-display text-3xl font-semibold text-strong">Welcome back, {greetingName}</h1>
             <p className="mt-2 text-sm text-muted">Ready to train? We have a smart session queued up.</p>
           </div>
-          <Link href="/workouts">
+          <Link href="/generate">
             <Button variant="secondary" size="sm">
-              Browse workouts
+              <Sparkles className="h-4 w-4 mr-2" /> New Plan
             </Button>
           </Link>
         </div>
@@ -511,25 +527,68 @@ export default function DashboardPage() {
           </Card>
 
           <Card className="p-6">
-            <h2 className="text-lg font-semibold text-strong">Next up</h2>
-            <p className="mt-2 text-sm text-muted">
-              Your next best session is ready. Aim to train within the next 24-48 hours for momentum.
-            </p>
-            {recommendedTemplate ? (
-              <Link href={`/workouts/${recommendedTemplate.id}/start`} className="mt-4 inline-flex text-sm font-semibold text-accent">
-                Start {buildWorkoutDisplayName({
-                  focus: recommendedTemplate.focus,
-                  style: recommendedTemplate.style,
-                  intensity: recommendedTemplate.intensity,
-                  minutes: recommendedTemplate.template_inputs?.time?.minutesPerSession ?? null,
-                  fallback: recommendedTemplate.title
-                })}
-              </Link>
-            ) : (
-              <Link href="/generate" className="mt-4 inline-flex text-sm font-semibold text-accent">
-                Build a plan
-              </Link>
-            )}
+            <div className="flex items-center gap-3">
+              <Dumbbell className="h-5 w-5 text-accent" />
+              <div>
+                <h2 className="text-lg font-semibold text-strong">Templates</h2>
+                <p className="text-sm text-muted">Pick a plan, or build a new one.</p>
+              </div>
+            </div>
+            <div className="mt-6 space-y-3">
+              {templates.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[var(--color-border)] p-4 text-sm text-muted">
+                  No templates yet. Generate one to get started.
+                </div>
+              ) : (
+                templates.map((template) => {
+                  const isRecommended = recommendedTemplateId === template.id
+                  const displayTitle = buildWorkoutDisplayName({
+                    focus: template.focus,
+                    style: template.style,
+                    intensity: template.intensity,
+                    minutes: template.template_inputs?.time?.minutesPerSession,
+                    fallback: template.title
+                  })
+                  return (
+                    <div key={template.id} className="rounded-xl border border-[var(--color-border)] p-4">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-strong">{displayTitle}</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
+                            {isRecommended && (
+                              <span className="badge-success whitespace-nowrap">Best for Today</span>
+                            )}
+                            <span>Created {formatDateTime(template.created_at)}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 sm:justify-end">
+                          <Link href={`/workouts/${template.id}/start`}>
+                            <Button size="sm">Start</Button>
+                          </Link>
+                          <Link href={`/workout/${template.id}?from=dashboard`}>
+                            <Button variant="outline" size="sm">Preview</Button>
+                          </Link>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-[var(--color-danger)] hover:text-[var(--color-danger)]"
+                            onClick={() => handleDeleteTemplate(template)}
+                            disabled={Boolean(deletingWorkoutIds[template.id])}
+                          >
+                            {deletingWorkoutIds[template.id] ? 'Deleting...' : 'Delete'}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+            <div className="mt-6 border-t border-[var(--color-border)] pt-4">
+               <Link href="/generate" className="flex items-center gap-2 text-sm font-semibold text-accent">
+                 <Sparkles className="h-4 w-4" /> Build a new plan <ArrowRight className="h-4 w-4" />
+               </Link>
+             </div>
           </Card>
         </div>
       </div>

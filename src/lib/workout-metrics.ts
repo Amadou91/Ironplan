@@ -80,13 +80,7 @@ export const calculateSessionImpactFromSets = (
   endedAt?: string | null
 ) => {
   const sets = session.exercises.flatMap((exercise) =>
-    exercise.sets.filter((set) =>
-      set.completed ||
-      isNumber(set.reps) ||
-      isNumber(set.weight) ||
-      isNumber(set.rpe) ||
-      isNumber(set.rir)
-    )
+    exercise.sets.filter((set) => set.completed)
   )
 
   if (!sets.length) return null

@@ -1,13 +1,15 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Ruler } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { defaultPreferences, normalizePreferences, type SettingsPreferences } from '@/lib/preferences'
+import { clearDevData, seedDevData } from '@/lib/dev-seed'
 
 type ProfileRow = {
   id: string
@@ -89,6 +91,8 @@ export default function ProfilePage() {
   const supabase = createClient()
   const { user, loading: userLoading } = useUser()
   const setUser = useAuthStore((state) => state.setUser)
+  
+  // Profile State
   const [profile, setProfile] = useState<ProfileRow | null>(null)
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>({
     weightLb: '',
@@ -104,6 +108,25 @@ export default function ProfilePage() {
   const [profileError, setProfileError] = useState<string | null>(null)
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null)
 
+  // Settings/Dev State
+  const devToolsKey = 'ironplan-dev-tools'
+  const [settings, setSettings] = useState<SettingsPreferences>(() => ({
+    ...defaultPreferences.settings!
+  }))
+  const [loadingPrefs, setLoadingPrefs] = useState(true)
+  const [saveSettingsState, setSaveSettingsState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [saveSettingsError, setSaveSettingsError] = useState<string | null>(null)
+  const [devToolsEnabled, setDevToolsEnabled] = useState(false)
+  const [devToolsNotice, setDevToolsNotice] = useState<string | null>(null)
+  const [devActionState, setDevActionState] = useState<'idle' | 'seeding' | 'clearing'>('idle')
+  const [devActionMessage, setDevActionMessage] = useState<string | null>(null)
+  const [devActionError, setDevActionError] = useState<string | null>(null)
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const titleClickTimeout = useRef<any>(null)
+  const titleClickCount = useRef(0)
+  const isDevMode = process.env.NODE_ENV !== 'production'
+
   const ensureSession = useCallback(async () => {
     const { data, error: sessionError } = await supabase.auth.getSession()
     if (sessionError || !data.session) {
@@ -114,35 +137,38 @@ export default function ProfilePage() {
     return data.session
   }, [setUser, supabase])
 
+  // Load Profile & Settings
   useEffect(() => {
     if (userLoading) return
-    if (!user) return
+    if (!user) {
+      setLoadingPrefs(false)
+      return
+    }
 
-    const loadProfile = async () => {
+    const loadData = async () => {
       setProfileLoading(true)
       setProfileError(null)
       setProfileSuccess(null)
+      
       const session = await ensureSession()
       if (!session) {
         setProfileLoading(false)
+        setLoadingPrefs(false)
         return
       }
       const sessionUserId = session.user.id
-      const { data, error: profileError } = await supabase
+      
+      const { data, error: fetchError } = await supabase
         .from('profiles')
-        .select('id, height_in, weight_lb, body_fat_percent, birthdate, sex, updated_at')
+        .select('id, height_in, weight_lb, body_fat_percent, birthdate, sex, updated_at, preferences')
         .eq('id', sessionUserId)
         .maybeSingle()
 
-      if (profileError) {
-        console.error('Failed to load profile', profileError, profileError.message, profileError.details, profileError.hint)
-        const message = profileError.message?.includes('permission')
-          ? 'Profile access is blocked by permissions. Apply the profiles policies/grants migrations.'
-          : profileError.message?.includes('relation')
-            ? 'Profiles table is missing. Apply the profiles migrations.'
-            : 'Unable to load your profile. Please try again.'
-        setProfileError(message)
+      if (fetchError) {
+        console.error('Failed to load profile data', fetchError, fetchError.message)
+        setProfileError('Unable to load your profile data. Please try again.')
       } else {
+        // Parse Profile
         const heightIn = typeof data?.height_in === 'number' ? Math.round(data.height_in) : null
         const heightFeet = typeof heightIn === 'number' ? Math.floor(heightIn / 12) : null
         const heightInches = typeof heightIn === 'number' ? heightIn - (heightFeet ?? 0) * 12 : null
@@ -157,12 +183,27 @@ export default function ProfilePage() {
         setProfile(data ? (data as ProfileRow) : null)
         setProfileDraft(nextDraft)
         setProfileSnapshot(JSON.stringify(nextDraft))
+
+        // Parse Settings
+        const normalized = normalizePreferences(data?.preferences)
+        if (normalized.settings) {
+          setSettings(normalized.settings)
+        }
       }
       setProfileLoading(false)
+      setLoadingPrefs(false)
     }
 
-    loadProfile()
+    loadData()
   }, [ensureSession, supabase, user, userLoading])
+
+  // Dev Tools Persistence
+  useEffect(() => {
+    if (!isDevMode) return
+    if (typeof window === 'undefined') return
+    const saved = window.localStorage.getItem(devToolsKey)
+    setDevToolsEnabled(saved === 'true')
+  }, [devToolsKey, isDevMode])
 
   const profileHasChanges = useMemo(() => {
     if (!profileSnapshot) {
@@ -253,13 +294,8 @@ export default function ProfilePage() {
       .maybeSingle()
 
     if (saveError) {
-      console.error('Failed to save profile', saveError, saveError.message, saveError.details, saveError.hint)
-      const message = saveError.message?.includes('permission')
-        ? 'Profile access is blocked by permissions. Apply the profiles policies/grants migrations.'
-        : saveError.message?.includes('relation')
-          ? 'Profiles table is missing. Apply the profiles migrations.'
-          : 'Unable to save profile changes. Please try again.'
-      setProfileError(message)
+      console.error('Failed to save profile', saveError)
+      setProfileError('Unable to save profile changes. Please try again.')
     } else {
       const nextHeightIn = typeof data?.height_in === 'number' ? Math.round(data.height_in) : null
       const nextHeightFeet = typeof nextHeightIn === 'number' ? Math.floor(nextHeightIn / 12) : null
@@ -281,6 +317,117 @@ export default function ProfilePage() {
     setProfileSaving(false)
   }
 
+  // Settings Handlers
+  const persistSettings = async (next: SettingsPreferences) => {
+    if (!user) return
+    setSaveSettingsState('saving')
+    setSaveSettingsError(null)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('preferences')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (error) throw error
+      const normalized = normalizePreferences(data?.preferences)
+      const updated = {
+        ...normalized,
+        settings: next
+      }
+      const { error: saveError } = await supabase
+        .from('profiles')
+        .upsert({ id: user.id, preferences: updated }, { onConflict: 'id' })
+      if (saveError) throw saveError
+      setSaveSettingsState('saved')
+    } catch (saveError) {
+      console.error('Failed to save settings preferences', saveError)
+      setSaveSettingsState('error')
+      setSaveSettingsError('Unable to save settings. Please try again.')
+    }
+  }
+
+  const updateSettings = (updater: (prev: SettingsPreferences) => SettingsPreferences) => {
+    setSettings((prev) => {
+      const next = updater(prev)
+      if (!loadingPrefs) {
+        void persistSettings(next)
+      }
+      return next
+    })
+  }
+
+  const toggleDevTools = () => {
+    if (!isDevMode || typeof window === 'undefined') return
+    setDevToolsEnabled((prev) => {
+      const nextEnabled = !prev
+      window.localStorage.setItem(devToolsKey, String(nextEnabled))
+      setDevToolsNotice(nextEnabled ? 'Developer tools enabled.' : 'Developer tools hidden.')
+      window.setTimeout(() => setDevToolsNotice(null), 2000)
+      return nextEnabled
+    })
+  }
+
+  const handleTitleClick = () => {
+    if (!isDevMode) return
+    titleClickCount.current += 1
+    if (titleClickTimeout.current) {
+      window.clearTimeout(titleClickTimeout.current)
+    }
+    titleClickTimeout.current = window.setTimeout(() => {
+      titleClickCount.current = 0
+    }, 1200)
+    if (titleClickCount.current >= 5) {
+      titleClickCount.current = 0
+      toggleDevTools()
+    }
+  }
+
+  const handleSeedData = async () => {
+    if (!user || devActionState !== 'idle') return
+    const confirmed = window.confirm(
+      'This will insert a batch of simulated workout data for your account. Run "Clear seeded data" to remove it later.'
+    )
+    if (!confirmed) return
+    setDevActionState('seeding')
+    setDevActionError(null)
+    setDevActionMessage(null)
+    try {
+      const result = await seedDevData(supabase, user.id)
+      const readiness = result.readiness ? `, ${result.readiness} readiness entries` : ''
+      setDevActionMessage(
+        `Seeded ${result.templates} templates, ${result.sessions} sessions, ${result.exercises} exercises, ${result.sets} sets${readiness}.`
+      )
+    } catch (error) {
+      console.error('Failed to seed dev data', error)
+      setDevActionError('Unable to seed dev data. Check the console for details.')
+    } finally {
+      setDevActionState('idle')
+    }
+  }
+
+  const handleClearSeededData = async () => {
+    if (!user || devActionState !== 'idle') return
+    const confirmed = window.confirm(
+      'This will delete all seeded workout templates and sessions for your account. This cannot be undone.'
+    )
+    if (!confirmed) return
+    setDevActionState('clearing')
+    setDevActionError(null)
+    setDevActionMessage(null)
+    try {
+      const result = await clearDevData(supabase, user.id)
+      const readiness = result.readiness ? `, ${result.readiness} readiness entries` : ''
+      setDevActionMessage(
+        `Cleared ${result.templates} templates, ${result.sessions} sessions${readiness}.`
+      )
+    } catch (error) {
+      console.error('Failed to clear dev data', error)
+      setDevActionError('Unable to clear dev data. Check the console for details.')
+    } finally {
+      setDevActionState('idle')
+    }
+  }
+
   if (userLoading) {
     return <div className="page-shell p-10 text-center text-muted">Loading profile...</div>
   }
@@ -299,10 +446,13 @@ export default function ProfilePage() {
       <div className="w-full space-y-8 px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-subtle">Profile</p>
-          <h1 className="font-display text-3xl font-semibold text-strong">Your personal hub</h1>
+          <h1 className="font-display text-3xl font-semibold text-strong" onClick={handleTitleClick}>
+            Your personal hub
+          </h1>
           <p className="mt-2 text-sm text-muted">
             Keep your body stats and preferences current for smarter recommendations.
           </p>
+          {devToolsNotice && <p className="mt-3 text-xs text-muted">{devToolsNotice}</p>}
         </div>
 
         {(profileError || profileSuccess) && (
@@ -310,7 +460,7 @@ export default function ProfilePage() {
             className={`rounded-lg border p-3 text-sm ${
               profileError
                 ? 'alert-error'
-                : 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
+                : 'alert-success'
             }`}
           >
             {profileError ?? profileSuccess}
@@ -444,14 +594,78 @@ export default function ProfilePage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card className="p-6">
-            <h3 className="text-sm font-semibold text-strong">Preferences</h3>
-            <p className="mt-2 text-sm text-muted">
-              Manage your measurement units and core preferences.
-            </p>
-            <Link href="/settings" className="mt-3 inline-flex text-sm font-semibold text-accent">
-              Open settings
-            </Link>
+            <div className="flex items-center gap-3">
+              <Ruler className="h-5 w-5 text-accent" />
+              <div>
+                <h2 className="text-sm font-semibold text-strong">Units</h2>
+                <p className="text-xs text-subtle">Choose your preferred measurement system.</p>
+              </div>
+            </div>
+            {saveSettingsState === 'error' && saveSettingsError && (
+              <div className="mt-3 alert-error px-3 py-2 text-xs">{saveSettingsError}</div>
+            )}
+            {saveSettingsState === 'saved' && <p className="mt-3 text-xs text-muted">Preferences saved.</p>}
+            <div className="mt-4 flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={settings.units === 'lb' ? 'primary' : 'secondary'}
+                onClick={() =>
+                  updateSettings((prev) => ({
+                    ...prev,
+                    units: 'lb'
+                  }))
+                }
+              >
+                Pounds (lb)
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={settings.units === 'kg' ? 'primary' : 'secondary'}
+                onClick={() =>
+                  updateSettings((prev) => ({
+                    ...prev,
+                    units: 'kg'
+                  }))
+                }
+              >
+                Kilograms (kg)
+              </Button>
+            </div>
           </Card>
+
+          {devToolsEnabled && isDevMode && (
+            <Card className="p-6">
+              <div>
+                <h2 className="text-sm font-semibold text-strong">Developer tools</h2>
+                <p className="text-xs text-subtle">
+                  Seed temporary workout data for development and wipe it clean when you are done.
+                </p>
+              </div>
+              {devActionError && <div className="mt-3 alert-error px-3 py-2 text-xs">{devActionError}</div>}
+              {devActionMessage && <p className="mt-3 text-xs text-muted">{devActionMessage}</p>}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSeedData}
+                  disabled={devActionState !== 'idle'}
+                >
+                  {devActionState === 'seeding' ? 'Seeding...' : 'Seed dev data'}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleClearSeededData}
+                  disabled={devActionState !== 'idle'}
+                >
+                  {devActionState === 'clearing' ? 'Clearing...' : 'Clear seeded data'}
+                </Button>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </div>

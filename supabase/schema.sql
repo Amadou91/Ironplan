@@ -9,13 +9,6 @@ end $$;
 
 do $$
 begin
-  create type public.set_type_enum as enum ('working', 'backoff', 'drop', 'amrap');
-exception
-  when duplicate_object then null;
-end $$;
-
-do $$
-begin
   create type public.group_type_enum as enum ('superset', 'circuit', 'giant_set', 'dropset');
 exception
   when duplicate_object then null;
@@ -186,18 +179,12 @@ create table if not exists public.sets (
   completed boolean not null default false,
   performed_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
-  set_type public.set_type_enum not null default 'working',
   weight_unit public.weight_unit_enum not null default 'lb',
-  rest_seconds_actual int,
-  failure boolean default false,
   tempo text,
   rom_cue text,
-  pain_score int,
-  pain_area text,
   group_id text,
   group_type public.group_type_enum,
   extras jsonb not null default '{}'::jsonb,
-  constraint sets_pain_score_range check ((pain_score is null) or (pain_score >= 0 and pain_score <= 10)),
   constraint sets_rpe_rir_exclusive check (not (rpe is not null and rir is not null))
 );
 

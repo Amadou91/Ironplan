@@ -1,0 +1,19 @@
+FROM node:20-bullseye
+
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    bash \
+    ca-certificates \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Supabase CLI (optional)
+RUN curl -fsSL https://supabase.com/install/linux | sh
+ENV PATH="/root/.supabase/bin:${PATH}"
+
+# Install Gemini CLI (npm global)
+RUN npm install -g @google/gemini-cli
+
+WORKDIR /workspace
+CMD ["bash"]

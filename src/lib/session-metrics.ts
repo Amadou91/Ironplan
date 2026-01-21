@@ -1,4 +1,4 @@
-import type { GroupType, SetType, WeightUnit } from '@/types/domain'
+import type { Goal, GroupType, WeightUnit } from '@/types/domain'
 import { convertWeight } from '@/lib/units'
 
 export const E1RM_FORMULA_VERSION = 'epley_v1'
@@ -9,21 +9,49 @@ export type MetricsSet = {
   weightUnit?: WeightUnit | null
   rpe?: number | null
   rir?: number | null
-  failure?: boolean | null
-  setType?: SetType | null
   performedAt?: string | null
-  restSecondsActual?: number | null
+  durationSeconds?: number | null
+  distance?: number | null
+  completed?: boolean | null
 }
 
 export type MetricsExercise = {
   primaryMuscle?: string | null
   secondaryMuscles?: string[] | null
   sets: MetricsSet[]
+  e1rmEligible?: boolean
 }
 
 export type MetricsSession = {
   startedAt: string
   exercises: MetricsExercise[]
+  goal?: Goal | null
+}
+
+export const isSetE1rmEligible = (
+  sessionGoal?: Goal | null,
+  exerciseEligible?: boolean | null,
+  set?: MetricsSet | null
+): boolean => {
+  // 1) Session Goal Gate
+  if (sessionGoal !== 'strength') return false
+
+  // 2) Exercise Library Gate
+  if (!exerciseEligible) return false
+
+  // 3) Set Level Gate
+  if (!set || set.completed === false) return false
+  if (typeof set.reps !== 'number' || set.reps <= 0 || set.reps > 5) return false
+
+  const rpe = typeof set.rpe === 'number' ? set.rpe : null
+  const rir = typeof set.rir === 'number' ? set.rir : null
+
+  // Close enough effort: RPE 8+ or RIR 2 or stricter
+  if (rpe !== null && rpe < 8) return false
+  if (rir !== null && rir > 2) return false
+  if (rpe === null && rir === null) return false
+
+  return true
 }
 
 export const getWeekKey = (value: string) => {
@@ -73,10 +101,15 @@ export const computeSetTonnage = (set: MetricsSet) => {
   return toWeightInPounds(set.weight, set.weightUnit) * set.reps
 }
 
-export const computeSetE1rm = (set: MetricsSet) => {
-  if (typeof set.weight !== 'number' || typeof set.reps !== 'number') return 0
-  if (!Number.isFinite(set.weight) || !Number.isFinite(set.reps)) return 0
-  if (set.weight <= 0 || set.reps <= 0) return 0
+export const computeSetE1rm = (
+  set: MetricsSet,
+  sessionGoal?: Goal | null,
+  exerciseEligible?: boolean | null
+) => {
+  if (!isSetE1rmEligible(sessionGoal, exerciseEligible, set)) return null
+  if (typeof set.weight !== 'number' || typeof set.reps !== 'number') return null
+  if (!Number.isFinite(set.weight) || !Number.isFinite(set.reps)) return null
+  if (set.weight <= 0 || set.reps <= 0) return null
   const weight = toWeightInPounds(set.weight, set.weightUnit)
   const derivedRir =
     typeof set.rir === 'number' && Number.isFinite(set.rir)
@@ -96,25 +129,16 @@ export const getEffortScore = (set: MetricsSet) => {
 }
 
 export const isHardSet = (set: MetricsSet) => {
-  if (set.setType === 'amrap') return true
-  if (set.failure) return true
   const effort = getEffortScore(set)
   return typeof effort === 'number' ? effort >= 8 : false
 }
 
 export const computeSetIntensity = (set: MetricsSet) => {
-  const e1rm = computeSetE1rm(set)
+  const e1rm = computeSetE1rm(set, 'strength', true) // Default true for legacy/generic intensity calculations
   if (!e1rm) return 0
   if (typeof set.weight !== 'number' || set.weight <= 0) return 0
   const weight = toWeightInPounds(set.weight, set.weightUnit)
   return weight / e1rm
-}
-
-const getSetTypeModifier = (setType?: SetType | null) => {
-  if (setType === 'backoff') return 0.9
-  if (setType === 'drop') return 0.85
-  if (setType === 'amrap') return 1.05
-  return 1
 }
 
 export const computeSetLoad = (set: MetricsSet) => {
@@ -122,14 +146,18 @@ export const computeSetLoad = (set: MetricsSet) => {
   if (!tonnage) return 0
   const effort = getEffortScore(set)
   const effortFactor = typeof effort === 'number' ? clamp(effort / 10, 0.4, 1.1) : 0.65
-  return tonnage * effortFactor * getSetTypeModifier(set.setType)
+  return tonnage * effortFactor
 }
 
 export const aggregateTonnage = (sets: MetricsSet[]) =>
   sets.reduce((sum, set) => sum + computeSetTonnage(set), 0)
 
-export const aggregateBestE1rm = (sets: MetricsSet[]) =>
-  sets.reduce((best, set) => Math.max(best, computeSetE1rm(set)), 0)
+export const aggregateBestE1rm = (sets: MetricsSet[], sessionGoal?: Goal | null, exerciseEligible?: boolean | null) => {
+  const e1rms = sets
+    .map((set) => computeSetE1rm(set, sessionGoal, exerciseEligible))
+    .filter((val): val is number => val !== null)
+  return e1rms.length > 0 ? Math.max(...e1rms) : 0
+}
 
 export const aggregateHardSets = (sets: MetricsSet[]) =>
   sets.reduce((sum, set) => sum + (isHardSet(set) ? 1 : 0), 0)

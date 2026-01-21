@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { WorkoutSet } from '@/types/domain';
 import { Trash2, CheckCircle, Circle } from 'lucide-react';
 import { INTENSITY_RECOMMENDATION, RIR_HELPER_TEXT, RIR_OPTIONS, RPE_OPTIONS } from '@/constants/intensityOptions';
-import { PAIN_AREA_OPTIONS, SET_TYPE_OPTIONS } from '@/constants/setOptions';
 import type { WeightOption } from '@/lib/equipment';
 import { mapRirToRpe } from '@/lib/session-metrics';
 
@@ -12,11 +11,12 @@ interface SetLoggerProps {
   onUpdate: (field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => void;
   onDelete: () => void;
   onToggleComplete: () => void;
+  isCardio?: boolean;
+  repsLabel?: string;
 }
 
-export const SetLogger: React.FC<SetLoggerProps> = ({ set, weightOptions, onUpdate, onDelete, onToggleComplete }) => {
+export const SetLogger: React.FC<SetLoggerProps> = ({ set, weightOptions, onUpdate, onDelete, onToggleComplete, isCardio = false, repsLabel = 'Reps' }) => {
   const isEditing = !set.completed;
-  const [showDetails, setShowDetails] = useState(false);
   const timeLabel = useMemo(() => {
     if (!set.performedAt) return 'Not logged yet';
     const date = new Date(set.performedAt);
@@ -41,16 +41,101 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, weightOptions, onUpda
   }, [set.weight, weightOptions]);
 
   useEffect(() => {
-    if (!isEditing) return;
+    if (!isEditing || isCardio) return;
     const isEmptyWeight = set.weight === '' || set.weight === null || typeof set.weight !== 'number';
     if (isEmptyWeight && weightChoices.length > 0) {
       onUpdate('weight', weightChoices[0].value);
       onUpdate('weightUnit', weightChoices[0].unit ?? set.weightUnit ?? 'lb');
     }
-  }, [isEditing, onUpdate, set.weight, set.weightUnit, weightChoices]);
+  }, [isEditing, isCardio, onUpdate, set.weight, set.weightUnit, weightChoices]);
+
+  if (isCardio) {
+    return (
+      <div className={`flex flex-col gap-3 mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+        <div className="flex items-center gap-2">
+          <div className="w-8 text-center font-semibold text-muted">{set.setNumber}</div>
+          <div className="text-[10px] uppercase tracking-wider text-subtle">{timeLabel}</div>
+          <div className="ml-auto text-[10px] uppercase tracking-wider text-subtle">
+            {set.completed ? 'Completed' : 'In progress'}
+          </div>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-3">
+          <div className="flex flex-col">
+            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Duration (min)</label>
+            <input
+              type="number"
+              placeholder="0"
+              value={typeof set.durationSeconds === 'number' ? Math.round(set.durationSeconds / 60) : ''}
+              onChange={(e) => onUpdate('durationSeconds', e.target.value === '' ? '' : Number(e.target.value) * 60)}
+              className={inputClassName}
+              min={0}
+              readOnly={!isEditing}
+            />
+          </div>
+
+          <div className="flex flex-col">
+            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Distance (km)</label>
+             <div className="flex gap-1">
+              <input
+                type="number"
+                placeholder="0.0"
+                value={set.distance ?? ''}
+                onChange={(e) => onUpdate('distance', e.target.value === '' ? '' : Number(e.target.value))}
+                className={inputClassName}
+                min={0}
+                step={0.1}
+                readOnly={!isEditing}
+              />
+            </div>
+             <div className="mt-1 text-center text-[10px] text-subtle">
+               {set.distanceUnit ?? 'km'}
+             </div>
+          </div>
+
+          <div className="flex flex-col">
+            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">RPE (1-10)</label>
+            <select
+                value={typeof set.rpe === 'number' ? String(set.rpe) : ''}
+                onChange={(event) => {
+                  const nextValue = event.target.value === '' ? '' : Number(event.target.value);
+                  onUpdate('rpe', nextValue);
+                }}
+                className={inputClassName}
+                disabled={!isEditing}
+              >
+                <option value="">Select effort</option>
+                {RPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label} ({option.value})
+                  </option>
+                ))}
+              </select>
+          </div>
+        </div>
+         <p className="text-[10px] text-subtle">Log your steady-state or interval effort.</p>
+
+        <div className="flex items-center justify-between gap-2">
+          <button
+            onClick={onToggleComplete}
+            className={`rounded-full p-2 transition-colors ${set.completed ? 'text-[var(--color-success)] hover:bg-[var(--color-success-soft)]' : 'text-subtle hover:bg-[var(--color-surface-muted)]'}`}
+          >
+            {set.completed ? <CheckCircle size={20} /> : <Circle size={20} />}
+          </button>
+
+          <button
+            onClick={onDelete}
+            className="rounded-full p-2 text-subtle transition-colors hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`flex flex-col gap-3 mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+    <div className={`flex flex-col gap-3 mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
       <div className="flex items-center gap-2">
         <div className="w-8 text-center font-semibold text-muted">{set.setNumber}</div>
         <div className="text-[10px] uppercase tracking-wider text-subtle">{timeLabel}</div>
@@ -100,10 +185,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, weightOptions, onUpda
         </div>
 
         <div className="flex flex-col">
-          <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Reps</label>
+          <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">{repsLabel}</label>
           <input
             type="number"
-            placeholder="0"
+            placeholder={repsLabel === 'Reps' ? '0' : '--'}
             value={set.reps ?? ''}
             onChange={(e) => onUpdate('reps', e.target.value === '' ? '' : Number(e.target.value))}
             className={inputClassName}
@@ -140,88 +225,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, weightOptions, onUpda
       </div>
       <p className="text-[10px] text-subtle">{INTENSITY_RECOMMENDATION}</p>
 
-      {showDetails && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Set type</label>
-            <select
-              value={set.setType ?? 'working'}
-              onChange={(event) => onUpdate('setType', event.target.value as WorkoutSet['setType'])}
-              className={inputClassName}
-              disabled={!isEditing}
-            >
-              {SET_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Rest (sec)</label>
-            <input
-              type="number"
-              min={0}
-              placeholder="0"
-              value={set.restSecondsActual ?? ''}
-              onChange={(event) => onUpdate('restSecondsActual', event.target.value === '' ? '' : Number(event.target.value))}
-              className={inputClassName}
-              readOnly={!isEditing}
-            />
-          </div>
-          <div className="flex items-center justify-center gap-2 pt-5 text-[10px] text-subtle">
-            <input
-              type="checkbox"
-              checked={Boolean(set.failure)}
-              onChange={(event) => onUpdate('failure', event.target.checked)}
-              className="h-4 w-4 rounded border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)]"
-              disabled={!isEditing}
-            />
-            <span>Reached failure</span>
-          </div>
-          <div className="flex flex-col sm:col-span-2">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Pain (0-10)</label>
-            <input
-              type="number"
-              min={0}
-              max={10}
-              placeholder="0"
-              value={set.painScore ?? ''}
-              onChange={(event) => onUpdate('painScore', event.target.value === '' ? '' : Number(event.target.value))}
-              className={inputClassName}
-              readOnly={!isEditing}
-            />
-          </div>
-          <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Pain area</label>
-            <select
-              value={set.painArea ?? ''}
-              onChange={(event) => onUpdate('painArea', event.target.value)}
-              className={inputClassName}
-              disabled={!isEditing}
-            >
-              <option value="">None</option>
-              {PAIN_AREA_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      )}
-
       <div className="flex items-center justify-between gap-2">
         <button
-          type="button"
-          onClick={() => setShowDetails((prev) => !prev)}
-          className="text-[10px] font-semibold uppercase tracking-wider text-subtle"
-        >
-          {showDetails ? 'Hide details' : 'More details'}
-        </button>
-        <button
           onClick={onToggleComplete}
-          className={`rounded-full p-2 transition-colors ${set.completed ? 'text-[var(--color-primary-strong)] hover:bg-[var(--color-primary-soft)]' : 'text-subtle hover:bg-[var(--color-surface-muted)]'}`}
+          className={`rounded-full p-2 transition-colors ${set.completed ? 'text-[var(--color-success)] hover:bg-[var(--color-success-soft)]' : 'text-subtle hover:bg-[var(--color-surface-muted)]'}`}
         >
           {set.completed ? <CheckCircle size={20} /> : <Circle size={20} />}
         </button>

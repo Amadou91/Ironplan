@@ -1,15 +1,10 @@
-import { Dumbbell, LayoutDashboard, LineChart, Settings, UserRound } from 'lucide-react'
+import { LayoutDashboard, LineChart, UserRound } from 'lucide-react'
 
 export const primaryNavItems = [
   {
     label: 'Today',
     href: '/dashboard',
     icon: LayoutDashboard
-  },
-  {
-    label: 'Workouts',
-    href: '/workouts',
-    icon: Dumbbell
   },
   {
     label: 'Progress',
@@ -23,10 +18,4 @@ export const primaryNavItems = [
   }
 ]
 
-export const secondaryNavItems = [
-  {
-    label: 'Settings',
-    href: '/settings',
-    icon: Settings
-  }
-]
+export const secondaryNavItems = []

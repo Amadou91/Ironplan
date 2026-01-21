@@ -685,7 +685,7 @@ export default function GeneratePage() {
       return (
         <div className="space-y-3 text-sm text-muted">
           {saveSummary.title && (
-            <div className="rounded-lg border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] px-3 py-2 text-[var(--color-primary-strong)]">
+            <div className="alert-success px-3 py-2">
               Saved template: {saveSummary.title}
             </div>
           )}

@@ -100,3 +100,27 @@ export const toMuscleLabel = (value: string) =>
   value
     .replace(/_/g, ' ')
     .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
+
+export const isTimeBasedExercise = (exerciseName: string, targetReps?: string | number) => {
+  const name = exerciseName.toLowerCase();
+  if (
+    name.includes('plank') ||
+    name.includes('hold') ||
+    name.includes('stretch') ||
+    name.includes('ride') ||
+    name.includes('run') ||
+    name.includes('rower') ||
+    name.includes('bike') ||
+    name.includes('cycling') ||
+    name.includes('flow')
+  ) {
+    return true;
+  }
+  if (typeof targetReps === 'string') {
+    const lower = targetReps.toLowerCase();
+    if (lower.includes('sec') || lower.includes('min')) {
+      return true;
+    }
+  }
+  return false;
+};

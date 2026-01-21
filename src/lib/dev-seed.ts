@@ -14,7 +14,6 @@ type ExerciseSeed = {
     weight: number
     weightUnit: 'lb' | 'kg'
     rpe?: number
-    setType?: 'working' | 'backoff' | 'drop' | 'amrap'
   }>
 }
 
@@ -50,6 +49,11 @@ const isMissingTableError = (error: { message?: string; code?: string }) => {
 }
 
 export async function seedDevData(supabase: SupabaseClient, userId: string): Promise<SeedResult> {
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('Dev seed operations are disabled in production.')
+    return { templates: 0, sessions: 0, exercises: 0, sets: 0, readiness: 0 }
+  }
+
   const templateSeeds: TemplateSeed[] = [
     {
       title: `${DEV_TEMPLATE_PREFIX}Upper Strength`,
@@ -81,176 +85,101 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
 
   if (templateError) throw templateError
 
-  const sessionSeeds: SessionSeed[] = [
-    {
-      name: `${DEV_SESSION_PREFIX} Upper Strength`,
-      templateIndex: 0,
-      daysAgo: 1,
-      minutesAvailable: 50,
-      exercises: [
-        {
-          name: 'Bench Press',
-          primaryMuscle: 'chest',
-          secondaryMuscles: ['triceps', 'shoulders'],
-          sets: [
-            { reps: 5, weight: 185, weightUnit: 'lb', rpe: 8, setType: 'working' },
-            { reps: 5, weight: 185, weightUnit: 'lb', rpe: 8.5, setType: 'working' },
-            { reps: 5, weight: 185, weightUnit: 'lb', rpe: 9, setType: 'working' }
-          ]
-        },
-        {
-          name: 'Bent-Over Row',
-          primaryMuscle: 'back',
-          secondaryMuscles: ['biceps'],
-          sets: [
-            { reps: 8, weight: 155, weightUnit: 'lb', rpe: 7.5, setType: 'working' },
-            { reps: 8, weight: 155, weightUnit: 'lb', rpe: 8, setType: 'working' },
-            { reps: 8, weight: 155, weightUnit: 'lb', rpe: 8.5, setType: 'working' }
-          ]
-        }
-      ]
-    },
-    {
-      name: `${DEV_SESSION_PREFIX} Upper Strength (Speed)`,
-      templateIndex: 0,
-      daysAgo: 6,
-      minutesAvailable: 45,
-      exercises: [
-        {
-          name: 'Incline Dumbbell Press',
-          primaryMuscle: 'chest',
-          secondaryMuscles: ['shoulders', 'triceps'],
-          sets: [
-            { reps: 10, weight: 60, weightUnit: 'lb', rpe: 7, setType: 'working' },
-            { reps: 10, weight: 60, weightUnit: 'lb', rpe: 7.5, setType: 'working' },
-            { reps: 10, weight: 60, weightUnit: 'lb', rpe: 8, setType: 'working' }
-          ]
-        },
-        {
-          name: 'Lat Pulldown',
-          primaryMuscle: 'back',
-          secondaryMuscles: ['biceps'],
-          sets: [
-            { reps: 12, weight: 120, weightUnit: 'lb', rpe: 7, setType: 'working' },
-            { reps: 12, weight: 120, weightUnit: 'lb', rpe: 7.5, setType: 'working' },
-            { reps: 12, weight: 120, weightUnit: 'lb', rpe: 8, setType: 'working' }
-          ]
-        }
-      ]
-    },
-    {
-      name: `${DEV_SESSION_PREFIX} Lower Hypertrophy`,
-      templateIndex: 1,
-      daysAgo: 3,
-      minutesAvailable: 55,
-      exercises: [
-        {
-          name: 'Back Squat',
-          primaryMuscle: 'quads',
-          secondaryMuscles: ['glutes', 'hamstrings'],
-          sets: [
-            { reps: 8, weight: 225, weightUnit: 'lb', rpe: 8, setType: 'working' },
-            { reps: 8, weight: 225, weightUnit: 'lb', rpe: 8.5, setType: 'working' },
-            { reps: 8, weight: 225, weightUnit: 'lb', rpe: 9, setType: 'working' }
-          ]
-        },
-        {
-          name: 'Romanian Deadlift',
-          primaryMuscle: 'hamstrings',
-          secondaryMuscles: ['glutes'],
-          sets: [
-            { reps: 10, weight: 185, weightUnit: 'lb', rpe: 7.5, setType: 'working' },
-            { reps: 10, weight: 185, weightUnit: 'lb', rpe: 8, setType: 'working' },
-            { reps: 10, weight: 185, weightUnit: 'lb', rpe: 8.5, setType: 'working' }
-          ]
-        }
-      ]
-    },
-    {
-      name: `${DEV_SESSION_PREFIX} Lower Hypertrophy (Pump)`,
-      templateIndex: 1,
-      daysAgo: 10,
-      minutesAvailable: 40,
-      exercises: [
-        {
-          name: 'Leg Press',
-          primaryMuscle: 'quads',
-          secondaryMuscles: ['glutes'],
-          sets: [
-            { reps: 12, weight: 270, weightUnit: 'lb', rpe: 7, setType: 'working' },
-            { reps: 12, weight: 270, weightUnit: 'lb', rpe: 7.5, setType: 'working' },
-            { reps: 12, weight: 270, weightUnit: 'lb', rpe: 8, setType: 'working' }
-          ]
-        },
-        {
-          name: 'Seated Hamstring Curl',
-          primaryMuscle: 'hamstrings',
-          secondaryMuscles: ['calves'],
-          sets: [
-            { reps: 12, weight: 90, weightUnit: 'lb', rpe: 7, setType: 'working' },
-            { reps: 12, weight: 90, weightUnit: 'lb', rpe: 7.5, setType: 'working' },
-            { reps: 12, weight: 90, weightUnit: 'lb', rpe: 8, setType: 'working' }
-          ]
-        }
-      ]
-    },
-    {
-      name: `${DEV_SESSION_PREFIX} Full Body Endurance`,
-      templateIndex: 2,
-      daysAgo: 2,
-      minutesAvailable: 35,
-      exercises: [
-        {
-          name: 'Kettlebell Swing',
-          primaryMuscle: 'full_body',
-          secondaryMuscles: ['core'],
-          sets: [
-            { reps: 15, weight: 35, weightUnit: 'lb', rpe: 7, setType: 'working' },
-            { reps: 15, weight: 35, weightUnit: 'lb', rpe: 7.5, setType: 'working' },
-            { reps: 15, weight: 35, weightUnit: 'lb', rpe: 8, setType: 'working' }
-          ]
-        },
-        {
-          name: 'Plank',
-          primaryMuscle: 'core',
-          secondaryMuscles: ['shoulders'],
-          sets: [
-            { reps: 45, weight: 0, weightUnit: 'lb', rpe: 6, setType: 'working' },
-            { reps: 45, weight: 0, weightUnit: 'lb', rpe: 6.5, setType: 'working' },
-            { reps: 45, weight: 0, weightUnit: 'lb', rpe: 7, setType: 'working' }
-          ]
-        }
-      ]
-    },
-    {
-      name: `${DEV_SESSION_PREFIX} Full Body Endurance (Circuit)`,
-      templateIndex: 2,
-      daysAgo: 12,
-      minutesAvailable: 30,
-      exercises: [
-        {
-          name: 'Goblet Squat',
-          primaryMuscle: 'quads',
-          secondaryMuscles: ['glutes'],
-          sets: [
-            { reps: 12, weight: 40, weightUnit: 'lb', rpe: 6.5, setType: 'working' },
-            { reps: 12, weight: 40, weightUnit: 'lb', rpe: 7, setType: 'working' },
-            { reps: 12, weight: 40, weightUnit: 'lb', rpe: 7.5, setType: 'working' }
-          ]
-        },
-        {
-          name: 'Farmer Carry',
-          primaryMuscle: 'full_body',
-          secondaryMuscles: ['core', 'forearms'],
-          sets: [
-            { reps: 30, weight: 50, weightUnit: 'lb', rpe: 6.5, setType: 'working' },
-            { reps: 30, weight: 50, weightUnit: 'lb', rpe: 7, setType: 'working' },
-            { reps: 30, weight: 50, weightUnit: 'lb', rpe: 7.5, setType: 'working' }
-          ]
-        }
-      ]
-    }
-  ]
+  const exerciseTemplates: Record<number, ExerciseSeed[]> = {
+    0: [
+      {
+        name: 'Bench Press',
+        primaryMuscle: 'chest',
+        secondaryMuscles: ['triceps', 'shoulders'],
+        sets: [
+          { reps: 5, weight: 185, weightUnit: 'lb', rpe: 8 },
+          { reps: 5, weight: 185, weightUnit: 'lb', rpe: 8.5 },
+          { reps: 5, weight: 185, weightUnit: 'lb', rpe: 9 }
+        ]
+      },
+      {
+        name: 'Bent-Over Row',
+        primaryMuscle: 'back',
+        secondaryMuscles: ['biceps'],
+        sets: [
+          { reps: 8, weight: 155, weightUnit: 'lb', rpe: 7.5 },
+          { reps: 8, weight: 155, weightUnit: 'lb', rpe: 8 },
+          { reps: 8, weight: 155, weightUnit: 'lb', rpe: 8.5 }
+        ]
+      }
+    ],
+    1: [
+      {
+        name: 'Back Squat',
+        primaryMuscle: 'quads',
+        secondaryMuscles: ['glutes', 'hamstrings'],
+        sets: [
+          { reps: 8, weight: 225, weightUnit: 'lb', rpe: 8 },
+          { reps: 8, weight: 225, weightUnit: 'lb', rpe: 8.5 },
+          { reps: 8, weight: 225, weightUnit: 'lb', rpe: 9 }
+        ]
+      },
+      {
+        name: 'Romanian Deadlift',
+        primaryMuscle: 'hamstrings',
+        secondaryMuscles: ['glutes'],
+        sets: [
+          { reps: 10, weight: 185, weightUnit: 'lb', rpe: 7.5 },
+          { reps: 10, weight: 185, weightUnit: 'lb', rpe: 8 },
+          { reps: 10, weight: 185, weightUnit: 'lb', rpe: 8.5 }
+        ]
+      }
+    ],
+    2: [
+      {
+        name: 'Kettlebell Swing',
+        primaryMuscle: 'full_body',
+        secondaryMuscles: ['core'],
+        sets: [
+          { reps: 15, weight: 35, weightUnit: 'lb', rpe: 7 },
+          { reps: 15, weight: 35, weightUnit: 'lb', rpe: 7.5 },
+          { reps: 15, weight: 35, weightUnit: 'lb', rpe: 8 }
+        ]
+      },
+      {
+        name: 'Plank',
+        primaryMuscle: 'core',
+        secondaryMuscles: ['shoulders'],
+        sets: [
+          { reps: 45, weight: 0, weightUnit: 'lb', rpe: 6 },
+          { reps: 45, weight: 0, weightUnit: 'lb', rpe: 6.5 },
+          { reps: 45, weight: 0, weightUnit: 'lb', rpe: 7 }
+        ]
+      }
+    ]
+  }
+
+  const sessionSeeds: SessionSeed[] = []
+  const totalSessions = 36
+  for (let i = 0; i < totalSessions; i++) {
+    const templateIndex = i % 3
+    const daysAgo = Math.floor((totalSessions - i) * 2 + Math.random())
+    const baseExercises = exerciseTemplates[templateIndex]
+
+    const progressFactor = 0.85 + (1 - daysAgo / 72) * 0.25 // More progression range
+    const exercises = baseExercises.map((ex) => ({
+      ...ex,
+      sets: ex.sets.map((s) => ({
+        ...s,
+        weight: Math.max(1, Math.round((s.weight * progressFactor) / 5) * 5),
+        reps: s.reps + (Math.random() > 0.7 ? 1 : 0),
+        rpe: Math.min(10, Math.max(6, (s.rpe || 7) + (Math.random() * 2 - 0.5)))
+      }))
+    }))
+
+    sessionSeeds.push({
+      name: `${DEV_SESSION_PREFIX} ${templateSeeds[templateIndex].title.replace(DEV_TEMPLATE_PREFIX, '')} ${i + 1}`,
+      templateIndex,
+      daysAgo,
+      minutesAvailable: 45 + Math.floor(Math.random() * 15),
+      exercises
+    })
+  }
 
   const now = Date.now()
   const dayMs = 24 * 60 * 60 * 1000
@@ -326,7 +255,6 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     completed: boolean
     performed_at: string
     weight_unit: 'lb' | 'kg'
-    set_type: string
   }> = []
 
   sessionExercises?.forEach((exerciseRow) => {
@@ -343,8 +271,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         rpe: set.rpe ?? null,
         completed: true,
         performed_at: performedAt,
-        weight_unit: set.weightUnit,
-        set_type: set.setType ?? 'working'
+        weight_unit: set.weightUnit
       })
     })
   })
@@ -358,17 +285,31 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
 
   let readinessCount = 0
   if (sessions?.length) {
-    const readinessRows = sessions.map((session) => ({
-      session_id: session.id,
-      user_id: userId,
-      recorded_at: session.started_at,
-      sleep_quality: 4,
-      muscle_soreness: 3,
-      stress_level: 2,
-      motivation: 4,
-      readiness_score: 78,
-      readiness_level: 'steady'
-    }))
+    const readinessRows = sessions.map((session, index) => {
+      // Simulate varied readiness data
+      // Cycles slightly based on index to show trends
+      const baseScore = 65 + (index % 3) * 10 + Math.floor(Math.random() * 15)
+      const sleep = Math.max(1, Math.min(5, Math.floor(3 + Math.random() * 2.5 - (index % 2) * 0.5)))
+      const soreness = Math.max(1, Math.min(5, Math.floor(2 + Math.random() * 3 - (index % 2))))
+      const stress = Math.max(1, Math.min(5, Math.floor(2 + Math.random() * 3)))
+      const motivation = Math.max(1, Math.min(5, Math.floor(3 + Math.random() * 2)))
+      
+      let level = 'steady'
+      if (baseScore < 60) level = 'low'
+      if (baseScore > 85) level = 'high'
+
+      return {
+        session_id: session.id,
+        user_id: userId,
+        recorded_at: session.started_at,
+        sleep_quality: sleep,
+        muscle_soreness: soreness,
+        stress_level: stress,
+        motivation: motivation,
+        readiness_score: baseScore,
+        readiness_level: level
+      }
+    })
 
     const { data: readinessRowsInserted, error: readinessError } = await supabase
       .from('session_readiness')
@@ -377,6 +318,34 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
 
     if (readinessError && !isMissingTableError(readinessError)) throw readinessError
     readinessCount = readinessRowsInserted?.length ?? 0
+  }
+
+  // Seed Body Measurements (Daily History for last 30 days)
+  const weightStartPoint = 184.2
+  const dailyMeasurementRows = []
+  for (let i = 0; i < 30; i++) {
+    const dayDate = new Date(now - (29 - i) * dayMs)
+    // Slight downward trend with some noise
+    const currentWeight = weightStartPoint - (i * 0.15) + (Math.random() * 0.6 - 0.3)
+    dailyMeasurementRows.push({
+      user_id: userId,
+      weight_lb: Number(currentWeight.toFixed(1)),
+      recorded_at: dayDate.toISOString()
+    })
+  }
+
+  const { error: dailyWeightError } = await supabase
+    .from('body_measurements')
+    .insert(dailyMeasurementRows)
+
+  if (dailyWeightError && !isMissingTableError(dailyWeightError)) {
+    console.error('Failed to seed daily weight history:', dailyWeightError)
+  }
+
+  // Update profile with latest weight
+  if (dailyMeasurementRows.length > 0) {
+    const latestWeight = dailyMeasurementRows[dailyMeasurementRows.length - 1].weight_lb
+    await supabase.from('profiles').update({ weight_lb: latestWeight }).eq('id', userId)
   }
 
   return {
@@ -389,6 +358,11 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
 }
 
 export async function clearDevData(supabase: SupabaseClient, userId: string): Promise<ClearResult> {
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('Dev seed operations are disabled in production.')
+    return { templates: 0, sessions: 0, exercises: 0, sets: 0, readiness: 0 }
+  }
+
   const { data: templates } = await supabase
     .from('workout_templates')
     .select('id')
@@ -422,6 +396,13 @@ export async function clearDevData(supabase: SupabaseClient, userId: string): Pr
       .in('id', sessionIds)
 
     if (sessionDeleteError) throw sessionDeleteError
+
+    const { error: measurementDeleteError } = await supabase
+      .from('body_measurements')
+      .delete()
+      .eq('user_id', userId)
+      
+    if (measurementDeleteError && !isMissingTableError(measurementDeleteError)) throw measurementDeleteError
   }
 
   if (templateIds.length) {

@@ -40,8 +40,6 @@ export type EquipmentOption =
   | { kind: 'barbell' }
   | { kind: 'machine'; machineType?: MachineType }
 
-export type SetType = 'working' | 'backoff' | 'drop' | 'amrap'
-
 export type WeightUnit = 'lb' | 'kg'
 
 export type GroupType = 'superset' | 'circuit' | 'giant_set' | 'dropset'
@@ -119,6 +117,7 @@ export interface Exercise {
   secondaryBodyParts?: string[]
   videoUrl?: string
   instructions?: string[]
+  e1rmEligible?: boolean
 }
 
 export type WorkoutExercise = Exercise
@@ -281,15 +280,20 @@ export interface WorkoutSet {
   notes?: string | null
   performedAt?: string | null
   completed: boolean
-  setType?: SetType
   weightUnit?: WeightUnit
-  restSecondsActual?: number | '' | null
-  failure?: boolean
   tempo?: string | null
   romCue?: string | null
-  painScore?: number | '' | null
-  painArea?: string | '' | null
   groupId?: string | '' | null
   groupType?: GroupType | '' | null
   extras?: Record<string, string | null> | null
+  durationSeconds?: number | '' | null
+  distance?: number | '' | null
+  distanceUnit?: string | null
+}
+
+export interface BodyMeasurement {
+  id: string
+  userId: string
+  weightLb: number
+  recordedAt: string
 }

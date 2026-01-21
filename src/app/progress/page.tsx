@@ -8,6 +8,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Legend,
   Line,
   LineChart,
@@ -15,7 +16,6 @@ import {
   PieChart,
   ResponsiveContainer,
   Scatter,
-  ScatterChart,
   Tooltip,
   XAxis,
   YAxis
@@ -27,8 +27,8 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { EXERCISE_LIBRARY } from '@/lib/generator'
 import {
-  aggregateBestE1rm,
   aggregateHardSets,
   aggregateTonnage,
   computeSetE1rm,
@@ -41,7 +41,7 @@ import {
   toWeightInPounds
 } from '@/lib/session-metrics'
 import { computeSessionMetrics, getLoadBasedReadiness, summarizeTrainingLoad } from '@/lib/training-metrics'
-import type { FocusArea, PlanInput } from '@/types/domain'
+import type { FocusArea, Goal, PlanInput } from '@/types/domain'
 
 const chartColors = ['#f05a28', '#1f9d55', '#0ea5e9', '#f59e0b', '#ec4899']
 const SESSION_PAGE_SIZE = 20
@@ -144,11 +144,6 @@ type SessionRow = {
       completed: boolean | null
       performed_at: string | null
       weight_unit: string | null
-      failure: boolean | null
-      set_type: string | null
-      rest_seconds_actual: number | null
-      pain_score: number | null
-      pain_area: string | null
     }>
   }>
 }
@@ -196,8 +191,13 @@ export default function ProgressPage() {
   const [hasMoreSessions, setHasMoreSessions] = useState(true)
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null)
   const [creatingManualSession, setCreatingManualSession] = useState(false)
+  const [bodyWeightHistory, setBodyWeightHistory] = useState<Array<{ recorded_at: string; weight_lb: number }>>([])
 
   const templateById = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates])
+  const exerciseLibraryByName = useMemo(
+    () => new Map(EXERCISE_LIBRARY.map((exercise) => [exercise.name.toLowerCase(), exercise])),
+    []
+  )
 
   const getSessionTitle = useCallback(
     (session: SessionRow) => {
@@ -281,7 +281,7 @@ export default function ProgressPage() {
           supabase
             .from('sessions')
             .select(
-              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure, set_type, rest_seconds_actual, pain_score, pain_area))'
+              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
             )
             .eq('user_id', user.id)
             .order('started_at', { ascending: false })
@@ -294,7 +294,9 @@ export default function ProgressPage() {
 
       if (fetchError) {
         console.error('Failed to load sessions', fetchError)
-        if (fetchError.status === 401 || fetchError.status === 403) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const err = fetchError as any
+        if (err.status === 401 || err.status === 403) {
           setUser(null)
           setError('Your session has expired. Please sign in again.')
         } else {
@@ -350,7 +352,7 @@ export default function ProgressPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure, set_type, rest_seconds_actual, pain_score, pain_area))'
+          'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -412,6 +414,24 @@ export default function ProgressPage() {
 
     loadProfileWeight()
   }, [ensureSession, supabase, user, userLoading])
+
+  useEffect(() => {
+    if (userLoading || !user) return
+
+    const loadBodyWeightHistory = async () => {
+      const { data } = await supabase
+        .from('body_measurements')
+        .select('recorded_at, weight_lb')
+        .eq('user_id', user.id)
+        .order('recorded_at', { ascending: true })
+      
+      if (data) {
+        setBodyWeightHistory(data)
+      }
+    }
+
+    loadBodyWeightHistory()
+  }, [user, userLoading, supabase])
 
   const muscleOptions = useMemo(() => {
     const muscles = new Set<string>()
@@ -546,10 +566,7 @@ export default function ProgressPage() {
               weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
               rpe: typeof set.rpe === 'number' ? set.rpe : null,
               rir: typeof set.rir === 'number' ? set.rir : null,
-              failure: set.failure ?? null,
-              setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
-              performedAt: set.performed_at ?? null,
-              restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+              performedAt: set.performed_at ?? null
             }))
         )
         const metrics = computeSessionMetrics({
@@ -568,6 +585,26 @@ export default function ProgressPage() {
           typeof point.readiness === 'number' && typeof point.effort === 'number'
       )
   }, [readinessSessions])
+
+  const readinessTrendLine = useMemo(() => {
+    if (readinessCorrelation.length < 2) return []
+    const n = readinessCorrelation.length
+    const sumX = readinessCorrelation.reduce((acc, p) => acc + p.readiness, 0)
+    const sumY = readinessCorrelation.reduce((acc, p) => acc + p.effort, 0)
+    const sumXY = readinessCorrelation.reduce((acc, p) => acc + p.readiness * p.effort, 0)
+    const sumXX = readinessCorrelation.reduce((acc, p) => acc + p.readiness * p.readiness, 0)
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
+    const intercept = (sumY - slope * sumX) / n
+
+    const minX = Math.min(...readinessCorrelation.map((p) => p.readiness))
+    const maxX = Math.max(...readinessCorrelation.map((p) => p.readiness))
+
+    return [
+      { readiness: minX, effort: slope * minX + intercept },
+      { readiness: maxX, effort: slope * maxX + intercept }
+    ]
+  }, [readinessCorrelation])
 
   const allSets = useMemo(() => {
     return filteredSessions.flatMap((session) =>
@@ -606,10 +643,7 @@ export default function ProgressPage() {
         weight: set.weight ?? null,
         weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
         rpe: typeof set.rpe === 'number' ? set.rpe : null,
-        rir: typeof set.rir === 'number' ? set.rir : null,
-        failure: set.failure ?? null,
-        setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
-        restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+        rir: typeof set.rir === 'number' ? set.rir : null
       })
       if (!tonnage && !load) return
       const entry = totals.get(key) ?? { volume: 0, load: 0 }
@@ -641,23 +675,25 @@ export default function ProgressPage() {
   }, [allSets])
 
   const exerciseTrend = useMemo(() => {
-    if (selectedExercise === 'all') return []
     const daily = new Map<string, number>()
-    allSets
-      .filter((set) => set.exerciseName === selectedExercise)
-      .forEach((set) => {
-        const e1rm = computeSetE1rm({
-          reps: set.reps ?? null,
-          weight: set.weight ?? null,
-          weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
-        })
-        if (!e1rm) return
-        const key = formatDate(set.performed_at ?? set.startedAt)
-        const current = daily.get(key)
-        daily.set(key, Math.max(current ?? 0, e1rm))
-      })
-    return Array.from(daily.entries()).map(([day, e1rm]) => ({ day, e1rm: Math.round(e1rm) }))
-  }, [allSets, selectedExercise])
+    allSets.forEach((set) => {
+      if (selectedExercise !== 'all' && set.exerciseName !== selectedExercise) return
+
+      const session = sessions.find((s) => s.id === set.sessionId)
+      const template = session?.template_id ? templateById.get(session.template_id) : null
+      const sessionGoal = template?.style as Goal | undefined
+      const isEligible = exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible
+
+      const e1rm = computeSetE1rm(set, sessionGoal, isEligible)
+      if (!e1rm) return
+      const key = formatDate(set.performed_at ?? set.startedAt)
+      const current = daily.get(key)
+      daily.set(key, Math.max(current ?? 0, e1rm))
+    })
+    return Array.from(daily.entries())
+      .map(([day, e1rm]) => ({ day, e1rm: Math.round(e1rm) }))
+      .sort((a, b) => new Date(a.day).getTime() - new Date(b.day).getTime())
+  }, [allSets, selectedExercise, sessions, templateById, exerciseLibraryByName])
 
   const muscleBreakdown = useMemo(() => {
     const totals = new Map<string, number>()
@@ -688,19 +724,21 @@ export default function ProgressPage() {
       const normalizedWeight = toWeightInPounds(weight, (set.weight_unit as 'lb' | 'kg' | null) ?? null)
       maxWeight = Math.max(maxWeight, normalizedWeight)
       bestReps = Math.max(bestReps, reps)
-      const e1rm = computeSetE1rm({
-        reps: set.reps ?? null,
-        weight: set.weight ?? null,
-        weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
-      })
-      bestE1rm = Math.max(bestE1rm, e1rm)
+
+      const session = sessions.find((s) => s.id === set.sessionId)
+      const template = session?.template_id ? templateById.get(session.template_id) : null
+      const sessionGoal = template?.style as Goal | undefined
+      const isEligible = exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible
+
+      const e1rm = computeSetE1rm(set, sessionGoal, isEligible)
+      if (e1rm) bestE1rm = Math.max(bestE1rm, e1rm)
     })
     return {
       maxWeight,
       bestReps,
       bestE1rm: Math.round(bestE1rm)
     }
-  }, [allSets])
+  }, [allSets, sessions, templateById, exerciseLibraryByName])
 
   const aggregateMetrics = useMemo(() => {
     const metricSets = allSets.map((set) => ({
@@ -709,9 +747,9 @@ export default function ProgressPage() {
       weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
       rpe: typeof set.rpe === 'number' ? set.rpe : null,
       rir: typeof set.rir === 'number' ? set.rir : null,
-      failure: set.failure ?? null,
-      setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
-      restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+      failure: null,
+      setType: null,
+      restSecondsActual: null
     }))
     const effortTotals = metricSets.reduce(
       (acc, set) => {
@@ -723,14 +761,26 @@ export default function ProgressPage() {
       },
       { total: 0, count: 0 }
     )
+
+    let bestE1rmValue = 0
+    allSets.forEach((set) => {
+      const session = sessions.find((s) => s.id === set.sessionId)
+      const template = session?.template_id ? templateById.get(session.template_id) : null
+      const sessionGoal = template?.style as Goal | undefined
+      const isEligible = exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible
+
+      const e1rm = computeSetE1rm(set, sessionGoal, isEligible)
+      if (e1rm) bestE1rmValue = Math.max(bestE1rmValue, e1rm)
+    })
+
     return {
       tonnage: Math.round(aggregateTonnage(metricSets)),
       hardSets: aggregateHardSets(metricSets),
-      bestE1rm: Math.round(aggregateBestE1rm(metricSets)),
+      bestE1rm: Math.round(bestE1rmValue),
       workload: Math.round(metricSets.reduce((sum, set) => sum + computeSetLoad(set), 0)),
       avgEffort: effortTotals.count ? Number((effortTotals.total / effortTotals.count).toFixed(1)) : null
     }
-  }, [allSets])
+  }, [allSets, sessions, templateById, exerciseLibraryByName])
 
   const relativeMetrics = useMemo(() => {
     if (!profileWeightLb || profileWeightLb <= 0) return null
@@ -740,6 +790,13 @@ export default function ProgressPage() {
       maxWeightRatio: prMetrics.maxWeight / profileWeightLb
     }
   }, [aggregateMetrics, prMetrics, profileWeightLb])
+
+  const bodyWeightTrend = useMemo(() => {
+    return bodyWeightHistory.map((entry) => ({
+      day: formatDate(entry.recorded_at),
+      weight: Number(entry.weight_lb)
+    }))
+  }, [bodyWeightHistory])
 
   const trainingLoadSummary = useMemo(() => {
     const mappedSessions = filteredSessions.map((session) => ({
@@ -754,10 +811,7 @@ export default function ProgressPage() {
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
             rpe: typeof set.rpe === 'number' ? set.rpe : null,
             rir: typeof set.rir === 'number' ? set.rir : null,
-            failure: set.failure ?? null,
-            setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
-            performedAt: set.performed_at ?? null,
-            restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+            performedAt: set.performed_at ?? null
           }))
       )
     }))
@@ -810,7 +864,12 @@ export default function ProgressPage() {
       bestE1rm: 0,
       workload: 0
     }
+    const template = session.template_id ? templateById.get(session.template_id) : null
+    const sessionGoal = template?.style as Goal | undefined
+
     session.session_exercises.forEach((exercise) => {
+      const isEligible = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())?.e1rmEligible
+
       exercise.sets.forEach((set) => {
         if (set.completed === false) return
         totals.sets += 1
@@ -828,10 +887,7 @@ export default function ProgressPage() {
             weight: set.weight ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
             rpe: typeof set.rpe === 'number' ? set.rpe : null,
-            rir: typeof set.rir === 'number' ? set.rir : null,
-            failure: set.failure ?? null,
-            setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
-            restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+            rir: typeof set.rir === 'number' ? set.rir : null
           }
         ])
         totals.workload += computeSetLoad({
@@ -839,19 +895,22 @@ export default function ProgressPage() {
           weight: set.weight ?? null,
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
           rpe: typeof set.rpe === 'number' ? set.rpe : null,
-          rir: typeof set.rir === 'number' ? set.rir : null,
-          failure: set.failure ?? null,
-          setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
-          restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+          rir: typeof set.rir === 'number' ? set.rir : null
         })
-        totals.bestE1rm = Math.max(
-          totals.bestE1rm,
-          computeSetE1rm({
+
+        const e1rm = computeSetE1rm(
+          {
             reps: set.reps ?? null,
             weight: set.weight ?? null,
-            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
-          })
+            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+            rpe: typeof set.rpe === 'number' ? set.rpe : null,
+            rir: typeof set.rir === 'number' ? set.rir : null,
+            completed: set.completed
+          },
+          sessionGoal,
+          isEligible
         )
+        if (e1rm) totals.bestE1rm = Math.max(totals.bestE1rm, e1rm)
       })
     })
     return totals
@@ -1017,11 +1076,15 @@ export default function ProgressPage() {
             <div className="mt-3 space-y-1 text-sm text-muted">
               <p>Max weight (lb): <span className="text-strong">{prMetrics.maxWeight}</span></p>
               <p>Best reps: <span className="text-strong">{prMetrics.bestReps}</span></p>
-              <p>Best e1RM ({E1RM_FORMULA_VERSION}): <span className="text-strong">{prMetrics.bestE1rm}</span></p>
+              {prMetrics.bestE1rm > 0 && (
+                <p>Best e1RM ({E1RM_FORMULA_VERSION}): <span className="text-strong">{prMetrics.bestE1rm}</span></p>
+              )}
               {relativeMetrics && (
                 <>
                   <p>Max / bodyweight: <span className="text-strong">{relativeMetrics.maxWeightRatio.toFixed(2)}x</span></p>
-                  <p>e1RM / bodyweight: <span className="text-strong">{relativeMetrics.bestE1rmRatio.toFixed(2)}x</span></p>
+                  {prMetrics.bestE1rm > 0 && (
+                    <p>e1RM / bodyweight: <span className="text-strong">{relativeMetrics.bestE1rmRatio.toFixed(2)}x</span></p>
+                  )}
                 </>
               )}
             </div>
@@ -1031,7 +1094,9 @@ export default function ProgressPage() {
             <div className="mt-3 space-y-1 text-sm text-muted">
               <p>Total tonnage: <span className="text-strong">{aggregateMetrics.tonnage}</span></p>
               <p>Hard sets: <span className="text-strong">{aggregateMetrics.hardSets}</span></p>
-              <p>Best e1RM: <span className="text-strong">{aggregateMetrics.bestE1rm}</span></p>
+              {aggregateMetrics.bestE1rm > 0 && (
+                <p>Best e1RM: <span className="text-strong">{aggregateMetrics.bestE1rm}</span></p>
+              )}
               <p>Workload: <span className="text-strong">{aggregateMetrics.workload}</span></p>
               <p>Avg effort: <span className="text-strong">{aggregateMetrics.avgEffort ?? 'N/A'}</span></p>
               {relativeMetrics && (
@@ -1101,23 +1166,25 @@ export default function ProgressPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card className="p-6 min-w-0">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">e1RM trend</h3>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
-                <LineChart data={exerciseTrend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                  <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
-                  <YAxis stroke="var(--color-text-subtle)" />
-                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
-                  <Line type="monotone" dataKey="e1rm" stroke="var(--color-warning)" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            {selectedExercise === 'all' && (
-              <p className="mt-3 text-xs text-subtle">Select an exercise to see e1RM trends.</p>
-            )}
-          </Card>
+          {exerciseTrend.length > 0 && (
+            <Card className="p-6 min-w-0">
+              <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">e1RM trend</h3>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
+                  <LineChart data={exerciseTrend}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                    <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
+                    <YAxis stroke="var(--color-text-subtle)" />
+                    <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                    <Line type="monotone" dataKey="e1rm" stroke="var(--color-warning)" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              {selectedExercise === 'all' && (
+                <p className="mt-3 text-xs text-subtle">Showing best e1RM recorded per day across all exercises.</p>
+              )}
+            </Card>
+          )}
 
           <Card className="p-6 min-w-0">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Muscle group volume</h3>
@@ -1151,6 +1218,21 @@ export default function ProgressPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Card className="p-6 min-w-0">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Bodyweight trend</h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
+                <LineChart data={bodyWeightTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
+                  <YAxis domain={['auto', 'auto']} stroke="var(--color-text-subtle)" />
+                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Line type="monotone" dataKey="weight" stroke="var(--color-accent)" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
           <Card className="p-6 min-w-0">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness score trend</h3>
             <div className="h-64 w-full">
@@ -1190,28 +1272,29 @@ export default function ProgressPage() {
               Averages over the selected range. Higher soreness and stress signal lower readiness.
             </p>
           </Card>
-        </div>
 
-        <Card className="p-6 min-w-0">
-          <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness vs session effort</h3>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
-              <ScatterChart>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis dataKey="readiness" name="Readiness" domain={[0, 100]} stroke="var(--color-text-subtle)" />
-                <YAxis dataKey="effort" name="Avg effort" domain={[0, 10]} stroke="var(--color-text-subtle)" />
-                <Tooltip
-                  cursor={{ strokeDasharray: '3 3' }}
-                  contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-                />
-                <Scatter data={readinessCorrelation} fill="var(--color-primary)" />
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-          <p className="mt-3 text-xs text-subtle">
-            Track how readiness aligns with perceived effort across completed sessions.
-          </p>
-        </Card>
+          <Card className="p-6 min-w-0">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness vs session effort</h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
+                <ComposedChart>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis dataKey="readiness" type="number" name="Readiness" domain={['auto', 'auto']} stroke="var(--color-text-subtle)" />
+                  <YAxis dataKey="effort" type="number" name="Avg effort" domain={[0, 10]} stroke="var(--color-text-subtle)" />
+                  <Tooltip
+                    cursor={{ strokeDasharray: '3 3' }}
+                    contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                  />
+                  <Scatter data={readinessCorrelation} fill="var(--color-primary)" />
+                  <Line data={readinessTrendLine} dataKey="effort" stroke="var(--color-text-subtle)" strokeDasharray="5 5" dot={false} activeDot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="mt-3 text-xs text-subtle">
+              Track how readiness aligns with perceived effort across completed sessions.
+            </p>
+          </Card>
+        </div>
 
         <Card>
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4">
