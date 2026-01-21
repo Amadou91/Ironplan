@@ -21,12 +21,15 @@ type SessionPayload = {
   ended_at: string | null;
   status: string | null;
   impact?: WorkoutImpact | null;
+  timezone?: string | null;
+  session_notes?: string | null;
   session_exercises: Array<{
     id: string;
     exercise_name: string;
     primary_muscle: string | null;
     secondary_muscles: string[] | null;
     order_index: number | null;
+    variation: Record<string, string | null> | null;
     sets: Array<{
       id: string;
       set_number: number | null;
@@ -37,12 +40,23 @@ type SessionPayload = {
       notes: string | null;
       completed: boolean | null;
       performed_at: string | null;
+      set_type: string | null;
+      weight_unit: string | null;
+      rest_seconds_actual: number | null;
+      failure: boolean | null;
+      tempo: string | null;
+      rom_cue: string | null;
+      pain_score: number | null;
+      pain_area: string | null;
+      group_id: string | null;
+      group_type: string | null;
+      extras: Record<string, string | null> | null;
     }>;
   }>;
 };
 
 export default function ActiveSession({ sessionId }: ActiveSessionProps) {
-  const { activeSession, addSet, removeSet, updateSet, startSession } = useWorkoutStore();
+  const { activeSession, addSet, removeSet, updateSet, startSession, replaceSessionExercise, updateSession } = useWorkoutStore();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const supabase = createClient();
   const isLoading = Boolean(sessionId) && !activeSession && !errorMessage;
@@ -57,6 +71,8 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
       endedAt: payload.ended_at ?? undefined,
       status: (payload.status as WorkoutSession['status']) ?? 'in_progress',
       impact: payload.impact ?? undefined,
+      timezone: payload.timezone ?? undefined,
+      sessionNotes: payload.session_notes ?? undefined,
       exercises: payload.session_exercises
         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
         .map((exercise, idx) => ({
@@ -66,6 +82,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
           primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
           secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
           orderIndex: exercise.order_index ?? idx,
+          variation: exercise.variation ?? {},
           sets: (exercise.sets ?? [])
             .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
             .map((set, setIdx) => ({
@@ -77,7 +94,18 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
               rir: set.rir ?? '',
               notes: set.notes ?? '',
               performedAt: set.performed_at ?? undefined,
-              completed: set.completed ?? false
+              completed: set.completed ?? false,
+              setType: set.set_type ?? 'working',
+              weightUnit: set.weight_unit ?? 'lb',
+              restSecondsActual: set.rest_seconds_actual ?? '',
+              failure: set.failure ?? false,
+              tempo: set.tempo ?? '',
+              romCue: set.rom_cue ?? '',
+              painScore: set.pain_score ?? '',
+              painArea: set.pain_area ?? '',
+              groupId: set.group_id ?? '',
+              groupType: set.group_type ?? '',
+              extras: set.extras ?? {}
             }))
         }))
     };
@@ -89,7 +117,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-          'id, user_id, name, template_id, started_at, ended_at, status, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
+          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at, set_type, weight_unit, rest_seconds_actual, failure, tempo, rom_cue, pain_score, pain_area, group_id, group_type, extras))'
         )
         .eq('id', sessionId)
         .single();
@@ -108,6 +136,12 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
     fetchSession();
   }, [activeSession, mapSession, sessionId, startSession, supabase]);
 
+  const normalizeExtras = (extras?: WorkoutSet['extras']) => {
+    if (!extras) return {};
+    const entries = Object.entries(extras).filter(([, value]) => typeof value === 'string' && value.trim().length > 0);
+    return entries.length ? Object.fromEntries(entries) : {};
+  };
+
   const persistSet = useCallback(
     async (exercise: SessionExercise, set: WorkoutSet, exerciseIndex: number) => {
       if (!exercise.id) return;
@@ -121,7 +155,18 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
         rir: typeof set.rir === 'number' ? set.rir : null,
         notes: set.notes ?? null,
         completed: set.completed,
-        performed_at: set.performedAt ?? new Date().toISOString()
+        performed_at: set.performedAt ?? new Date().toISOString(),
+        set_type: set.setType ?? 'working',
+        weight_unit: set.weightUnit ?? 'lb',
+        rest_seconds_actual: typeof set.restSecondsActual === 'number' ? set.restSecondsActual : null,
+        failure: Boolean(set.failure),
+        tempo: set.tempo ? set.tempo.trim() : null,
+        rom_cue: set.romCue ? set.romCue.trim() : null,
+        pain_score: typeof set.painScore === 'number' ? set.painScore : null,
+        pain_area: typeof set.painArea === 'string' && set.painArea.trim() ? set.painArea : null,
+        group_id: typeof set.groupId === 'string' && set.groupId.trim() ? set.groupId : null,
+        group_type: typeof set.groupType === 'string' && set.groupType.trim() ? set.groupType : null,
+        extras: normalizeExtras(set.extras)
       };
 
       if (set.id && !set.id.startsWith('temp-')) {
@@ -139,7 +184,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
     [supabase, updateSet]
   );
 
-  const handleSetUpdate = async (exIdx: number, setIdx: number, field: keyof WorkoutSet, value: string | number | boolean) => {
+  const handleSetUpdate = async (exIdx: number, setIdx: number, field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => {
     if (!activeSession) return;
     const exercise = activeSession.exercises[exIdx];
     const currentSet = exercise.sets[setIdx];
@@ -148,7 +193,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
       if (typeof value === 'number') {
         if (Number.isNaN(value)) return 0;
         if (value < 0) return 0;
-        if (field === 'rpe' || field === 'rir') return Math.min(10, value);
+        if (field === 'rpe' || field === 'rir' || field === 'painScore') return Math.min(10, value);
       }
       return value;
     })();
@@ -201,6 +246,42 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
     return activeSession.name;
   }, [activeSession]);
 
+  const handleVariationChange = (exIdx: number, field: 'grip' | 'stance' | 'equipment', value: string) => {
+    if (!activeSession) return;
+    const exercise = activeSession.exercises[exIdx];
+    const nextVariation = { ...(exercise.variation ?? {}), [field]: value };
+    replaceSessionExercise(exIdx, { variation: nextVariation });
+  };
+
+  const persistVariation = async (exerciseId: string, variation?: SessionExercise['variation']) => {
+    if (!exerciseId) return;
+    const payload = {
+      variation: variation ?? {}
+    };
+    const { error } = await supabase.from('session_exercises').update(payload).eq('id', exerciseId);
+    if (error) throw error;
+  };
+
+  const handleVariationBlur = async (exerciseId: string, variation?: SessionExercise['variation']) => {
+    try {
+      await persistVariation(exerciseId, variation);
+    } catch (error) {
+      console.error('Failed to save exercise variation', error);
+      setErrorMessage('Unable to save exercise variations. Please retry.');
+    }
+  };
+
+  const handleNotesBlur = async () => {
+    if (!activeSession) return;
+    const trimmed = (activeSession.sessionNotes ?? '').trim();
+    updateSession({ sessionNotes: trimmed });
+    const { error } = await supabase.from('sessions').update({ session_notes: trimmed || null }).eq('id', activeSession.id);
+    if (error) {
+      console.error('Failed to save session notes', error);
+      setErrorMessage('Unable to save session notes. Please try again.');
+    }
+  };
+
   if (isLoading) {
     return <div className="surface-card-muted p-6 text-center text-muted">Loading active session...</div>;
   }
@@ -225,6 +306,21 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
       </div>
 
       <div className="space-y-6">
+        <div className="surface-card-muted p-4 md:p-6 space-y-3">
+          <div className="text-xs uppercase tracking-wider text-subtle">Session notes</div>
+          <textarea
+            rows={3}
+            value={activeSession.sessionNotes ?? ''}
+            onChange={(event) => updateSession({ sessionNotes: event.target.value })}
+            onBlur={handleNotesBlur}
+            className="input-base"
+            placeholder="Add notes about today."
+          />
+          {activeSession.timezone ? (
+            <p className="text-[10px] text-subtle">Timezone: {activeSession.timezone}</p>
+          ) : null}
+        </div>
+
         {activeSession.exercises.map((exercise: SessionExercise, exIdx: number) => (
           <div key={`${exercise.name}-${exIdx}`} className="surface-card-muted p-4 md:p-6">
             <div className="flex justify-between items-start mb-4">
@@ -239,6 +335,38 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
                       {m}
                     </span>
                   ))}
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className="flex flex-col">
+                    <label className="text-[10px] uppercase tracking-wider text-subtle">Grip</label>
+                    <input
+                      type="text"
+                      value={exercise.variation?.grip ?? ''}
+                      onChange={(event) => handleVariationChange(exIdx, 'grip', event.target.value)}
+                      onBlur={() => handleVariationBlur(exercise.id, exercise.variation)}
+                      className="input-base mt-1"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] uppercase tracking-wider text-subtle">Stance</label>
+                    <input
+                      type="text"
+                      value={exercise.variation?.stance ?? ''}
+                      onChange={(event) => handleVariationChange(exIdx, 'stance', event.target.value)}
+                      onBlur={() => handleVariationBlur(exercise.id, exercise.variation)}
+                      className="input-base mt-1"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] uppercase tracking-wider text-subtle">Equipment</label>
+                    <input
+                      type="text"
+                      value={exercise.variation?.equipment ?? ''}
+                      onChange={(event) => handleVariationChange(exIdx, 'equipment', event.target.value)}
+                      onBlur={() => handleVariationBlur(exercise.id, exercise.variation)}
+                      className="input-base mt-1"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

@@ -40,6 +40,18 @@ export type EquipmentOption =
   | { kind: 'barbell' }
   | { kind: 'machine'; machineType?: MachineType }
 
+export type SetType = 'working' | 'warmup' | 'backoff' | 'drop' | 'amrap'
+
+export type WeightUnit = 'lb' | 'kg'
+
+export type GroupType = 'superset' | 'circuit' | 'giant_set' | 'dropset'
+
+export type ExerciseVariation = {
+  grip?: string
+  stance?: string
+  equipment?: string
+}
+
 export interface EquipmentInventory {
   bodyweight: boolean
   dumbbells: number[]
@@ -235,6 +247,8 @@ export interface WorkoutSession {
   endedAt?: string
   status?: 'in_progress' | 'completed' | 'cancelled'
   impact?: WorkoutImpact
+  timezone?: string | null
+  sessionNotes?: string | null
   exercises: SessionExercise[]
 }
 
@@ -254,6 +268,7 @@ export interface SessionExercise {
   secondaryMuscles: string[]
   sets: WorkoutSet[]
   orderIndex: number
+  variation?: ExerciseVariation
 }
 
 export interface WorkoutSet {
@@ -266,4 +281,15 @@ export interface WorkoutSet {
   notes?: string | null
   performedAt?: string | null
   completed: boolean
+  setType?: SetType
+  weightUnit?: WeightUnit
+  restSecondsActual?: number | '' | null
+  failure?: boolean
+  tempo?: string | null
+  romCue?: string | null
+  painScore?: number | '' | null
+  painArea?: string | '' | null
+  groupId?: string | '' | null
+  groupType?: GroupType | '' | null
+  extras?: Record<string, string | null> | null
 }

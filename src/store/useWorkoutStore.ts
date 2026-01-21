@@ -6,8 +6,9 @@ interface WorkoutState {
   activeSession: WorkoutSession | null;
   startSession: (session: WorkoutSession) => void;
   endSession: () => void;
+  updateSession: (updates: Partial<WorkoutSession>) => void;
   replaceSessionExercise: (exerciseIndex: number, updates: Partial<SessionExercise>) => void;
-  updateSet: (exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: string | number | boolean) => void;
+  updateSet: (exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => void;
   addSet: (exerciseIndex: number) => WorkoutSet | null;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
 }
@@ -20,6 +21,11 @@ export const useWorkoutStore = create<WorkoutState>()(
       startSession: (session) => set({ activeSession: session }),
       
       endSession: () => set({ activeSession: null }),
+
+      updateSession: (updates) => set((state) => {
+        if (!state.activeSession) return state;
+        return { activeSession: { ...state.activeSession, ...updates } };
+      }),
 
       replaceSessionExercise: (exerciseIndex, updates) => set((state) => {
         if (!state.activeSession) return state;
@@ -45,7 +51,21 @@ export const useWorkoutStore = create<WorkoutState>()(
           rir: '',
           notes: '',
           performedAt: new Date().toISOString(),
-          completed: false
+          completed: false,
+          setType: 'working',
+          weightUnit: 'lb',
+          restSecondsActual: '',
+          failure: false,
+          tempo: '',
+          romCue: '',
+          painScore: '',
+          painArea: '',
+          groupId: '',
+          groupType: '',
+          extras: {
+            assistance: '',
+            band_tension: ''
+          }
         };
         createdSet = newSet;
 
