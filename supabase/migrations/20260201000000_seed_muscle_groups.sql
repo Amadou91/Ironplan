@@ -1,0 +1,21 @@
+insert into public.muscle_groups (slug, label) values
+  ('chest', 'Chest'),
+  ('back', 'Back'),
+  ('shoulders', 'Shoulders'),
+  ('arms', 'Arms'),
+  ('biceps', 'Biceps'),
+  ('triceps', 'Triceps'),
+  ('forearms', 'Forearms'),
+  ('core', 'Core'),
+  ('glutes', 'Glutes'),
+  ('quads', 'Quads'),
+  ('hamstrings', 'Hamstrings'),
+  ('calves', 'Calves'),
+  ('hip_flexors', 'Hip Flexors'),
+  ('adductors', 'Adductors'),
+  ('abductors', 'Abductors'),
+  ('upper_body', 'Upper Body'),
+  ('lower_body', 'Lower Body'),
+  ('full_body', 'Full Body'),
+  ('cardio', 'Cardio')
+on conflict (slug) do nothing;

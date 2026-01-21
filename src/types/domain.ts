@@ -40,7 +40,7 @@ export type EquipmentOption =
   | { kind: 'barbell' }
   | { kind: 'machine'; machineType?: MachineType }
 
-export type SetType = 'working' | 'warmup' | 'backoff' | 'drop' | 'amrap'
+export type SetType = 'working' | 'backoff' | 'drop' | 'amrap'
 
 export type WeightUnit = 'lb' | 'kg'
 

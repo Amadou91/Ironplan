@@ -1,5 +1,10 @@
 import type { BandResistance, EquipmentInventory, EquipmentOption, EquipmentPreset, MachineType } from '@/types/domain'
 
+export type WeightOption = {
+  value: number
+  label: string
+}
+
 export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
   home_minimal: {
     bodyweight: true,
@@ -84,6 +89,12 @@ export const bandLabels: Record<BandResistance, string> = {
   heavy: 'Heavy'
 }
 
+const bandLoadMap: Record<BandResistance, number> = {
+  light: 10,
+  medium: 20,
+  heavy: 30
+}
+
 export const isEquipmentOptionAvailable = (inventory: EquipmentInventory, option: EquipmentOption) => {
   switch (option.kind) {
     case 'bodyweight':
@@ -105,3 +116,76 @@ export const isEquipmentOptionAvailable = (inventory: EquipmentInventory, option
 
 export const isExerciseEquipmentAvailable = (inventory: EquipmentInventory, equipment: EquipmentOption[]) =>
   equipment.some(option => isEquipmentOptionAvailable(inventory, option))
+
+const buildBarbellLoadOptions = (inventory: EquipmentInventory) => {
+  const base = 45
+  if (!inventory.barbell.available) return []
+  const possibleLoads = new Set<number>([base])
+  inventory.barbell.plates.forEach((plateWeight) => {
+    const currentLoads = Array.from(possibleLoads)
+    currentLoads.forEach(load => {
+      possibleLoads.add(load + plateWeight * 2)
+    })
+  })
+  return Array.from(possibleLoads)
+    .sort((a, b) => a - b)
+    .map((value) => ({ value, label: `${value} lb barbell` }))
+}
+
+export const buildWeightOptions = (
+  inventory: EquipmentInventory,
+  equipmentOptions: EquipmentOption[],
+  profileWeightLb?: number | null
+) => {
+  const availableOptions = equipmentOptions.filter((option) => isEquipmentOptionAvailable(inventory, option))
+  if (!availableOptions.length) return []
+  const kindCount = new Set(availableOptions.map((option) => option.kind)).size
+  const showKindLabel = kindCount > 1
+  const options: WeightOption[] = []
+
+  availableOptions.forEach((option) => {
+    switch (option.kind) {
+      case 'dumbbell':
+        inventory.dumbbells.forEach((weight) => {
+          options.push({ value: weight, label: showKindLabel ? `${weight} lb dumbbell` : `${weight} lb` })
+        })
+        break
+      case 'kettlebell':
+        inventory.kettlebells.forEach((weight) => {
+          options.push({ value: weight, label: showKindLabel ? `${weight} lb kettlebell` : `${weight} lb` })
+        })
+        break
+      case 'barbell':
+        options.push(...buildBarbellLoadOptions(inventory))
+        break
+      case 'band':
+        inventory.bands.forEach((band) => {
+          const value = bandLoadMap[band] ?? 10
+          options.push({
+            value,
+            label: showKindLabel ? `${bandLabels[band]} band (~${value} lb)` : `${bandLabels[band]} band`
+          })
+        })
+        break
+      case 'bodyweight':
+        if (typeof profileWeightLb === 'number' && Number.isFinite(profileWeightLb) && profileWeightLb > 0) {
+          options.push({
+            value: profileWeightLb,
+            label: showKindLabel ? `Bodyweight (${profileWeightLb} lb)` : `Bodyweight (${profileWeightLb} lb)`
+          })
+        }
+        break
+      case 'machine':
+      default:
+        break
+    }
+  })
+
+  const seen = new Set<string>()
+  return options.filter((option) => {
+    const key = `${option.value}-${option.label}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}

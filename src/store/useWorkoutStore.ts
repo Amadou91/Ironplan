@@ -8,6 +8,8 @@ interface WorkoutState {
   endSession: () => void;
   updateSession: (updates: Partial<WorkoutSession>) => void;
   replaceSessionExercise: (exerciseIndex: number, updates: Partial<SessionExercise>) => void;
+  addSessionExercise: (exercise: SessionExercise) => void;
+  removeSessionExercise: (exerciseIndex: number) => void;
   updateSet: (exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => void;
   addSet: (exerciseIndex: number) => WorkoutSet | null;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
@@ -35,6 +37,22 @@ export const useWorkoutStore = create<WorkoutState>()(
         return { activeSession: { ...state.activeSession, exercises } };
       }),
 
+      addSessionExercise: (exercise) => set((state) => {
+        if (!state.activeSession) return state;
+        return {
+          activeSession: {
+            ...state.activeSession,
+            exercises: [...state.activeSession.exercises, exercise]
+          }
+        };
+      }),
+
+      removeSessionExercise: (exerciseIndex) => set((state) => {
+        if (!state.activeSession) return state;
+        const exercises = state.activeSession.exercises.filter((_, index) => index !== exerciseIndex);
+        return { activeSession: { ...state.activeSession, exercises } };
+      }),
+
       addSet: (exerciseIndex) => {
         let createdSet: WorkoutSet | null = null;
         set((state) => {
@@ -49,23 +67,10 @@ export const useWorkoutStore = create<WorkoutState>()(
           weight: '',
           rpe: '',
           rir: '',
-          notes: '',
           performedAt: new Date().toISOString(),
           completed: false,
-          setType: 'working',
           weightUnit: 'lb',
-          restSecondsActual: '',
-          failure: false,
-          tempo: '',
-          romCue: '',
-          painScore: '',
-          painArea: '',
-          groupId: '',
-          groupType: '',
-          extras: {
-            assistance: '',
-            band_tension: ''
-          }
+          failure: false
         };
         createdSet = newSet;
 

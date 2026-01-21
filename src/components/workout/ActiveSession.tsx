@@ -4,12 +4,16 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { createClient } from '@/lib/supabase/client';
 import { SetLogger } from './SetLogger';
-import { Plus, Clock } from 'lucide-react';
-import { SessionExercise, WorkoutImpact, WorkoutSession, WorkoutSet } from '@/types/domain';
-import { toMuscleLabel } from '@/lib/muscle-utils';
+import { Plus, Clock, Shuffle, Trash2 } from 'lucide-react';
+import type { EquipmentInventory, Exercise, SessionExercise, WorkoutImpact, WorkoutSession, WorkoutSet } from '@/types/domain';
+import { enhanceExerciseData, toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils';
+import { EXERCISE_LIBRARY } from '@/lib/generator';
+import { getSwapSuggestions } from '@/lib/exercise-swap';
+import { buildWeightOptions, equipmentPresets } from '@/lib/equipment';
 
 type ActiveSessionProps = {
   sessionId?: string | null;
+  equipmentInventory?: EquipmentInventory | null;
 };
 
 type SessionPayload = {
@@ -22,7 +26,6 @@ type SessionPayload = {
   status: string | null;
   impact?: WorkoutImpact | null;
   timezone?: string | null;
-  session_notes?: string | null;
   session_exercises: Array<{
     id: string;
     exercise_name: string;
@@ -37,29 +40,102 @@ type SessionPayload = {
       weight: number | null;
       rpe: number | null;
       rir: number | null;
-      notes: string | null;
       completed: boolean | null;
       performed_at: string | null;
-      set_type: string | null;
       weight_unit: string | null;
-      rest_seconds_actual: number | null;
       failure: boolean | null;
-      tempo: string | null;
-      rom_cue: string | null;
-      pain_score: number | null;
-      pain_area: string | null;
-      group_id: string | null;
-      group_type: string | null;
-      extras: Record<string, string | null> | null;
     }>;
   }>;
 };
 
-export default function ActiveSession({ sessionId }: ActiveSessionProps) {
-  const { activeSession, addSet, removeSet, updateSet, startSession, replaceSessionExercise, updateSession } = useWorkoutStore();
+type GeneratedExerciseTarget = {
+  name?: string;
+  sets?: number;
+  reps?: string | number;
+};
+
+type SmartTarget = {
+  sets: number | null;
+  reps: string | null;
+  note: string | null;
+};
+
+const average = (values: number[]) =>
+  values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+
+const parseRepRange = (reps?: string | number | null) => {
+  if (typeof reps === 'number' && Number.isFinite(reps)) {
+    return { min: reps, max: reps, avg: reps, label: String(reps) };
+  }
+  if (typeof reps !== 'string') return { min: null, max: null, avg: null, label: null };
+  const matches = reps.match(/\d+/g)?.map((value) => Number.parseInt(value, 10)).filter(Number.isFinite) ?? [];
+  if (!matches.length) return { min: null, max: null, avg: null, label: reps };
+  const min = Math.min(...matches);
+  const max = Math.max(...matches);
+  const avg = Math.round(matches.reduce((sum, value) => sum + value, 0) / matches.length);
+  return { min, max, avg, label: reps };
+};
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+export default function ActiveSession({ sessionId, equipmentInventory }: ActiveSessionProps) {
+  const { activeSession, addSet, removeSet, updateSet, startSession, replaceSessionExercise, addSessionExercise, removeSessionExercise } = useWorkoutStore();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [openSwapIndex, setOpenSwapIndex] = useState<number | null>(null);
+  const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null);
+  const [exerciseTargets, setExerciseTargets] = useState<Record<string, SmartTarget>>({});
+  const [addingWorkout, setAddingWorkout] = useState(false);
+  const [selectedWorkoutName, setSelectedWorkoutName] = useState('');
   const supabase = createClient();
   const isLoading = Boolean(sessionId) && !activeSession && !errorMessage;
+
+  const exerciseLibrary = useMemo(() => EXERCISE_LIBRARY.map((exercise) => enhanceExerciseData(exercise)), []);
+  const exerciseLibraryByName = useMemo(
+    () => new Map(exerciseLibrary.map((exercise) => [exercise.name.toLowerCase(), exercise])),
+    [exerciseLibrary]
+  );
+  const exerciseNameKey = useMemo(
+    () => activeSession?.exercises.map((exercise) => exercise.name).join('|') ?? '',
+    [activeSession?.exercises]
+  );
+  const resolvedInventory = useMemo(
+    () => equipmentInventory ?? equipmentPresets.full_gym,
+    [equipmentInventory]
+  );
+
+  const buildSwapExercise = useCallback(
+    (exercise: SessionExercise): Exercise => {
+      const match = exerciseLibraryByName.get(exercise.name.toLowerCase());
+      if (match) return match;
+      return enhanceExerciseData({
+        name: exercise.name,
+        focus: 'full_body',
+        sets: Math.max(exercise.sets.length, 1),
+        reps: '8-12',
+        rpe: 7,
+        equipment: [{ kind: 'bodyweight' }],
+        durationMinutes: 8,
+        restSeconds: 60,
+        primaryMuscle: exercise.primaryMuscle,
+        secondaryMuscles: exercise.secondaryMuscles
+      });
+    },
+    [exerciseLibraryByName]
+  );
+
+  const swapSuggestions = useMemo(() => {
+    if (!activeSession) return [];
+    const sessionExercises = activeSession.exercises.map(buildSwapExercise);
+    return activeSession.exercises.map((exercise, index) =>
+      getSwapSuggestions({
+        current: sessionExercises[index],
+        sessionExercises,
+        inventory: resolvedInventory,
+        library: exerciseLibrary,
+        limit: 4
+      })
+    );
+  }, [activeSession, buildSwapExercise, exerciseLibrary, resolvedInventory]);
 
   const mapSession = useCallback((payload: SessionPayload): WorkoutSession => {
     return {
@@ -72,7 +148,6 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
       status: (payload.status as WorkoutSession['status']) ?? 'in_progress',
       impact: payload.impact ?? undefined,
       timezone: payload.timezone ?? undefined,
-      sessionNotes: payload.session_notes ?? undefined,
       exercises: payload.session_exercises
         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
         .map((exercise, idx) => ({
@@ -92,20 +167,10 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
               weight: set.weight ?? '',
               rpe: set.rpe ?? '',
               rir: set.rir ?? '',
-              notes: set.notes ?? '',
               performedAt: set.performed_at ?? undefined,
               completed: set.completed ?? false,
-              setType: set.set_type ?? 'working',
               weightUnit: set.weight_unit ?? 'lb',
-              restSecondsActual: set.rest_seconds_actual ?? '',
-              failure: set.failure ?? false,
-              tempo: set.tempo ?? '',
-              romCue: set.rom_cue ?? '',
-              painScore: set.pain_score ?? '',
-              painArea: set.pain_area ?? '',
-              groupId: set.group_id ?? '',
-              groupType: set.group_type ?? '',
-              extras: set.extras ?? {}
+              failure: set.failure ?? false
             }))
         }))
     };
@@ -117,7 +182,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at, set_type, weight_unit, rest_seconds_actual, failure, tempo, rom_cue, pain_score, pain_area, group_id, group_type, extras))'
+          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure))'
         )
         .eq('id', sessionId)
         .single();
@@ -136,11 +201,148 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
     fetchSession();
   }, [activeSession, mapSession, sessionId, startSession, supabase]);
 
-  const normalizeExtras = (extras?: WorkoutSet['extras']) => {
-    if (!extras) return {};
-    const entries = Object.entries(extras).filter(([, value]) => typeof value === 'string' && value.trim().length > 0);
-    return entries.length ? Object.fromEntries(entries) : {};
-  };
+  useEffect(() => {
+    if (!activeSession?.userId) return;
+    const loadProfileWeight = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('weight_lb')
+        .eq('id', activeSession.userId)
+        .maybeSingle();
+      if (error) {
+        console.error('Failed to load profile weight', error);
+        return;
+      }
+      setProfileWeightLb(typeof data?.weight_lb === 'number' ? data.weight_lb : null);
+    };
+    loadProfileWeight();
+  }, [activeSession?.userId, supabase]);
+
+  useEffect(() => {
+    if (!activeSession?.id) return;
+    let isMounted = true;
+
+    const loadSmartTargets = async () => {
+      const exerciseNames = activeSession.exercises.map((exercise) => exercise.name);
+      if (!exerciseNames.length) {
+        if (isMounted) setExerciseTargets({});
+        return;
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('sessions')
+        .select('generated_exercises')
+        .eq('id', activeSession.id)
+        .maybeSingle();
+      if (sessionError) {
+        console.error('Failed to load session targets', sessionError);
+      }
+
+      const generated = Array.isArray(sessionData?.generated_exercises)
+        ? (sessionData?.generated_exercises as GeneratedExerciseTarget[])
+        : [];
+      const generatedByName = new Map(
+        generated
+          .filter((exercise) => exercise.name)
+          .map((exercise) => [exercise.name?.toLowerCase() ?? '', exercise])
+          .filter(([key]) => Boolean(key))
+      );
+
+      const { data: historyRows, error: historyError } = await supabase
+        .from('sets')
+        .select('reps, completed, session_exercises!inner(exercise_name, session_id, sessions!inner(user_id))')
+        .eq('session_exercises.sessions.user_id', activeSession.userId)
+        .neq('session_exercises.session_id', activeSession.id)
+        .in('session_exercises.exercise_name', exerciseNames)
+        .order('performed_at', { ascending: false })
+        .limit(200);
+
+      if (historyError) {
+        console.error('Failed to load recent set history', historyError);
+      }
+
+      const historyMap = new Map<string, { reps: number[]; sessionCounts: Map<string, number> }>();
+      (historyRows ?? []).forEach((row) => {
+        const exerciseName = row.session_exercises?.exercise_name;
+        const sessionKey = row.session_exercises?.session_id;
+        if (!exerciseName || !sessionKey) return;
+        if (typeof row.reps !== 'number' || Number.isNaN(row.reps)) return;
+        const key = exerciseName.toLowerCase();
+        const entry = historyMap.get(key) ?? { reps: [], sessionCounts: new Map<string, number>() };
+        entry.reps.push(row.reps);
+        entry.sessionCounts.set(sessionKey, (entry.sessionCounts.get(sessionKey) ?? 0) + 1);
+        historyMap.set(key, entry);
+      });
+
+      const nextTargets: Record<string, SmartTarget> = {};
+      activeSession.exercises.forEach((exercise) => {
+        const key = exercise.name.toLowerCase();
+        const generatedExercise = generatedByName.get(key);
+        const history = historyMap.get(key);
+        const baseSets = typeof generatedExercise?.sets === 'number' ? generatedExercise.sets : null;
+        const baseReps = generatedExercise?.reps ?? null;
+        const baseRange = parseRepRange(baseReps);
+        const historyAvgReps = history ? average(history.reps) : null;
+        const historyAvgSets = history ? average(Array.from(history.sessionCounts.values())) : null;
+
+        let targetSets = baseSets ?? (historyAvgSets ? Math.round(historyAvgSets) : null);
+        if (baseSets && historyAvgSets) {
+          targetSets = Math.round(baseSets * 0.6 + historyAvgSets * 0.4);
+        }
+        if (typeof targetSets === 'number') {
+          targetSets = clamp(targetSets, 1, 8);
+        }
+
+        const libraryMatch = exerciseLibraryByName.get(key);
+        const isBodyweight = Boolean(libraryMatch?.equipment?.some((item) => item.kind === 'bodyweight'));
+        const bodyweightAdjust = isBodyweight && typeof profileWeightLb === 'number'
+          ? profileWeightLb > 220
+            ? -1
+            : profileWeightLb < 140
+              ? 1
+              : 0
+          : 0;
+
+        let repsLabel: string | null = baseRange.label ?? null;
+        if (historyAvgReps || baseRange.avg) {
+          const tuned = Math.round(((historyAvgReps ?? baseRange.avg ?? 0) + (baseRange.avg ?? historyAvgReps ?? 0)) / 2);
+          const adjusted = tuned ? Math.max(1, tuned + bodyweightAdjust) : tuned;
+          if (baseRange.min !== null && baseRange.max !== null && baseRange.min !== baseRange.max) {
+            repsLabel = `${baseRange.min}-${baseRange.max}${adjusted ? ` (aim ${adjusted})` : ''}`;
+          } else if (adjusted) {
+            repsLabel = String(adjusted);
+          }
+        }
+
+        if (!targetSets && !repsLabel) return;
+
+        const historySessions = history?.sessionCounts.size ?? 0;
+        const noteParts = [];
+        if (historySessions > 0) {
+          noteParts.push(`last ${historySessions} session${historySessions === 1 ? '' : 's'}`);
+        }
+        if (bodyweightAdjust !== 0) {
+          noteParts.push('profile weight');
+        }
+        const note = noteParts.length ? `Tuned from ${noteParts.join(' + ')}` : 'Based on your template';
+
+        nextTargets[key] = {
+          sets: targetSets ?? null,
+          reps: repsLabel ?? null,
+          note
+        };
+      });
+
+      if (isMounted) {
+        setExerciseTargets(nextTargets);
+      }
+    };
+
+    loadSmartTargets();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeSession?.id, activeSession?.userId, exerciseNameKey, exerciseLibraryByName, profileWeightLb, supabase]);
 
   const persistSet = useCallback(
     async (exercise: SessionExercise, set: WorkoutSet, exerciseIndex: number) => {
@@ -153,20 +355,10 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
         weight: typeof set.weight === 'number' ? set.weight : null,
         rpe: typeof set.rpe === 'number' ? set.rpe : null,
         rir: typeof set.rir === 'number' ? set.rir : null,
-        notes: set.notes ?? null,
         completed: set.completed,
         performed_at: set.performedAt ?? new Date().toISOString(),
-        set_type: set.setType ?? 'working',
         weight_unit: set.weightUnit ?? 'lb',
-        rest_seconds_actual: typeof set.restSecondsActual === 'number' ? set.restSecondsActual : null,
-        failure: Boolean(set.failure),
-        tempo: set.tempo ? set.tempo.trim() : null,
-        rom_cue: set.romCue ? set.romCue.trim() : null,
-        pain_score: typeof set.painScore === 'number' ? set.painScore : null,
-        pain_area: typeof set.painArea === 'string' && set.painArea.trim() ? set.painArea : null,
-        group_id: typeof set.groupId === 'string' && set.groupId.trim() ? set.groupId : null,
-        group_type: typeof set.groupType === 'string' && set.groupType.trim() ? set.groupType : null,
-        extras: normalizeExtras(set.extras)
+        failure: Boolean(set.failure)
       };
 
       if (set.id && !set.id.startsWith('temp-')) {
@@ -246,6 +438,15 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
     return activeSession.name;
   }, [activeSession]);
 
+  const getWeightOptions = useCallback(
+    (exercise: SessionExercise) => {
+      const match = exerciseLibraryByName.get(exercise.name.toLowerCase());
+      if (!match?.equipment?.length) return [];
+      return buildWeightOptions(resolvedInventory, match.equipment, profileWeightLb);
+    },
+    [exerciseLibraryByName, profileWeightLb, resolvedInventory]
+  );
+
   const handleVariationChange = (exIdx: number, field: 'grip' | 'stance' | 'equipment', value: string) => {
     if (!activeSession) return;
     const exercise = activeSession.exercises[exIdx];
@@ -271,14 +472,107 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
     }
   };
 
-  const handleNotesBlur = async () => {
+  const handleSwapExercise = async (exIdx: number, candidate: Exercise) => {
     if (!activeSession) return;
-    const trimmed = (activeSession.sessionNotes ?? '').trim();
-    updateSession({ sessionNotes: trimmed });
-    const { error } = await supabase.from('sessions').update({ session_notes: trimmed || null }).eq('id', activeSession.id);
-    if (error) {
-      console.error('Failed to save session notes', error);
-      setErrorMessage('Unable to save session notes. Please try again.');
+    const exercise = activeSession.exercises[exIdx];
+    if (!exercise?.id) return;
+    const enriched = enhanceExerciseData(candidate);
+    const primaryMuscle = enriched.primaryMuscle ?? 'Full Body';
+    const secondaryMuscles = enriched.secondaryMuscles ?? [];
+    const secondarySlugs = secondaryMuscles
+      .map((muscle) => toMuscleSlug(muscle, null))
+      .filter((muscle): muscle is string => Boolean(muscle));
+
+    try {
+      const payload = {
+        exercise_name: enriched.name,
+        primary_muscle: toMuscleSlug(primaryMuscle, 'full_body'),
+        secondary_muscles: secondarySlugs.length ? secondarySlugs : null,
+        variation: {}
+      };
+      const { error } = await supabase.from('session_exercises').update(payload).eq('id', exercise.id);
+      if (error) throw error;
+      replaceSessionExercise(exIdx, {
+        name: enriched.name,
+        primaryMuscle,
+        secondaryMuscles,
+        variation: {}
+      });
+      setOpenSwapIndex(null);
+    } catch (error) {
+      console.error('Failed to swap exercise', error);
+      setErrorMessage('Unable to swap this exercise. Please try again.');
+    }
+  };
+
+  const handleAddWorkout = async () => {
+    if (!activeSession) return;
+    const trimmed = selectedWorkoutName.trim();
+    if (!trimmed) return;
+    setAddingWorkout(true);
+    setErrorMessage(null);
+
+    try {
+      const match = exerciseLibraryByName.get(trimmed.toLowerCase());
+      const resolvedName = match?.name ?? trimmed;
+      const primaryMuscle = match?.primaryMuscle ?? 'Full Body';
+      const secondaryMuscles = match?.secondaryMuscles ?? [];
+      const primarySlug = toMuscleSlug(primaryMuscle, 'full_body');
+      const secondarySlugs = secondaryMuscles
+        .map((muscle) => toMuscleSlug(muscle, null))
+        .filter((muscle): muscle is string => Boolean(muscle));
+      const orderIndex = activeSession.exercises.reduce((max, exercise) => Math.max(max, exercise.orderIndex ?? 0), -1) + 1;
+
+      const { data, error } = await supabase
+        .from('session_exercises')
+        .insert({
+          session_id: activeSession.id,
+          exercise_name: resolvedName,
+          primary_muscle: primarySlug,
+          secondary_muscles: secondarySlugs,
+          order_index: orderIndex,
+          variation: {}
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
+      addSessionExercise({
+        id: data?.id ?? `temp-${crypto.randomUUID()}`,
+        sessionId: activeSession.id,
+        name: resolvedName,
+        primaryMuscle,
+        secondaryMuscles,
+        orderIndex,
+        variation: {},
+        sets: []
+      });
+      setSelectedWorkoutName('');
+    } catch (error) {
+      console.error('Failed to add workout', error);
+      setErrorMessage('Unable to add workout. Please try again.');
+    } finally {
+      setAddingWorkout(false);
+    }
+  };
+
+  const handleDeleteWorkout = async (exerciseId: string, exerciseIndex: number) => {
+    if (!activeSession) return;
+    if (!confirm('Delete this workout and its sets?')) return;
+    try {
+      const { error } = await supabase.from('session_exercises').delete().eq('id', exerciseId);
+      if (error) throw error;
+      removeSessionExercise(exerciseIndex);
+      setOpenSwapIndex((prev) => {
+        if (prev === null) return prev;
+        if (prev === exerciseIndex) return null;
+        if (prev > exerciseIndex) return prev - 1;
+        return prev;
+      });
+    } catch (error) {
+      console.error('Failed to delete workout', error);
+      setErrorMessage('Unable to delete workout. Please try again.');
     }
   };
 
@@ -306,68 +600,116 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
       </div>
 
       <div className="space-y-6">
-        <div className="surface-card-muted p-4 md:p-6 space-y-3">
-          <div className="text-xs uppercase tracking-wider text-subtle">Session notes</div>
-          <textarea
-            rows={3}
-            value={activeSession.sessionNotes ?? ''}
-            onChange={(event) => updateSession({ sessionNotes: event.target.value })}
-            onBlur={handleNotesBlur}
-            className="input-base"
-            placeholder="Add notes about today."
-          />
-          {activeSession.timezone ? (
-            <p className="text-[10px] text-subtle">Timezone: {activeSession.timezone}</p>
-          ) : null}
-        </div>
-
-        {activeSession.exercises.map((exercise: SessionExercise, exIdx: number) => (
-          <div key={`${exercise.name}-${exIdx}`} className="surface-card-muted p-4 md:p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-strong">{exercise.name}</h3>
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  <span className="badge-accent">
-                    {exercise.primaryMuscle}
-                  </span>
-                  {exercise.secondaryMuscles?.map((m: string) => (
-                    <span key={m} className="badge-neutral">
-                      {m}
+        {activeSession.exercises.map((exercise: SessionExercise, exIdx: number) => {
+          const target = exerciseTargets[exercise.name.toLowerCase()];
+          return (
+            <div key={`${exercise.name}-${exIdx}`} className="surface-card-muted p-4 md:p-6">
+              <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
+                <div className="min-w-[220px] flex-1">
+                  <h3 className="text-lg font-semibold text-strong">{exercise.name}</h3>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    <span className="badge-accent">
+                      {exercise.primaryMuscle}
                     </span>
-                  ))}
+                    {exercise.secondaryMuscles?.map((m: string) => (
+                      <span key={m} className="badge-neutral">
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                  {target && (
+                    <div className="mt-3 text-xs text-muted">
+                      <span className="text-subtle">Smart target:</span>{' '}
+                      {target.sets && target.reps
+                        ? `${target.sets} sets × ${target.reps} reps`
+                        : target.sets
+                          ? `${target.sets} sets`
+                          : target.reps
+                            ? `${target.reps} reps`
+                            : null}
+                      {target.note ? (
+                        <span className="ml-2 text-[10px] text-subtle">{target.note}</span>
+                      ) : null}
+                    </div>
+                  )}
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <div className="flex flex-col">
+                      <label className="text-[10px] uppercase tracking-wider text-subtle">Grip</label>
+                      <input
+                        type="text"
+                        value={exercise.variation?.grip ?? ''}
+                        onChange={(event) => handleVariationChange(exIdx, 'grip', event.target.value)}
+                        onBlur={() => handleVariationBlur(exercise.id, exercise.variation)}
+                        className="input-base mt-1"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-[10px] uppercase tracking-wider text-subtle">Stance</label>
+                      <input
+                        type="text"
+                        value={exercise.variation?.stance ?? ''}
+                        onChange={(event) => handleVariationChange(exIdx, 'stance', event.target.value)}
+                        onBlur={() => handleVariationBlur(exercise.id, exercise.variation)}
+                        className="input-base mt-1"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-[10px] uppercase tracking-wider text-subtle">Equipment</label>
+                      <input
+                        type="text"
+                        value={exercise.variation?.equipment ?? ''}
+                        onChange={(event) => handleVariationChange(exIdx, 'equipment', event.target.value)}
+                        onBlur={() => handleVariationBlur(exercise.id, exercise.variation)}
+                        className="input-base mt-1"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <div className="flex flex-col">
-                    <label className="text-[10px] uppercase tracking-wider text-subtle">Grip</label>
-                    <input
-                      type="text"
-                      value={exercise.variation?.grip ?? ''}
-                      onChange={(event) => handleVariationChange(exIdx, 'grip', event.target.value)}
-                      onBlur={() => handleVariationBlur(exercise.id, exercise.variation)}
-                      className="input-base mt-1"
-                    />
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setOpenSwapIndex((prev) => (prev === exIdx ? null : exIdx))}
+                  className="flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-subtle transition-colors hover:text-accent"
+                >
+                  <Shuffle size={12} />
+                  Swap
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteWorkout(exercise.id, exIdx)}
+                  className="flex items-center gap-2 rounded-full border border-[var(--color-danger-border)] px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-soft)]"
+                >
+                  <Trash2 size={12} />
+                  Delete
+                </button>
+                {openSwapIndex === exIdx && (
+                  <div className="mt-3 w-full sm:w-64 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs text-muted shadow-sm">
+                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-subtle">Swap options</div>
+                    {swapSuggestions[exIdx]?.suggestions?.length ? (
+                      <div className="space-y-2">
+                        {swapSuggestions[exIdx].suggestions.map(({ exercise: candidate }) => (
+                          <button
+                            key={candidate.name}
+                            type="button"
+                            onClick={() => handleSwapExercise(exIdx, candidate)}
+                            className="flex w-full flex-col rounded-lg border border-[var(--color-border)] px-3 py-2 text-left transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]"
+                          >
+                            <span className="text-sm font-semibold text-strong">{candidate.name}</span>
+                            <span className="text-[10px] text-subtle">
+                              {candidate.primaryMuscle ?? 'Full Body'}
+                              {candidate.secondaryMuscles?.length ? ` · ${candidate.secondaryMuscles.join(', ')}` : ''}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-subtle">No similar swaps available.</p>
+                    )}
+                    {swapSuggestions[exIdx]?.usedFallback ? (
+                      <p className="mt-2 text-[10px] text-subtle">Equipment match is limited with the current setup.</p>
+                    ) : null}
                   </div>
-                  <div className="flex flex-col">
-                    <label className="text-[10px] uppercase tracking-wider text-subtle">Stance</label>
-                    <input
-                      type="text"
-                      value={exercise.variation?.stance ?? ''}
-                      onChange={(event) => handleVariationChange(exIdx, 'stance', event.target.value)}
-                      onBlur={() => handleVariationBlur(exercise.id, exercise.variation)}
-                      className="input-base mt-1"
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="text-[10px] uppercase tracking-wider text-subtle">Equipment</label>
-                    <input
-                      type="text"
-                      value={exercise.variation?.equipment ?? ''}
-                      onChange={(event) => handleVariationChange(exIdx, 'equipment', event.target.value)}
-                      onBlur={() => handleVariationBlur(exercise.id, exercise.variation)}
-                      className="input-base mt-1"
-                    />
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -376,6 +718,7 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
                 <SetLogger
                   key={set.id}
                   set={set}
+                  weightOptions={getWeightOptions(exercise)}
                   onUpdate={(field, val) => handleSetUpdate(exIdx, setIdx, field, val)}
                   onDelete={() => handleDeleteSet(exIdx, setIdx)}
                   onToggleComplete={() => handleSetUpdate(exIdx, setIdx, 'completed', !set.completed)}
@@ -390,7 +733,34 @@ export default function ActiveSession({ sessionId }: ActiveSessionProps) {
               <Plus size={18} /> Add Set
             </button>
           </div>
-        ))}
+        );
+      })}
+
+        <div className="flex flex-col gap-3 rounded-xl border-2 border-dashed border-[var(--color-border-strong)] p-4 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <label className="text-[10px] uppercase tracking-wider text-subtle">Add workout</label>
+            <select
+              value={selectedWorkoutName}
+              onChange={(event) => setSelectedWorkoutName(event.target.value)}
+              className="input-base mt-2"
+            >
+              <option value="">Choose exercise</option>
+              {exerciseLibrary.map((exercise) => (
+                <option key={exercise.name} value={exercise.name}>
+                  {exercise.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={handleAddWorkout}
+            disabled={addingWorkout || !selectedWorkoutName}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-border-strong)] px-4 py-3 text-sm font-medium text-muted transition-all hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            <Plus size={18} /> {addingWorkout ? 'Adding workout...' : 'Add Workout'}
+          </button>
+        </div>
       </div>
     </div>
   );

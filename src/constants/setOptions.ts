@@ -1,6 +1,5 @@
 export const SET_TYPE_OPTIONS = [
   { value: 'working', label: 'Working', description: 'Primary working effort sets.' },
-  { value: 'warmup', label: 'Warmup', description: 'Ramp up or rehearsal sets.' },
   { value: 'backoff', label: 'Backoff', description: 'Reduced load for volume.' },
   { value: 'drop', label: 'Drop', description: 'Quick weight reduction set.' },
   { value: 'amrap', label: 'AMRAP', description: 'As many reps as possible.' }

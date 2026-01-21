@@ -27,6 +27,20 @@ insert into public.muscle_groups (slug, label) values
   ('cardio', 'Cardio')
 on conflict (slug) do nothing;
 
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text,
+  full_name text,
+  avatar_url text,
+  height_in numeric(5,2),
+  weight_lb numeric(6,2),
+  body_fat_percent numeric(5,2),
+  birthdate date,
+  sex text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.exercise_catalog (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -171,6 +185,7 @@ create policy "Users can manage their saved sessions" on public.saved_sessions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 alter table public.muscle_groups enable row level security;
+alter table public.profiles enable row level security;
 alter table public.exercise_catalog enable row level security;
 alter table public.sessions enable row level security;
 alter table public.session_exercises enable row level security;
@@ -178,6 +193,21 @@ alter table public.sets enable row level security;
 
 create policy "Muscle groups are viewable by everyone" on public.muscle_groups
   for select using (true);
+
+drop policy if exists "Profiles are viewable by owner" on public.profiles;
+drop policy if exists "Profiles are updatable by owner" on public.profiles;
+drop policy if exists "Profiles are insertable by owner" on public.profiles;
+
+create policy "Profiles are viewable by owner" on public.profiles
+  for select using (auth.uid() = id);
+
+create policy "Profiles are updatable by owner" on public.profiles
+  for update using (auth.uid() = id) with check (auth.uid() = id);
+
+create policy "Profiles are insertable by owner" on public.profiles
+  for insert with check (auth.uid() = id);
+
+grant select, insert, update on public.profiles to authenticated;
 
 create policy "Exercise catalog is viewable by everyone" on public.exercise_catalog
   for select using (true);

@@ -36,7 +36,6 @@ import {
   computeWeeklyVolumeByMuscleGroup,
   E1RM_FORMULA_VERSION,
   getEffortScore,
-  getGroupLabel,
   getWeekKey,
   toWeightInPounds
 } from '@/lib/session-metrics'
@@ -64,6 +63,41 @@ const formatDuration = (start?: string | null, end?: string | null) => {
   return `${minutes} min`
 }
 
+const parseNumberInput = (value: string) => {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const calculateAge = (birthdate?: string | null) => {
+  if (!birthdate) return null
+  const date = new Date(birthdate)
+  if (Number.isNaN(date.getTime())) return null
+  const now = new Date()
+  let age = now.getFullYear() - date.getFullYear()
+  const monthDelta = now.getMonth() - date.getMonth()
+  if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < date.getDate())) {
+    age -= 1
+  }
+  return age
+}
+
+const calculateBmi = (weightLb?: number | null, heightIn?: number | null) => {
+  if (!weightLb || !heightIn) return null
+  if (weightLb <= 0 || heightIn <= 0) return null
+  return (weightLb / (heightIn * heightIn)) * 703
+}
+
+const calculateBmr = (weightLb?: number | null, heightIn?: number | null, age?: number | null, sex?: string | null) => {
+  if (!weightLb || !heightIn || typeof age !== 'number') return null
+  if (!sex || (sex !== 'male' && sex !== 'female')) return null
+  const weightKg = weightLb / 2.20462
+  const heightCm = heightIn * 2.54
+  const base = 10 * weightKg + 6.25 * heightCm - 5 * age
+  return sex === 'male' ? base + 5 : base - 161
+}
+
 type SessionRow = {
   id: string
   name: string
@@ -72,7 +106,6 @@ type SessionRow = {
   ended_at: string | null
   status: string | null
   timezone?: string | null
-  session_notes?: string | null
   session_exercises: Array<{
     id: string
     exercise_name: string
@@ -87,20 +120,10 @@ type SessionRow = {
       weight: number | null
       rpe: number | null
       rir: number | null
-      notes: string | null
       completed: boolean | null
       performed_at: string | null
-      set_type: string | null
       weight_unit: string | null
-      rest_seconds_actual: number | null
       failure: boolean | null
-      tempo: string | null
-      rom_cue: string | null
-      pain_score: number | null
-      pain_area: string | null
-      group_id: string | null
-      group_type: string | null
-      extras: Record<string, string> | null
     }>
   }>
 }
@@ -114,6 +137,24 @@ type TemplateRow = {
   intensity: PlanInput['intensity']
   created_at: string
   template_inputs: PlanInput | null
+}
+
+type ProfileRow = {
+  id: string
+  height_in: number | null
+  weight_lb: number | null
+  body_fat_percent: number | null
+  birthdate: string | null
+  sex: string | null
+  updated_at: string | null
+}
+
+type ProfileDraft = {
+  weightLb: string
+  heightIn: string
+  bodyFatPercent: string
+  birthdate: string
+  sex: string
 }
 
 const chartColors = ['#6366f1', '#22c55e', '#0ea5e9', '#f59e0b', '#ec4899']
@@ -143,6 +184,20 @@ export default function DashboardPage() {
   const [sessionsLoaded, setSessionsLoaded] = useState(false)
   const [sessionPage, setSessionPage] = useState(0)
   const [hasMoreSessions, setHasMoreSessions] = useState(true)
+  const [signingOut, setSigningOut] = useState(false)
+  const [profile, setProfile] = useState<ProfileRow | null>(null)
+  const [profileDraft, setProfileDraft] = useState<ProfileDraft>({
+    weightLb: '',
+    heightIn: '',
+    bodyFatPercent: '',
+    birthdate: '',
+    sex: ''
+  })
+  const [profileSnapshot, setProfileSnapshot] = useState('')
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileError, setProfileError] = useState<string | null>(null)
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null)
   const hasActiveSession = Boolean(activeSession)
   const activeSessionLink = activeSession?.templateId
     ? `/workout/${activeSession.templateId}?session=active&sessionId=${activeSession.id}&from=dashboard`
@@ -193,7 +248,7 @@ export default function DashboardPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, timezone, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at, set_type, weight_unit, rest_seconds_actual, failure, tempo, rom_cue, pain_score, pain_area, group_id, group_type, extras))'
+          'id, name, template_id, started_at, ended_at, status, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -238,7 +293,7 @@ export default function DashboardPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, timezone, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at, set_type, weight_unit, rest_seconds_actual, failure, tempo, rom_cue, pain_score, pain_area, group_id, group_type, extras))'
+          'id, name, template_id, started_at, ended_at, status, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -328,6 +383,52 @@ export default function DashboardPage() {
 
     loadTemplates()
   }, [ensureSession, supabase, user, userLoading, setUser])
+
+  useEffect(() => {
+    if (userLoading) return
+    if (!user) return
+
+    const loadProfile = async () => {
+      setProfileLoading(true)
+      setProfileError(null)
+      setProfileSuccess(null)
+      const session = await ensureSession()
+      if (!session) {
+        setProfileLoading(false)
+        return
+      }
+      const sessionUserId = session.user.id
+      const { data, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, height_in, weight_lb, body_fat_percent, birthdate, sex, updated_at')
+        .eq('id', sessionUserId)
+        .maybeSingle()
+
+      if (profileError) {
+        console.error('Failed to load profile', profileError, profileError.message, profileError.details, profileError.hint)
+        const message = profileError.message?.includes('permission')
+          ? 'Profile access is blocked by permissions. Apply the profiles policies/grants migrations.'
+          : profileError.message?.includes('relation')
+            ? 'Profiles table is missing. Apply the profiles migrations.'
+            : 'Unable to load your profile. Please try again.'
+        setProfileError(message)
+      } else {
+        const nextDraft = {
+          weightLb: typeof data?.weight_lb === 'number' ? String(data.weight_lb) : '',
+          heightIn: typeof data?.height_in === 'number' ? String(data.height_in) : '',
+          bodyFatPercent: typeof data?.body_fat_percent === 'number' ? String(data.body_fat_percent) : '',
+          birthdate: data?.birthdate ?? '',
+          sex: data?.sex ?? ''
+        }
+        setProfile(data ? (data as ProfileRow) : null)
+        setProfileDraft(nextDraft)
+        setProfileSnapshot(JSON.stringify(nextDraft))
+      }
+      setProfileLoading(false)
+    }
+
+    loadProfile()
+  }, [ensureSession, supabase, user, userLoading])
 
   const isLoading = userLoading || loading
 
@@ -504,6 +605,103 @@ export default function DashboardPage() {
     }
   }
 
+  const handleSignOut = async () => {
+    setSigningOut(true)
+    setError(null)
+    const { error: signOutError } = await supabase.auth.signOut()
+    if (signOutError) {
+      console.error('Failed to sign out', signOutError)
+      setError('Unable to sign out. Please try again.')
+    } else {
+      setUser(null)
+      router.push('/auth/login')
+    }
+    setSigningOut(false)
+  }
+
+  const handleResetFilters = () => {
+    setStartDate('')
+    setEndDate('')
+    setSelectedMuscle('all')
+    setSelectedExercise('all')
+  }
+
+  const handleProfileChange = (field: keyof ProfileDraft, value: string) => {
+    setProfileDraft((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleSaveProfile = async () => {
+    if (!user) return
+    setProfileSaving(true)
+    setProfileError(null)
+    setProfileSuccess(null)
+    const session = await ensureSession()
+    if (!session) {
+      setProfileSaving(false)
+      return
+    }
+    const sessionUserId = session.user.id
+
+    const weightLb = parseNumberInput(profileDraft.weightLb)
+    const heightIn = parseNumberInput(profileDraft.heightIn)
+    const bodyFatPercent = parseNumberInput(profileDraft.bodyFatPercent)
+
+    if (bodyFatPercent !== null && (bodyFatPercent < 0 || bodyFatPercent > 70)) {
+      setProfileError('Body fat percentage must be between 0 and 70.')
+      setProfileSaving(false)
+      return
+    }
+    if (weightLb !== null && weightLb <= 0) {
+      setProfileError('Weight must be greater than 0.')
+      setProfileSaving(false)
+      return
+    }
+    if (heightIn !== null && heightIn <= 0) {
+      setProfileError('Height must be greater than 0.')
+      setProfileSaving(false)
+      return
+    }
+
+    const payload = {
+      id: sessionUserId,
+      weight_lb: weightLb,
+      height_in: heightIn,
+      body_fat_percent: bodyFatPercent,
+      birthdate: profileDraft.birthdate || null,
+      sex: profileDraft.sex || null
+    }
+
+    const { data, error: saveError } = await supabase
+      .from('profiles')
+      .upsert(payload, { onConflict: 'id' })
+      .select('id, height_in, weight_lb, body_fat_percent, birthdate, sex, updated_at')
+      .maybeSingle()
+
+    if (saveError) {
+      console.error('Failed to save profile', saveError, saveError.message, saveError.details, saveError.hint)
+      const message = saveError.message?.includes('permission')
+        ? 'Profile access is blocked by permissions. Apply the profiles policies/grants migrations.'
+        : saveError.message?.includes('relation')
+          ? 'Profiles table is missing. Apply the profiles migrations.'
+          : 'Unable to save profile changes. Please try again.'
+      setProfileError(message)
+    } else {
+      const nextDraft = {
+        weightLb: typeof data?.weight_lb === 'number' ? String(data.weight_lb) : '',
+        heightIn: typeof data?.height_in === 'number' ? String(data.height_in) : '',
+        bodyFatPercent: typeof data?.body_fat_percent === 'number' ? String(data.body_fat_percent) : '',
+        birthdate: data?.birthdate ?? '',
+        sex: data?.sex ?? ''
+      }
+      setProfile(data ? (data as ProfileRow) : null)
+      setProfileDraft(nextDraft)
+      setProfileSnapshot(JSON.stringify(nextDraft))
+      setProfileSuccess('Profile saved.')
+    }
+
+    setProfileSaving(false)
+  }
+
   const muscleOptions = useMemo(() => {
     const muscles = new Set<string>()
     sessions.forEach((session) => {
@@ -524,6 +722,35 @@ export default function DashboardPage() {
     })
     return Array.from(names).sort()
   }, [sessions])
+
+  const profileHasChanges = useMemo(() => {
+    if (!profileSnapshot) {
+      return Object.values(profileDraft).some((value) => value.trim().length > 0)
+    }
+    return JSON.stringify(profileDraft) !== profileSnapshot
+  }, [profileDraft, profileSnapshot])
+
+  const profileMetrics = useMemo(() => {
+    const weightLb = parseNumberInput(profileDraft.weightLb)
+    const heightIn = parseNumberInput(profileDraft.heightIn)
+    const bodyFatPercent = parseNumberInput(profileDraft.bodyFatPercent)
+    const age = calculateAge(profileDraft.birthdate)
+    const bmi = calculateBmi(weightLb, heightIn)
+    const leanMass = typeof weightLb === 'number' && typeof bodyFatPercent === 'number'
+      ? weightLb * (1 - bodyFatPercent / 100)
+      : null
+    const bmr = calculateBmr(weightLb, heightIn, age, profileDraft.sex || null)
+
+    return {
+      weightLb,
+      heightIn,
+      bodyFatPercent,
+      age,
+      bmi,
+      leanMass,
+      bmr
+    }
+  }, [profileDraft])
 
   const filteredSessions = useMemo(() => {
     return sessions.filter((session) => {
@@ -553,17 +780,23 @@ export default function DashboardPage() {
   const allSets = useMemo(() => {
     return filteredSessions.flatMap((session) =>
       session.session_exercises.flatMap((exercise) =>
-        (exercise.sets ?? []).map((set) => ({
-          sessionId: session.id,
-          sessionName: session.name,
-          startedAt: session.started_at,
-          endedAt: session.ended_at,
-          exerciseName: exercise.exercise_name,
-          primaryMuscle: exercise.primary_muscle,
-          secondaryMuscles: exercise.secondary_muscles ?? [],
-          variation: exercise.variation ?? {},
-          ...set
-        }))
+        (exercise.sets ?? []).flatMap((set) =>
+          set.completed === false
+            ? []
+            : [
+                {
+                  sessionId: session.id,
+                  sessionName: session.name,
+                  startedAt: session.started_at,
+                  endedAt: session.ended_at,
+                  exerciseName: exercise.exercise_name,
+                  primaryMuscle: exercise.primary_muscle,
+                  secondaryMuscles: exercise.secondary_muscles ?? [],
+                  variation: exercise.variation ?? {},
+                  ...set
+                }
+              ]
+        )
       )
     )
   }, [filteredSessions])
@@ -669,8 +902,7 @@ export default function DashboardPage() {
       weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
       rpe: typeof set.rpe === 'number' ? set.rpe : null,
       rir: typeof set.rir === 'number' ? set.rir : null,
-      failure: set.failure ?? null,
-      setType: (set.set_type as 'working' | 'warmup' | 'backoff' | 'drop' | 'amrap' | null) ?? null
+      failure: set.failure ?? null
     }))
     return {
       tonnage: Math.round(aggregateTonnage(metricSets)),
@@ -678,6 +910,15 @@ export default function DashboardPage() {
       bestE1rm: Math.round(aggregateBestE1rm(metricSets))
     }
   }, [allSets])
+
+  const relativeMetrics = useMemo(() => {
+    if (!profileMetrics.weightLb || profileMetrics.weightLb <= 0) return null
+    return {
+      tonnagePerBodyweight: aggregateMetrics.tonnage / profileMetrics.weightLb,
+      bestE1rmRatio: aggregateMetrics.bestE1rm / profileMetrics.weightLb,
+      maxWeightRatio: prMetrics.maxWeight / profileMetrics.weightLb
+    }
+  }, [aggregateMetrics, prMetrics, profileMetrics.weightLb])
 
   const weeklyVolumeByMuscle = useMemo(() => {
     const mappedSessions = filteredSessions.map((session) => ({
@@ -688,8 +929,7 @@ export default function DashboardPage() {
         sets: (exercise.sets ?? []).map((set) => ({
           reps: set.reps ?? null,
           weight: set.weight ?? null,
-          weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
-          setType: (set.set_type as 'working' | 'warmup' | 'backoff' | 'drop' | 'amrap' | null) ?? null
+          weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
         }))
       }))
     }))
@@ -725,6 +965,7 @@ export default function DashboardPage() {
     }
     session.session_exercises.forEach((exercise) => {
       exercise.sets.forEach((set) => {
+        if (set.completed === false) return
         totals.sets += 1
         const reps = set.reps ?? 0
         totals.reps += reps
@@ -741,8 +982,7 @@ export default function DashboardPage() {
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
             rpe: typeof set.rpe === 'number' ? set.rpe : null,
             rir: typeof set.rir === 'number' ? set.rir : null,
-            failure: set.failure ?? null,
-            setType: (set.set_type as 'working' | 'warmup' | 'backoff' | 'drop' | 'amrap' | null) ?? null
+            failure: set.failure ?? null
           }
         ])
         totals.bestE1rm = Math.max(
@@ -766,7 +1006,7 @@ export default function DashboardPage() {
     return (
       <div className="page-shell p-10 text-center text-muted">
         <p className="mb-4">Sign in to view your dashboard.</p>
-        <Button onClick={() => router.push('/auth/login')}>Go to Login</Button>
+        <Button onClick={() => router.push('/auth/login')}>Sign in</Button>
       </div>
     )
   }
@@ -779,13 +1019,136 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-semibold text-strong">Dashboard</h1>
             <p className="text-sm text-muted">Track your sessions, volume, and progress over time.</p>
           </div>
-          <Link href="/generate">
-            <Button>Generate New Plan</Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+            <span>
+              Signed in as <span className="text-strong">{user.email ?? 'member'}</span>
+            </span>
+            <Button variant="ghost" size="sm" onClick={handleSignOut} disabled={signingOut}>
+              {signingOut ? 'Signing out...' : 'Sign out'}
+            </Button>
+          </div>
         </div>
 
         {error && <div className="alert-error p-4 text-sm">{error}</div>}
         {startSessionError && <div className="alert-error p-4 text-sm">{startSessionError}</div>}
+
+        <Card className="p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-strong">Profile</h2>
+              <p className="text-sm text-muted">Keep body stats current so your dashboard metrics stay accurate.</p>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleSaveProfile}
+              disabled={profileLoading || profileSaving || !profileHasChanges}
+            >
+              {profileSaving ? 'Saving...' : 'Save profile'}
+            </Button>
+          </div>
+
+          {(profileError || profileSuccess) && (
+            <div
+              className={`mt-4 rounded-lg border p-3 text-sm ${
+                profileError
+                  ? 'alert-error'
+                  : 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
+              }`}
+            >
+              {profileError ?? profileSuccess}
+            </div>
+          )}
+
+          <div className="mt-4 grid gap-6 lg:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2">
+              <div className="flex flex-col">
+                <label className="text-xs text-subtle">Weight (lb)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={profileDraft.weightLb}
+                  onChange={(event) => handleProfileChange('weightLb', event.target.value)}
+                  className="input-base mt-1"
+                  disabled={profileLoading || profileSaving}
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-xs text-subtle">Height (in)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={profileDraft.heightIn}
+                  onChange={(event) => handleProfileChange('heightIn', event.target.value)}
+                  className="input-base mt-1"
+                  disabled={profileLoading || profileSaving}
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-xs text-subtle">Body fat %</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={70}
+                  value={profileDraft.bodyFatPercent}
+                  onChange={(event) => handleProfileChange('bodyFatPercent', event.target.value)}
+                  className="input-base mt-1"
+                  disabled={profileLoading || profileSaving}
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-xs text-subtle">Birthdate</label>
+                <input
+                  type="date"
+                  value={profileDraft.birthdate}
+                  onChange={(event) => handleProfileChange('birthdate', event.target.value)}
+                  className="input-base mt-1"
+                  disabled={profileLoading || profileSaving}
+                />
+              </div>
+              <div className="flex flex-col sm:col-span-2">
+                <label className="text-xs text-subtle">Sex (for BMR)</label>
+                <select
+                  value={profileDraft.sex}
+                  onChange={(event) => handleProfileChange('sex', event.target.value)}
+                  className="input-base mt-1"
+                  disabled={profileLoading || profileSaving}
+                >
+                  <option value="">Prefer not to say</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="non_binary">Non-binary</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-sm text-muted">
+              <p className="text-[10px] uppercase tracking-wider text-subtle">Profile insights</p>
+              <div className="mt-3 space-y-2">
+                <p>
+                  Weight: <span className="text-strong">{profileMetrics.weightLb ? `${profileMetrics.weightLb} lb` : 'Add weight'}</span>
+                </p>
+                <p>
+                  Height: <span className="text-strong">{profileMetrics.heightIn ? `${profileMetrics.heightIn} in` : 'Add height'}</span>
+                </p>
+                <p>
+                  Age: <span className="text-strong">{typeof profileMetrics.age === 'number' ? `${profileMetrics.age}` : 'Add birthdate'}</span>
+                </p>
+                <p>
+                  BMI: <span className="text-strong">{profileMetrics.bmi ? profileMetrics.bmi.toFixed(1) : 'Add weight + height'}</span>
+                </p>
+                <p>
+                  Lean mass: <span className="text-strong">{profileMetrics.leanMass ? `${Math.round(profileMetrics.leanMass)} lb` : 'Add body fat %'}</span>
+                </p>
+                <p>
+                  Estimated BMR: <span className="text-strong">{profileMetrics.bmr ? `${Math.round(profileMetrics.bmr)} kcal` : 'Add age + sex'}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+          {profile?.updated_at && (
+            <p className="mt-3 text-[10px] text-subtle">Last updated {formatDateTime(profile.updated_at)}</p>
+          )}
+        </Card>
 
         <div className="grid grid-cols-1 gap-6">
           {hasActiveSession && (
@@ -810,6 +1173,9 @@ export default function DashboardPage() {
                   Pick a template and start a new session when you&apos;re ready.
                 </p>
               </div>
+              <Link href="/generate">
+                <Button size="sm">Generate New Plan</Button>
+              </Link>
             </div>
 
             <div className="mt-6 space-y-3">
@@ -871,9 +1237,13 @@ export default function DashboardPage() {
         </div>
 
         <Card className="p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <h2 className="text-lg font-semibold text-strong">Filters</h2>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <h2 className="text-lg font-semibold text-strong">Filters</h2>
+            <Button variant="ghost" size="sm" onClick={handleResetFilters}>
+              Reset filters
+            </Button>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
             <div className="flex flex-col">
               <label className="text-xs text-subtle">Start date</label>
               <input
@@ -923,7 +1293,6 @@ export default function DashboardPage() {
               </select>
             </div>
           </div>
-        </div>
         </Card>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
@@ -938,6 +1307,12 @@ export default function DashboardPage() {
               <p>Max weight (lb): <span className="text-strong">{prMetrics.maxWeight}</span></p>
               <p>Best reps: <span className="text-strong">{prMetrics.bestReps}</span></p>
               <p>Best e1RM ({E1RM_FORMULA_VERSION}): <span className="text-strong">{prMetrics.bestE1rm}</span></p>
+              {relativeMetrics && (
+                <>
+                  <p>Max / bodyweight: <span className="text-strong">{relativeMetrics.maxWeightRatio.toFixed(2)}x</span></p>
+                  <p>e1RM / bodyweight: <span className="text-strong">{relativeMetrics.bestE1rmRatio.toFixed(2)}x</span></p>
+                </>
+              )}
             </div>
           </Card>
           <Card className="p-6">
@@ -946,6 +1321,9 @@ export default function DashboardPage() {
               <p>Total tonnage: <span className="text-strong">{aggregateMetrics.tonnage}</span></p>
               <p>Hard sets: <span className="text-strong">{aggregateMetrics.hardSets}</span></p>
               <p>Best e1RM: <span className="text-strong">{aggregateMetrics.bestE1rm}</span></p>
+              {relativeMetrics && (
+                <p>Tonnage / bodyweight: <span className="text-strong">{relativeMetrics.tonnagePerBodyweight.toFixed(1)}</span></p>
+              )}
             </div>
           </Card>
           <Card className="p-6">
@@ -1102,12 +1480,6 @@ export default function DashboardPage() {
                     </div>
                     {isExpanded && (
                       <div className="space-y-4">
-                        {session.session_notes && (
-                          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-xs text-muted">
-                            <p className="text-[10px] uppercase tracking-wider text-subtle">Session notes</p>
-                            <p className="mt-2 text-sm text-strong">{session.session_notes}</p>
-                          </div>
-                        )}
                         <div className="grid gap-3 md:grid-cols-2">
                           {session.session_exercises.map((exercise) => (
                             <div key={exercise.id} className="surface-card-muted p-4 text-xs text-muted">
@@ -1124,30 +1496,12 @@ export default function DashboardPage() {
                                       <span>Set {set.set_number ?? 'N/A'}</span>
                                       <span>
                                         {set.weight ?? 'N/A'} {set.weight_unit ?? 'lb'} × {set.reps ?? 'N/A'} reps
-                                        {set.set_type ? ` · ${set.set_type}` : ''}
                                         {typeof set.rpe === 'number' ? ` · RPE ${set.rpe}` : ''}
                                         {typeof set.rir === 'number' ? ` · RIR ${set.rir}` : ''}
                                       </span>
                                     </div>
                                     <div className="mt-2 grid gap-2 text-[10px] text-subtle sm:grid-cols-2">
-                                      <span>Rest: {set.rest_seconds_actual ?? 'N/A'} sec</span>
-                                      <span>Failure: {set.failure ? 'Yes' : 'No'}</span>
-                                      <span>Tempo: {set.tempo || 'N/A'}</span>
-                                      <span>ROM cue: {set.rom_cue || 'N/A'}</span>
-                                      <span>Pain: {typeof set.pain_score === 'number' ? set.pain_score : 'N/A'} {set.pain_area ? `· ${set.pain_area}` : ''}</span>
-                                      <span>Group: {getGroupLabel(set.group_type as 'superset' | 'circuit' | 'giant_set' | 'dropset' | null, set.group_id)}</span>
-                                      {set.extras && Object.keys(set.extras).length > 0 ? (
-                                        <span>
-                                          Extras:{' '}
-                                          {Object.entries(set.extras)
-                                            .filter(([, value]) => value)
-                                            .map(([key, value]) => `${key.replace('_', ' ')} ${value}`)
-                                            .join(', ') || 'N/A'}
-                                        </span>
-                                      ) : (
-                                        <span>Extras: N/A</span>
-                                      )}
-                                      <span>Notes: {set.notes || 'N/A'}</span>
+                                      <span>Completed: {set.completed ? 'Yes' : 'No'}</span>
                                     </div>
                                   </div>
                                 ))}

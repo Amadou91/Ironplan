@@ -240,7 +240,12 @@ export default function WorkoutDetailPage() {
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            {sessionActive && (activeSession || sessionId) && <ActiveSession sessionId={sessionId} />}
+            {sessionActive && (activeSession || sessionId) && (
+              <ActiveSession
+                sessionId={sessionId}
+                equipmentInventory={template?.template_inputs?.equipment?.inventory ?? null}
+              />
+            )}
 
             {!sessionActive && (
               <Card className="p-6">

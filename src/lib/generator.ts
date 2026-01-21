@@ -1054,6 +1054,30 @@ const createSeededRandom = (seed: string) => {
 const getPrimaryMuscleKey = (exercise: Exercise) =>
   String(exercise.primaryMuscle ?? '').trim().toLowerCase()
 
+const getMovementFamilyFromName = (name: string, movementPattern?: MovementPattern | null) => {
+  const lower = name.toLowerCase()
+  if (lower.includes('press') || lower.includes('push-up') || lower.includes('pushup')) return 'press'
+  if (lower.includes('fly') || lower.includes('pec deck')) return 'fly'
+  if (lower.includes('dip')) return 'dip'
+  if (lower.includes('row')) return 'row'
+  if (lower.includes('pull')) return 'pull'
+  if (lower.includes('curl')) return 'curl'
+  if (lower.includes('extension')) return 'extension'
+  if (lower.includes('raise') || lower.includes('lateral')) return 'raise'
+  if (lower.includes('squat')) return 'squat'
+  if (lower.includes('deadlift') || lower.includes('rdl') || lower.includes('hinge')) return 'hinge'
+  if (lower.includes('lunge') || lower.includes('split squat')) return 'lunge'
+  if (lower.includes('carry')) return 'carry'
+  if (lower.includes('plank') || lower.includes('core')) return 'core'
+  if (lower.includes('run') || lower.includes('bike') || lower.includes('rower') || lower.includes('interval')) {
+    return 'cardio'
+  }
+  return movementPattern ?? 'other'
+}
+
+const getMovementFamily = (exercise: Exercise) =>
+  getMovementFamilyFromName(exercise.name, exercise.movementPattern)
+
 const isCompoundMovement = (exercise: Exercise) =>
   ['squat', 'hinge', 'push', 'pull', 'carry'].includes(exercise.movementPattern ?? '')
 
@@ -1145,6 +1169,12 @@ const getSetCaps = (minutes: number) => {
   return { min: 2, max: 6 }
 }
 
+const getFamilyCaps = (minutes: number) => {
+  if (minutes <= 35) return 2
+  if (minutes <= 60) return 3
+  return 4
+}
+
 const getRestModifier = (minutes: number, preference: RestPreference) => {
   let modifier = minutes <= 30 ? 0.8 : minutes <= 45 ? 0.9 : minutes >= 90 ? 1.1 : 1
   if (preference === 'minimal_rest') modifier -= 0.1
@@ -1205,17 +1235,21 @@ const buildSessionForTime = (
 ): { exercises: Exercise[]; error?: string } => {
   const targetMinutes = clamp(duration, 20, 120)
   const reps = deriveReps(goal, input.intensity)
-  const { min: minExercises, max: maxExercises } = getExerciseCaps(targetMinutes)
+  let { min: minExercises, max: maxExercises } = getExerciseCaps(targetMinutes)
   const { min: minSetCap, max: maxSetCap } = getSetCaps(targetMinutes)
   const restModifier = getRestModifier(targetMinutes, input.preferences.restPreference) * getIntensityRestModifier(input.intensity)
   const picks: PlannedExercise[] = []
   const usedPatterns = new Map<string, number>()
   const usedNames = new Set<string>()
+  const usedFamilies = new Map<string, number>()
   const rng = createSeededRandom(seed ?? `${input.goals.primary}-${targetMinutes}`)
   const recentNames = new Set((history?.recentExerciseNames ?? []).map(normalizeExerciseKey))
   const recentPatterns = new Set((history?.recentMovementPatterns ?? []).filter(Boolean))
   const recentPrimaryMuscles = new Set(
     (history?.recentPrimaryMuscles ?? []).map((muscle) => muscle.trim().toLowerCase())
+  )
+  const recentFamilies = new Set(
+    (history?.recentExerciseNames ?? []).map((name) => getMovementFamilyFromName(name))
   )
 
   const scoreExercise = (exercise: Exercise, source: ExerciseSource) => {
@@ -1226,6 +1260,9 @@ const buildSessionForTime = (
     if (exercise.movementPattern && recentPatterns.has(exercise.movementPattern)) score -= 1
     const primaryKey = getPrimaryMuscleKey(exercise)
     if (primaryKey && recentPrimaryMuscles.has(primaryKey)) score -= 1
+    const family = getMovementFamily(exercise)
+    if (family && recentFamilies.has(family)) score -= 1
+    if (family && !recentFamilies.has(family)) score += 0.5
     score += getExperienceScore(exercise, input.experienceLevel)
     score += getIntensityScore(exercise, input.intensity)
     if (source === 'primary') score += 1
@@ -1240,6 +1277,24 @@ const buildSessionForTime = (
       }))
       .sort((a, b) => b.score - a.score)
       .map((item) => item.exercise)
+
+  const isPrimaryMatch = (exercise: Exercise) =>
+    focusConstraint ? matchesPrimaryMuscle(exercise, focusConstraint.primaryMuscles) : false
+  const isAccessoryMatch = (exercise: Exercise) =>
+    focusConstraint ? matchesPrimaryMuscle(exercise, focusConstraint.accessoryMuscles) : false
+  const isAllowedFocusExercise = (exercise: Exercise) =>
+    focusConstraint ? (isPrimaryMatch(exercise) || isAccessoryMatch(exercise)) : true
+  const availableExerciseCount = new Set(
+    [...primaryPool, ...secondaryPool, ...accessoryPool]
+      .filter((exercise) => isAllowedFocusExercise(exercise))
+      .filter((exercise) => selectEquipmentOption(input.equipment.inventory, exercise.equipment))
+      .map((exercise) => exercise.name)
+  ).size
+
+  if (availableExerciseCount > 0) {
+    minExercises = Math.min(minExercises, availableExerciseCount)
+    maxExercises = Math.min(maxExercises, availableExerciseCount)
+  }
 
   const createPlan = (exercise: Exercise, source: ExerciseSource): PlannedExercise | null => {
     const selectedOption = selectEquipmentOption(input.equipment.inventory, exercise.equipment)
@@ -1274,12 +1329,13 @@ const buildSessionForTime = (
     }
   }
 
-  const isPrimaryMatch = (exercise: Exercise) =>
-    focusConstraint ? matchesPrimaryMuscle(exercise, focusConstraint.primaryMuscles) : false
-  const isAccessoryMatch = (exercise: Exercise) =>
-    focusConstraint ? matchesPrimaryMuscle(exercise, focusConstraint.accessoryMuscles) : false
-  const isAllowedFocusExercise = (exercise: Exercise) =>
-    focusConstraint ? (isPrimaryMatch(exercise) || isAccessoryMatch(exercise)) : true
+  const availableFamilies = new Set(
+    [...primaryPool, ...secondaryPool, ...accessoryPool]
+      .filter((exercise) => isAllowedFocusExercise(exercise))
+      .map((exercise) => getMovementFamily(exercise))
+      .filter(Boolean)
+  )
+  const familyCap = getFamilyCaps(targetMinutes)
 
   const getSetTotals = (extra?: PlannedExercise) => {
     const all = extra ? [...picks, extra] : picks
@@ -1322,6 +1378,13 @@ const buildSessionForTime = (
     if (isAdjacentRepeat && picks.length >= minExercises) return false
     const maxPatternUsage = focusConstraint ? 4 : 2
     if ((usedPatterns.get(pattern) ?? 0) >= maxPatternUsage) return false
+    const family = getMovementFamily(exercise)
+    if (family) {
+      const currentFamilyCount = usedFamilies.get(family) ?? 0
+      if (currentFamilyCount >= familyCap && availableFamilies.size > 1 && picks.length >= minExercises - 1) {
+        return false
+      }
+    }
     const planned = createPlan(exercise, source)
     if (!planned) return false
     if (focusConstraint && !isAllowedFocusExercise(exercise)) return false
@@ -1336,6 +1399,9 @@ const buildSessionForTime = (
     picks.push(planned)
     usedNames.add(exercise.name)
     usedPatterns.set(pattern, (usedPatterns.get(pattern) ?? 0) + 1)
+    if (family) {
+      usedFamilies.set(family, (usedFamilies.get(family) ?? 0) + 1)
+    }
     return true
   }
 
@@ -1450,11 +1516,15 @@ const buildSessionForTime = (
     }
   }
 
+  let focusConstraintRelaxed = false
   if (focusConstraint) {
     const totals = getSetTotals()
     const ratio = totals.total > 0 ? totals.primary / totals.total : 0
-    if (totals.total === 0 || ratio < focusConstraint.minPrimarySetRatio || picks.length < minExercises) {
+    if (totals.total === 0) {
       return { exercises: [], error: 'focus_constraints_unmet' }
+    }
+    if (ratio < focusConstraint.minPrimarySetRatio || picks.length < minExercises) {
+      focusConstraintRelaxed = true
     }
   }
 
@@ -1468,9 +1538,12 @@ const buildSessionForTime = (
       const nextPattern = next.exercise.movementPattern ?? null
       const prevPrimary = getPrimaryMuscleKey(prev.exercise)
       const nextPrimary = getPrimaryMuscleKey(next.exercise)
+      const prevFamily = getMovementFamily(prev.exercise)
+      const nextFamily = getMovementFamily(next.exercise)
       return Boolean(
         (prevPattern && nextPattern && prevPattern === nextPattern) ||
-        (prevPrimary && nextPrimary && prevPrimary === nextPrimary)
+        (prevPrimary && nextPrimary && prevPrimary === nextPrimary) ||
+        (prevFamily && nextFamily && prevFamily === nextFamily)
       )
     }
 
@@ -1512,7 +1585,8 @@ const buildSessionForTime = (
     exercises: orderedPicks.map(({ exercise, prescription }) => ({
       ...exercise,
       ...prescription
-    }))
+    })),
+    error: focusConstraintRelaxed ? 'focus_constraints_relaxed' : undefined
   }
 }
 
@@ -1727,6 +1801,7 @@ export const generateSessionExercises = (
       ).length,
       accessoryEligible
     })
+    if (result.exercises.length) return result.exercises
     return []
   }
   return result.exercises

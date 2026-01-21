@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
-import { Loader2, Wand2, X } from 'lucide-react'
+import { ArrowRight, Loader2, Wand2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { buildWorkoutTemplate, normalizePlanInput } from '@/lib/generator'
@@ -19,6 +19,11 @@ import {
 import { CARDIO_ACTIVITY_OPTIONS } from '@/lib/cardio-activities'
 import { getFlowCompletion, isEquipmentValid } from '@/lib/generationFlow'
 import { logEvent } from '@/lib/logger'
+import { createWorkoutSession } from '@/lib/session-creation'
+import { fetchTemplateHistory } from '@/lib/session-history'
+import { promptForSessionMinutes } from '@/lib/session-time'
+import { toMuscleLabel } from '@/lib/muscle-utils'
+import { useWorkoutStore } from '@/store/useWorkoutStore'
 import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanInput, WorkoutTemplateDraft } from '@/types/domain'
 
 const styleOptions: { value: Goal; label: string; description: string }[] = [
@@ -47,9 +52,20 @@ export default function GeneratePage() {
     templateId?: string
     title?: string
   } | null>(null)
+  const [lastSavedTemplate, setLastSavedTemplate] = useState<{
+    templateId: string
+    title: string
+    focus: FocusArea
+    style: Goal
+    input: PlanInput
+  } | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [historyEntries, setHistoryEntries] = useState<ReturnType<typeof loadWorkoutHistory>>([])
   const [deletingHistoryIds, setDeletingHistoryIds] = useState<Record<string, boolean>>({})
+  const [startSessionError, setStartSessionError] = useState<string | null>(null)
+  const [startingSessionKey, setStartingSessionKey] = useState<string | null>(null)
+  const startSession = useWorkoutStore((state) => state.startSession)
+  const activeSession = useWorkoutStore((state) => state.activeSession)
 
   const [formData, setFormData] = useState<PlanInput>(() =>
     normalizePlanInput({
@@ -77,6 +93,7 @@ export default function GeneratePage() {
     if (saveError) setSaveError(null)
     if (saveSummary) setSaveSummary(null)
     if (historyError) setHistoryError(null)
+    if (startSessionError) setStartSessionError(null)
   }
 
   const updateFormData = (updater: (prev: PlanInput) => PlanInput) => {
@@ -92,6 +109,8 @@ export default function GeneratePage() {
         return 'Insert blocked by Row Level Security. Add an insert policy for the workout_templates table.'
       case '23502':
         return 'A required column is missing. Confirm workout_templates.user_id, title, focus, style, and template_inputs are provided.'
+      case '23503':
+        return 'Your user record was not found. Sign out and back in to refresh your session.'
       default:
         return null
     }
@@ -285,10 +304,15 @@ export default function GeneratePage() {
   }, [supabase, user])
 
   const savePlanToDatabase = async (template: WorkoutTemplateDraft) => {
-    if (!user) return null
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+    const authUser = authData?.user
+    if (authError || !authUser) {
+      setSaveError('Your session has expired. Please sign in again.')
+      return null
+    }
 
     const newTemplate = {
-      user_id: user.id,
+      user_id: authUser.id,
       title: buildWorkoutTitle(template),
       description: template.description,
       focus: template.focus,
@@ -333,7 +357,82 @@ export default function GeneratePage() {
 
     return {
       templateId: data.id,
-      title: template.title
+      title: template.title,
+      focus: template.focus,
+      style: template.style,
+      input: template.inputs
+    }
+  }
+
+  const handleStartSession = async ({
+    templateId,
+    title,
+    focus,
+    style,
+    input,
+    sessionKey
+  }: {
+    templateId: string
+    title: string
+    focus: FocusArea
+    style: Goal
+    input: PlanInput
+    sessionKey: string
+  }) => {
+    if (!user) return
+    if (activeSession) {
+      setStartSessionError('Finish your current session before starting a new one.')
+      if (activeSession.templateId && activeSession.id) {
+        router.push(`/workout/${activeSession.templateId}?session=active&sessionId=${activeSession.id}&from=generate`)
+      }
+      return
+    }
+    const durationMinutes = promptForSessionMinutes(input.time?.minutesPerSession ?? 45)
+    if (!durationMinutes) return
+    setStartSessionError(null)
+    setStartingSessionKey(sessionKey)
+    try {
+      const normalizedInputs = normalizePlanInput(input)
+      const history = await fetchTemplateHistory(supabase, templateId)
+      const nameSuffix = `${toMuscleLabel(focus)} ${style.replace('_', ' ')}`
+      const {
+        sessionId,
+        startedAt,
+        sessionName,
+        exercises: sessionExercises,
+        impact: sessionImpact,
+        timezone,
+        sessionNotes
+      } = await createWorkoutSession({
+        supabase,
+        userId: user.id,
+        templateId,
+        templateTitle: title,
+        focus,
+        goal: style,
+        input: normalizedInputs,
+        minutesAvailable: durationMinutes,
+        history,
+        nameSuffix
+      })
+      startSession({
+        id: sessionId,
+        userId: user.id,
+        templateId,
+        name: sessionName,
+        startedAt,
+        status: 'in_progress',
+        impact: sessionImpact,
+        exercises: sessionExercises,
+        timezone,
+        sessionNotes
+      })
+      router.push(`/workout/${templateId}?session=active&sessionId=${sessionId}&from=generate`)
+    } catch (startError) {
+      console.error('Failed to start session', startError)
+      setStartSessionError('Unable to start the session. Please try again.')
+    } finally {
+      setStartingSessionKey(null)
     }
   }
 
@@ -368,6 +467,13 @@ export default function GeneratePage() {
       setSaveSummary({
         templateId: saveResult.templateId,
         title: saveResult.title
+      })
+      setLastSavedTemplate({
+        templateId: saveResult.templateId,
+        title: saveResult.title,
+        focus: saveResult.focus,
+        style: saveResult.style,
+        input: saveResult.input
       })
     } catch (err) {
       console.error('Failed to save template', err)
@@ -417,6 +523,7 @@ export default function GeneratePage() {
               Saved template: {saveSummary.title}
             </div>
           )}
+          {startSessionError && <div className="text-[var(--color-danger)]">{startSessionError}</div>}
         </div>
       )
     }
@@ -829,6 +936,7 @@ export default function GeneratePage() {
           </div>
         </div>
 
+        {startSessionError && <p className="mb-3 text-sm text-[var(--color-danger)]">{startSessionError}</p>}
         {historyError && <p className="mb-3 text-sm text-[var(--color-danger)]">{historyError}</p>}
 
         {historyEntries.length === 0 ? (
@@ -861,6 +969,24 @@ export default function GeneratePage() {
                   </Button>
                   <Button
                     type="button"
+                    onClick={() => {
+                      if (!entry.remoteId) return
+                      handleStartSession({
+                        templateId: entry.remoteId,
+                        title: entry.title,
+                        focus: entry.template.focus,
+                        style: entry.template.style,
+                        input: entry.template.inputs,
+                        sessionKey: `${entry.id}-start`
+                      })
+                    }}
+                    className="px-3 py-2 text-xs"
+                    disabled={!entry.remoteId || startingSessionKey === `${entry.id}-start`}
+                  >
+                    {startingSessionKey === `${entry.id}-start` ? 'Starting...' : 'Start Session'}
+                  </Button>
+                  <Button
+                    type="button"
                     onClick={() => handleHistoryDelete(entry)}
                     className="px-3 py-2 text-xs border border-[var(--color-danger-border)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
                     variant="outline"
@@ -874,6 +1000,27 @@ export default function GeneratePage() {
           </div>
         )}
       </Card>
+
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-xs text-subtle">
+          Done here? Head back to your dashboard or jump into your latest template.
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
+            Go to dashboard <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              if (!lastSavedTemplate) return
+              handleStartSession({ ...lastSavedTemplate, sessionKey: 'latest-start' })
+            }}
+            disabled={!lastSavedTemplate || startingSessionKey === 'latest-start'}
+          >
+            {startingSessionKey === 'latest-start' ? 'Starting...' : 'Start latest session'}
+          </Button>
+        </div>
+      </div>
     </div>
     </div>
   )

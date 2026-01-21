@@ -62,7 +62,6 @@ export const getEffortScore = (set: MetricsSet) => {
 }
 
 export const isHardSet = (set: MetricsSet) => {
-  if (set.setType === 'warmup') return false
   if (set.failure) return true
   const effort = getEffortScore(set)
   return typeof effort === 'number' ? effort >= 8 : false
