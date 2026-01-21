@@ -343,7 +343,7 @@ export default function SessionEditPage() {
 
   const handleCancel = () => {
     if (hasChanges && !confirm('Discard your changes?')) return
-    router.push('/dashboard')
+    router.push('/progress')
   }
 
   const handleSave = async () => {
@@ -424,7 +424,7 @@ export default function SessionEditPage() {
     return (
       <div className="page-shell p-10 text-center text-muted">
         <p className="mb-4">Session not found.</p>
-        <Button onClick={() => router.push('/dashboard')}>Return to Dashboard</Button>
+        <Button onClick={() => router.push('/progress')}>Return to Progress</Button>
       </div>
     )
   }

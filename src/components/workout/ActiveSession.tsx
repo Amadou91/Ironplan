@@ -438,6 +438,25 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
     return activeSession.name;
   }, [activeSession]);
 
+  const progressSummary = useMemo(() => {
+    if (!activeSession) return null;
+    const totalExercises = activeSession.exercises.length;
+    const totalSets = activeSession.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+    const completedSets = activeSession.exercises.reduce(
+      (sum, exercise) => sum + exercise.sets.filter((set) => set.completed).length,
+      0
+    );
+    const completedExercises = activeSession.exercises.filter((exercise) =>
+      exercise.sets.some((set) => set.completed)
+    ).length;
+    return {
+      totalExercises,
+      totalSets,
+      completedSets,
+      completedExercises
+    };
+  }, [activeSession]);
+
   const getWeightOptions = useCallback(
     (exercise: SessionExercise) => {
       const match = exerciseLibraryByName.get(exercise.name.toLowerCase());
@@ -592,6 +611,17 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
               <Clock size={14} />
               <span>Started at {new Date(activeSession.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
+            {progressSummary && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
+                <span>
+                  {progressSummary.completedSets}/{progressSummary.totalSets} sets
+                </span>
+                <span>•</span>
+                <span>
+                  {progressSummary.completedExercises}/{progressSummary.totalExercises} exercises
+                </span>
+              </div>
+            )}
           </div>
         </div>
         {errorMessage && (

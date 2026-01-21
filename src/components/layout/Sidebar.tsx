@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Dumbbell, LayoutDashboard, PlusCircle, LogIn, LogOut } from 'lucide-react';
+import { LogIn, LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { authStore, useAuthStore } from '@/store/authStore';
 import { getAuthNavState } from '@/lib/authUi';
+import { primaryNavItems, secondaryNavItems } from '@/components/layout/navigation';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -23,71 +24,96 @@ export default function Sidebar() {
     router.refresh();
   };
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) =>
+    pathname === path ||
+    (path !== '/' && pathname.startsWith(`${path}/`)) ||
+    (path === '/workouts' && pathname.startsWith('/workout/'));
   const navState = getAuthNavState(user);
 
   return (
-    <aside className="fixed left-0 top-0 flex h-screen w-64 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] text-strong">
-      <div className="flex items-center gap-3 border-b border-[var(--color-border)] p-6">
-        <Dumbbell className="h-6 w-6 text-accent" />
-        <span className="text-xl font-semibold tracking-tight">Ironplan</span>
+    <aside className="hidden h-screen w-72 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] text-strong lg:flex">
+      <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-6 py-6">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] shadow-[var(--shadow-sm)]">
+          <span className="font-display text-lg font-semibold">IP</span>
+        </div>
+        <div>
+          <div className="font-display text-xl font-semibold tracking-tight">Ironplan</div>
+          <p className="text-xs text-subtle">Coach-led training OS</p>
+        </div>
       </div>
 
-      <nav className="flex-1 px-4 py-6 space-y-2">
-        <Link
-          href="/dashboard"
-          className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
-            isActive('/dashboard')
-              ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
-              : 'text-muted hover:bg-[var(--color-surface-muted)] hover:text-strong'
-          }`}
-        >
-          <LayoutDashboard className="w-5 h-5" />
-          <span className="font-medium">Dashboard</span>
-        </Link>
+      <div className="flex-1 space-y-6 px-4 py-6">
+        <nav className="space-y-2">
+          {primaryNavItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                  active
+                    ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] shadow-[var(--shadow-sm)]'
+                    : 'text-muted hover:bg-[var(--color-surface-muted)] hover:text-strong'
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-        <Link
-          href="/generate"
-          className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
-            isActive('/generate')
-              ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
-              : 'text-muted hover:bg-[var(--color-surface-muted)] hover:text-strong'
-          }`}
-        >
-          <PlusCircle className="w-5 h-5" />
-          <span className="font-medium">Generate Plan</span>
-        </Link>
-        
-        {/* Add more links here if needed */}
-      </nav>
+        <div className="space-y-2 border-t border-[var(--color-border)] pt-4">
+          {secondaryNavItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                  active
+                    ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] shadow-[var(--shadow-sm)]'
+                    : 'text-muted hover:bg-[var(--color-surface-muted)] hover:text-strong'
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="border-t border-[var(--color-border)] p-4">
         {!hydrated ? (
           <div className="px-4 py-3 text-xs text-subtle">Checking session...</div>
         ) : user ? (
           <div className="space-y-2">
-             <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-subtle">
-              {navState.greeting}
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 py-3 text-xs text-subtle">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-subtle">Signed in</div>
+              <div className="mt-1 text-sm font-semibold text-strong">{user.email ?? 'Member'}</div>
             </div>
             <button
               onClick={handleSignOut}
-              className="w-full rounded-lg px-4 py-3 text-left text-sm text-muted transition-colors hover:bg-[var(--color-surface-muted)] hover:text-strong"
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold text-muted transition-colors hover:bg-[var(--color-surface-muted)] hover:text-strong"
             >
-              <LogOut className="w-5 h-5" />
-              <span className="font-medium">{navState.actionLabel}</span>
+              <LogOut className="h-4 w-4" />
+              <span>{navState.actionLabel}</span>
             </button>
           </div>
         ) : (
           <Link
             href="/auth/login"
-            className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
+            className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
               isActive('/auth/login')
                 ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
                 : 'text-muted hover:bg-[var(--color-surface-muted)] hover:text-strong'
             }`}
           >
-            <LogIn className="w-5 h-5" />
-            <span className="font-medium">{navState.actionLabel}</span>
+            <LogIn className="h-4 w-4" />
+            <span>{navState.actionLabel}</span>
           </Link>
         )}
       </div>

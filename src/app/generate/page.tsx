@@ -19,10 +19,6 @@ import {
 import { CARDIO_ACTIVITY_OPTIONS } from '@/lib/cardio-activities'
 import { getFlowCompletion, isEquipmentValid } from '@/lib/generationFlow'
 import { logEvent } from '@/lib/logger'
-import { createWorkoutSession } from '@/lib/session-creation'
-import { fetchTemplateHistory } from '@/lib/session-history'
-import { promptForSessionMinutes } from '@/lib/session-time'
-import { toMuscleLabel } from '@/lib/muscle-utils'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanInput, WorkoutTemplateDraft } from '@/types/domain'
 
@@ -64,7 +60,6 @@ export default function GeneratePage() {
   const [deletingHistoryIds, setDeletingHistoryIds] = useState<Record<string, boolean>>({})
   const [startSessionError, setStartSessionError] = useState<string | null>(null)
   const [startingSessionKey, setStartingSessionKey] = useState<string | null>(null)
-  const startSession = useWorkoutStore((state) => state.startSession)
   const activeSession = useWorkoutStore((state) => state.activeSession)
 
   const [formData, setFormData] = useState<PlanInput>(() =>
@@ -364,76 +359,24 @@ export default function GeneratePage() {
     }
   }
 
-  const handleStartSession = async ({
+  const handleStartSession = ({
     templateId,
-    title,
-    focus,
-    style,
-    input,
     sessionKey
   }: {
     templateId: string
-    title: string
-    focus: FocusArea
-    style: Goal
-    input: PlanInput
     sessionKey: string
   }) => {
     if (!user) return
     if (activeSession) {
       setStartSessionError('Finish your current session before starting a new one.')
       if (activeSession.templateId && activeSession.id) {
-        router.push(`/workout/${activeSession.templateId}?session=active&sessionId=${activeSession.id}&from=generate`)
+        router.push(`/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=generate`)
       }
       return
     }
-    const durationMinutes = promptForSessionMinutes(input.time?.minutesPerSession ?? 45)
-    if (!durationMinutes) return
     setStartSessionError(null)
     setStartingSessionKey(sessionKey)
-    try {
-      const normalizedInputs = normalizePlanInput(input)
-      const history = await fetchTemplateHistory(supabase, templateId)
-      const nameSuffix = `${toMuscleLabel(focus)} ${style.replace('_', ' ')}`
-      const {
-        sessionId,
-        startedAt,
-        sessionName,
-        exercises: sessionExercises,
-        impact: sessionImpact,
-        timezone,
-        sessionNotes
-      } = await createWorkoutSession({
-        supabase,
-        userId: user.id,
-        templateId,
-        templateTitle: title,
-        focus,
-        goal: style,
-        input: normalizedInputs,
-        minutesAvailable: durationMinutes,
-        history,
-        nameSuffix
-      })
-      startSession({
-        id: sessionId,
-        userId: user.id,
-        templateId,
-        name: sessionName,
-        startedAt,
-        status: 'in_progress',
-        impact: sessionImpact,
-        exercises: sessionExercises,
-        timezone,
-        sessionNotes
-      })
-      router.push(`/workout/${templateId}?session=active&sessionId=${sessionId}&from=generate`)
-    } catch (startError) {
-      console.error('Failed to start session', startError)
-      setStartSessionError('Unable to start the session. Please try again.')
-    } finally {
-      setStartingSessionKey(null)
-    }
+    router.push(`/workouts/${templateId}/start`)
   }
 
   const generatePlanHandler = async () => {
@@ -559,7 +502,7 @@ export default function GeneratePage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
+            <Button type="button" variant="ghost" onClick={() => router.push('/workouts')}>
               <X className="h-4 w-4" /> Close
             </Button>
           </div>
@@ -973,10 +916,6 @@ export default function GeneratePage() {
                       if (!entry.remoteId) return
                       handleStartSession({
                         templateId: entry.remoteId,
-                        title: entry.title,
-                        focus: entry.template.focus,
-                        style: entry.template.style,
-                        input: entry.template.inputs,
                         sessionKey: `${entry.id}-start`
                       })
                     }}
@@ -1003,17 +942,17 @@ export default function GeneratePage() {
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-xs text-subtle">
-          Done here? Head back to your dashboard or jump into your latest template.
+          Done here? Head back to your workouts or jump into your latest template.
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
-            Go to dashboard <ArrowRight className="ml-2 h-4 w-4" />
+          <Button type="button" variant="ghost" onClick={() => router.push('/workouts')}>
+            Back to workouts <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
           <Button
             type="button"
             onClick={() => {
               if (!lastSavedTemplate) return
-              handleStartSession({ ...lastSavedTemplate, sessionKey: 'latest-start' })
+              handleStartSession({ templateId: lastSavedTemplate.templateId, sessionKey: 'latest-start' })
             }}
             disabled={!lastSavedTemplate || startingSessionKey === 'latest-start'}
           >
