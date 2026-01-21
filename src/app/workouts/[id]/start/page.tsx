@@ -38,6 +38,10 @@ type SessionIntensitySetting = {
   helper: string
 }
 
+type ReadinessSurveyDraft = {
+  [Key in keyof ReadinessSurvey]: number | null
+}
+
 const EXPERIENCE_LEVELS: PlanInput['experienceLevel'][] = ['beginner', 'intermediate', 'advanced']
 
 const SESSION_INTENSITY_LEVELS: SessionIntensitySetting[] = [
@@ -72,9 +76,9 @@ const READINESS_FIELDS: Array<{
   label: string
   helper: string
 }> = [
-  { key: 'sleep', label: 'Sleep quality', helper: '1 = poor, 5 = great' },
-  { key: 'soreness', label: 'Muscle soreness', helper: '1 = fresh, 5 = very sore' },
-  { key: 'stress', label: 'Stress level', helper: '1 = calm, 5 = high stress' },
+  { key: 'sleep', label: 'Sleep Quality', helper: '1 = poor, 5 = great' },
+  { key: 'soreness', label: 'Muscle Soreness', helper: '1 = fresh, 5 = very sore' },
+  { key: 'stress', label: 'Stress Level', helper: '1 = calm, 5 = high stress' },
   { key: 'motivation', label: 'Motivation', helper: '1 = low, 5 = high' }
 ]
 
@@ -97,14 +101,12 @@ export default function WorkoutStartPage() {
   const [startingSession, setStartingSession] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [minutesAvailable, setMinutesAvailable] = useState(45)
-  const [intensityLevel, setIntensityLevel] = useState(2)
-  const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurvey>({
-    sleep: 3,
-    soreness: 3,
-    stress: 3,
-    motivation: 3
+  const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurveyDraft>({
+    sleep: null,
+    soreness: null,
+    stress: null,
+    motivation: null
   })
-  const [useReadiness, setUseReadiness] = useState(true)
 
   const hasActiveSession = Boolean(activeSession)
   const activeSessionLink = activeSession?.templateId
@@ -132,26 +134,18 @@ export default function WorkoutStartPage() {
     if (params.id) fetchTemplate()
   }, [params.id, supabase])
 
-  useEffect(() => {
-    if (!template) return
-    const baseIntensity = template.template_inputs?.intensity ?? template.intensity
-    const match = SESSION_INTENSITY_LEVELS.find((option) => option.intensity === baseIntensity)
-    if (match) {
-      setIntensityLevel(match.value)
-    }
-  }, [template])
-
-  const readinessScore = useMemo(() => computeReadinessScore(readinessSurvey), [readinessSurvey])
-  const readinessLevel = useMemo(() => getReadinessLevel(readinessScore), [readinessScore])
-
-  useEffect(() => {
-    if (!useReadiness) return
-    const desiredIntensity = getReadinessIntensity(readinessLevel)
-    const match = SESSION_INTENSITY_LEVELS.find((option) => option.intensity === desiredIntensity)
-    if (match && match.value !== intensityLevel) {
-      setIntensityLevel(match.value)
-    }
-  }, [intensityLevel, readinessLevel, useReadiness])
+  const readinessComplete = useMemo(
+    () => READINESS_FIELDS.every((field) => typeof readinessSurvey[field.key] === 'number'),
+    [readinessSurvey]
+  )
+  const readinessScore = useMemo(
+    () => (readinessComplete ? computeReadinessScore(readinessSurvey as ReadinessSurvey) : null),
+    [readinessComplete, readinessSurvey]
+  )
+  const readinessLevel = useMemo(
+    () => (typeof readinessScore === 'number' ? getReadinessLevel(readinessScore) : null),
+    [readinessScore]
+  )
 
   const equipmentSummary = useMemo(() => {
     const inventory = template?.template_inputs?.equipment?.inventory
@@ -171,8 +165,14 @@ export default function WorkoutStartPage() {
     return labels
   }, [template])
 
-  const selectedIntensity =
-    SESSION_INTENSITY_LEVELS.find((option) => option.value === intensityLevel) ?? SESSION_INTENSITY_LEVELS[1]
+  const baseIntensity = useMemo(
+    () => template?.template_inputs?.intensity ?? template?.intensity ?? 'moderate',
+    [template]
+  )
+  const selectedIntensity = useMemo(() => {
+    const intensityKey = readinessLevel ? getReadinessIntensity(readinessLevel) : baseIntensity
+    return SESSION_INTENSITY_LEVELS.find((option) => option.intensity === intensityKey) ?? SESSION_INTENSITY_LEVELS[1]
+  }, [baseIntensity, readinessLevel])
 
   const updateReadinessField = (field: keyof ReadinessSurvey, value: number) => {
     setReadinessSurvey((prev) => ({ ...prev, [field]: value }))
@@ -197,6 +197,10 @@ export default function WorkoutStartPage() {
       setStartError('Please sign in again to start a session.')
       return
     }
+    if (!readinessComplete || readinessScore === null || !readinessLevel) {
+      setStartError('Complete the readiness check before starting the session.')
+      return
+    }
     if (hasActiveSession) {
       setStartError('Finish your current session before starting a new one.')
       router.push(activeSessionLink)
@@ -217,7 +221,7 @@ export default function WorkoutStartPage() {
         minutesAvailable,
         readiness: readinessLevel,
         readinessScore,
-        readinessSurvey,
+        readinessSurvey: readinessSurvey as ReadinessSurvey,
         source: 'workout_start'
       }
       const { sessionId, startedAt, sessionName, exercises, impact, timezone, sessionNotes: storedNotes } =
@@ -236,6 +240,11 @@ export default function WorkoutStartPage() {
           goal: template.style,
           input: tunedInputs,
           minutesAvailable,
+          readiness: {
+            survey: readinessSurvey as ReadinessSurvey,
+            score: readinessScore,
+            level: readinessLevel
+          },
           sessionNotes,
           history,
           nameSuffix
@@ -315,7 +324,7 @@ export default function WorkoutStartPage() {
                 <h2 className="text-lg font-semibold text-strong">Session settings</h2>
               </div>
               <p className="mt-2 text-sm text-muted">
-                Set your available time and intensity so we can tune the session.
+                Set your available time and complete the readiness check so we can tune the session.
               </p>
 
               <div className="mt-6 space-y-4">
@@ -350,65 +359,44 @@ export default function WorkoutStartPage() {
 
                 <div>
                   <div className="flex items-center justify-between text-xs text-subtle">
-                    <span>Session intensity</span>
-                    <span className="text-strong">{selectedIntensity.label}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={1}
-                    max={3}
-                    step={1}
-                    value={intensityLevel}
-                    onChange={(event) => {
-                      setIntensityLevel(Number(event.target.value))
-                      if (useReadiness) setUseReadiness(false)
-                    }}
-                    className="mt-3 w-full"
-                  />
-                  <div className="mt-3 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.2em] text-subtle">
-                    {SESSION_INTENSITY_LEVELS.map((option) => (
-                      <span key={option.value}>{option.label}</span>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-xs text-subtle">{selectedIntensity.helper}</p>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between text-xs text-subtle">
-                    <span>Readiness check</span>
+                    <span>Readiness check (required)</span>
                     <span className="text-strong">
-                      {typeof readinessScore === 'number' ? `${readinessScore}/100 · ${readinessLevel}` : 'Not rated'}
+                      {typeof readinessScore === 'number' ? `${readinessScore}/100 · ${readinessLevel}` : 'Incomplete'}
                     </span>
                   </div>
-                  <div className="mt-3 space-y-3">
+                  <p className="mt-2 text-xs text-muted">
+                    Rate each metric 1-5 before you can start the session.
+                  </p>
+                  <div className="mt-4 space-y-4">
                     {READINESS_FIELDS.map((field) => (
-                      <div key={field.key}>
+                      <div key={field.key} className="rounded-xl border border-[var(--color-border)] p-3">
                         <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-subtle">
                           <span>{field.label}</span>
-                          <span>{readinessSurvey[field.key]}</span>
+                          <span>{readinessSurvey[field.key] ?? 'N/A'}</span>
                         </div>
-                        <input
-                          type="range"
-                          min={1}
-                          max={5}
-                          step={1}
-                          value={readinessSurvey[field.key]}
-                          onChange={(event) => updateReadinessField(field.key, Number(event.target.value))}
-                          className="mt-2 w-full"
-                        />
-                        <p className="mt-1 text-[10px] text-subtle">{field.helper}</p>
+                        <div className="mt-3 grid grid-cols-5 gap-2">
+                          {[1, 2, 3, 4, 5].map((value) => (
+                            <Button
+                              key={`${field.key}-${value}`}
+                              type="button"
+                              size="sm"
+                              variant={readinessSurvey[field.key] === value ? 'primary' : 'secondary'}
+                              onClick={() => updateReadinessField(field.key, value)}
+                              className="h-9 w-full px-0 text-xs"
+                            >
+                              {value}
+                            </Button>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-[10px] text-subtle">{field.helper}</p>
                       </div>
                     ))}
                   </div>
-                  <label className="mt-4 flex items-center gap-2 text-xs text-muted">
-                    <input
-                      type="checkbox"
-                      checked={useReadiness}
-                      onChange={(event) => setUseReadiness(event.target.checked)}
-                      className="h-4 w-4 rounded border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)]"
-                    />
-                    <span>Use readiness to set intensity</span>
-                  </label>
+                  {!readinessComplete && (
+                    <p className="mt-3 text-xs text-[var(--color-danger)]">
+                      Complete all readiness ratings to unlock the start button.
+                    </p>
+                  )}
                 </div>
               </div>
             </Card>
@@ -429,7 +417,9 @@ export default function WorkoutStartPage() {
                 </div>
                 <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
                   <p className="text-xs text-subtle">Session intensity</p>
-                  <p className="font-semibold text-strong">{selectedIntensity.label}</p>
+                  <p className="font-semibold text-strong">
+                    {readinessLevel ? selectedIntensity.label : 'Pending readiness'}
+                  </p>
                 </div>
               </div>
               {equipmentSummary.length > 0 && (
@@ -445,12 +435,12 @@ export default function WorkoutStartPage() {
             <Card className="p-6">
               <h2 className="text-lg font-semibold text-strong">Ready to train?</h2>
               <p className="mt-2 text-sm text-muted">
-                We will adapt this plan to your time, intensity, and equipment.
+                We will adapt this plan to your time, readiness, and equipment.
               </p>
               <Button
                 type="button"
                 onClick={handleStartSession}
-                disabled={startingSession || hasActiveSession}
+                disabled={startingSession || hasActiveSession || !readinessComplete}
                 className="mt-4 w-full justify-center"
               >
                 {hasActiveSession
@@ -460,7 +450,9 @@ export default function WorkoutStartPage() {
                     : 'Start Session'}
               </Button>
               <p className="mt-3 text-xs text-subtle">
-                Intensity set to <span className="text-strong">{selectedIntensity.label}</span>.
+                {readinessLevel
+                  ? `Readiness is ${readinessLevel}. Intensity set to ${selectedIntensity.label}.`
+                  : 'Complete readiness to set intensity.'}
               </p>
             </Card>
           </div>

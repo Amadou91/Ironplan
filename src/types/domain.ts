@@ -90,7 +90,7 @@ export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
 
 export type RestPreference = 'balanced' | 'high_recovery' | 'minimal_rest'
 
-export type CardioActivity = 'skipping' | 'indoor_cycling' | 'outdoor_cycling' | 'running' | 'rowing'
+export type CardioActivity = 'skipping' | 'indoor_cycling' | 'outdoor_cycling'
 
 export interface ExerciseLoad {
   value: number

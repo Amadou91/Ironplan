@@ -7,6 +7,10 @@ export type WeightOption = {
   unit?: WeightUnit
 }
 
+export const DUMBBELL_WEIGHT_OPTIONS = [5, 8, 10, 12, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60] as const
+export const KETTLEBELL_WEIGHT_OPTIONS = [10, 15, 20, 25, 30, 35, 40, 45, 50, 60] as const
+export const BARBELL_PLATE_OPTIONS = [10, 25, 35, 45] as const
+
 export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
   home_minimal: {
     bodyweight: true,
@@ -23,8 +27,8 @@ export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
   },
   full_gym: {
     bodyweight: true,
-    dumbbells: [10, 15, 20, 25, 30, 35, 40, 50],
-    kettlebells: [15, 25, 35, 50],
+    dumbbells: [...DUMBBELL_WEIGHT_OPTIONS],
+    kettlebells: [...KETTLEBELL_WEIGHT_OPTIONS],
     bands: ['light', 'medium', 'heavy'],
     barbell: { available: true, plates: [10, 25, 35, 45] },
     machines: {
@@ -94,8 +98,8 @@ export const bandLabels: Record<BandResistance, string> = {
 const bandLoadMap: Record<BandResistance, number> = {
   light: 10,
   medium: 20,
-  heavy: 30
-}
+    heavy: 30
+  }
 
 export const isEquipmentOptionAvailable = (inventory: EquipmentInventory, option: EquipmentOption) => {
   switch (option.kind) {

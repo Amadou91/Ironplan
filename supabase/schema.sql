@@ -138,6 +138,29 @@ create table if not exists public.sessions (
 
 create index if not exists sessions_user_started_idx on public.sessions (user_id, started_at desc);
 
+create table if not exists public.session_readiness (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid not null references public.sessions(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  recorded_at timestamptz not null default now(),
+  sleep_quality int not null,
+  muscle_soreness int not null,
+  stress_level int not null,
+  motivation int not null,
+  readiness_score int,
+  readiness_level text,
+  created_at timestamptz not null default now(),
+  constraint session_readiness_sleep_quality_range check (sleep_quality between 1 and 5),
+  constraint session_readiness_muscle_soreness_range check (muscle_soreness between 1 and 5),
+  constraint session_readiness_stress_level_range check (stress_level between 1 and 5),
+  constraint session_readiness_motivation_range check (motivation between 1 and 5),
+  constraint session_readiness_score_range check (readiness_score is null or readiness_score between 0 and 100),
+  constraint session_readiness_level check (readiness_level in ('low', 'steady', 'high'))
+);
+
+create unique index if not exists session_readiness_session_unique on public.session_readiness (session_id);
+create index if not exists session_readiness_user_recorded_idx on public.session_readiness (user_id, recorded_at desc);
+
 create table if not exists public.session_exercises (
   id uuid primary key default gen_random_uuid(),
   session_id uuid not null references public.sessions(id) on delete cascade,
@@ -225,6 +248,7 @@ alter table public.muscle_groups enable row level security;
 alter table public.profiles enable row level security;
 alter table public.exercise_catalog enable row level security;
 alter table public.sessions enable row level security;
+alter table public.session_readiness enable row level security;
 alter table public.session_exercises enable row level security;
 alter table public.sets enable row level security;
 
@@ -250,6 +274,9 @@ create policy "Exercise catalog is viewable by everyone" on public.exercise_cata
   for select using (true);
 
 create policy "Users can manage their sessions" on public.sessions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "Users can manage their session readiness" on public.session_readiness
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "Users can manage their session exercises" on public.session_exercises
@@ -296,6 +323,7 @@ grant select on public.exercise_catalog to anon, authenticated;
 grant select, insert, update, delete on public.workouts to authenticated;
 grant select, insert, update, delete on public.workout_templates to authenticated;
 grant select, insert, update, delete on public.sessions to authenticated;
+grant select, insert, update, delete on public.session_readiness to authenticated;
 grant select, insert, update, delete on public.session_exercises to authenticated;
 grant select, insert, update, delete on public.sets to authenticated;
 grant select, insert, update, delete on public.scheduled_sessions to authenticated;

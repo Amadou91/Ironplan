@@ -444,14 +444,6 @@ export default function ProfilePage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card className="p-6">
-            <h3 className="text-sm font-semibold text-strong">Achievements</h3>
-            <ul className="mt-3 space-y-2 text-xs text-muted">
-              <li className="rounded-lg border border-[var(--color-border)] px-3 py-2">Complete your first session</li>
-              <li className="rounded-lg border border-[var(--color-border)] px-3 py-2">Maintain a 2-week streak</li>
-              <li className="rounded-lg border border-[var(--color-border)] px-3 py-2">Hit a new personal best</li>
-            </ul>
-          </Card>
-          <Card className="p-6">
             <h3 className="text-sm font-semibold text-strong">Preferences</h3>
             <p className="mt-2 text-sm text-muted">
               Manage your measurement units and core preferences.

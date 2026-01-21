@@ -4,8 +4,6 @@ export const CARDIO_ACTIVITY_OPTIONS: Array<{ value: CardioActivity; label: stri
   { value: 'skipping', label: 'Skipping', keywords: ['skipping', 'jump rope'] },
   { value: 'indoor_cycling', label: 'Indoor Cycling', keywords: ['indoor cycling', 'spin', 'assault bike'] },
   { value: 'outdoor_cycling', label: 'Outdoor Cycling', keywords: ['outdoor cycling', 'road cycling', 'bike ride'] },
-  { value: 'running', label: 'Running', keywords: ['run', 'treadmill'] },
-  { value: 'rowing', label: 'Rowing', keywords: ['row'] }
 ]
 
 const cardioKeywordMap = new Map(CARDIO_ACTIVITY_OPTIONS.map((option) => [option.value, option.keywords]))

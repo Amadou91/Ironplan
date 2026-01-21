@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
   Cell,
   Legend,
@@ -12,6 +14,8 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
+  Scatter,
+  ScatterChart,
   Tooltip,
   XAxis,
   YAxis
@@ -36,11 +40,62 @@ import {
   getWeekKey,
   toWeightInPounds
 } from '@/lib/session-metrics'
-import { getLoadBasedReadiness, summarizeTrainingLoad } from '@/lib/training-metrics'
+import { computeSessionMetrics, getLoadBasedReadiness, summarizeTrainingLoad } from '@/lib/training-metrics'
 import type { FocusArea, PlanInput } from '@/types/domain'
 
 const chartColors = ['#f05a28', '#1f9d55', '#0ea5e9', '#f59e0b', '#ec4899']
 const SESSION_PAGE_SIZE = 20
+
+const startOfDay = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate())
+
+const formatDateForInput = (value: Date) => {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const createPastRange = (days: number) => {
+  const today = startOfDay(new Date())
+  const start = new Date(today)
+  start.setDate(today.getDate() - (days - 1))
+  return { start, end: today }
+}
+
+type DateRangePreset = {
+  label: string
+  getRange: () => { start: Date; end: Date }
+}
+
+const DATE_RANGE_PRESETS: DateRangePreset[] = [
+  {
+    label: 'Today',
+    getRange: () => {
+      const today = startOfDay(new Date())
+      return { start: today, end: today }
+    }
+  },
+  {
+    label: 'Last 7 days',
+    getRange: () => createPastRange(7)
+  },
+  {
+    label: 'Last 30 days',
+    getRange: () => createPastRange(30)
+  },
+  {
+    label: 'Last 90 days',
+    getRange: () => createPastRange(90)
+  },
+  {
+    label: 'This month',
+    getRange: () => {
+      const today = startOfDay(new Date())
+      const start = new Date(today.getFullYear(), today.getMonth(), 1)
+      return { start, end: today }
+    }
+  }
+]
 
 const formatDate = (value: string) => {
   const date = new Date(value)
@@ -107,6 +162,18 @@ type TemplateRow = {
   template_inputs: PlanInput | null
 }
 
+type ReadinessRow = {
+  id: string
+  session_id: string
+  recorded_at: string
+  sleep_quality: number
+  muscle_soreness: number
+  stress_level: number
+  motivation: number
+  readiness_score: number | null
+  readiness_level: 'low' | 'steady' | 'high' | null
+}
+
 export default function ProgressPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -114,12 +181,14 @@ export default function ProgressPage() {
   const setUser = useAuthStore((state) => state.setUser)
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [templates, setTemplates] = useState<TemplateRow[]>([])
+  const [readinessEntries, setReadinessEntries] = useState<ReadinessRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedMuscle, setSelectedMuscle] = useState('all')
   const [selectedExercise, setSelectedExercise] = useState('all')
+  const [activeDatePreset, setActiveDatePreset] = useState<string | null>(null)
   const [deletingSessionIds, setDeletingSessionIds] = useState<Record<string, boolean>>({})
   const [expandedSessions, setExpandedSessions] = useState<Record<string, boolean>>({})
   const [sessionsLoaded, setSessionsLoaded] = useState(false)
@@ -236,6 +305,24 @@ export default function ProgressPage() {
         setSessions(nextSessions)
         setHasMoreSessions(nextSessions.length === SESSION_PAGE_SIZE)
         setSessionsLoaded(true)
+
+        const sessionIds = nextSessions.map((session) => session.id)
+        if (sessionIds.length) {
+          const { data: readinessData, error: readinessError } = await supabase
+            .from('session_readiness')
+            .select(
+              'id, session_id, recorded_at, sleep_quality, muscle_soreness, stress_level, motivation, readiness_score, readiness_level'
+            )
+            .in('session_id', sessionIds)
+            .order('recorded_at', { ascending: false })
+          if (readinessError) {
+            console.error('Failed to load readiness entries', readinessError)
+          } else {
+            setReadinessEntries((readinessData as ReadinessRow[]) ?? [])
+          }
+        } else {
+          setReadinessEntries([])
+        }
       }
       if (templateError) {
         console.error('Failed to load templates', templateError)
@@ -276,6 +363,28 @@ export default function ProgressPage() {
         const nextSessions = (data as SessionRow[]) ?? []
         setSessions((prev) => [...prev, ...nextSessions])
         setHasMoreSessions(nextSessions.length === SESSION_PAGE_SIZE)
+
+        const sessionIds = nextSessions.map((session) => session.id)
+        if (sessionIds.length) {
+          const { data: readinessData, error: readinessError } = await supabase
+            .from('session_readiness')
+            .select(
+              'id, session_id, recorded_at, sleep_quality, muscle_soreness, stress_level, motivation, readiness_score, readiness_level'
+            )
+            .in('session_id', sessionIds)
+            .order('recorded_at', { ascending: false })
+          if (readinessError) {
+            console.error('Failed to load readiness entries', readinessError)
+          } else if (readinessData?.length) {
+            setReadinessEntries((prev) => {
+              const merged = new Map(prev.map((entry) => [entry.session_id, entry]))
+              ;(readinessData as ReadinessRow[]).forEach((entry) => {
+                merged.set(entry.session_id, entry)
+              })
+              return Array.from(merged.values())
+            })
+          }
+        }
       }
       setLoading(false)
     }
@@ -349,6 +458,116 @@ export default function ProgressPage() {
       return true
     })
   }, [sessions, startDate, endDate, selectedExercise, selectedMuscle])
+
+  const readinessBySessionId = useMemo(
+    () => new Map(readinessEntries.map((entry) => [entry.session_id, entry])),
+    [readinessEntries]
+  )
+
+  const readinessSessions = useMemo(() => {
+    return filteredSessions
+      .map((session) => {
+        const entry = readinessBySessionId.get(session.id)
+        if (!entry) return null
+        return { session, entry }
+      })
+      .filter((value): value is { session: SessionRow; entry: ReadinessRow } => Boolean(value))
+  }, [filteredSessions, readinessBySessionId])
+
+  const readinessSeries = useMemo(() => {
+    return readinessSessions
+      .map(({ session, entry }) => {
+        const timestamp = new Date(entry.recorded_at || session.started_at).getTime()
+        return {
+          day: formatDate(session.started_at),
+          timestamp,
+          score: entry.readiness_score,
+          sleep: entry.sleep_quality,
+          soreness: entry.muscle_soreness,
+          stress: entry.stress_level,
+          motivation: entry.motivation
+        }
+      })
+      .sort((a, b) => a.timestamp - b.timestamp)
+  }, [readinessSessions])
+
+  const readinessAverages = useMemo(() => {
+    if (!readinessSessions.length) return null
+    const totals = {
+      sleep: 0,
+      soreness: 0,
+      stress: 0,
+      motivation: 0,
+      score: 0,
+      scoreCount: 0,
+      count: 0
+    }
+    readinessSessions.forEach(({ entry }) => {
+      totals.sleep += entry.sleep_quality
+      totals.soreness += entry.muscle_soreness
+      totals.stress += entry.stress_level
+      totals.motivation += entry.motivation
+      totals.count += 1
+      if (typeof entry.readiness_score === 'number') {
+        totals.score += entry.readiness_score
+        totals.scoreCount += 1
+      }
+    })
+    const divisor = totals.count || 1
+    return {
+      sleep: totals.sleep / divisor,
+      soreness: totals.soreness / divisor,
+      stress: totals.stress / divisor,
+      motivation: totals.motivation / divisor,
+      score: totals.scoreCount ? totals.score / totals.scoreCount : null,
+      count: totals.count
+    }
+  }, [readinessSessions])
+
+  const readinessComponents = useMemo(() => {
+    if (!readinessAverages) return []
+    return [
+      { metric: 'Sleep', value: Number(readinessAverages.sleep.toFixed(1)) },
+      { metric: 'Soreness', value: Number(readinessAverages.soreness.toFixed(1)) },
+      { metric: 'Stress', value: Number(readinessAverages.stress.toFixed(1)) },
+      { metric: 'Motivation', value: Number(readinessAverages.motivation.toFixed(1)) }
+    ]
+  }, [readinessAverages])
+
+  const readinessCorrelation = useMemo(() => {
+    return readinessSessions
+      .map(({ session, entry }) => {
+        const metricSets = session.session_exercises.flatMap((exercise) =>
+          exercise.sets
+            .filter((set) => set.completed !== false)
+            .map((set) => ({
+              reps: set.reps ?? null,
+              weight: set.weight ?? null,
+              weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+              rpe: typeof set.rpe === 'number' ? set.rpe : null,
+              rir: typeof set.rir === 'number' ? set.rir : null,
+              failure: set.failure ?? null,
+              setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
+              performedAt: set.performed_at ?? null,
+              restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+            }))
+        )
+        const metrics = computeSessionMetrics({
+          startedAt: session.started_at,
+          endedAt: session.ended_at,
+          sets: metricSets
+        })
+        return {
+          readiness: entry.readiness_score,
+          effort: metrics.avgEffort,
+          workload: metrics.workload
+        }
+      })
+      .filter(
+        (point): point is { readiness: number; effort: number; workload: number } =>
+          typeof point.readiness === 'number' && typeof point.effort === 'number'
+      )
+  }, [readinessSessions])
 
   const allSets = useMemo(() => {
     return filteredSessions.flatMap((session) =>
@@ -665,6 +884,14 @@ export default function ProgressPage() {
     setEndDate('')
     setSelectedMuscle('all')
     setSelectedExercise('all')
+    setActiveDatePreset(null)
+  }
+
+  const handlePresetClick = (preset: DateRangePreset) => {
+    const { start, end } = preset.getRange()
+    setStartDate(formatDateForInput(start))
+    setEndDate(formatDateForInput(end))
+    setActiveDatePreset(preset.label)
   }
 
   if (userLoading || loading) {
@@ -711,7 +938,10 @@ export default function ProgressPage() {
               <input
                 type="date"
                 value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
+                onChange={(event) => {
+                  setStartDate(event.target.value)
+                  setActiveDatePreset(null)
+                }}
                 className="input-base mt-1"
               />
             </div>
@@ -720,9 +950,28 @@ export default function ProgressPage() {
               <input
                 type="date"
                 value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
+                onChange={(event) => {
+                  setEndDate(event.target.value)
+                  setActiveDatePreset(null)
+                }}
                 className="input-base mt-1"
               />
+            </div>
+            <div className="col-span-full">
+              <p className="text-xs text-subtle mb-2">Preset ranges</p>
+              <div className="flex flex-wrap gap-2">
+                {DATE_RANGE_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.label}
+                    variant={activeDatePreset === preset.label ? 'secondary' : 'outline'}
+                    size="sm"
+                    type="button"
+                    onClick={() => handlePresetClick(preset)}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
             </div>
             <div className="flex flex-col">
               <label className="text-xs text-subtle">Muscle group</label>
@@ -757,7 +1006,7 @@ export default function ProgressPage() {
           </div>
         </Card>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-6">
           <Card className="p-6">
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Consistency</h3>
             <p className="mt-3 text-3xl font-semibold text-strong">{sessionsPerWeek}</p>
@@ -797,6 +1046,15 @@ export default function ProgressPage() {
               ACR {trainingLoadSummary.loadRatio} · {trainingLoadSummary.status.replace('_', ' ')}
             </p>
             <p className="text-xs text-subtle">Readiness: {loadReadiness}</p>
+          </Card>
+          <Card className="p-6">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness Avg</h3>
+            <p className="mt-3 text-3xl font-semibold text-strong">
+              {typeof readinessAverages?.score === 'number' ? Math.round(readinessAverages.score) : 'N/A'}
+            </p>
+            <p className="text-xs text-subtle">
+              {readinessAverages ? `${readinessAverages.count} check(s)` : 'No readiness data yet'}
+            </p>
           </Card>
           <Card className="p-6">
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Total Sessions</h3>
@@ -891,6 +1149,69 @@ export default function ProgressPage() {
             </div>
           </Card>
         </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Card className="p-6 min-w-0">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness score trend</h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
+                <LineChart data={readinessSeries}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
+                  <YAxis domain={[0, 100]} stroke="var(--color-text-subtle)" />
+                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Line type="monotone" dataKey="score" stroke="var(--color-primary)" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="mt-3 text-xs text-subtle">
+              {readinessSeries.length ? 'Higher scores signal stronger recovery capacity.' : 'No readiness data yet.'}
+            </p>
+          </Card>
+
+          <Card className="p-6 min-w-0">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness components</h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
+                <BarChart data={readinessComponents}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis dataKey="metric" stroke="var(--color-text-subtle)" />
+                  <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" />
+                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Bar dataKey="value">
+                    {readinessComponents.map((entry, index) => (
+                      <Cell key={entry.metric} fill={chartColors[index % chartColors.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="mt-3 text-xs text-subtle">
+              Averages over the selected range. Higher soreness and stress signal lower readiness.
+            </p>
+          </Card>
+        </div>
+
+        <Card className="p-6 min-w-0">
+          <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness vs session effort</h3>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
+              <ScatterChart>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="readiness" name="Readiness" domain={[0, 100]} stroke="var(--color-text-subtle)" />
+                <YAxis dataKey="effort" name="Avg effort" domain={[0, 10]} stroke="var(--color-text-subtle)" />
+                <Tooltip
+                  cursor={{ strokeDasharray: '3 3' }}
+                  contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                />
+                <Scatter data={readinessCorrelation} fill="var(--color-primary)" />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="mt-3 text-xs text-subtle">
+            Track how readiness aligns with perceived effort across completed sessions.
+          </p>
+        </Card>
 
         <Card>
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4">

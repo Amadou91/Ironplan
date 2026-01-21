@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Dumbbell, Sparkles, Zap } from 'lucide-react'
+import { Dumbbell, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
@@ -403,8 +403,8 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Card className="p-6 lg:col-span-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-1">
+          <Card className="p-6">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-accent" />
               <h2 className="text-lg font-semibold text-strong">Recommended session</h2>
@@ -467,26 +467,6 @@ export default function DashboardPage() {
             </div>
           </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-accent" />
-              <h2 className="text-lg font-semibold text-strong">Quick actions</h2>
-            </div>
-            <div className="mt-4 space-y-3 text-sm text-muted">
-              <Link href="/generate" className="flex items-center justify-between rounded-xl border border-[var(--color-border)] px-4 py-3">
-                <span>Build a new plan</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link href="/progress" className="flex items-center justify-between rounded-xl border border-[var(--color-border)] px-4 py-3">
-                <span>Review progress</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link href="/profile" className="flex items-center justify-between rounded-xl border border-[var(--color-border)] px-4 py-3">
-                <span>Update profile</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </Card>
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

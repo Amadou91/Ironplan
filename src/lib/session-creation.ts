@@ -3,6 +3,7 @@ import { toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { FocusArea, Goal, MovementPattern, PlanInput, SessionExercise, WorkoutImpact } from '@/types/domain'
+import type { ReadinessLevel, ReadinessSurvey } from '@/lib/training-metrics'
 
 type SessionExerciseSeed = {
   name: string
@@ -22,6 +23,11 @@ type CreateSessionParams = {
   goal: Goal
   input: PlanInput
   minutesAvailable: number
+  readiness: {
+    survey: ReadinessSurvey
+    score: number
+    level: ReadinessLevel
+  }
   sessionNotes?: Record<string, unknown> | string | null
   history?: {
     recentExerciseNames?: string[]
@@ -56,10 +62,14 @@ export const createWorkoutSession = async ({
   goal,
   input,
   minutesAvailable,
+  readiness,
   sessionNotes,
   history,
   nameSuffix
 }: CreateSessionParams): Promise<CreateSessionResult> => {
+  if (!readiness) {
+    throw new Error('Readiness data is required to create a session.')
+  }
   const startedAt = new Date().toISOString()
   const sessionName = buildWorkoutDisplayName({
     focus,
@@ -91,6 +101,19 @@ export const createWorkoutSession = async ({
   }
 
   try {
+    const { error: readinessError } = await supabase.from('session_readiness').insert({
+      session_id: sessionData.id,
+      user_id: userId,
+      recorded_at: startedAt,
+      sleep_quality: readiness.survey.sleep,
+      muscle_soreness: readiness.survey.soreness,
+      stress_level: readiness.survey.stress,
+      motivation: readiness.survey.motivation,
+      readiness_score: readiness.score,
+      readiness_level: readiness.level
+    })
+    if (readinessError) throw readinessError
+
     const exercises = generateSessionExercises(input, focus, minutesAvailable, goal, {
       seed: sessionData.id,
       history
