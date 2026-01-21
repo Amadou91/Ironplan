@@ -37,6 +37,7 @@ create table if not exists public.profiles (
   body_fat_percent numeric(5,2),
   birthdate date,
   sex text,
+  preferences jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -109,6 +110,8 @@ create table if not exists public.sessions (
   minutes_available int,
   generated_exercises jsonb not null default '[]'::jsonb,
   impact jsonb,
+  timezone text,
+  session_notes text,
   created_at timestamptz not null default now()
 );
 

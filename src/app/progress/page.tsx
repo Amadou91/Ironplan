@@ -74,7 +74,6 @@ type SessionRow = {
     primary_muscle: string | null
     secondary_muscles: string[] | null
     order_index: number | null
-    variation: Record<string, string> | null
     sets: Array<{
       id: string
       set_number: number | null
@@ -137,7 +136,7 @@ export default function ProgressPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure))'
+          'id, name, template_id, started_at, ended_at, status, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -178,7 +177,7 @@ export default function ProgressPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure))'
+          'id, name, template_id, started_at, ended_at, status, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -280,7 +279,6 @@ export default function ProgressPage() {
                   exerciseName: exercise.exercise_name,
                   primaryMuscle: exercise.primary_muscle,
                   secondaryMuscles: exercise.secondary_muscles ?? [],
-                  variation: exercise.variation ?? {},
                   ...set
                 }
               ]
@@ -787,9 +785,6 @@ export default function ProgressPage() {
                               <p className="text-sm font-semibold text-strong">{exercise.exercise_name}</p>
                               <p className="text-subtle">Primary: {exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'N/A'}</p>
                               <p className="text-subtle">Secondary: {exercise.secondary_muscles?.length ? exercise.secondary_muscles.map((muscle) => toMuscleLabel(muscle)).join(', ') : 'N/A'}</p>
-                              <p className="text-subtle">Variation: {exercise.variation?.grip || exercise.variation?.stance || exercise.variation?.equipment
-                                ? [exercise.variation?.grip, exercise.variation?.stance, exercise.variation?.equipment].filter(Boolean).join(' · ')
-                                : 'N/A'}</p>
                               <div className="mt-3 space-y-2">
                                 {(exercise.sets ?? []).map((set) => (
                                   <div key={set.id} className="rounded border border-[var(--color-border)] px-2 py-2">

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { buildWorkoutTemplate, normalizePlanInput } from '@/lib/generator'
 import { bandLabels, cloneInventory, equipmentPresets, formatWeightList, machineLabels, parseWeightList } from '@/lib/equipment'
+import { applyPreferencesToPlanInput, normalizePreferences } from '@/lib/preferences'
 import {
   buildWorkoutHistoryEntry,
   loadWorkoutHistory,
@@ -60,6 +61,8 @@ export default function GeneratePage() {
   const [deletingHistoryIds, setDeletingHistoryIds] = useState<Record<string, boolean>>({})
   const [startSessionError, setStartSessionError] = useState<string | null>(null)
   const [startingSessionKey, setStartingSessionKey] = useState<string | null>(null)
+  const [preferencesApplied, setPreferencesApplied] = useState(false)
+  const [hasUserEdits, setHasUserEdits] = useState(false)
   const activeSession = useWorkoutStore((state) => state.activeSession)
 
   const [formData, setFormData] = useState<PlanInput>(() =>
@@ -93,6 +96,7 @@ export default function GeneratePage() {
 
   const updateFormData = (updater: (prev: PlanInput) => PlanInput) => {
     setFormData(prev => updater(prev))
+    setHasUserEdits(true)
     clearFeedback()
   }
 
@@ -297,6 +301,32 @@ export default function GeneratePage() {
 
     syncHistory()
   }, [supabase, user])
+
+  useEffect(() => {
+    if (!user || preferencesApplied || hasUserEdits) return
+    let isMounted = true
+    const loadPreferences = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('preferences')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (error) {
+        console.error('Failed to load preferences for generate flow', error)
+        if (isMounted) setPreferencesApplied(true)
+        return
+      }
+      const normalized = normalizePreferences(data?.preferences)
+      if (isMounted) {
+        setFormData((prev) => applyPreferencesToPlanInput(prev, normalized))
+        setPreferencesApplied(true)
+      }
+    }
+    loadPreferences()
+    return () => {
+      isMounted = false
+    }
+  }, [hasUserEdits, preferencesApplied, supabase, user])
 
   const savePlanToDatabase = async (template: WorkoutTemplateDraft) => {
     const { data: authData, error: authError } = await supabase.auth.getUser()

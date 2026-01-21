@@ -1,21 +1,93 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, Lock, PlugZap, Ruler } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { useUser } from '@/hooks/useUser'
+import { createClient } from '@/lib/supabase/client'
+import { defaultPreferences, normalizePreferences, type SettingsPreferences } from '@/lib/preferences'
 
 export default function SettingsPage() {
   const router = useRouter()
   const { user, loading: userLoading } = useUser()
-  const [unitPreference, setUnitPreference] = useState<'lb' | 'kg'>('lb')
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
-  const [weeklySummary, setWeeklySummary] = useState(true)
-  const [shareProgress, setShareProgress] = useState(false)
+  const supabase = createClient()
+  const [settings, setSettings] = useState<SettingsPreferences>(() => ({
+    ...defaultPreferences.settings!
+  }))
+  const [loadingPrefs, setLoadingPrefs] = useState(true)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [saveError, setSaveError] = useState<string | null>(null)
 
-  if (userLoading) {
+  useEffect(() => {
+    if (!user) {
+      setLoadingPrefs(false)
+      return
+    }
+    let isMounted = true
+    const loadSettings = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('preferences')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (error) {
+        console.error('Failed to load settings preferences', error)
+      }
+      const normalized = normalizePreferences(data?.preferences)
+      if (isMounted && normalized.settings) {
+        setSettings(normalized.settings)
+      }
+      if (isMounted) {
+        setLoadingPrefs(false)
+      }
+    }
+    loadSettings()
+    return () => {
+      isMounted = false
+    }
+  }, [supabase, user])
+
+  const persistSettings = async (next: SettingsPreferences) => {
+    if (!user) return
+    setSaveState('saving')
+    setSaveError(null)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('preferences')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (error) throw error
+      const normalized = normalizePreferences(data?.preferences)
+      const updated = {
+        ...normalized,
+        settings: next
+      }
+      const { error: saveError } = await supabase
+        .from('profiles')
+        .upsert({ id: user.id, preferences: updated }, { onConflict: 'id' })
+      if (saveError) throw saveError
+      setSaveState('saved')
+    } catch (saveError) {
+      console.error('Failed to save settings preferences', saveError)
+      setSaveState('error')
+      setSaveError('Unable to save settings. Please try again.')
+    }
+  }
+
+  const updateSettings = (updater: (prev: SettingsPreferences) => SettingsPreferences) => {
+    setSettings((prev) => {
+      const next = updater(prev)
+      if (!loadingPrefs) {
+        void persistSettings(next)
+      }
+      return next
+    })
+  }
+
+  if (userLoading || loadingPrefs) {
     return <div className="page-shell p-10 text-center text-muted">Loading settings...</div>
   }
 
@@ -37,6 +109,10 @@ export default function SettingsPage() {
           <p className="mt-2 text-sm text-muted">
             Tailor units, notifications, and privacy to match your training style.
           </p>
+          {saveState === 'error' && saveError && (
+            <div className="mt-3 alert-error px-3 py-2 text-xs">{saveError}</div>
+          )}
+          {saveState === 'saved' && <p className="mt-3 text-xs text-muted">Preferences saved.</p>}
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -52,16 +128,26 @@ export default function SettingsPage() {
               <Button
                 type="button"
                 size="sm"
-                variant={unitPreference === 'lb' ? 'primary' : 'secondary'}
-                onClick={() => setUnitPreference('lb')}
+                variant={settings.units === 'lb' ? 'primary' : 'secondary'}
+                onClick={() =>
+                  updateSettings((prev) => ({
+                    ...prev,
+                    units: 'lb'
+                  }))
+                }
               >
                 Pounds (lb)
               </Button>
               <Button
                 type="button"
                 size="sm"
-                variant={unitPreference === 'kg' ? 'primary' : 'secondary'}
-                onClick={() => setUnitPreference('kg')}
+                variant={settings.units === 'kg' ? 'primary' : 'secondary'}
+                onClick={() =>
+                  updateSettings((prev) => ({
+                    ...prev,
+                    units: 'kg'
+                  }))
+                }
               >
                 Kilograms (kg)
               </Button>
@@ -81,16 +167,32 @@ export default function SettingsPage() {
                 <span>Workout reminders</span>
                 <input
                   type="checkbox"
-                  checked={notificationsEnabled}
-                  onChange={(event) => setNotificationsEnabled(event.target.checked)}
+                  checked={settings.notifications.workoutReminders}
+                  onChange={(event) =>
+                    updateSettings((prev) => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        workoutReminders: event.target.checked
+                      }
+                    }))
+                  }
                 />
               </label>
               <label className="flex items-center justify-between rounded-lg border border-[var(--color-border)] px-3 py-2">
                 <span>Weekly progress summary</span>
                 <input
                   type="checkbox"
-                  checked={weeklySummary}
-                  onChange={(event) => setWeeklySummary(event.target.checked)}
+                  checked={settings.notifications.weeklySummary}
+                  onChange={(event) =>
+                    updateSettings((prev) => ({
+                      ...prev,
+                      notifications: {
+                        ...prev.notifications,
+                        weeklySummary: event.target.checked
+                      }
+                    }))
+                  }
                 />
               </label>
             </div>
@@ -109,8 +211,13 @@ export default function SettingsPage() {
                 <span>Share progress with coach</span>
                 <input
                   type="checkbox"
-                  checked={shareProgress}
-                  onChange={(event) => setShareProgress(event.target.checked)}
+                  checked={settings.shareProgress}
+                  onChange={(event) =>
+                    updateSettings((prev) => ({
+                      ...prev,
+                      shareProgress: event.target.checked
+                    }))
+                  }
                 />
               </label>
               <p className="text-xs text-subtle">

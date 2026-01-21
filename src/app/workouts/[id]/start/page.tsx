@@ -85,6 +85,20 @@ export default function WorkoutStartPage() {
     return labels
   }, [template])
 
+  const applyReadinessAdjustments = (input: PlanInput) => {
+    if (readiness === 'steady') return input
+    const intensity = readiness === 'low' ? 'low' : 'high'
+    const restPreference = readiness === 'low' ? 'high_recovery' : 'minimal_rest'
+    return {
+      ...input,
+      intensity,
+      preferences: {
+        ...input.preferences,
+        restPreference
+      }
+    }
+  }
+
   const handleStartSession = async () => {
     if (!template) return
     if (!user) {
@@ -101,9 +115,15 @@ export default function WorkoutStartPage() {
 
     try {
       const normalizedInputs = normalizePlanInput(template.template_inputs ?? {})
+      const tunedInputs = applyReadinessAdjustments(normalizedInputs)
       const history = await fetchTemplateHistory(supabase, template.id)
       const nameSuffix = `${toMuscleLabel(template.focus)} ${template.style.replace('_', ' ')}`
-      const { sessionId, startedAt, sessionName, exercises, impact, timezone, sessionNotes } =
+      const sessionNotes = {
+        readiness,
+        minutesAvailable,
+        source: 'workout_start'
+      }
+      const { sessionId, startedAt, sessionName, exercises, impact, timezone, sessionNotes: storedNotes } =
         await createWorkoutSession({
           supabase,
           userId: user.id,
@@ -111,8 +131,9 @@ export default function WorkoutStartPage() {
           templateTitle: template.title,
           focus: template.focus,
           goal: template.style,
-          input: normalizedInputs,
+          input: tunedInputs,
           minutesAvailable,
+          sessionNotes,
           history,
           nameSuffix
         })
@@ -127,7 +148,7 @@ export default function WorkoutStartPage() {
         impact,
         exercises,
         timezone,
-        sessionNotes
+        sessionNotes: storedNotes
       })
 
       router.push(`/workouts/${template.id}/active?sessionId=${sessionId}&from=start`)
@@ -225,6 +246,11 @@ export default function WorkoutStartPage() {
                       </button>
                     ))}
                   </div>
+                  <p className="mt-2 text-xs text-subtle">
+                    {readiness === 'low' && 'Lower intensity with extra recovery built in.'}
+                    {readiness === 'steady' && 'Balanced intensity and rest.'}
+                    {readiness === 'high' && 'Higher intensity with shorter rest.'}
+                  </p>
                 </div>
               </div>
             </Card>

@@ -29,7 +29,6 @@ type EditableExercise = {
   primaryMuscle: string | null
   secondaryMuscles: string[] | null
   orderIndex: number | null
-  variation: Record<string, string>
   sets: EditableSet[]
 }
 
@@ -58,7 +57,6 @@ type SessionPayload = {
     primary_muscle: string | null
     secondary_muscles: string[] | null
     order_index: number | null
-    variation: Record<string, string> | null
     sets: Array<{
       id: string
       set_number: number | null
@@ -118,7 +116,6 @@ export default function SessionEditPage() {
           primaryMuscle: exercise.primary_muscle,
           secondaryMuscles: exercise.secondary_muscles,
           orderIndex: exercise.order_index ?? index,
-          variation: exercise.variation ?? {},
           sets: (exercise.sets ?? [])
             .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
             .map((set, idx) => ({
@@ -143,7 +140,7 @@ export default function SessionEditPage() {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-        'id, user_id, template_id, name, started_at, ended_at, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+        'id, user_id, template_id, name, started_at, ended_at, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
         )
         .eq('id', params.id)
         .single()
@@ -212,25 +209,6 @@ export default function SessionEditPage() {
 
   const updateSessionName = (value: string) => {
     setSession((prev) => (prev ? { ...prev, name: value } : prev))
-  }
-
-  const updateExerciseVariation = (exerciseId: string, field: keyof EditableExercise['variation'], value: string) => {
-    setSession((prev) => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        exercises: prev.exercises.map((exercise) => {
-          if (exercise.id !== exerciseId) return exercise
-          return {
-            ...exercise,
-            variation: {
-              ...exercise.variation,
-              [field]: value
-            }
-          }
-        })
-      }
-    })
   }
 
   const updateSetField = (
@@ -372,12 +350,6 @@ export default function SessionEditPage() {
       }
 
       for (const exercise of session.exercises) {
-        const { error: exerciseError } = await supabase
-          .from('session_exercises')
-          .update({ variation: exercise.variation ?? {} })
-          .eq('id', exercise.id)
-        if (exerciseError) throw exerciseError
-
         const normalizedSets = exercise.sets.map((set, idx) => ({
           ...set,
           setNumber: idx + 1
@@ -483,36 +455,6 @@ export default function SessionEditPage() {
                     ? ` · Secondary: ${exercise.secondaryMuscles.map((muscle) => toMuscleLabel(muscle)).join(', ')}`
                     : ''}
                 </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div>
-                  <label className="text-[10px] uppercase tracking-wider text-subtle">Grip</label>
-                  <input
-                    type="text"
-                    value={exercise.variation.grip ?? ''}
-                    onChange={(event) => updateExerciseVariation(exercise.id, 'grip', event.target.value)}
-                    className="input-base mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase tracking-wider text-subtle">Stance</label>
-                  <input
-                    type="text"
-                    value={exercise.variation.stance ?? ''}
-                    onChange={(event) => updateExerciseVariation(exercise.id, 'stance', event.target.value)}
-                    className="input-base mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase tracking-wider text-subtle">Equipment</label>
-                  <input
-                    type="text"
-                    value={exercise.variation.equipment ?? ''}
-                    onChange={(event) => updateExerciseVariation(exercise.id, 'equipment', event.target.value)}
-                    className="input-base mt-1"
-                  />
-                </div>
               </div>
 
             <div className="space-y-3">

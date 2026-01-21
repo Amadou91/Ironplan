@@ -45,6 +45,11 @@ type SessionDetail = {
   }>
 }
 
+type SessionNotes = {
+  readiness?: 'low' | 'steady' | 'high'
+  minutesAvailable?: number
+}
+
 const formatDateTime = (value: string) => {
   const date = new Date(value)
   return Number.isNaN(date.getTime())
@@ -62,6 +67,15 @@ const formatDuration = (start?: string | null, end?: string | null) => {
   return `${minutes} min`
 }
 
+const parseSessionNotes = (notes?: string | null): SessionNotes | null => {
+  if (!notes) return null
+  try {
+    return JSON.parse(notes) as SessionNotes
+  } catch {
+    return null
+  }
+}
+
 export default function WorkoutSummaryPage() {
   const params = useParams()
   const router = useRouter()
@@ -74,6 +88,11 @@ export default function WorkoutSummaryPage() {
   const [error, setError] = useState<string | null>(null)
   const [notes, setNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
+
+  const parsedNotes = useMemo(() => parseSessionNotes(session?.session_notes ?? null), [session?.session_notes])
+  const readinessLabel = parsedNotes?.readiness
+    ? `${parsedNotes.readiness.charAt(0).toUpperCase()}${parsedNotes.readiness.slice(1)}`
+    : null
 
   useEffect(() => {
     if (!sessionId) {
@@ -239,6 +258,14 @@ export default function WorkoutSummaryPage() {
             <p className="mt-2 text-sm text-muted">
               {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
             </p>
+            {(readinessLabel || parsedNotes?.minutesAvailable) && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
+                {readinessLabel && <span className="badge-neutral">Readiness: {readinessLabel}</span>}
+                {parsedNotes?.minutesAvailable && (
+                  <span className="badge-neutral">{parsedNotes.minutesAvailable} min plan</span>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/dashboard">

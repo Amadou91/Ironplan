@@ -21,6 +21,7 @@ type CreateSessionParams = {
   goal: Goal
   input: PlanInput
   minutesAvailable: number
+  sessionNotes?: Record<string, unknown> | string | null
   history?: {
     recentExerciseNames?: string[]
     recentMovementPatterns?: MovementPattern[]
@@ -54,12 +55,15 @@ export const createWorkoutSession = async ({
   goal,
   input,
   minutesAvailable,
+  sessionNotes,
   history,
   nameSuffix
 }: CreateSessionParams): Promise<CreateSessionResult> => {
   const startedAt = new Date().toISOString()
   const sessionName = nameSuffix ? `${templateTitle} · ${nameSuffix}` : templateTitle
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? null
+  const serializedNotes =
+    typeof sessionNotes === 'string' ? sessionNotes : sessionNotes ? JSON.stringify(sessionNotes) : null
   const { data: sessionData, error: sessionError } = await supabase
     .from('sessions')
     .insert({
@@ -70,7 +74,7 @@ export const createWorkoutSession = async ({
       status: 'in_progress',
       minutes_available: minutesAvailable,
       timezone,
-      session_notes: null
+      session_notes: serializedNotes
     })
     .select()
     .single()
@@ -95,8 +99,7 @@ export const createWorkoutSession = async ({
         exercise_name: exercise.name,
         primary_muscle: primaryMuscle,
         secondary_muscles: secondaryMuscles,
-        order_index: index,
-        variation: {}
+        order_index: index
       }
     })
 
@@ -106,14 +109,13 @@ export const createWorkoutSession = async ({
       primary_muscle: string | null
       secondary_muscles: string[] | null
       order_index: number | null
-      variation: Record<string, string> | null
     }> = []
 
     if (exercisePayload.length > 0) {
       const { data: insertedExercises, error: exerciseError } = await supabase
         .from('session_exercises')
         .insert(exercisePayload)
-        .select('id, exercise_name, primary_muscle, secondary_muscles, order_index, variation')
+        .select('id, exercise_name, primary_muscle, secondary_muscles, order_index')
         .order('order_index', { ascending: true })
 
       if (exerciseError) throw exerciseError
@@ -126,7 +128,6 @@ export const createWorkoutSession = async ({
       name: exercise.exercise_name,
       primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
       secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
-      variation: exercise.variation ?? {},
       sets: [],
       orderIndex: exercise.order_index ?? idx
     }))
@@ -158,7 +159,7 @@ export const createWorkoutSession = async ({
       exercises: mappedExercises,
       impact,
       timezone,
-      sessionNotes: null
+      sessionNotes: serializedNotes
     }
   } catch (error) {
     await supabase.from('sessions').delete().eq('id', sessionData.id)
