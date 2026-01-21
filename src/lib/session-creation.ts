@@ -1,5 +1,6 @@
 import { generateSessionExercises, calculateExerciseImpact } from '@/lib/generator'
 import { toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { FocusArea, Goal, MovementPattern, PlanInput, SessionExercise, WorkoutImpact } from '@/types/domain'
 
@@ -60,7 +61,13 @@ export const createWorkoutSession = async ({
   nameSuffix
 }: CreateSessionParams): Promise<CreateSessionResult> => {
   const startedAt = new Date().toISOString()
-  const sessionName = nameSuffix ? `${templateTitle} · ${nameSuffix}` : templateTitle
+  const sessionName = buildWorkoutDisplayName({
+    focus,
+    style: goal,
+    intensity: input.intensity,
+    minutes: minutesAvailable,
+    fallback: nameSuffix ? `${templateTitle} · ${nameSuffix}` : templateTitle
+  })
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? null
   const serializedNotes =
     typeof sessionNotes === 'string' ? sessionNotes : sessionNotes ? JSON.stringify(sessionNotes) : null

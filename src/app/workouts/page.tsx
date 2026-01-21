@@ -10,7 +10,8 @@ import { useAuthStore } from '@/store/authStore'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { toMuscleLabel } from '@/lib/muscle-utils'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { summarizeTrainingLoad } from '@/lib/training-metrics'
 import type { FocusArea, PlanInput } from '@/types/domain'
 
 type TemplateRow = {
@@ -34,6 +35,15 @@ type SessionRow = {
     id: string
     sets: Array<{
       id: string
+      reps: number | null
+      weight: number | null
+      rpe: number | null
+      rir: number | null
+      completed: boolean | null
+      weight_unit: string | null
+      failure: boolean | null
+      set_type: string | null
+      rest_seconds_actual: number | null
     }>
   }>
 }
@@ -100,7 +110,7 @@ export default function WorkoutsPage() {
 
       const { data: sessionRows, error: sessionError } = await supabase
         .from('sessions')
-        .select('id, template_id, started_at, ended_at, status, session_exercises(id, sets(id))')
+        .select('id, template_id, started_at, ended_at, status, session_exercises(id, sets(id, reps, weight, rpe, rir, completed, weight_unit, failure, set_type, rest_seconds_actual))')
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
         .limit(80)
@@ -145,7 +155,7 @@ export default function WorkoutsPage() {
       }
       if (now - completedTime <= loadWindow) {
         const sessionSets = session.session_exercises.reduce(
-          (sum, exercise) => sum + (exercise.sets?.length ?? 0),
+          (sum, exercise) => sum + (exercise.sets?.filter((set) => set.completed !== false).length ?? 0),
           0
         )
         entry.sets += sessionSets
@@ -155,6 +165,28 @@ export default function WorkoutsPage() {
 
     return totals
   }, [focusByTemplateId, sessions])
+
+  const trainingLoadSummary = useMemo(() => {
+    const mappedSessions = sessions.map((session) => ({
+      startedAt: session.started_at,
+      endedAt: session.ended_at,
+      sets: session.session_exercises.flatMap((exercise) =>
+        (exercise.sets ?? [])
+          .filter((set) => set.completed !== false)
+          .map((set) => ({
+            reps: set.reps ?? null,
+            weight: set.weight ?? null,
+            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+            rpe: typeof set.rpe === 'number' ? set.rpe : null,
+            rir: typeof set.rir === 'number' ? set.rir : null,
+            failure: set.failure ?? null,
+            setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
+            restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+          }))
+      )
+    }))
+    return summarizeTrainingLoad(mappedSessions)
+  }, [sessions])
 
   const recommendedTemplateId = useMemo(() => {
     if (!templates.length) return null
@@ -180,8 +212,16 @@ export default function WorkoutsPage() {
       const balanceScore = Math.max(0, 6 - recentCount) * 4
       const recoveryScore = Math.min(daysSince, 14) * 3
       const loadPenalty = Math.min(recentSets / 4, 20)
+      const loadStatus = trainingLoadSummary.status
+      const intensityScore = template.intensity === 'high' ? 3 : template.intensity === 'low' ? 1 : 2
+      const loadAdjustment =
+        loadStatus === 'overreaching'
+          ? (intensityScore === 3 ? -6 : intensityScore === 1 ? 4 : 0)
+          : loadStatus === 'undertraining'
+            ? (intensityScore === 3 ? 4 : intensityScore === 1 ? -2 : 0)
+            : 0
       const firstTimeBoost = templateSessions.length === 0 ? 8 : 0
-      const score = balanceScore + recoveryScore + firstTimeBoost - loadPenalty
+      const score = balanceScore + recoveryScore + firstTimeBoost - loadPenalty + loadAdjustment
 
       if (score > bestScore) {
         bestScore = score
@@ -190,11 +230,18 @@ export default function WorkoutsPage() {
     })
 
     return bestId
-  }, [focusByTemplateId, focusStats, templates, sessions])
+  }, [focusByTemplateId, focusStats, templates, sessions, trainingLoadSummary.status])
 
   const handleDeleteTemplate = async (template: TemplateRow) => {
     if (!user) return
-    if (!confirm(`Delete "${template.title}"? This cannot be undone.`)) return
+    const displayTitle = buildWorkoutDisplayName({
+      focus: template.focus,
+      style: template.style,
+      intensity: template.intensity,
+      minutes: template.template_inputs?.time?.minutesPerSession,
+      fallback: template.title
+    })
+    if (!confirm(`Delete "${displayTitle}"? This cannot be undone.`)) return
     setDeletingWorkoutIds((prev) => ({ ...prev, [template.id]: true }))
     try {
       const { error: deleteError } = await supabase
@@ -278,20 +325,26 @@ export default function WorkoutsPage() {
               ) : (
                 templates.map((template) => {
                   const isRecommended = recommendedTemplateId === template.id
+                  const displayTitle = buildWorkoutDisplayName({
+                    focus: template.focus,
+                    style: template.style,
+                    intensity: template.intensity,
+                    minutes: template.template_inputs?.time?.minutesPerSession,
+                    fallback: template.title
+                  })
                   return (
                     <div key={template.id} className="rounded-xl border border-[var(--color-border)] p-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-strong">{template.title}</p>
-                            {isRecommended && <span className="badge-accent">Best for Today</span>}
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-strong">{displayTitle}</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
+                            {isRecommended && (
+                              <span className="badge-accent whitespace-nowrap">Best for Today</span>
+                            )}
+                            <span>Created {formatDate(template.created_at)}</span>
                           </div>
-                          <p className="text-xs text-subtle">
-                            {toMuscleLabel(template.focus)} focus · {template.style.replace('_', ' ')} ·{' '}
-                            {template.intensity} intensity · Created {formatDate(template.created_at)}
-                          </p>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 sm:justify-end">
                           <Link href={`/workouts/${template.id}/start`}>
                             <Button size="sm">Start</Button>
                           </Link>
@@ -320,21 +373,14 @@ export default function WorkoutsPage() {
             <div className="flex items-center gap-3">
               <Sparkles className="h-5 w-5 text-accent" />
               <div>
-                <h2 className="text-lg font-semibold text-strong">Personalized starter</h2>
-                <p className="text-sm text-muted">Short on time? Launch a quick setup and we will tailor the plan.</p>
+                <h2 className="text-lg font-semibold text-strong">Plan builder</h2>
+                <p className="text-sm text-muted">Create a template in a few focused steps.</p>
               </div>
             </div>
             <div className="mt-6 space-y-4 text-sm text-muted">
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
-                <p className="font-semibold text-strong">Onboarding sprint</p>
-                <p className="mt-1 text-xs text-subtle">Answer 6 questions to unlock smarter workouts.</p>
-                <Link href="/onboarding" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-accent">
-                  Start onboarding <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
-                <p className="font-semibold text-strong">Plan builder</p>
-                <p className="mt-1 text-xs text-subtle">Pick goals, equipment, and schedule to generate a template.</p>
+                <p className="font-semibold text-strong">Build a plan</p>
+                <p className="mt-1 text-xs text-subtle">Pick your style, equipment, and schedule to generate a template.</p>
                 <Link href="/generate" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-accent">
                   Build a plan <ArrowRight className="h-4 w-4" />
                 </Link>

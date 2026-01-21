@@ -1,4 +1,5 @@
 import type { WorkoutTemplateDraft } from '@/types/domain'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 
 export type WorkoutHistoryEntry = {
   id: string
@@ -75,7 +76,13 @@ export const removeWorkoutHistoryEntry = (entryId: string, storage?: Storage) =>
 
 export const buildWorkoutHistoryEntry = (template: WorkoutTemplateDraft, remoteId?: string): WorkoutHistoryEntry => ({
   id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-  title: template.title,
+  title: buildWorkoutDisplayName({
+    focus: template.focus,
+    style: template.style,
+    intensity: template.inputs.intensity,
+    minutes: template.inputs.time.minutesPerSession,
+    fallback: template.title
+  }),
   createdAt: new Date().toISOString(),
   template,
   remoteId

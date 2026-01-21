@@ -8,6 +8,7 @@ import { ArrowRight, Loader2, Wand2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { buildWorkoutTemplate, normalizePlanInput } from '@/lib/generator'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { bandLabels, cloneInventory, equipmentPresets, formatWeightList, machineLabels, parseWeightList } from '@/lib/equipment'
 import { applyPreferencesToPlanInput, normalizePreferences } from '@/lib/preferences'
 import {
@@ -36,7 +37,14 @@ const focusOptions: { value: PlanInput['preferences']['focusAreas'][number]; lab
   { value: 'chest', label: 'Chest' },
   { value: 'back', label: 'Back' }
 ]
-const buildWorkoutTitle = (template: WorkoutTemplateDraft) => template.title
+const buildWorkoutTitle = (template: WorkoutTemplateDraft) =>
+  buildWorkoutDisplayName({
+    focus: template.focus,
+    style: template.style,
+    intensity: template.inputs.intensity,
+    minutes: template.inputs.time.minutesPerSession,
+    fallback: template.title
+  })
 
 export default function GeneratePage() {
   const router = useRouter()
@@ -233,7 +241,14 @@ export default function GeneratePage() {
   }
 
   const handleHistoryDelete = async (entry: (typeof historyEntries)[number]) => {
-    if (!confirm(`Delete "${entry.title}" from your saved templates? This cannot be undone.`)) return
+    const entryTitle = buildWorkoutDisplayName({
+      focus: entry.template.focus,
+      style: entry.template.style,
+      intensity: entry.template.inputs.intensity,
+      minutes: entry.template.inputs.time.minutesPerSession,
+      fallback: entry.title
+    })
+    if (!confirm(`Delete "${entryTitle}" from your saved templates? This cannot be undone.`)) return
     if (!user) return
     setHistoryError(null)
     setDeletingHistoryIds(prev => ({ ...prev, [entry.id]: true }))
@@ -336,9 +351,10 @@ export default function GeneratePage() {
       return null
     }
 
+    const displayTitle = buildWorkoutTitle(template)
     const newTemplate = {
       user_id: authUser.id,
-      title: buildWorkoutTitle(template),
+      title: displayTitle,
       description: template.description,
       focus: template.focus,
       style: template.style,
@@ -371,7 +387,7 @@ export default function GeneratePage() {
     if (typeof window !== 'undefined') {
       try {
         const entry = buildWorkoutHistoryEntry(template, data.id)
-        const titledEntry = { ...entry, title: buildWorkoutTitle(template) }
+        const titledEntry = { ...entry, title: displayTitle }
         saveWorkoutHistoryEntry(titledEntry, window.localStorage)
         setHistoryEntries((prev) => [titledEntry, ...prev.filter(item => item.id !== titledEntry.id)])
       } catch (error) {
@@ -382,7 +398,7 @@ export default function GeneratePage() {
 
     return {
       templateId: data.id,
-      title: template.title,
+      title: displayTitle,
       focus: template.focus,
       style: template.style,
       input: template.inputs
@@ -528,7 +544,7 @@ export default function GeneratePage() {
               Generate Workout Plan
             </h1>
             <p className="mt-2 text-muted">
-              Answer each step to create a template that matches your goals, schedule, and preferences.
+              Answer each step to create a template that matches your training style, schedule, and preferences.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -582,42 +598,6 @@ export default function GeneratePage() {
                       {option.label}
                     </option>
                   ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-strong">Experience level</label>
-                <select
-                  value={formData.experienceLevel}
-                  onChange={(e) =>
-                    updateFormData(prev => ({
-                      ...prev,
-                      experienceLevel: e.target.value as PlanInput['experienceLevel']
-                    }))
-                  }
-                  className="input-base"
-                >
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-strong">Intensity</label>
-                <select
-                  value={formData.intensity}
-                  onChange={(e) =>
-                    updateFormData(prev => ({
-                      ...prev,
-                      intensity: e.target.value as PlanInput['intensity']
-                    }))
-                  }
-                  className="input-base"
-                >
-                  <option value="low">Low</option>
-                  <option value="moderate">Moderate</option>
-                  <option value="high">High</option>
                 </select>
               </div>
 
@@ -853,14 +833,6 @@ export default function GeneratePage() {
                     <dd className="text-strong capitalize">{(formData.intent.style ?? formData.goals.primary).replace('_', ' ')}</dd>
                   </div>
                   <div>
-                    <dt className="text-subtle">Experience level</dt>
-                    <dd className="text-strong capitalize">{formData.experienceLevel}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-subtle">Intensity</dt>
-                    <dd className="text-strong capitalize">{formData.intensity}</dd>
-                  </div>
-                  <div>
                     <dt className="text-subtle">Equipment</dt>
                     <dd className="text-strong">{equipmentSummary.length ? equipmentSummary.join(', ') : 'Not set'}</dd>
                   </div>
@@ -918,19 +890,22 @@ export default function GeneratePage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {historyEntries.map(entry => (
+            {historyEntries.map(entry => {
+              const entryTitle = buildWorkoutDisplayName({
+                focus: entry.template.focus,
+                style: entry.template.style,
+                intensity: entry.template.inputs.intensity,
+                minutes: entry.template.inputs.time.minutesPerSession,
+                fallback: entry.title
+              })
+              return (
               <div
                 key={entry.id}
                 className="surface-card-muted flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
-                  <p className="text-sm font-semibold text-strong">{entry.title}</p>
-                  <p className="text-xs text-subtle">
-                    {new Date(entry.createdAt).toLocaleString()} · {entry.template.focus?.replace('_', ' ') ?? 'Focus not set'}
-                  </p>
-                  <p className="mt-1 text-xs text-subtle">
-                    {entry.template.style.replace('_', ' ')} · {entry.template.inputs.experienceLevel} · {entry.template.inputs.intensity}
-                  </p>
+                  <p className="text-sm font-semibold text-strong">{entryTitle}</p>
+                  <p className="text-xs text-subtle">Saved {new Date(entry.createdAt).toLocaleString()}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -965,7 +940,7 @@ export default function GeneratePage() {
                   </Button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         )}
       </Card>

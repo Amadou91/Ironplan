@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { createClient } from '@/lib/supabase/client'
 import { calculateSessionImpactFromSets } from '@/lib/workout-metrics'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import type { FocusArea, PlanInput } from '@/types/domain'
@@ -37,7 +38,13 @@ export default function WorkoutActivePage() {
 
   const sessionId = searchParams.get('sessionId')
   const currentSessionId = activeSession?.id ?? sessionId
-  const sessionTitle = activeSession?.name ?? template?.title ?? 'Active session'
+  const sessionTitle = buildWorkoutDisplayName({
+    focus: template?.focus ?? null,
+    style: template?.style ?? null,
+    intensity: template?.template_inputs?.intensity ?? null,
+    minutes: template?.template_inputs?.time?.minutesPerSession ?? null,
+    fallback: activeSession?.name ?? template?.title ?? 'Active session'
+  })
 
   useEffect(() => {
     const fetchTemplate = async () => {

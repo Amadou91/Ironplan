@@ -10,8 +10,9 @@ import { useAuthStore } from '@/store/authStore'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { toMuscleLabel } from '@/lib/muscle-utils'
-import { aggregateHardSets, computeSetTonnage } from '@/lib/session-metrics'
+import { aggregateHardSets, computeSetLoad, computeSetTonnage } from '@/lib/session-metrics'
+import { getLoadBasedReadiness, summarizeTrainingLoad } from '@/lib/training-metrics'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import type { FocusArea, PlanInput } from '@/types/domain'
 
 type SessionRow = {
@@ -21,6 +22,7 @@ type SessionRow = {
   started_at: string
   ended_at: string | null
   status: string | null
+  minutes_available?: number | null
   timezone?: string | null
   session_exercises: Array<{
     id: string
@@ -37,6 +39,8 @@ type SessionRow = {
       performed_at: string | null
       weight_unit: string | null
       failure: boolean | null
+      set_type: string | null
+      rest_seconds_actual: number | null
     }>
   }>
 }
@@ -111,7 +115,7 @@ export default function DashboardPage() {
           supabase
             .from('sessions')
             .select(
-              'id, name, template_id, started_at, ended_at, status, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure))'
+              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure, set_type, rest_seconds_actual))'
             )
             .eq('user_id', user.id)
             .order('started_at', { ascending: false })
@@ -165,6 +169,8 @@ export default function DashboardPage() {
     refreshStatus()
   }, [activeSession, endSession, supabase, user])
 
+  const templateById = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates])
+
   const focusByTemplateId = useMemo(() => {
     const map = new Map<string, string>()
     templates.forEach((template) => {
@@ -192,7 +198,10 @@ export default function DashboardPage() {
         entry.count += 1
       }
       if (now - completedTime <= loadWindow) {
-        const sessionSets = session.session_exercises.reduce((sum, exercise) => sum + (exercise.sets?.length ?? 0), 0)
+        const sessionSets = session.session_exercises.reduce(
+          (sum, exercise) => sum + (exercise.sets?.filter((set) => set.completed !== false).length ?? 0),
+          0
+        )
         entry.sets += sessionSets
       }
       totals.set(focus, entry)
@@ -200,6 +209,31 @@ export default function DashboardPage() {
 
     return totals
   }, [focusByTemplateId, sessions])
+
+  const trainingLoadSummary = useMemo(() => {
+    const mappedSessions = sessions.map((session) => ({
+      startedAt: session.started_at,
+      endedAt: session.ended_at,
+      sets: session.session_exercises.flatMap((exercise) =>
+        exercise.sets
+          .filter((set) => set.completed !== false)
+          .map((set) => ({
+            reps: set.reps ?? null,
+            weight: set.weight ?? null,
+            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+            rpe: typeof set.rpe === 'number' ? set.rpe : null,
+            rir: typeof set.rir === 'number' ? set.rir : null,
+            failure: set.failure ?? null,
+            setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
+            performedAt: set.performed_at ?? null,
+            restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+          }))
+      )
+    }))
+    return summarizeTrainingLoad(mappedSessions)
+  }, [sessions])
+
+  const loadReadiness = useMemo(() => getLoadBasedReadiness(trainingLoadSummary), [trainingLoadSummary])
 
   const recommendedTemplateId = useMemo(() => {
     if (!templates.length) return null
@@ -225,8 +259,16 @@ export default function DashboardPage() {
       const balanceScore = Math.max(0, 6 - recentCount) * 4
       const recoveryScore = Math.min(daysSince, 14) * 3
       const loadPenalty = Math.min(recentSets / 4, 20)
+      const loadStatus = trainingLoadSummary.status
+      const intensityScore = template.intensity === 'high' ? 3 : template.intensity === 'low' ? 1 : 2
+      const loadAdjustment =
+        loadStatus === 'overreaching'
+          ? (intensityScore === 3 ? -6 : intensityScore === 1 ? 4 : 0)
+          : loadStatus === 'undertraining'
+            ? (intensityScore === 3 ? 4 : intensityScore === 1 ? -2 : 0)
+            : 0
       const firstTimeBoost = templateSessions.length === 0 ? 8 : 0
-      const score = balanceScore + recoveryScore + firstTimeBoost - loadPenalty
+      const score = balanceScore + recoveryScore + firstTimeBoost - loadPenalty + loadAdjustment
 
       if (score > bestScore) {
         bestScore = score
@@ -235,7 +277,7 @@ export default function DashboardPage() {
     })
 
     return bestId
-  }, [focusByTemplateId, focusStats, templates, sessions])
+  }, [focusByTemplateId, focusStats, templates, sessions, trainingLoadSummary.status])
 
   const activeSessionLink = activeSession?.templateId
     ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=dashboard`
@@ -249,6 +291,7 @@ export default function DashboardPage() {
     const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000
     let tonnage = 0
     let hardSets = 0
+    let workload = 0
     sessions.forEach((session) => {
       const completedAt = session.ended_at ?? session.started_at
       const completedTime = completedAt ? new Date(completedAt).getTime() : 0
@@ -261,6 +304,16 @@ export default function DashboardPage() {
             weight: set.weight ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
           })
+          workload += computeSetLoad({
+            reps: set.reps ?? null,
+            weight: set.weight ?? null,
+            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+            rpe: typeof set.rpe === 'number' ? set.rpe : null,
+            rir: typeof set.rir === 'number' ? set.rir : null,
+            failure: set.failure ?? null,
+            setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
+            restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+          })
           hardSets += aggregateHardSets([
             {
               reps: set.reps ?? null,
@@ -268,7 +321,9 @@ export default function DashboardPage() {
               weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
               rpe: typeof set.rpe === 'number' ? set.rpe : null,
               rir: typeof set.rir === 'number' ? set.rir : null,
-              failure: set.failure ?? null
+              failure: set.failure ?? null,
+              setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
+              restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
             }
           ])
         })
@@ -276,13 +331,20 @@ export default function DashboardPage() {
     })
     return {
       tonnage: Math.round(tonnage),
-      hardSets
+      hardSets,
+      workload: Math.round(workload)
     }
   }, [sessions])
 
   const coachInsight = useMemo(() => {
     if (!sessions.length) {
       return 'Start your first session to unlock personalized coaching insights.'
+    }
+    if (trainingLoadSummary.status === 'overreaching') {
+      return 'Training load is trending high. Prioritize a lighter session or extra recovery.'
+    }
+    if (trainingLoadSummary.status === 'undertraining') {
+      return 'Load is lighter than usual. Consider a stronger session to drive progress.'
     }
     if (weeklyVolume.hardSets === 0) {
       return 'Log at least one working set this week to keep momentum.'
@@ -294,7 +356,7 @@ export default function DashboardPage() {
       return 'High training load this week. Consider a lighter recovery session next.'
     }
     return 'Strong week so far. Keep your next session focused and controlled.'
-  }, [sessions.length, weeklyVolume.hardSets])
+  }, [sessions.length, trainingLoadSummary.status, weeklyVolume.hardSets])
 
   if (userLoading || loading) {
     return <div className="page-shell p-10 text-center text-muted">Loading today...</div>
@@ -351,10 +413,17 @@ export default function DashboardPage() {
               <div className="mt-4 rounded-xl border border-[var(--color-border)] p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-strong">{recommendedTemplate.title}</p>
+                    <p className="text-sm font-semibold text-strong">
+                      {buildWorkoutDisplayName({
+                        focus: recommendedTemplate.focus,
+                        style: recommendedTemplate.style,
+                        intensity: recommendedTemplate.intensity,
+                        minutes: recommendedTemplate.template_inputs?.time?.minutesPerSession ?? null,
+                        fallback: recommendedTemplate.title
+                      })}
+                    </p>
                     <p className="text-xs text-subtle">
-                      {toMuscleLabel(recommendedTemplate.focus)} focus · {recommendedTemplate.style.replace('_', ' ')} ·{' '}
-                      {recommendedTemplate.intensity} intensity
+                      Created {formatDateTime(recommendedTemplate.created_at)}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -372,16 +441,24 @@ export default function DashboardPage() {
                 Build your first plan to unlock recommendations.
               </div>
             )}
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <div className="rounded-xl border border-[var(--color-border)] p-4">
                 <p className="text-xs text-subtle">Weekly volume</p>
                 <p className="mt-2 text-2xl font-semibold text-strong">{weeklyVolume.tonnage}</p>
-                <p className="text-xs text-subtle">{weeklyVolume.hardSets} hard sets logged</p>
+                <p className="text-xs text-subtle">{weeklyVolume.hardSets} hard sets · {weeklyVolume.workload} workload</p>
               </div>
               <div className="rounded-xl border border-[var(--color-border)] p-4">
                 <p className="text-xs text-subtle">Recent sessions</p>
                 <p className="mt-2 text-2xl font-semibold text-strong">{sessions.length}</p>
                 <p className="text-xs text-subtle">sessions logged recently</p>
+              </div>
+              <div className="rounded-xl border border-[var(--color-border)] p-4">
+                <p className="text-xs text-subtle">Training load</p>
+                <p className="mt-2 text-2xl font-semibold text-strong">{trainingLoadSummary.acuteLoad}</p>
+                <p className="text-xs text-subtle">
+                  ACR {trainingLoadSummary.loadRatio} · {trainingLoadSummary.status.replace('_', ' ')}
+                </p>
+                <p className="text-xs text-subtle">Readiness: {loadReadiness}</p>
               </div>
             </div>
             <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 text-sm text-muted">
@@ -424,21 +501,31 @@ export default function DashboardPage() {
                   No sessions logged yet. Start a workout to begin tracking.
                 </div>
               ) : (
-                recentSessions.map((session) => (
-                  <div key={session.id} className="rounded-xl border border-[var(--color-border)] p-4">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-strong">{session.name}</p>
-                        <p className="text-xs text-subtle">
-                          {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
-                        </p>
+                recentSessions.map((session) => {
+                  const template = session.template_id ? templateById.get(session.template_id) : null
+                  const sessionTitle = buildWorkoutDisplayName({
+                    focus: template?.focus ?? null,
+                    style: template?.style ?? null,
+                    intensity: template?.intensity ?? null,
+                    minutes: session.minutes_available ?? template?.template_inputs?.time?.minutesPerSession ?? null,
+                    fallback: session.name
+                  })
+                  return (
+                    <div key={session.id} className="rounded-xl border border-[var(--color-border)] p-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-strong">{sessionTitle}</p>
+                          <p className="text-xs text-subtle">
+                            {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
+                          </p>
+                        </div>
+                        <Link href={`/sessions/${session.id}/edit`}>
+                          <Button size="sm" variant="secondary">Review</Button>
+                        </Link>
                       </div>
-                      <Link href={`/sessions/${session.id}/edit`}>
-                        <Button size="sm" variant="secondary">Review</Button>
-                      </Link>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </Card>
@@ -450,7 +537,13 @@ export default function DashboardPage() {
             </p>
             {recommendedTemplate ? (
               <Link href={`/workouts/${recommendedTemplate.id}/start`} className="mt-4 inline-flex text-sm font-semibold text-accent">
-                Start {recommendedTemplate.title}
+                Start {buildWorkoutDisplayName({
+                  focus: recommendedTemplate.focus,
+                  style: recommendedTemplate.style,
+                  intensity: recommendedTemplate.intensity,
+                  minutes: recommendedTemplate.template_inputs?.time?.minutesPerSession ?? null,
+                  fallback: recommendedTemplate.title
+                })}
               </Link>
             ) : (
               <Link href="/generate" className="mt-4 inline-flex text-sm font-semibold text-accent">

@@ -22,11 +22,13 @@ import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import {
   aggregateBestE1rm,
   aggregateHardSets,
   aggregateTonnage,
   computeSetE1rm,
+  computeSetLoad,
   computeSetTonnage,
   computeWeeklyVolumeByMuscleGroup,
   E1RM_FORMULA_VERSION,
@@ -34,6 +36,8 @@ import {
   getWeekKey,
   toWeightInPounds
 } from '@/lib/session-metrics'
+import { getLoadBasedReadiness, summarizeTrainingLoad } from '@/lib/training-metrics'
+import type { FocusArea, PlanInput } from '@/types/domain'
 
 const chartColors = ['#f05a28', '#1f9d55', '#0ea5e9', '#f59e0b', '#ec4899']
 const SESSION_PAGE_SIZE = 20
@@ -67,6 +71,7 @@ type SessionRow = {
   started_at: string
   ended_at: string | null
   status: string | null
+  minutes_available?: number | null
   timezone?: string | null
   session_exercises: Array<{
     id: string
@@ -85,8 +90,21 @@ type SessionRow = {
       performed_at: string | null
       weight_unit: string | null
       failure: boolean | null
+      set_type: string | null
+      rest_seconds_actual: number | null
+      pain_score: number | null
+      pain_area: string | null
     }>
   }>
+}
+
+type TemplateRow = {
+  id: string
+  title: string
+  focus: FocusArea
+  style: PlanInput['goals']['primary']
+  intensity: PlanInput['intensity']
+  template_inputs: PlanInput | null
 }
 
 export default function ProgressPage() {
@@ -95,6 +113,7 @@ export default function ProgressPage() {
   const { user, loading: userLoading } = useUser()
   const setUser = useAuthStore((state) => state.setUser)
   const [sessions, setSessions] = useState<SessionRow[]>([])
+  const [templates, setTemplates] = useState<TemplateRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [startDate, setStartDate] = useState('')
@@ -107,6 +126,23 @@ export default function ProgressPage() {
   const [sessionPage, setSessionPage] = useState(0)
   const [hasMoreSessions, setHasMoreSessions] = useState(true)
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null)
+  const [creatingManualSession, setCreatingManualSession] = useState(false)
+
+  const templateById = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates])
+
+  const getSessionTitle = useCallback(
+    (session: SessionRow) => {
+      const template = session.template_id ? templateById.get(session.template_id) : null
+      return buildWorkoutDisplayName({
+        focus: template?.focus ?? null,
+        style: template?.style ?? null,
+        intensity: template?.intensity ?? null,
+        minutes: session.minutes_available ?? template?.template_inputs?.time?.minutesPerSession ?? null,
+        fallback: session.name
+      })
+    },
+    [templateById]
+  )
 
   const ensureSession = useCallback(async () => {
     const { data, error: sessionError } = await supabase.auth.getSession()
@@ -117,6 +153,44 @@ export default function ProgressPage() {
     }
     return data.session
   }, [setUser, supabase])
+
+  const handleCreateManualSession = useCallback(async () => {
+    setCreatingManualSession(true)
+    setError(null)
+    const session = await ensureSession()
+    if (!session) {
+      setCreatingManualSession(false)
+      return
+    }
+
+    try {
+      const now = new Date()
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? null
+      const { data, error: insertError } = await supabase
+        .from('sessions')
+        .insert({
+          user_id: session.user.id,
+          name: 'Manual workout',
+          status: 'completed',
+          started_at: now.toISOString(),
+          ended_at: now.toISOString(),
+          timezone
+        })
+        .select('id')
+        .single()
+
+      if (insertError || !data) {
+        throw insertError ?? new Error('Failed to create manual session.')
+      }
+
+      router.push(`/sessions/${data.id}/edit`)
+    } catch (error) {
+      console.error('Failed to create manual session', error)
+      setError('Unable to create a manual session. Please try again.')
+    } finally {
+      setCreatingManualSession(false)
+    }
+  }, [ensureSession, router, supabase])
 
   useEffect(() => {
     if (userLoading) return
@@ -133,14 +207,21 @@ export default function ProgressPage() {
       setLoading(true)
       setError(null)
 
-      const { data, error: fetchError } = await supabase
-        .from('sessions')
-        .select(
-          'id, name, template_id, started_at, ended_at, status, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure))'
-        )
-        .eq('user_id', user.id)
-        .order('started_at', { ascending: false })
-        .range(0, SESSION_PAGE_SIZE - 1)
+      const [{ data: sessionData, error: fetchError }, { data: templateData, error: templateError }] =
+        await Promise.all([
+          supabase
+            .from('sessions')
+            .select(
+              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure, set_type, rest_seconds_actual, pain_score, pain_area))'
+            )
+            .eq('user_id', user.id)
+            .order('started_at', { ascending: false })
+            .range(0, SESSION_PAGE_SIZE - 1),
+          supabase
+            .from('workout_templates')
+            .select('id, title, focus, style, intensity, template_inputs')
+            .eq('user_id', user.id)
+        ])
 
       if (fetchError) {
         console.error('Failed to load sessions', fetchError)
@@ -151,10 +232,15 @@ export default function ProgressPage() {
           setError('Unable to load sessions. Please try again.')
         }
       } else {
-        const nextSessions = (data as SessionRow[]) ?? []
+        const nextSessions = (sessionData as SessionRow[]) ?? []
         setSessions(nextSessions)
         setHasMoreSessions(nextSessions.length === SESSION_PAGE_SIZE)
         setSessionsLoaded(true)
+      }
+      if (templateError) {
+        console.error('Failed to load templates', templateError)
+      } else {
+        setTemplates((templateData as TemplateRow[]) ?? [])
       }
       setLoading(false)
     }
@@ -177,7 +263,7 @@ export default function ProgressPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure))'
+          'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure, set_type, rest_seconds_actual, pain_score, pain_area))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -273,7 +359,7 @@ export default function ProgressPage() {
             : [
                 {
                   sessionId: session.id,
-                  sessionName: session.name,
+                  sessionName: getSessionTitle(session),
                   startedAt: session.started_at,
                   endedAt: session.ended_at,
                   exerciseName: exercise.exercise_name,
@@ -285,10 +371,10 @@ export default function ProgressPage() {
         )
       )
     )
-  }, [filteredSessions])
+  }, [filteredSessions, getSessionTitle])
 
   const volumeTrend = useMemo(() => {
-    const totals = new Map<string, number>()
+    const totals = new Map<string, { volume: number; load: number }>()
     allSets.forEach((set) => {
       const key = getWeekKey(set.performed_at ?? set.startedAt)
       const tonnage = computeSetTonnage({
@@ -296,12 +382,25 @@ export default function ProgressPage() {
         weight: set.weight ?? null,
         weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
       })
-      if (!tonnage) return
-      totals.set(key, (totals.get(key) ?? 0) + tonnage)
+      const load = computeSetLoad({
+        reps: set.reps ?? null,
+        weight: set.weight ?? null,
+        weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+        rpe: typeof set.rpe === 'number' ? set.rpe : null,
+        rir: typeof set.rir === 'number' ? set.rir : null,
+        failure: set.failure ?? null,
+        setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
+        restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+      })
+      if (!tonnage && !load) return
+      const entry = totals.get(key) ?? { volume: 0, load: 0 }
+      entry.volume += tonnage
+      entry.load += load
+      totals.set(key, entry)
     })
     return Array.from(totals.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([week, volume]) => ({ week, volume: Math.round(volume) }))
+      .map(([week, values]) => ({ week, volume: Math.round(values.volume), load: Math.round(values.load) }))
   }, [allSets])
 
   const effortTrend = useMemo(() => {
@@ -391,12 +490,26 @@ export default function ProgressPage() {
       weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
       rpe: typeof set.rpe === 'number' ? set.rpe : null,
       rir: typeof set.rir === 'number' ? set.rir : null,
-      failure: set.failure ?? null
+      failure: set.failure ?? null,
+      setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
+      restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
     }))
+    const effortTotals = metricSets.reduce(
+      (acc, set) => {
+        const effort = getEffortScore({ rpe: set.rpe, rir: set.rir })
+        if (typeof effort !== 'number') return acc
+        acc.total += effort
+        acc.count += 1
+        return acc
+      },
+      { total: 0, count: 0 }
+    )
     return {
       tonnage: Math.round(aggregateTonnage(metricSets)),
       hardSets: aggregateHardSets(metricSets),
-      bestE1rm: Math.round(aggregateBestE1rm(metricSets))
+      bestE1rm: Math.round(aggregateBestE1rm(metricSets)),
+      workload: Math.round(metricSets.reduce((sum, set) => sum + computeSetLoad(set), 0)),
+      avgEffort: effortTotals.count ? Number((effortTotals.total / effortTotals.count).toFixed(1)) : null
     }
   }, [allSets])
 
@@ -408,6 +521,31 @@ export default function ProgressPage() {
       maxWeightRatio: prMetrics.maxWeight / profileWeightLb
     }
   }, [aggregateMetrics, prMetrics, profileWeightLb])
+
+  const trainingLoadSummary = useMemo(() => {
+    const mappedSessions = filteredSessions.map((session) => ({
+      startedAt: session.started_at,
+      endedAt: session.ended_at,
+      sets: session.session_exercises.flatMap((exercise) =>
+        (exercise.sets ?? [])
+          .filter((set) => set.completed !== false)
+          .map((set) => ({
+            reps: set.reps ?? null,
+            weight: set.weight ?? null,
+            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+            rpe: typeof set.rpe === 'number' ? set.rpe : null,
+            rir: typeof set.rir === 'number' ? set.rir : null,
+            failure: set.failure ?? null,
+            setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
+            performedAt: set.performed_at ?? null,
+            restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+          }))
+      )
+    }))
+    return summarizeTrainingLoad(mappedSessions)
+  }, [filteredSessions])
+
+  const loadReadiness = useMemo(() => getLoadBasedReadiness(trainingLoadSummary), [trainingLoadSummary])
 
   const weeklyVolumeByMuscle = useMemo(() => {
     const mappedSessions = filteredSessions.map((session) => ({
@@ -450,7 +588,8 @@ export default function ProgressPage() {
       reps: 0,
       volume: 0,
       hardSets: 0,
-      bestE1rm: 0
+      bestE1rm: 0,
+      workload: 0
     }
     session.session_exercises.forEach((exercise) => {
       exercise.sets.forEach((set) => {
@@ -471,9 +610,21 @@ export default function ProgressPage() {
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
             rpe: typeof set.rpe === 'number' ? set.rpe : null,
             rir: typeof set.rir === 'number' ? set.rir : null,
-            failure: set.failure ?? null
+            failure: set.failure ?? null,
+            setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
+            restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
           }
         ])
+        totals.workload += computeSetLoad({
+          reps: set.reps ?? null,
+          weight: set.weight ?? null,
+          weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+          rpe: typeof set.rpe === 'number' ? set.rpe : null,
+          rir: typeof set.rir === 'number' ? set.rir : null,
+          failure: set.failure ?? null,
+          setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
+          restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+        })
         totals.bestE1rm = Math.max(
           totals.bestE1rm,
           computeSetE1rm({
@@ -540,9 +691,14 @@ export default function ProgressPage() {
               Monitor training volume, intensity, and patterns across sessions.
             </p>
           </div>
-          <Button variant="secondary" size="sm" onClick={handleResetFilters}>
-            Reset filters
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleCreateManualSession} disabled={creatingManualSession}>
+              {creatingManualSession ? 'Creating...' : 'Log past workout'}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleResetFilters}>
+              Reset filters
+            </Button>
+          </div>
         </div>
 
         {error && <div className="alert-error p-4 text-sm">{error}</div>}
@@ -601,7 +757,7 @@ export default function ProgressPage() {
           </div>
         </Card>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
           <Card className="p-6">
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Consistency</h3>
             <p className="mt-3 text-3xl font-semibold text-strong">{sessionsPerWeek}</p>
@@ -627,10 +783,20 @@ export default function ProgressPage() {
               <p>Total tonnage: <span className="text-strong">{aggregateMetrics.tonnage}</span></p>
               <p>Hard sets: <span className="text-strong">{aggregateMetrics.hardSets}</span></p>
               <p>Best e1RM: <span className="text-strong">{aggregateMetrics.bestE1rm}</span></p>
+              <p>Workload: <span className="text-strong">{aggregateMetrics.workload}</span></p>
+              <p>Avg effort: <span className="text-strong">{aggregateMetrics.avgEffort ?? 'N/A'}</span></p>
               {relativeMetrics && (
                 <p>Tonnage / bodyweight: <span className="text-strong">{relativeMetrics.tonnagePerBodyweight.toFixed(1)}</span></p>
               )}
             </div>
+          </Card>
+          <Card className="p-6">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Training Load</h3>
+            <p className="mt-3 text-3xl font-semibold text-strong">{trainingLoadSummary.acuteLoad}</p>
+            <p className="text-xs text-subtle">
+              ACR {trainingLoadSummary.loadRatio} · {trainingLoadSummary.status.replace('_', ' ')}
+            </p>
+            <p className="text-xs text-subtle">Readiness: {loadReadiness}</p>
           </Card>
           <Card className="p-6">
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Total Sessions</h3>
@@ -641,7 +807,7 @@ export default function ProgressPage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card className="p-6 min-w-0">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Volume by week</h3>
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Volume & load by week</h3>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <LineChart data={volumeTrend}>
@@ -649,10 +815,15 @@ export default function ProgressPage() {
                   <XAxis dataKey="week" stroke="var(--color-text-subtle)" />
                   <YAxis stroke="var(--color-text-subtle)" />
                   <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Legend />
                   <Line type="monotone" dataKey="volume" stroke="var(--color-primary)" strokeWidth={2} />
+                  <Line type="monotone" dataKey="load" stroke="var(--color-warning)" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            <p className="mt-3 text-xs text-subtle">
+              Latest load: {trainingLoadSummary.weeklyLoadTrend.at(-1)?.load ?? 'N/A'}
+            </p>
           </Card>
 
           <Card className="p-6 min-w-0">
@@ -740,7 +911,7 @@ export default function ProgressPage() {
                   <div key={session.id} className="space-y-4 p-6">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-strong">{session.name}</p>
+                        <p className="text-sm font-semibold text-strong">{getSessionTitle(session)}</p>
                         <p className="text-xs text-subtle">
                           {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
                           {session.timezone ? ` · ${session.timezone}` : ''}
@@ -751,6 +922,7 @@ export default function ProgressPage() {
                         <span className="badge-neutral px-3 py-1">{totals.sets} sets</span>
                         <span className="badge-neutral px-3 py-1">{totals.reps} reps</span>
                         <span className="badge-neutral px-3 py-1">{Math.round(totals.volume)} tonnage</span>
+                        <span className="badge-neutral px-3 py-1">{Math.round(totals.workload)} workload</span>
                         <span className="badge-neutral px-3 py-1">{totals.hardSets} hard sets</span>
                         <span className="badge-neutral px-3 py-1">{Math.round(totals.bestE1rm)} e1RM</span>
                       </div>

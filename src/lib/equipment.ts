@@ -1,8 +1,10 @@
-import type { BandResistance, EquipmentInventory, EquipmentOption, EquipmentPreset, MachineType } from '@/types/domain'
+import type { BandResistance, EquipmentInventory, EquipmentOption, EquipmentPreset, MachineType, WeightUnit } from '@/types/domain'
+import { convertWeight, roundWeight } from '@/lib/units'
 
 export type WeightOption = {
   value: number
   label: string
+  unit?: WeightUnit
 }
 
 export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
@@ -135,43 +137,69 @@ const buildBarbellLoadOptions = (inventory: EquipmentInventory) => {
 export const buildWeightOptions = (
   inventory: EquipmentInventory,
   equipmentOptions: EquipmentOption[],
-  profileWeightLb?: number | null
+  profileWeightLb?: number | null,
+  preferredUnit: WeightUnit = 'lb'
 ) => {
   const availableOptions = equipmentOptions.filter((option) => isEquipmentOptionAvailable(inventory, option))
   if (!availableOptions.length) return []
   const kindCount = new Set(availableOptions.map((option) => option.kind)).size
   const showKindLabel = kindCount > 1
   const options: WeightOption[] = []
+  const toPreferred = (value: number) => roundWeight(convertWeight(value, 'lb', preferredUnit))
+  const unitLabel = preferredUnit
 
   availableOptions.forEach((option) => {
     switch (option.kind) {
       case 'dumbbell':
         inventory.dumbbells.forEach((weight) => {
-          options.push({ value: weight, label: showKindLabel ? `${weight} lb dumbbell` : `${weight} lb` })
+          const converted = toPreferred(weight)
+          options.push({
+            value: converted,
+            unit: preferredUnit,
+            label: showKindLabel ? `${converted} ${unitLabel} dumbbell` : `${converted} ${unitLabel}`
+          })
         })
         break
       case 'kettlebell':
         inventory.kettlebells.forEach((weight) => {
-          options.push({ value: weight, label: showKindLabel ? `${weight} lb kettlebell` : `${weight} lb` })
+          const converted = toPreferred(weight)
+          options.push({
+            value: converted,
+            unit: preferredUnit,
+            label: showKindLabel ? `${converted} ${unitLabel} kettlebell` : `${converted} ${unitLabel}`
+          })
         })
         break
       case 'barbell':
-        options.push(...buildBarbellLoadOptions(inventory))
+        buildBarbellLoadOptions(inventory).forEach((option) => {
+          const converted = toPreferred(option.value)
+          options.push({
+            value: converted,
+            unit: preferredUnit,
+            label: showKindLabel ? `${converted} ${unitLabel} barbell` : `${converted} ${unitLabel}`
+          })
+        })
         break
       case 'band':
         inventory.bands.forEach((band) => {
           const value = bandLoadMap[band] ?? 10
+          const converted = toPreferred(value)
           options.push({
-            value,
-            label: showKindLabel ? `${bandLabels[band]} band (~${value} lb)` : `${bandLabels[band]} band`
+            value: converted,
+            unit: preferredUnit,
+            label: showKindLabel
+              ? `${bandLabels[band]} band (~${converted} ${unitLabel})`
+              : `${bandLabels[band]} band`
           })
         })
         break
       case 'bodyweight':
         if (typeof profileWeightLb === 'number' && Number.isFinite(profileWeightLb) && profileWeightLb > 0) {
+          const converted = toPreferred(profileWeightLb)
           options.push({
-            value: profileWeightLb,
-            label: showKindLabel ? `Bodyweight (${profileWeightLb} lb)` : `Bodyweight (${profileWeightLb} lb)`
+            value: converted,
+            unit: preferredUnit,
+            label: showKindLabel ? `Bodyweight (${converted} ${unitLabel})` : `Bodyweight (${converted} ${unitLabel})`
           })
         }
         break

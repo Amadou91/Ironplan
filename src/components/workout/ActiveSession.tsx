@@ -5,10 +5,12 @@ import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { createClient } from '@/lib/supabase/client';
 import { SetLogger } from './SetLogger';
 import { Plus, Clock } from 'lucide-react';
-import type { EquipmentInventory, SessionExercise, WorkoutImpact, WorkoutSession, WorkoutSet } from '@/types/domain';
+import type { EquipmentInventory, Intensity, SessionExercise, WeightUnit, WorkoutImpact, WorkoutSession, WorkoutSet } from '@/types/domain';
 import { enhanceExerciseData, toMuscleLabel } from '@/lib/muscle-utils';
 import { EXERCISE_LIBRARY } from '@/lib/generator';
 import { buildWeightOptions, equipmentPresets } from '@/lib/equipment';
+import { normalizePreferences } from '@/lib/preferences';
+import type { ReadinessSurvey } from '@/lib/training-metrics';
 
 type ActiveSessionProps = {
   sessionId?: string | null;
@@ -43,17 +45,27 @@ type SessionPayload = {
       performed_at: string | null;
       weight_unit: string | null;
       failure: boolean | null;
+      set_type: string | null;
+      rest_seconds_actual: number | null;
+      pain_score: number | null;
+      pain_area: string | null;
     }>;
   }>;
 };
 
 type GeneratedExerciseTarget = {
   name?: string;
+  sets?: number;
+  reps?: string | number;
+  rpe?: number;
   restSeconds?: number;
 };
 
 type SessionNotes = {
+  sessionIntensity?: Intensity;
   readiness?: 'low' | 'steady' | 'high';
+  readinessScore?: number;
+  readinessSurvey?: ReadinessSurvey;
   minutesAvailable?: number;
   source?: string;
 };
@@ -74,11 +86,28 @@ const formatRestTime = (seconds: number) => {
   return `${minutes}:${remaining.toString().padStart(2, '0')}`;
 };
 
+const formatSessionIntensity = (intensity?: Intensity | null) => {
+  if (!intensity) return null;
+  if (intensity === 'low') return 'Ease in';
+  if (intensity === 'high') return 'Push';
+  return 'Steady';
+};
+
+const getSessionIntensity = (notes?: SessionNotes | null): Intensity | null => {
+  if (!notes) return null;
+  if (notes.sessionIntensity) return notes.sessionIntensity;
+  if (!notes.readiness) return null;
+  if (notes.readiness === 'low') return 'low';
+  if (notes.readiness === 'high') return 'high';
+  return 'moderate';
+};
+
 export default function ActiveSession({ sessionId, equipmentInventory }: ActiveSessionProps) {
   const { activeSession, addSet, removeSet, updateSet, startSession } = useWorkoutStore();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null);
-  const [restTargets, setRestTargets] = useState<Record<string, number>>({});
+  const [preferredUnit, setPreferredUnit] = useState<WeightUnit>('lb');
+  const [exerciseTargets, setExerciseTargets] = useState<Record<string, GeneratedExerciseTarget>>({});
   const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; label: string } | null>(null);
   const restIntervalRef = useRef<number | null>(null);
   const supabase = createClient();
@@ -131,8 +160,12 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
               rir: set.rir ?? '',
               performedAt: set.performed_at ?? undefined,
               completed: set.completed ?? false,
-              weightUnit: set.weight_unit ?? 'lb',
-              failure: set.failure ?? false
+              weightUnit: set.weight_unit === 'kg' ? 'kg' : 'lb',
+              failure: set.failure ?? false,
+              setType: (set.set_type as WorkoutSet['setType']) ?? 'working',
+              restSecondsActual: set.rest_seconds_actual ?? '',
+              painScore: set.pain_score ?? '',
+              painArea: set.pain_area ?? ''
             }))
         }))
     };
@@ -144,7 +177,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
       const { data, error } = await supabase
         .from('sessions')
         .select(
-          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure))'
+          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure, set_type, rest_seconds_actual, pain_score, pain_area))'
         )
         .eq('id', sessionId)
         .single();
@@ -168,7 +201,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
     const loadProfileWeight = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('weight_lb')
+        .select('weight_lb, preferences')
         .eq('id', activeSession.userId)
         .maybeSingle();
       if (error) {
@@ -176,6 +209,8 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
         return;
       }
       setProfileWeightLb(typeof data?.weight_lb === 'number' ? data.weight_lb : null);
+      const normalized = normalizePreferences(data?.preferences);
+      setPreferredUnit(normalized.settings?.units ?? 'lb');
     };
     loadProfileWeight();
   }, [activeSession?.userId, supabase]);
@@ -184,10 +219,10 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
     if (!activeSession?.id) return;
     let isMounted = true;
 
-    const loadRestTargets = async () => {
+    const loadTargets = async () => {
       const exerciseNames = activeSession.exercises.map((exercise) => exercise.name);
       if (!exerciseNames.length) {
-        if (isMounted) setRestTargets({});
+        if (isMounted) setExerciseTargets({});
         return;
       }
 
@@ -210,7 +245,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
           .filter(([key]) => Boolean(key))
       );
 
-      const nextTargets: Record<string, number> = {};
+      const nextTargets: Record<string, GeneratedExerciseTarget> = {};
       activeSession.exercises.forEach((exercise) => {
         const key = exercise.name.toLowerCase();
         const generatedExercise = generatedByName.get(key);
@@ -221,15 +256,20 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
             : typeof libraryMatch?.restSeconds === 'number'
               ? libraryMatch.restSeconds
               : 90;
-        nextTargets[key] = restSeconds;
+        nextTargets[key] = {
+          sets: typeof generatedExercise?.sets === 'number' ? generatedExercise.sets : libraryMatch?.sets,
+          reps: generatedExercise?.reps ?? libraryMatch?.reps,
+          rpe: typeof generatedExercise?.rpe === 'number' ? generatedExercise.rpe : libraryMatch?.rpe,
+          restSeconds
+        };
       });
 
       if (isMounted) {
-        setRestTargets(nextTargets);
+        setExerciseTargets(nextTargets);
       }
     };
 
-    loadRestTargets();
+    loadTargets();
     return () => {
       isMounted = false;
     };
@@ -239,17 +279,24 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
     async (exercise: SessionExercise, set: WorkoutSet, exerciseIndex: number) => {
       if (!exercise.id) return;
 
+      const rpeValue = typeof set.rpe === 'number' ? set.rpe : null;
+      const rirValue = typeof set.rir === 'number' ? set.rir : null;
+      const sanitizedRir = rpeValue !== null && rirValue !== null ? null : rirValue;
       const payload = {
         session_exercise_id: exercise.id,
         set_number: set.setNumber,
         reps: typeof set.reps === 'number' ? set.reps : null,
         weight: typeof set.weight === 'number' ? set.weight : null,
-        rpe: typeof set.rpe === 'number' ? set.rpe : null,
-        rir: typeof set.rir === 'number' ? set.rir : null,
+        rpe: rpeValue,
+        rir: sanitizedRir,
         completed: set.completed,
         performed_at: set.performedAt ?? new Date().toISOString(),
         weight_unit: set.weightUnit ?? 'lb',
-        failure: Boolean(set.failure)
+        failure: Boolean(set.failure),
+        set_type: set.setType ?? 'working',
+        rest_seconds_actual: typeof set.restSecondsActual === 'number' ? set.restSecondsActual : null,
+        pain_score: typeof set.painScore === 'number' ? set.painScore : null,
+        pain_area: set.painArea ?? null
       };
 
       if (set.id && !set.id.startsWith('temp-')) {
@@ -281,14 +328,39 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
       return value;
     })();
 
-    updateSet(exIdx, setIdx, field, normalizedValue);
+    const updates: Array<[keyof WorkoutSet, WorkoutSet[keyof WorkoutSet]]> = [[field, normalizedValue]];
+
+    if (field === 'weight' && !currentSet.weightUnit) {
+      updates.push(['weightUnit', preferredUnit]);
+    }
+
+    if (field === 'completed' && normalizedValue === true) {
+      const performedAt = new Date().toISOString();
+      updates.push(['performedAt', performedAt]);
+      const previousSet = [...exercise.sets]
+        .slice(0, setIdx)
+        .reverse()
+        .find((set) => Boolean(set.performedAt));
+      const prevTime = previousSet?.performedAt ? new Date(previousSet.performedAt).getTime() : null;
+      if (prevTime && typeof currentSet.restSecondsActual !== 'number') {
+        const restSeconds = Math.max(0, Math.round((new Date(performedAt).getTime() - prevTime) / 1000));
+        updates.push(['restSecondsActual', restSeconds]);
+      }
+    }
+
+    updates.forEach(([key, val]) => updateSet(exIdx, setIdx, key, val));
 
     if (field === 'completed' && normalizedValue === true) {
       startRestTimer(getRestSeconds(exercise), exercise.name);
     }
 
+    const nextSet = updates.reduce<WorkoutSet>((acc, [key, val]) => ({ ...acc, [key]: val }), {
+      ...currentSet,
+      [field]: normalizedValue
+    } as WorkoutSet);
+
     try {
-      await persistSet(exercise, { ...currentSet, [field]: normalizedValue } as WorkoutSet, exIdx);
+      await persistSet(exercise, nextSet, exIdx);
     } catch (error) {
       console.error('Failed to save set', error);
       setErrorMessage('Unable to save this set. Please retry.');
@@ -297,7 +369,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
 
   const handleAddSet = async (exIdx: number) => {
     if (!activeSession) return;
-    const newSet = addSet(exIdx);
+    const newSet = addSet(exIdx, preferredUnit);
     if (!newSet) return;
     const exercise = activeSession.exercises[exIdx];
     try {
@@ -334,9 +406,10 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
   }, [activeSession]);
 
   const sessionNotes = useMemo(() => parseSessionNotes(activeSession?.sessionNotes ?? null), [activeSession?.sessionNotes]);
-  const readinessLabel = sessionNotes?.readiness
-    ? `${sessionNotes.readiness.charAt(0).toUpperCase()}${sessionNotes.readiness.slice(1)}`
-    : null;
+  const intensityLabel = useMemo(
+    () => formatSessionIntensity(getSessionIntensity(sessionNotes)),
+    [sessionNotes]
+  );
 
   const progressSummary = useMemo(() => {
     if (!activeSession) return null;
@@ -404,17 +477,30 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
     (exercise: SessionExercise) => {
       const match = exerciseLibraryByName.get(exercise.name.toLowerCase());
       if (!match?.equipment?.length) return [];
-      return buildWeightOptions(resolvedInventory, match.equipment, profileWeightLb);
+      return buildWeightOptions(resolvedInventory, match.equipment, profileWeightLb, preferredUnit);
     },
-    [exerciseLibraryByName, profileWeightLb, resolvedInventory]
+    [exerciseLibraryByName, preferredUnit, profileWeightLb, resolvedInventory]
   );
 
   const getRestSeconds = (exercise: SessionExercise) => {
     const key = exercise.name.toLowerCase();
-    const restFromTarget = restTargets[key];
+    const restFromTarget = exerciseTargets[key]?.restSeconds;
     if (typeof restFromTarget === 'number') return restFromTarget;
     const libraryMatch = exerciseLibraryByName.get(key);
     return typeof libraryMatch?.restSeconds === 'number' ? libraryMatch.restSeconds : 90;
+  };
+
+  const getExerciseTargetSummary = (exercise: SessionExercise) => {
+    const target = exerciseTargets[exercise.name.toLowerCase()];
+    if (!target) return null;
+    const parts: string[] = [];
+    if (typeof target.sets === 'number') parts.push(`${target.sets} sets`);
+    if (target.reps !== undefined && target.reps !== null && target.reps !== '') {
+      parts.push(`${target.reps} reps`);
+    }
+    if (typeof target.rpe === 'number') parts.push(`RPE ${target.rpe}`);
+    if (typeof target.restSeconds === 'number') parts.push(`${formatRestTime(target.restSeconds)} rest`);
+    return parts.length ? parts.join(' · ') : null;
   };
 
   if (isLoading) {
@@ -433,11 +519,14 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
               <Clock size={14} />
               <span>Started at {new Date(activeSession.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
-            {(readinessLabel || sessionNotes?.minutesAvailable) && (
+            {(intensityLabel || sessionNotes?.minutesAvailable) && (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
-                {readinessLabel && <span className="badge-neutral">Readiness: {readinessLabel}</span>}
+                {intensityLabel && <span className="badge-neutral">Intensity: {intensityLabel}</span>}
                 {sessionNotes?.minutesAvailable && (
                   <span className="badge-neutral">{sessionNotes.minutesAvailable} min plan</span>
+                )}
+                {typeof sessionNotes?.readinessScore === 'number' && (
+                  <span className="badge-neutral">Readiness {sessionNotes.readinessScore}</span>
                 )}
               </div>
             )}
@@ -495,6 +584,11 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
                     </span>
                   ))}
                 </div>
+                {getExerciseTargetSummary(exercise) && (
+                  <p className="mt-2 text-xs text-muted">
+                    Recommended: {getExerciseTargetSummary(exercise)}
+                  </p>
+                )}
               </div>
             </div>
 

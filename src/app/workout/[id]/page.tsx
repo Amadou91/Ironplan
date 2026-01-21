@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { createClient } from '@/lib/supabase/client'
 import { toMuscleLabel } from '@/lib/muscle-utils'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import type { FocusArea, PlanInput } from '@/types/domain'
@@ -78,6 +79,14 @@ export default function WorkoutDetailPage() {
   if (loading) return <div className="page-shell p-10 text-center text-muted">Loading template...</div>
   if (!template) return <div className="page-shell p-10 text-center text-muted">Template not found.</div>
 
+  const displayTitle = buildWorkoutDisplayName({
+    focus: template.focus,
+    style: template.style,
+    intensity: template.intensity,
+    minutes: template.template_inputs?.time?.minutesPerSession,
+    fallback: template.title
+  })
+
   return (
     <div className="page-shell">
       <div className="w-full px-4 py-8 sm:px-6 lg:px-10 2xl:px-16">
@@ -88,9 +97,9 @@ export default function WorkoutDetailPage() {
                 Workouts
               </Link>
               <span>/</span>
-              <span className="text-subtle">{template.title}</span>
+              <span className="text-subtle">{displayTitle}</span>
             </div>
-            <h1 className="font-display text-3xl font-semibold text-strong">{template.title}</h1>
+            <h1 className="font-display text-3xl font-semibold text-strong">{displayTitle}</h1>
             {template.description && <p className="text-sm text-muted">{template.description}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -138,14 +147,6 @@ export default function WorkoutDetailPage() {
                 <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
                   <p className="text-xs text-subtle">Style</p>
                   <p className="font-semibold text-strong">{template.style.replace('_', ' ')}</p>
-                </div>
-                <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
-                  <p className="text-xs text-subtle">Experience</p>
-                  <p className="font-semibold text-strong">{template.experience_level}</p>
-                </div>
-                <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
-                  <p className="text-xs text-subtle">Intensity</p>
-                  <p className="font-semibold text-strong">{template.intensity}</p>
                 </div>
               </div>
               {equipmentSummary.length > 0 && (

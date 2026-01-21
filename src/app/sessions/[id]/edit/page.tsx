@@ -5,11 +5,13 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { toMuscleLabel } from '@/lib/muscle-utils'
+import { enhanceExerciseData, toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
 import { buildWeightOptions } from '@/lib/equipment'
 import { INTENSITY_RECOMMENDATION, RIR_HELPER_TEXT, RIR_OPTIONS, RPE_HELPER_TEXT, RPE_OPTIONS } from '@/constants/intensityOptions'
-import type { EquipmentInventory } from '@/types/domain'
+import { PAIN_AREA_OPTIONS, SET_TYPE_OPTIONS } from '@/constants/setOptions'
+import { normalizePreferences } from '@/lib/preferences'
+import type { EquipmentInventory, WeightUnit } from '@/types/domain'
 
 type EditableSet = {
   id: string
@@ -21,6 +23,11 @@ type EditableSet = {
   completed: boolean
   performedAt?: string | null
   weightUnit: string
+  setType?: string | ''
+  restSecondsActual?: number | ''
+  failure?: boolean
+  painScore?: number | ''
+  painArea?: string | ''
 }
 
 type EditableExercise = {
@@ -67,6 +74,11 @@ type SessionPayload = {
       completed: boolean | null
       performed_at: string | null
       weight_unit: string | null
+      set_type: string | null
+      rest_seconds_actual: number | null
+      failure: boolean | null
+      pain_score: number | null
+      pain_area: string | null
     }>
   }>
 }
@@ -78,6 +90,24 @@ const formatDateTime = (value: string) => {
     : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+const padTimeUnit = (value: number) => String(value).padStart(2, '0')
+
+const toDateTimeInputValue = (value: string | null) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return `${date.getFullYear()}-${padTimeUnit(date.getMonth() + 1)}-${padTimeUnit(date.getDate())}T${padTimeUnit(
+    date.getHours()
+  )}:${padTimeUnit(date.getMinutes())}`
+}
+
+const toIsoString = (value: string) => {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toISOString()
+}
+
 const normalizeNumber = (value: number | '') => (typeof value === 'number' && Number.isFinite(value) ? value : null)
 
 export default function SessionEditPage() {
@@ -87,12 +117,15 @@ export default function SessionEditPage() {
   const [session, setSession] = useState<EditableSession | null>(null)
   const [initialSnapshot, setInitialSnapshot] = useState('')
   const [deletedSetIds, setDeletedSetIds] = useState<string[]>([])
+  const [deletedExerciseIds, setDeletedExerciseIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [equipmentInventory, setEquipmentInventory] = useState<EquipmentInventory | null>(null)
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null)
+  const [preferredUnit, setPreferredUnit] = useState<WeightUnit>('lb')
+  const [newExerciseName, setNewExerciseName] = useState('')
 
   const exerciseLibraryByName = useMemo(
     () => new Map(EXERCISE_LIBRARY.map((exercise) => [exercise.name.toLowerCase(), exercise])),
@@ -127,7 +160,12 @@ export default function SessionEditPage() {
               rir: set.rir ?? '',
               completed: set.completed ?? false,
               performedAt: set.performed_at,
-              weightUnit: set.weight_unit ?? 'lb'
+              weightUnit: set.weight_unit ?? 'lb',
+              setType: set.set_type ?? 'working',
+              restSecondsActual: set.rest_seconds_actual ?? '',
+              failure: set.failure ?? false,
+              painScore: set.pain_score ?? '',
+              painArea: set.pain_area ?? ''
             }))
         }))
     }
@@ -140,7 +178,7 @@ export default function SessionEditPage() {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-        'id, user_id, template_id, name, started_at, ended_at, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+        'id, user_id, template_id, name, started_at, ended_at, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, set_type, rest_seconds_actual, failure, pain_score, pain_area))'
         )
         .eq('id', params.id)
         .single()
@@ -153,6 +191,7 @@ export default function SessionEditPage() {
       setSession(mapped)
       setInitialSnapshot(JSON.stringify(mapped))
       setDeletedSetIds([])
+      setDeletedExerciseIds([])
     }
     setLoading(false)
   }, [mapSession, params, supabase])
@@ -190,7 +229,7 @@ export default function SessionEditPage() {
     const loadProfileWeight = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('weight_lb')
+        .select('weight_lb, preferences')
         .eq('id', session.userId)
         .maybeSingle()
       if (error) {
@@ -198,6 +237,8 @@ export default function SessionEditPage() {
         return
       }
       setProfileWeightLb(typeof data?.weight_lb === 'number' ? data.weight_lb : null)
+      const normalized = normalizePreferences(data?.preferences)
+      setPreferredUnit(normalized.settings?.units ?? 'lb')
     }
     loadProfileWeight()
   }, [session?.userId, supabase])
@@ -209,6 +250,14 @@ export default function SessionEditPage() {
 
   const updateSessionName = (value: string) => {
     setSession((prev) => (prev ? { ...prev, name: value } : prev))
+  }
+
+  const updateSessionStart = (value: string) => {
+    setSession((prev) => (prev ? { ...prev, startedAt: value } : prev))
+  }
+
+  const updateSessionEnd = (value: string | null) => {
+    setSession((prev) => (prev ? { ...prev, endedAt: value } : prev))
   }
 
   const updateSetField = (
@@ -244,14 +293,15 @@ export default function SessionEditPage() {
       if (!equipmentInventory) return []
       const match = exerciseLibraryByName.get(exerciseName.toLowerCase())
       if (!match?.equipment?.length) return []
-      return buildWeightOptions(equipmentInventory, match.equipment, profileWeightLb)
+      return buildWeightOptions(equipmentInventory, match.equipment, profileWeightLb, preferredUnit)
     },
-    [equipmentInventory, exerciseLibraryByName, profileWeightLb]
+    [equipmentInventory, exerciseLibraryByName, preferredUnit, profileWeightLb]
   )
 
   const handleAddSet = (exerciseId: string) => {
     setSession((prev) => {
       if (!prev) return prev
+      const performedAt = prev.startedAt ?? new Date().toISOString()
       return {
         ...prev,
         exercises: prev.exercises.map((exercise) => {
@@ -269,8 +319,13 @@ export default function SessionEditPage() {
                 rpe: '',
                 rir: '',
                 completed: false,
-                performedAt: new Date().toISOString(),
-                weightUnit: 'lb',
+                performedAt,
+                weightUnit: preferredUnit,
+                setType: 'working',
+                restSecondsActual: '',
+                failure: false,
+                painScore: '',
+                painArea: ''
               }
             ]
           }
@@ -298,12 +353,82 @@ export default function SessionEditPage() {
     }
   }
 
+  const handleAddExercise = () => {
+    const trimmed = newExerciseName.trim()
+    if (!trimmed) {
+      setErrorMessage('Enter an exercise name before adding it.')
+      return
+    }
+
+    const match = exerciseLibraryByName.get(trimmed.toLowerCase())
+    const baseExercise = match
+      ? match
+      : enhanceExerciseData({
+          name: trimmed,
+          focus: 'full_body',
+          sets: 0,
+          reps: 0,
+          rpe: 0,
+          equipment: [],
+          durationMinutes: 0,
+          restSeconds: 0
+        })
+
+    const primarySlug = toMuscleSlug(String(baseExercise.primaryMuscle ?? 'Full Body'), 'full_body')
+    const secondarySlugs = (baseExercise.secondaryMuscles ?? [])
+      .map((muscle) => toMuscleSlug(muscle, null))
+      .filter((muscle): muscle is string => Boolean(muscle))
+
+    setSession((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        exercises: [
+          ...prev.exercises,
+          {
+            id: `temp-exercise-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            name: match?.name ?? trimmed,
+            primaryMuscle: primarySlug,
+            secondaryMuscles: secondarySlugs,
+            orderIndex: prev.exercises.length,
+            sets: []
+          }
+        ]
+      }
+    })
+
+    setNewExerciseName('')
+    setErrorMessage(null)
+  }
+
+  const handleDeleteExercise = (exerciseId: string) => {
+    setSession((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        exercises: prev.exercises.filter((exercise) => exercise.id !== exerciseId)
+      }
+    })
+    if (!exerciseId.startsWith('temp-exercise-')) {
+      setDeletedExerciseIds((prev) => [...prev, exerciseId])
+    }
+  }
+
   const validateSession = () => {
     if (!session) return 'No session to update.'
     if (!session.name.trim()) return 'Session name is required.'
+    const startedAtValue = new Date(session.startedAt)
+    if (Number.isNaN(startedAtValue.getTime())) return 'Start time is invalid.'
+    if (session.endedAt) {
+      const endedAtValue = new Date(session.endedAt)
+      if (Number.isNaN(endedAtValue.getTime())) return 'End time is invalid.'
+      if (endedAtValue.getTime() < startedAtValue.getTime()) {
+        return 'End time must be after the start time.'
+      }
+    }
     for (const exercise of session.exercises) {
       for (const set of exercise.sets) {
-        const values = [set.weight, set.reps, set.rpe, set.rir]
+        const values = [set.weight, set.reps, set.rpe, set.rir, set.restSecondsActual, set.painScore]
         for (const value of values) {
           if (typeof value === 'number' && value < 0) {
             return 'Values cannot be negative.'
@@ -314,6 +439,7 @@ export default function SessionEditPage() {
         }
         if (typeof set.rpe === 'number' && set.rpe > 10) return 'RPE must be 10 or less.'
         if (typeof set.rir === 'number' && set.rir > 10) return 'RIR must be 10 or less.'
+        if (typeof set.painScore === 'number' && set.painScore > 10) return 'Pain score must be 10 or less.'
       }
     }
     return null
@@ -339,17 +465,53 @@ export default function SessionEditPage() {
     try {
       const { error: sessionError } = await supabase
         .from('sessions')
-        .update({ name: session.name })
+        .update({
+          name: session.name,
+          started_at: session.startedAt,
+          ended_at: session.endedAt,
+          status: session.endedAt ? 'completed' : 'in_progress'
+        })
         .eq('id', session.id)
 
       if (sessionError) throw sessionError
+
+      if (deletedExerciseIds.length > 0) {
+        const { error: deleteExerciseError } = await supabase
+          .from('session_exercises')
+          .delete()
+          .in('id', deletedExerciseIds)
+        if (deleteExerciseError) throw deleteExerciseError
+      }
 
       if (deletedSetIds.length > 0) {
         const { error: deleteError } = await supabase.from('sets').delete().in('id', deletedSetIds)
         if (deleteError) throw deleteError
       }
 
+      const exerciseIdMap = new Map<string, string>()
+
       for (const exercise of session.exercises) {
+        if (!exercise.id.startsWith('temp-exercise-')) continue
+        const payload = {
+          session_id: session.id,
+          exercise_name: exercise.name,
+          primary_muscle: exercise.primaryMuscle,
+          secondary_muscles: exercise.secondaryMuscles ?? [],
+          order_index: exercise.orderIndex ?? 0
+        }
+        const { data: insertedExercise, error: insertExerciseError } = await supabase
+          .from('session_exercises')
+          .insert(payload)
+          .select('id')
+          .single()
+        if (insertExerciseError) throw insertExerciseError
+        if (insertedExercise?.id) {
+          exerciseIdMap.set(exercise.id, insertedExercise.id)
+        }
+      }
+
+      for (const exercise of session.exercises) {
+        const resolvedExerciseId = exerciseIdMap.get(exercise.id) ?? exercise.id
         const normalizedSets = exercise.sets.map((set, idx) => ({
           ...set,
           setNumber: idx + 1
@@ -357,7 +519,7 @@ export default function SessionEditPage() {
 
         for (const set of normalizedSets) {
           const payload = {
-            session_exercise_id: exercise.id,
+            session_exercise_id: resolvedExerciseId,
             set_number: set.setNumber,
             reps: normalizeNumber(set.reps),
             weight: normalizeNumber(set.weight),
@@ -365,7 +527,12 @@ export default function SessionEditPage() {
             rir: normalizeNumber(set.rir),
             completed: set.completed,
             performed_at: set.performedAt ?? new Date().toISOString(),
-            weight_unit: set.weightUnit ?? 'lb'
+            weight_unit: set.weightUnit ?? 'lb',
+            set_type: set.setType ?? 'working',
+            rest_seconds_actual: normalizeNumber(set.restSecondsActual),
+            failure: Boolean(set.failure),
+            pain_score: normalizeNumber(set.painScore),
+            pain_area: set.painArea || null
           }
 
           if (set.id.startsWith('temp-')) {
@@ -439,6 +606,29 @@ export default function SessionEditPage() {
             onChange={(event) => updateSessionName(event.target.value)}
             className="input-base mt-2"
           />
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="text-xs text-subtle">Started at</label>
+              <input
+                type="datetime-local"
+                value={toDateTimeInputValue(session.startedAt)}
+                onChange={(event) => {
+                  const nextValue = toIsoString(event.target.value)
+                  if (nextValue) updateSessionStart(nextValue)
+                }}
+                className="input-base mt-2"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-subtle">Ended at</label>
+              <input
+                type="datetime-local"
+                value={toDateTimeInputValue(session.endedAt)}
+                onChange={(event) => updateSessionEnd(toIsoString(event.target.value))}
+                className="input-base mt-2"
+              />
+            </div>
+          </div>
           {session.timezone && (
             <p className="mt-2 text-[10px] text-subtle">Timezone: {session.timezone}</p>
           )}
@@ -447,14 +637,23 @@ export default function SessionEditPage() {
         <div className="space-y-6">
           {session.exercises.map((exercise) => (
             <Card key={exercise.id} className="space-y-4 p-6">
-              <div>
-                <h2 className="text-lg font-semibold text-strong">{exercise.name}</h2>
-                <p className="text-xs text-subtle">
-                  Primary: {exercise.primaryMuscle ? toMuscleLabel(exercise.primaryMuscle) : 'N/A'}
-                  {exercise.secondaryMuscles?.length
-                    ? ` · Secondary: ${exercise.secondaryMuscles.map((muscle) => toMuscleLabel(muscle)).join(', ')}`
-                    : ''}
-                </p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-strong">{exercise.name}</h2>
+                  <p className="text-xs text-subtle">
+                    Primary: {exercise.primaryMuscle ? toMuscleLabel(exercise.primaryMuscle) : 'N/A'}
+                    {exercise.secondaryMuscles?.length
+                      ? ` · Secondary: ${exercise.secondaryMuscles.map((muscle) => toMuscleLabel(muscle)).join(', ')}`
+                      : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteExercise(exercise.id)}
+                  className="text-xs text-[var(--color-danger)] transition-colors hover:text-[var(--color-danger)]"
+                >
+                  Delete exercise
+                </button>
               </div>
 
             <div className="space-y-3">
@@ -467,7 +666,8 @@ export default function SessionEditPage() {
                     if (typeof set.weight === 'number' && Number.isFinite(set.weight)) {
                       const exists = options.some((option) => option.value === set.weight)
                       if (!exists) {
-                        return [...options, { value: set.weight, label: `${set.weight} lb (logged)` }]
+                        const unitLabel = set.weightUnit || preferredUnit
+                        return [...options, { value: set.weight, label: `${set.weight} ${unitLabel} (logged)` }]
                       }
                     }
                     return options
@@ -497,7 +697,8 @@ export default function SessionEditPage() {
                                 const nextValue = event.target.value === '' ? '' : Number(event.target.value)
                                 updateSetField(exercise.id, set.id, 'weight', nextValue)
                                 if (event.target.value !== '') {
-                                  updateSetField(exercise.id, set.id, 'weightUnit', 'lb')
+                                  const option = weightChoices.find((choice) => choice.value === nextValue)
+                                  updateSetField(exercise.id, set.id, 'weightUnit', option?.unit ?? preferredUnit)
                                 }
                               }}
                               className="input-base mt-1"
@@ -518,6 +719,7 @@ export default function SessionEditPage() {
                               className="input-base mt-1"
                             />
                           )}
+                          <p className="mt-1 text-[10px] text-subtle">Unit: {set.weightUnit || preferredUnit}</p>
                         </div>
                         <div>
                           <label className="text-[10px] uppercase tracking-wider text-subtle">Reps</label>
@@ -597,6 +799,71 @@ export default function SessionEditPage() {
                           <span>Mark as completed</span>
                         </div>
                       </div>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider text-subtle">Set type</label>
+                          <select
+                            value={set.setType || 'working'}
+                            onChange={(event) => updateSetField(exercise.id, set.id, 'setType', event.target.value)}
+                            className="input-base mt-1"
+                          >
+                            {SET_TYPE_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider text-subtle">Rest (sec)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={set.restSecondsActual ?? ''}
+                            onChange={(event) =>
+                              updateSetField(exercise.id, set.id, 'restSecondsActual', event.target.value === '' ? '' : Number(event.target.value))
+                            }
+                            className="input-base mt-1"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 pt-6 text-xs text-muted">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(set.failure)}
+                            onChange={(event) => updateSetField(exercise.id, set.id, 'failure', event.target.checked)}
+                            className="h-4 w-4 rounded border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)]"
+                          />
+                          <span>Reached failure</span>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] uppercase tracking-wider text-subtle">Pain (0-10)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={10}
+                            value={set.painScore ?? ''}
+                            onChange={(event) =>
+                              updateSetField(exercise.id, set.id, 'painScore', event.target.value === '' ? '' : Number(event.target.value))
+                            }
+                            className="input-base mt-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider text-subtle">Pain area</label>
+                          <select
+                            value={set.painArea ?? ''}
+                            onChange={(event) => updateSetField(exercise.id, set.id, 'painArea', event.target.value)}
+                            className="input-base mt-1"
+                          >
+                            <option value="">None</option>
+                            {PAIN_AREA_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
                       <p className="text-[10px] text-subtle">{INTENSITY_RECOMMENDATION}</p>
                     </div>
                   )
@@ -609,8 +876,33 @@ export default function SessionEditPage() {
             </Button>
           </Card>
         ))}
+        </div>
+
+        <Card className="p-6">
+          <label className="text-xs text-subtle">Add exercise</label>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+            <div className="flex-1">
+              <input
+                type="text"
+                value={newExerciseName}
+                onChange={(event) => setNewExerciseName(event.target.value)}
+                placeholder="Search or type an exercise"
+                list="exercise-library"
+                className="input-base"
+              />
+              <datalist id="exercise-library">
+                {EXERCISE_LIBRARY.map((exercise) => (
+                  <option key={exercise.name} value={exercise.name} />
+                ))}
+              </datalist>
+            </div>
+            <Button variant="outline" className="h-10 px-4" onClick={handleAddExercise}>
+              Add exercise
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-subtle">Add the movements you performed so metrics can be computed normally.</p>
+        </Card>
       </div>
-    </div>
     </div>
   )
 }

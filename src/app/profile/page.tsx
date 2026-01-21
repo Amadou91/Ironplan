@@ -21,7 +21,8 @@ type ProfileRow = {
 
 type ProfileDraft = {
   weightLb: string
-  heightIn: string
+  heightFeet: string
+  heightInches: string
   bodyFatPercent: string
   birthdate: string
   sex: string
@@ -39,6 +40,15 @@ const parseNumberInput = (value: string) => {
   if (!trimmed) return null
   const parsed = Number(trimmed)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+const formatHeightFromInches = (heightIn?: number | null) => {
+  if (typeof heightIn !== 'number' || !Number.isFinite(heightIn) || heightIn <= 0) return ''
+  const rounded = Math.round(heightIn)
+  const feet = Math.floor(rounded / 12)
+  const inches = rounded - feet * 12
+  if (feet <= 0) return `${rounded} in`
+  return `${feet}' ${inches}"`
 }
 
 const calculateAge = (birthdate?: string | null) => {
@@ -82,7 +92,8 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileRow | null>(null)
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>({
     weightLb: '',
-    heightIn: '',
+    heightFeet: '',
+    heightInches: '',
     bodyFatPercent: '',
     birthdate: '',
     sex: ''
@@ -132,9 +143,13 @@ export default function ProfilePage() {
             : 'Unable to load your profile. Please try again.'
         setProfileError(message)
       } else {
+        const heightIn = typeof data?.height_in === 'number' ? Math.round(data.height_in) : null
+        const heightFeet = typeof heightIn === 'number' ? Math.floor(heightIn / 12) : null
+        const heightInches = typeof heightIn === 'number' ? heightIn - (heightFeet ?? 0) * 12 : null
         const nextDraft = {
           weightLb: typeof data?.weight_lb === 'number' ? String(data.weight_lb) : '',
-          heightIn: typeof data?.height_in === 'number' ? String(data.height_in) : '',
+          heightFeet: typeof heightFeet === 'number' ? String(heightFeet) : '',
+          heightInches: typeof heightInches === 'number' ? String(heightInches) : '',
           bodyFatPercent: typeof data?.body_fat_percent === 'number' ? String(data.body_fat_percent) : '',
           birthdate: data?.birthdate ?? '',
           sex: data?.sex ?? ''
@@ -158,7 +173,11 @@ export default function ProfilePage() {
 
   const profileMetrics = useMemo(() => {
     const weightLb = parseNumberInput(profileDraft.weightLb)
-    const heightIn = parseNumberInput(profileDraft.heightIn)
+    const heightFeet = parseNumberInput(profileDraft.heightFeet)
+    const heightInches = parseNumberInput(profileDraft.heightInches)
+    const heightIn = typeof heightFeet === 'number' || typeof heightInches === 'number'
+      ? (heightFeet ?? 0) * 12 + (heightInches ?? 0)
+      : null
     const bodyFatPercent = parseNumberInput(profileDraft.bodyFatPercent)
     const age = calculateAge(profileDraft.birthdate)
     const bmi = calculateBmi(weightLb, heightIn)
@@ -195,7 +214,11 @@ export default function ProfilePage() {
     const sessionUserId = session.user.id
 
     const weightLb = parseNumberInput(profileDraft.weightLb)
-    const heightIn = parseNumberInput(profileDraft.heightIn)
+    const heightFeet = parseNumberInput(profileDraft.heightFeet)
+    const heightInches = parseNumberInput(profileDraft.heightInches)
+    const heightIn = typeof heightFeet === 'number' || typeof heightInches === 'number'
+      ? (heightFeet ?? 0) * 12 + (heightInches ?? 0)
+      : null
     const bodyFatPercent = parseNumberInput(profileDraft.bodyFatPercent)
 
     if (bodyFatPercent !== null && (bodyFatPercent < 0 || bodyFatPercent > 70)) {
@@ -238,9 +261,13 @@ export default function ProfilePage() {
           : 'Unable to save profile changes. Please try again.'
       setProfileError(message)
     } else {
+      const nextHeightIn = typeof data?.height_in === 'number' ? Math.round(data.height_in) : null
+      const nextHeightFeet = typeof nextHeightIn === 'number' ? Math.floor(nextHeightIn / 12) : null
+      const nextHeightInches = typeof nextHeightIn === 'number' ? nextHeightIn - (nextHeightFeet ?? 0) * 12 : null
       const nextDraft = {
         weightLb: typeof data?.weight_lb === 'number' ? String(data.weight_lb) : '',
-        heightIn: typeof data?.height_in === 'number' ? String(data.height_in) : '',
+        heightFeet: typeof nextHeightFeet === 'number' ? String(nextHeightFeet) : '',
+        heightInches: typeof nextHeightInches === 'number' ? String(nextHeightInches) : '',
         bodyFatPercent: typeof data?.body_fat_percent === 'number' ? String(data.body_fat_percent) : '',
         birthdate: data?.birthdate ?? '',
         sex: data?.sex ?? ''
@@ -319,15 +346,34 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="flex flex-col">
-                <label className="text-xs text-subtle">Height (in)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={profileDraft.heightIn}
-                  onChange={(event) => handleProfileChange('heightIn', event.target.value)}
-                  className="input-base mt-1"
-                  disabled={profileLoading || profileSaving}
-                />
+                <label className="text-xs text-subtle">Height</label>
+                <div className="mt-1 grid grid-cols-2 gap-2 text-[10px]">
+                  <label className="flex flex-col gap-1">
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="ft"
+                      value={profileDraft.heightFeet}
+                      onChange={(event) => handleProfileChange('heightFeet', event.target.value)}
+                      className="input-base"
+                      disabled={profileLoading || profileSaving}
+                    />
+                    <span className="text-subtle">Feet</span>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <input
+                      type="number"
+                      min={0}
+                      max={11}
+                      placeholder="in"
+                      value={profileDraft.heightInches}
+                      onChange={(event) => handleProfileChange('heightInches', event.target.value)}
+                      className="input-base"
+                      disabled={profileLoading || profileSaving}
+                    />
+                    <span className="text-subtle">Inches</span>
+                  </label>
+                </div>
               </div>
               <div className="flex flex-col">
                 <label className="text-xs text-subtle">Body fat %</label>
@@ -374,7 +420,7 @@ export default function ProfilePage() {
                   Weight: <span className="text-strong">{profileMetrics.weightLb ? `${profileMetrics.weightLb} lb` : 'Add weight'}</span>
                 </p>
                 <p>
-                  Height: <span className="text-strong">{profileMetrics.heightIn ? `${profileMetrics.heightIn} in` : 'Add height'}</span>
+                  Height: <span className="text-strong">{profileMetrics.heightIn ? formatHeightFromInches(profileMetrics.heightIn) : 'Add height'}</span>
                 </p>
                 <p>
                   Age: <span className="text-strong">{typeof profileMetrics.age === 'number' ? `${profileMetrics.age}` : 'Add birthdate'}</span>
@@ -396,16 +442,7 @@ export default function ProfilePage() {
           )}
         </Card>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Card className="p-6">
-            <h3 className="text-sm font-semibold text-strong">Goals</h3>
-            <p className="mt-2 text-sm text-muted">
-              Define your training intent to unlock smarter templates and guidance.
-            </p>
-            <Link href="/onboarding" className="mt-3 inline-flex text-sm font-semibold text-accent">
-              Update goals
-            </Link>
-          </Card>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card className="p-6">
             <h3 className="text-sm font-semibold text-strong">Achievements</h3>
             <ul className="mt-3 space-y-2 text-xs text-muted">
@@ -417,7 +454,7 @@ export default function ProfilePage() {
           <Card className="p-6">
             <h3 className="text-sm font-semibold text-strong">Preferences</h3>
             <p className="mt-2 text-sm text-muted">
-              Control units, notifications, and recovery settings in Preferences.
+              Manage your measurement units and core preferences.
             </p>
             <Link href="/settings" className="mt-3 inline-flex text-sm font-semibold text-accent">
               Open settings

@@ -18,6 +18,7 @@ import type {
 } from '@/types/domain'
 import { equipmentPresets, hasEquipment } from './equipment'
 import { computeExerciseMetrics } from '@/lib/workout-metrics'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { matchesCardioSelection } from '@/lib/cardio-activities'
 import { logEvent } from '@/lib/logger'
 
@@ -1712,10 +1713,14 @@ const buildSessionName = (focus: FocusArea, exercises: Exercise[], goal: Goal) =
   return `${formatFocusLabel(focus)} - ${goalLabel} Focus`
 }
 
-const buildPlanTitle = (focus: FocusArea, goal: Goal) => {
-  const goalLabel = goal.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-  return `${formatFocusLabel(focus)} – ${goalLabel}`
-}
+const buildPlanTitle = (focus: FocusArea, goal: Goal, intensity?: string, minutes?: number) =>
+  buildWorkoutDisplayName({
+    focus,
+    style: goal,
+    intensity,
+    minutes,
+    fallback: formatFocusLabel(focus)
+  })
 
 const buildFocusDistribution = (schedule: PlanDay[]) => schedule.reduce<Record<FocusArea, number>>((acc, day) => {
   acc[day.focus] = (acc[day.focus] ?? 0) + 1
@@ -1820,7 +1825,12 @@ export const buildWorkoutTemplate = (
     ? [normalized.intent.bodyParts[0]]
     : buildFocusSequence(1, normalized.preferences, normalized.goals)
   const focus = focusSequence[0]
-  const title = buildPlanTitle(focus, normalized.goals.primary)
+  const title = buildPlanTitle(
+    focus,
+    normalized.goals.primary,
+    normalized.intensity,
+    normalized.time.minutesPerSession
+  )
   const description = `${formatFocusLabel(focus)} focus · ${normalized.goals.primary.replace('_', ' ')} goal.`
 
   return {
@@ -1879,7 +1889,7 @@ export const generateWorkoutPlan = (
   })
 
   const focus = layout[0]?.focus ?? normalized.preferences.focusAreas[0] ?? normalized.intent.bodyParts?.[0] ?? 'full_body'
-  const title = buildPlanTitle(focus, normalized.goals.primary)
+  const title = buildPlanTitle(focus, normalized.goals.primary, normalized.intensity, durationMinutes)
   const description = `${sessionsPerWeek} sessions per week · ${formatFocusLabel(focus)} focus.`
   const impact = calculateWorkoutImpact(schedule)
 

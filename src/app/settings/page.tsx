@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Lock, PlugZap, Ruler } from 'lucide-react'
+import { Ruler } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { useUser } from '@/hooks/useUser'
@@ -107,7 +107,7 @@ export default function SettingsPage() {
           <p className="text-xs uppercase tracking-[0.3em] text-subtle">Settings</p>
           <h1 className="font-display text-3xl font-semibold text-strong">Preferences and controls</h1>
           <p className="mt-2 text-sm text-muted">
-            Tailor units, notifications, and privacy to match your training style.
+            Keep your measurement units consistent across workouts and logs.
           </p>
           {saveState === 'error' && saveError && (
             <div className="mt-3 alert-error px-3 py-2 text-xs">{saveError}</div>
@@ -115,7 +115,7 @@ export default function SettingsPage() {
           {saveState === 'saved' && <p className="mt-3 text-xs text-muted">Preferences saved.</p>}
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="space-y-6">
           <Card className="p-6">
             <div className="flex items-center gap-3">
               <Ruler className="h-5 w-5 text-accent" />
@@ -150,96 +150,6 @@ export default function SettingsPage() {
                 }
               >
                 Kilograms (kg)
-              </Button>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <Bell className="h-5 w-5 text-accent" />
-              <div>
-                <h2 className="text-sm font-semibold text-strong">Notifications</h2>
-                <p className="text-xs text-subtle">Stay motivated with timely reminders.</p>
-              </div>
-            </div>
-            <div className="mt-4 space-y-3 text-sm text-muted">
-              <label className="flex items-center justify-between rounded-lg border border-[var(--color-border)] px-3 py-2">
-                <span>Workout reminders</span>
-                <input
-                  type="checkbox"
-                  checked={settings.notifications.workoutReminders}
-                  onChange={(event) =>
-                    updateSettings((prev) => ({
-                      ...prev,
-                      notifications: {
-                        ...prev.notifications,
-                        workoutReminders: event.target.checked
-                      }
-                    }))
-                  }
-                />
-              </label>
-              <label className="flex items-center justify-between rounded-lg border border-[var(--color-border)] px-3 py-2">
-                <span>Weekly progress summary</span>
-                <input
-                  type="checkbox"
-                  checked={settings.notifications.weeklySummary}
-                  onChange={(event) =>
-                    updateSettings((prev) => ({
-                      ...prev,
-                      notifications: {
-                        ...prev.notifications,
-                        weeklySummary: event.target.checked
-                      }
-                    }))
-                  }
-                />
-              </label>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <Lock className="h-5 w-5 text-accent" />
-              <div>
-                <h2 className="text-sm font-semibold text-strong">Privacy</h2>
-                <p className="text-xs text-subtle">Decide how your data is shared.</p>
-              </div>
-            </div>
-            <div className="mt-4 space-y-3 text-sm text-muted">
-              <label className="flex items-center justify-between rounded-lg border border-[var(--color-border)] px-3 py-2">
-                <span>Share progress with coach</span>
-                <input
-                  type="checkbox"
-                  checked={settings.shareProgress}
-                  onChange={(event) =>
-                    updateSettings((prev) => ({
-                      ...prev,
-                      shareProgress: event.target.checked
-                    }))
-                  }
-                />
-              </label>
-              <p className="text-xs text-subtle">
-                Enable this to share performance insights with your trainer or accountability partner.
-              </p>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <PlugZap className="h-5 w-5 text-accent" />
-              <div>
-                <h2 className="text-sm font-semibold text-strong">Integrations</h2>
-                <p className="text-xs text-subtle">Connect devices and services.</p>
-              </div>
-            </div>
-            <div className="mt-4 space-y-3 text-sm text-muted">
-              <div className="rounded-lg border border-dashed border-[var(--color-border)] px-3 py-4 text-center">
-                No integrations connected yet.
-              </div>
-              <Button variant="secondary" size="sm">
-                Browse integrations
               </Button>
             </div>
           </Card>

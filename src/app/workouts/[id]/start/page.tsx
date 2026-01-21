@@ -9,6 +9,8 @@ import { normalizePlanInput } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
 import { fetchTemplateHistory } from '@/lib/session-history'
 import { toMuscleLabel } from '@/lib/muscle-utils'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { computeReadinessScore, getReadinessIntensity, getReadinessLevel, type ReadinessSurvey } from '@/lib/training-metrics'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
@@ -27,6 +29,62 @@ type WorkoutTemplate = {
   created_at: string
 }
 
+type SessionIntensitySetting = {
+  value: number
+  label: string
+  intensity: PlanInput['intensity']
+  experienceDelta: -1 | 0 | 1
+  restPreference: PlanInput['preferences']['restPreference']
+  helper: string
+}
+
+const EXPERIENCE_LEVELS: PlanInput['experienceLevel'][] = ['beginner', 'intermediate', 'advanced']
+
+const SESSION_INTENSITY_LEVELS: SessionIntensitySetting[] = [
+  {
+    value: 1,
+    label: 'Ease in',
+    intensity: 'low',
+    experienceDelta: -1,
+    restPreference: 'high_recovery',
+    helper: 'Lower intensity with extra recovery and a simpler exercise mix.'
+  },
+  {
+    value: 2,
+    label: 'Steady',
+    intensity: 'moderate',
+    experienceDelta: 0,
+    restPreference: 'balanced',
+    helper: 'Balanced intensity and rest with your usual exercise mix.'
+  },
+  {
+    value: 3,
+    label: 'Push',
+    intensity: 'high',
+    experienceDelta: 1,
+    restPreference: 'minimal_rest',
+    helper: 'Higher intensity with shorter rest and a tougher exercise mix.'
+  }
+]
+
+const READINESS_FIELDS: Array<{
+  key: keyof ReadinessSurvey
+  label: string
+  helper: string
+}> = [
+  { key: 'sleep', label: 'Sleep quality', helper: '1 = poor, 5 = great' },
+  { key: 'soreness', label: 'Muscle soreness', helper: '1 = fresh, 5 = very sore' },
+  { key: 'stress', label: 'Stress level', helper: '1 = calm, 5 = high stress' },
+  { key: 'motivation', label: 'Motivation', helper: '1 = low, 5 = high' }
+]
+
+const shiftExperienceLevel = (base: PlanInput['experienceLevel'], delta: -1 | 0 | 1) => {
+  const index = EXPERIENCE_LEVELS.indexOf(base)
+  if (index === -1) return base
+  const nextIndex = Math.max(0, Math.min(EXPERIENCE_LEVELS.length - 1, index + delta))
+  return EXPERIENCE_LEVELS[nextIndex]
+}
+
 export default function WorkoutStartPage() {
   const params = useParams()
   const router = useRouter()
@@ -39,7 +97,14 @@ export default function WorkoutStartPage() {
   const [startingSession, setStartingSession] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [minutesAvailable, setMinutesAvailable] = useState(45)
-  const [readiness, setReadiness] = useState<'low' | 'steady' | 'high'>('steady')
+  const [intensityLevel, setIntensityLevel] = useState(2)
+  const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurvey>({
+    sleep: 3,
+    soreness: 3,
+    stress: 3,
+    motivation: 3
+  })
+  const [useReadiness, setUseReadiness] = useState(true)
 
   const hasActiveSession = Boolean(activeSession)
   const activeSessionLink = activeSession?.templateId
@@ -67,6 +132,27 @@ export default function WorkoutStartPage() {
     if (params.id) fetchTemplate()
   }, [params.id, supabase])
 
+  useEffect(() => {
+    if (!template) return
+    const baseIntensity = template.template_inputs?.intensity ?? template.intensity
+    const match = SESSION_INTENSITY_LEVELS.find((option) => option.intensity === baseIntensity)
+    if (match) {
+      setIntensityLevel(match.value)
+    }
+  }, [template])
+
+  const readinessScore = useMemo(() => computeReadinessScore(readinessSurvey), [readinessSurvey])
+  const readinessLevel = useMemo(() => getReadinessLevel(readinessScore), [readinessScore])
+
+  useEffect(() => {
+    if (!useReadiness) return
+    const desiredIntensity = getReadinessIntensity(readinessLevel)
+    const match = SESSION_INTENSITY_LEVELS.find((option) => option.intensity === desiredIntensity)
+    if (match && match.value !== intensityLevel) {
+      setIntensityLevel(match.value)
+    }
+  }, [intensityLevel, readinessLevel, useReadiness])
+
   const equipmentSummary = useMemo(() => {
     const inventory = template?.template_inputs?.equipment?.inventory
     if (!inventory) return []
@@ -85,16 +171,22 @@ export default function WorkoutStartPage() {
     return labels
   }, [template])
 
-  const applyReadinessAdjustments = (input: PlanInput) => {
-    if (readiness === 'steady') return input
-    const intensity = readiness === 'low' ? 'low' : 'high'
-    const restPreference = readiness === 'low' ? 'high_recovery' : 'minimal_rest'
+  const selectedIntensity =
+    SESSION_INTENSITY_LEVELS.find((option) => option.value === intensityLevel) ?? SESSION_INTENSITY_LEVELS[1]
+
+  const updateReadinessField = (field: keyof ReadinessSurvey, value: number) => {
+    setReadinessSurvey((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const applySessionIntensity = (input: PlanInput) => {
+    const adjustedExperience = shiftExperienceLevel(input.experienceLevel, selectedIntensity.experienceDelta)
     return {
       ...input,
-      intensity,
+      intensity: selectedIntensity.intensity,
+      experienceLevel: adjustedExperience,
       preferences: {
         ...input.preferences,
-        restPreference
+        restPreference: selectedIntensity.restPreference
       }
     }
   }
@@ -115,12 +207,17 @@ export default function WorkoutStartPage() {
 
     try {
       const normalizedInputs = normalizePlanInput(template.template_inputs ?? {})
-      const tunedInputs = applyReadinessAdjustments(normalizedInputs)
+      const baseExperience =
+        template.template_inputs?.experienceLevel ?? template.experience_level ?? normalizedInputs.experienceLevel
+      const tunedInputs = applySessionIntensity({ ...normalizedInputs, experienceLevel: baseExperience })
       const history = await fetchTemplateHistory(supabase, template.id)
       const nameSuffix = `${toMuscleLabel(template.focus)} ${template.style.replace('_', ' ')}`
       const sessionNotes = {
-        readiness,
+        sessionIntensity: selectedIntensity.intensity,
         minutesAvailable,
+        readiness: readinessLevel,
+        readinessScore,
+        readinessSurvey,
         source: 'workout_start'
       }
       const { sessionId, startedAt, sessionName, exercises, impact, timezone, sessionNotes: storedNotes } =
@@ -128,7 +225,13 @@ export default function WorkoutStartPage() {
           supabase,
           userId: user.id,
           templateId: template.id,
-          templateTitle: template.title,
+          templateTitle: buildWorkoutDisplayName({
+            focus: template.focus,
+            style: template.style,
+            intensity: template.intensity,
+            minutes: template.template_inputs?.time?.minutesPerSession ?? null,
+            fallback: template.title
+          }),
           focus: template.focus,
           goal: template.style,
           input: tunedInputs,
@@ -173,9 +276,26 @@ export default function WorkoutStartPage() {
                 Workouts
               </Link>
               <span>/</span>
-              <span className="text-subtle">{template.title}</span>
+              <span className="text-subtle">
+                {buildWorkoutDisplayName({
+                  focus: template.focus,
+                  style: template.style,
+                  intensity: template.intensity,
+                  minutes: template.template_inputs?.time?.minutesPerSession ?? null,
+                  fallback: template.title
+                })}
+              </span>
             </div>
-            <h1 className="font-display text-3xl font-semibold text-strong">Start {template.title}</h1>
+            <h1 className="font-display text-3xl font-semibold text-strong">
+              Start{' '}
+              {buildWorkoutDisplayName({
+                focus: template.focus,
+                style: template.style,
+                intensity: template.intensity,
+                minutes: template.template_inputs?.time?.minutesPerSession ?? null,
+                fallback: template.title
+              })}
+            </h1>
             {template.description && <p className="text-sm text-muted">{template.description}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -195,7 +315,7 @@ export default function WorkoutStartPage() {
                 <h2 className="text-lg font-semibold text-strong">Session settings</h2>
               </div>
               <p className="mt-2 text-sm text-muted">
-                Set your available time and readiness so we can tune the session intensity.
+                Set your available time and intensity so we can tune the session.
               </p>
 
               <div className="mt-6 space-y-4">
@@ -229,28 +349,66 @@ export default function WorkoutStartPage() {
                 </div>
 
                 <div>
-                  <p className="text-xs text-subtle">Readiness check</p>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {(['low', 'steady', 'high'] as const).map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setReadiness(value)}
-                        className={`rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] ${
-                          readiness === value
-                            ? 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
-                            : 'border-[var(--color-border)] text-muted hover:text-strong'
-                        }`}
-                      >
-                        {value}
-                      </button>
+                  <div className="flex items-center justify-between text-xs text-subtle">
+                    <span>Session intensity</span>
+                    <span className="text-strong">{selectedIntensity.label}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={3}
+                    step={1}
+                    value={intensityLevel}
+                    onChange={(event) => {
+                      setIntensityLevel(Number(event.target.value))
+                      if (useReadiness) setUseReadiness(false)
+                    }}
+                    className="mt-3 w-full"
+                  />
+                  <div className="mt-3 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.2em] text-subtle">
+                    {SESSION_INTENSITY_LEVELS.map((option) => (
+                      <span key={option.value}>{option.label}</span>
                     ))}
                   </div>
-                  <p className="mt-2 text-xs text-subtle">
-                    {readiness === 'low' && 'Lower intensity with extra recovery built in.'}
-                    {readiness === 'steady' && 'Balanced intensity and rest.'}
-                    {readiness === 'high' && 'Higher intensity with shorter rest.'}
-                  </p>
+                  <p className="mt-2 text-xs text-subtle">{selectedIntensity.helper}</p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between text-xs text-subtle">
+                    <span>Readiness check</span>
+                    <span className="text-strong">
+                      {typeof readinessScore === 'number' ? `${readinessScore}/100 · ${readinessLevel}` : 'Not rated'}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {READINESS_FIELDS.map((field) => (
+                      <div key={field.key}>
+                        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-subtle">
+                          <span>{field.label}</span>
+                          <span>{readinessSurvey[field.key]}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={1}
+                          max={5}
+                          step={1}
+                          value={readinessSurvey[field.key]}
+                          onChange={(event) => updateReadinessField(field.key, Number(event.target.value))}
+                          className="mt-2 w-full"
+                        />
+                        <p className="mt-1 text-[10px] text-subtle">{field.helper}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <label className="mt-4 flex items-center gap-2 text-xs text-muted">
+                    <input
+                      type="checkbox"
+                      checked={useReadiness}
+                      onChange={(event) => setUseReadiness(event.target.checked)}
+                      className="h-4 w-4 rounded border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)]"
+                    />
+                    <span>Use readiness to set intensity</span>
+                  </label>
                 </div>
               </div>
             </Card>
@@ -270,12 +428,8 @@ export default function WorkoutStartPage() {
                   <p className="font-semibold text-strong">{template.style.replace('_', ' ')}</p>
                 </div>
                 <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
-                  <p className="text-xs text-subtle">Experience</p>
-                  <p className="font-semibold text-strong">{template.experience_level}</p>
-                </div>
-                <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
-                  <p className="text-xs text-subtle">Intensity</p>
-                  <p className="font-semibold text-strong">{template.intensity}</p>
+                  <p className="text-xs text-subtle">Session intensity</p>
+                  <p className="font-semibold text-strong">{selectedIntensity.label}</p>
                 </div>
               </div>
               {equipmentSummary.length > 0 && (
@@ -291,7 +445,7 @@ export default function WorkoutStartPage() {
             <Card className="p-6">
               <h2 className="text-lg font-semibold text-strong">Ready to train?</h2>
               <p className="mt-2 text-sm text-muted">
-                We will adapt this plan to your time, readiness, and equipment.
+                We will adapt this plan to your time, intensity, and equipment.
               </p>
               <Button
                 type="button"
@@ -306,7 +460,7 @@ export default function WorkoutStartPage() {
                     : 'Start Session'}
               </Button>
               <p className="mt-3 text-xs text-subtle">
-                Readiness set to <span className="text-strong">{readiness}</span>.
+                Intensity set to <span className="text-strong">{selectedIntensity.label}</span>.
               </p>
             </Card>
           </div>

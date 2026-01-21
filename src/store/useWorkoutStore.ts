@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { SessionExercise, WorkoutSession, WorkoutSet } from '@/types/domain';
+import { SessionExercise, WorkoutSession, WorkoutSet, WeightUnit } from '@/types/domain';
 
 interface WorkoutState {
   activeSession: WorkoutSession | null;
@@ -11,7 +11,7 @@ interface WorkoutState {
   addSessionExercise: (exercise: SessionExercise) => void;
   removeSessionExercise: (exerciseIndex: number) => void;
   updateSet: (exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => void;
-  addSet: (exerciseIndex: number) => WorkoutSet | null;
+  addSet: (exerciseIndex: number, weightUnit?: WeightUnit) => WorkoutSet | null;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
 }
 
@@ -53,7 +53,7 @@ export const useWorkoutStore = create<WorkoutState>()(
         return { activeSession: { ...state.activeSession, exercises } };
       }),
 
-      addSet: (exerciseIndex) => {
+      addSet: (exerciseIndex, weightUnit) => {
         let createdSet: WorkoutSet | null = null;
         set((state) => {
         if (!state.activeSession) return state;
@@ -69,8 +69,12 @@ export const useWorkoutStore = create<WorkoutState>()(
           rir: '',
           performedAt: new Date().toISOString(),
           completed: false,
-          weightUnit: 'lb',
-          failure: false
+          weightUnit: weightUnit ?? 'lb',
+          setType: 'working',
+          restSecondsActual: '',
+          failure: false,
+          painScore: '',
+          painArea: ''
         };
         createdSet = newSet;
 

@@ -7,9 +7,12 @@ import { CheckCircle2, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { createClient } from '@/lib/supabase/client'
-import { aggregateHardSets, computeSetE1rm, computeSetTonnage, getEffortScore } from '@/lib/session-metrics'
+import { computeSetE1rm, computeSetTonnage } from '@/lib/session-metrics'
+import { computeSessionMetrics, type ReadinessSurvey } from '@/lib/training-metrics'
 import { toMuscleLabel } from '@/lib/muscle-utils'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { useUser } from '@/hooks/useUser'
+import type { FocusArea, Intensity, PlanInput } from '@/types/domain'
 
 type SessionDetail = {
   id: string
@@ -41,12 +44,27 @@ type SessionDetail = {
       performed_at: string | null
       weight_unit: string | null
       failure: boolean | null
+      set_type: string | null
+      rest_seconds_actual: number | null
+      pain_score: number | null
+      pain_area: string | null
     }>
   }>
+  template?: {
+    id: string
+    title: string
+    focus: FocusArea
+    style: PlanInput['goals']['primary']
+    intensity: PlanInput['intensity']
+    template_inputs: PlanInput | null
+  } | null
 }
 
 type SessionNotes = {
+  sessionIntensity?: Intensity
   readiness?: 'low' | 'steady' | 'high'
+  readinessScore?: number
+  readinessSurvey?: ReadinessSurvey
   minutesAvailable?: number
 }
 
@@ -76,6 +94,22 @@ const parseSessionNotes = (notes?: string | null): SessionNotes | null => {
   }
 }
 
+const formatSessionIntensity = (intensity?: Intensity | null) => {
+  if (!intensity) return null
+  if (intensity === 'low') return 'Ease in'
+  if (intensity === 'high') return 'Push'
+  return 'Steady'
+}
+
+const getSessionIntensity = (notes?: SessionNotes | null): Intensity | null => {
+  if (!notes) return null
+  if (notes.sessionIntensity) return notes.sessionIntensity
+  if (!notes.readiness) return null
+  if (notes.readiness === 'low') return 'low'
+  if (notes.readiness === 'high') return 'high'
+  return 'moderate'
+}
+
 export default function WorkoutSummaryPage() {
   const params = useParams()
   const router = useRouter()
@@ -90,9 +124,17 @@ export default function WorkoutSummaryPage() {
   const [savingNotes, setSavingNotes] = useState(false)
 
   const parsedNotes = useMemo(() => parseSessionNotes(session?.session_notes ?? null), [session?.session_notes])
-  const readinessLabel = parsedNotes?.readiness
-    ? `${parsedNotes.readiness.charAt(0).toUpperCase()}${parsedNotes.readiness.slice(1)}`
-    : null
+  const intensityLabel = formatSessionIntensity(getSessionIntensity(parsedNotes))
+  const sessionTitle = useMemo(() => {
+    if (!session) return ''
+    return buildWorkoutDisplayName({
+      focus: session.template?.focus ?? null,
+      style: session.template?.style ?? null,
+      intensity: session.template?.intensity ?? null,
+      minutes: parsedNotes?.minutesAvailable ?? session.template?.template_inputs?.time?.minutesPerSession ?? null,
+      fallback: session.name
+    })
+  }, [parsedNotes?.minutesAvailable, session])
 
   useEffect(() => {
     if (!sessionId) {
@@ -104,7 +146,7 @@ export default function WorkoutSummaryPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, started_at, ended_at, status, session_notes, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure))'
+          'id, name, started_at, ended_at, status, session_notes, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, failure, set_type, rest_seconds_actual, pain_score, pain_area)), template:workout_templates(id, title, focus, style, intensity, template_inputs)'
         )
         .eq('id', sessionId)
         .single()
@@ -129,65 +171,81 @@ export default function WorkoutSummaryPage() {
         tonnage: 0,
         hardSets: 0,
         bestE1rm: 0,
-        avgEffort: null
+        avgEffort: null,
+        avgIntensity: null,
+        avgRestSeconds: null,
+        workload: 0,
+        density: null,
+        sessionRpe: null,
+        sRpeLoad: null
       }
     }
-    let totalSets = 0
-    let totalReps = 0
-    let tonnage = 0
-    let hardSets = 0
-    let bestE1rm = 0
-    let effortTotal = 0
-    let effortCount = 0
 
-    session.session_exercises.forEach((exercise) => {
-      exercise.sets.forEach((set) => {
-        if (set.completed === false) return
-        totalSets += 1
-        totalReps += set.reps ?? 0
-        tonnage += computeSetTonnage({
+    const metricSets = session.session_exercises.flatMap((exercise) =>
+      exercise.sets
+        .filter((set) => set.completed !== false)
+        .map((set) => ({
           reps: set.reps ?? null,
           weight: set.weight ?? null,
-          weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
-        })
-        hardSets += aggregateHardSets([
-          {
-            reps: set.reps ?? null,
-            weight: set.weight ?? null,
-            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
-            rpe: typeof set.rpe === 'number' ? set.rpe : null,
-            rir: typeof set.rir === 'number' ? set.rir : null,
-            failure: set.failure ?? null
-          }
-        ])
-        bestE1rm = Math.max(
-          bestE1rm,
-          computeSetE1rm({
-            reps: set.reps ?? null,
-            weight: set.weight ?? null,
-            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
-          })
-        )
-        const effort = getEffortScore({
+          weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
           rpe: typeof set.rpe === 'number' ? set.rpe : null,
-          rir: typeof set.rir === 'number' ? set.rir : null
-        })
-        if (typeof effort === 'number') {
-          effortTotal += effort
-          effortCount += 1
-        }
-      })
+          rir: typeof set.rir === 'number' ? set.rir : null,
+          failure: set.failure ?? null,
+          setType: (set.set_type as 'working' | 'backoff' | 'drop' | 'amrap' | null) ?? null,
+          performedAt: set.performed_at ?? null,
+          restSecondsActual: typeof set.rest_seconds_actual === 'number' ? set.rest_seconds_actual : null
+        }))
+    )
+
+    const metrics = computeSessionMetrics({
+      startedAt: session.started_at,
+      endedAt: session.ended_at,
+      intensity: getSessionIntensity(parsedNotes),
+      sets: metricSets
     })
 
+    const bestE1rm = metricSets.reduce((best, set) => {
+      return Math.max(
+        best,
+        computeSetE1rm({
+          reps: set.reps ?? null,
+          weight: set.weight ?? null,
+          weightUnit: set.weightUnit ?? null
+        })
+      )
+    }, 0)
+
     return {
-      totalSets,
-      totalReps,
-      tonnage: Math.round(tonnage),
-      hardSets,
-      bestE1rm: Math.round(bestE1rm),
-      avgEffort: effortCount ? Number((effortTotal / effortCount).toFixed(1)) : null
+      ...metrics,
+      bestE1rm: Math.round(bestE1rm)
     }
+  }, [parsedNotes, session])
+
+  const painHighlights = useMemo(() => {
+    if (!session) return []
+    const highlights = new Map<string, number>()
+    session.session_exercises.forEach((exercise) => {
+      exercise.sets.forEach((set) => {
+        if (typeof set.pain_score !== 'number' || set.pain_score < 4) return
+        const area = set.pain_area ?? 'Other'
+        highlights.set(area, Math.max(highlights.get(area) ?? 0, set.pain_score))
+      })
+    })
+    return Array.from(highlights.entries())
+      .map(([area, score]) => ({ area, score }))
+      .sort((a, b) => b.score - a.score)
   }, [session])
+
+  const effortInsight = useMemo(() => {
+    if (!sessionMetrics.avgEffort) return null
+    if (parsedNotes?.readiness === 'low' && sessionMetrics.avgEffort >= 8) {
+      return 'You pushed hard on a low-readiness day. Plan extra recovery before the next session.'
+    }
+    if (parsedNotes?.readiness === 'high' && sessionMetrics.avgEffort <= 7) {
+      return 'Readiness was high but effort stayed controlled. Consider a small load bump next time.'
+    }
+    return null
+  }, [parsedNotes?.readiness, sessionMetrics.avgEffort])
 
   const exerciseHighlights = useMemo(() => {
     if (!session) return []
@@ -254,15 +312,18 @@ export default function WorkoutSummaryPage() {
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-subtle">Workout complete</p>
-            <h1 className="font-display text-3xl font-semibold text-strong">{session.name}</h1>
+            <h1 className="font-display text-3xl font-semibold text-strong">{sessionTitle}</h1>
             <p className="mt-2 text-sm text-muted">
               {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
             </p>
-            {(readinessLabel || parsedNotes?.minutesAvailable) && (
+            {(intensityLabel || parsedNotes?.minutesAvailable) && (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
-                {readinessLabel && <span className="badge-neutral">Readiness: {readinessLabel}</span>}
+                {intensityLabel && <span className="badge-neutral">Intensity: {intensityLabel}</span>}
                 {parsedNotes?.minutesAvailable && (
                   <span className="badge-neutral">{parsedNotes.minutesAvailable} min plan</span>
+                )}
+                {typeof parsedNotes?.readinessScore === 'number' && (
+                  <span className="badge-neutral">Readiness {parsedNotes.readinessScore}</span>
                 )}
               </div>
             )}
@@ -293,6 +354,9 @@ export default function WorkoutSummaryPage() {
                 </span>
               </div>
             ) : null}
+            {effortInsight && (
+              <p className="mt-2 text-xs text-subtle">{effortInsight}</p>
+            )}
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div className="rounded-lg border border-[var(--color-border)] p-4 text-sm">
                 <p className="text-xs text-subtle">Total sets</p>
@@ -300,23 +364,36 @@ export default function WorkoutSummaryPage() {
                 <p className="text-xs text-subtle">{sessionMetrics.totalReps} reps logged</p>
               </div>
               <div className="rounded-lg border border-[var(--color-border)] p-4 text-sm">
-                <p className="text-xs text-subtle">Tonnage</p>
-                <p className="text-2xl font-semibold text-strong">{sessionMetrics.tonnage}</p>
-                <p className="text-xs text-subtle">{sessionMetrics.hardSets} hard sets</p>
+                <p className="text-xs text-subtle">Workload</p>
+                <p className="text-2xl font-semibold text-strong">{sessionMetrics.workload}</p>
+                <p className="text-xs text-subtle">
+                  {sessionMetrics.tonnage} tonnage · {sessionMetrics.hardSets} hard sets · sRPE {sessionMetrics.sRpeLoad ?? 'N/A'}
+                </p>
               </div>
               <div className="rounded-lg border border-[var(--color-border)] p-4 text-sm">
                 <p className="text-xs text-subtle">Best e1RM</p>
                 <p className="text-2xl font-semibold text-strong">{sessionMetrics.bestE1rm}</p>
-                <p className="text-xs text-subtle">Estimated max strength</p>
+                <p className="text-xs text-subtle">Avg intensity {sessionMetrics.avgIntensity ?? 'N/A'}</p>
               </div>
               <div className="rounded-lg border border-[var(--color-border)] p-4 text-sm">
                 <p className="text-xs text-subtle">Average effort</p>
                 <p className="text-2xl font-semibold text-strong">
                   {sessionMetrics.avgEffort ?? 'N/A'}
                 </p>
-                <p className="text-xs text-subtle">Based on RPE/RIR</p>
+                <p className="text-xs text-subtle">
+                  Rest {sessionMetrics.avgRestSeconds ?? 'N/A'}s · Density {sessionMetrics.density ?? 'N/A'}
+                </p>
               </div>
             </div>
+
+            {painHighlights.length > 0 && (
+              <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-xs text-muted">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-subtle">Pain flagged</p>
+                <p className="mt-2 text-sm text-strong">
+                  {painHighlights.map((entry) => `${entry.area} (${entry.score}/10)`).join(' · ')}
+                </p>
+              </div>
+            )}
 
             <div className="mt-6">
               <p className="text-xs uppercase tracking-[0.2em] text-subtle">Top exercises</p>

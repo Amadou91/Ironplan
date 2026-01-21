@@ -9,7 +9,7 @@ type AppShellProps = {
   children: ReactNode
 }
 
-const HIDDEN_SHELL_PREFIXES = ['/auth', '/onboarding']
+const HIDDEN_SHELL_PREFIXES = ['/auth']
 
 export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname()
