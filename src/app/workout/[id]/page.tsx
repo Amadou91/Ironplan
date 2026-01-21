@@ -114,7 +114,7 @@ export default function WorkoutDetailPage() {
       const normalizedInputs = normalizePlanInput(template.template_inputs ?? {})
       const history = await fetchTemplateHistory(supabase, template.id)
       const nameSuffix = `${toMuscleLabel(template.focus)} ${template.style.replace('_', ' ')}`
-      const { sessionId: createdSessionId, startedAt, sessionName, exercises, impact } =
+      const { sessionId: createdSessionId, startedAt, sessionName, exercises, impact, timezone, sessionNotes } =
         await createWorkoutSession({
           supabase,
           userId: user.id,
@@ -136,7 +136,9 @@ export default function WorkoutDetailPage() {
         startedAt,
         status: 'in_progress',
         impact,
-        exercises
+        exercises,
+        timezone,
+        sessionNotes
       })
 
       const fromQuery = fromParam ? `&from=${fromParam}` : ''
