@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
 import { INTENSITY_RECOMMENDATION, RIR_HELPER_TEXT, RIR_OPTIONS, RPE_HELPER_TEXT, RPE_OPTIONS } from '@/constants/intensityOptions'
+import { EXTRAS_FIELDS, GROUP_TYPE_OPTIONS, PAIN_AREA_OPTIONS, SET_TYPE_OPTIONS, WEIGHT_UNIT_OPTIONS } from '@/constants/setOptions'
 
 type EditableSet = {
   id: string
@@ -18,6 +19,17 @@ type EditableSet = {
   notes: string
   completed: boolean
   performedAt?: string | null
+  setType: string
+  weightUnit: string
+  restSecondsActual: number | ''
+  failure: boolean
+  tempo: string
+  romCue: string
+  painScore: number | ''
+  painArea: string
+  groupId: string
+  groupType: string
+  extras: Record<string, string>
 }
 
 type EditableExercise = {
@@ -26,6 +38,7 @@ type EditableExercise = {
   primaryMuscle: string | null
   secondaryMuscles: string[] | null
   orderIndex: number | null
+  variation: Record<string, string>
   sets: EditableSet[]
 }
 
@@ -34,6 +47,8 @@ type EditableSession = {
   name: string
   startedAt: string
   endedAt: string | null
+  timezone?: string | null
+  sessionNotes?: string | null
   exercises: EditableExercise[]
 }
 
@@ -42,12 +57,15 @@ type SessionPayload = {
   name: string
   started_at: string
   ended_at: string | null
+  timezone?: string | null
+  session_notes?: string | null
   session_exercises: Array<{
     id: string
     exercise_name: string
     primary_muscle: string | null
     secondary_muscles: string[] | null
     order_index: number | null
+    variation: Record<string, string> | null
     sets: Array<{
       id: string
       set_number: number | null
@@ -58,6 +76,17 @@ type SessionPayload = {
       notes: string | null
       completed: boolean | null
       performed_at: string | null
+      set_type: string | null
+      weight_unit: string | null
+      rest_seconds_actual: number | null
+      failure: boolean | null
+      tempo: string | null
+      rom_cue: string | null
+      pain_score: number | null
+      pain_area: string | null
+      group_id: string | null
+      group_type: string | null
+      extras: Record<string, string> | null
     }>
   }>
 }
@@ -70,6 +99,11 @@ const formatDateTime = (value: string) => {
 }
 
 const normalizeNumber = (value: number | '') => (typeof value === 'number' && Number.isFinite(value) ? value : null)
+
+const normalizeExtras = (extras: Record<string, string>) => {
+  const entries = Object.entries(extras).filter(([, value]) => value.trim().length > 0)
+  return entries.length ? Object.fromEntries(entries) : {}
+}
 
 export default function SessionEditPage() {
   const router = useRouter()
@@ -89,6 +123,8 @@ export default function SessionEditPage() {
       name: payload.name,
       startedAt: payload.started_at,
       endedAt: payload.ended_at,
+      timezone: payload.timezone ?? null,
+      sessionNotes: payload.session_notes ?? '',
       exercises: payload.session_exercises
         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
         .map((exercise, index) => ({
@@ -97,6 +133,7 @@ export default function SessionEditPage() {
           primaryMuscle: exercise.primary_muscle,
           secondaryMuscles: exercise.secondary_muscles,
           orderIndex: exercise.order_index ?? index,
+          variation: exercise.variation ?? {},
           sets: (exercise.sets ?? [])
             .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
             .map((set, idx) => ({
@@ -108,7 +145,18 @@ export default function SessionEditPage() {
               rir: set.rir ?? '',
               notes: set.notes ?? '',
               completed: set.completed ?? false,
-              performedAt: set.performed_at
+              performedAt: set.performed_at,
+              setType: set.set_type ?? 'working',
+              weightUnit: set.weight_unit ?? 'lb',
+              restSecondsActual: set.rest_seconds_actual ?? '',
+              failure: set.failure ?? false,
+              tempo: set.tempo ?? '',
+              romCue: set.rom_cue ?? '',
+              painScore: set.pain_score ?? '',
+              painArea: set.pain_area ?? '',
+              groupId: set.group_id ?? '',
+              groupType: set.group_type ?? '',
+              extras: set.extras ?? {}
             }))
         }))
     }
@@ -121,7 +169,7 @@ export default function SessionEditPage() {
     const { data, error } = await supabase
       .from('sessions')
       .select(
-        'id, name, started_at, ended_at, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
+        'id, name, started_at, ended_at, timezone, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at, set_type, weight_unit, rest_seconds_actual, failure, tempo, rom_cue, pain_score, pain_area, group_id, group_type, extras))'
       )
       .eq('id', params.id)
       .single()
@@ -151,7 +199,35 @@ export default function SessionEditPage() {
     setSession((prev) => (prev ? { ...prev, name: value } : prev))
   }
 
-  const updateSetField = (exerciseId: string, setId: string, field: keyof EditableSet, value: number | string | boolean) => {
+  const updateSessionNotes = (value: string) => {
+    setSession((prev) => (prev ? { ...prev, sessionNotes: value } : prev))
+  }
+
+  const updateExerciseVariation = (exerciseId: string, field: keyof EditableExercise['variation'], value: string) => {
+    setSession((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        exercises: prev.exercises.map((exercise) => {
+          if (exercise.id !== exerciseId) return exercise
+          return {
+            ...exercise,
+            variation: {
+              ...exercise.variation,
+              [field]: value
+            }
+          }
+        })
+      }
+    })
+  }
+
+  const updateSetField = (
+    exerciseId: string,
+    setId: string,
+    field: keyof EditableSet,
+    value: number | string | boolean | Record<string, string>
+  ) => {
     setSession((prev) => {
       if (!prev) return prev
       return {
@@ -195,7 +271,21 @@ export default function SessionEditPage() {
                 rir: '',
                 notes: '',
                 completed: false,
-                performedAt: new Date().toISOString()
+                performedAt: new Date().toISOString(),
+                setType: 'working',
+                weightUnit: 'lb',
+                restSecondsActual: '',
+                failure: false,
+                tempo: '',
+                romCue: '',
+                painScore: '',
+                painArea: '',
+                groupId: '',
+                groupType: '',
+                extras: {
+                  assistance: '',
+                  band_tension: ''
+                }
               }
             ]
           }
@@ -234,8 +324,14 @@ export default function SessionEditPage() {
             return 'Values cannot be negative.'
           }
         }
+        if (typeof set.rpe === 'number' && typeof set.rir === 'number') {
+          return 'Only one effort input is allowed per set.'
+        }
         if (typeof set.rpe === 'number' && set.rpe > 10) return 'RPE must be 10 or less.'
         if (typeof set.rir === 'number' && set.rir > 10) return 'RIR must be 10 or less.'
+        if (typeof set.painScore === 'number' && (set.painScore < 0 || set.painScore > 10)) {
+          return 'Pain score must be between 0 and 10.'
+        }
       }
     }
     return null
@@ -261,7 +357,7 @@ export default function SessionEditPage() {
     try {
       const { error: sessionError } = await supabase
         .from('sessions')
-        .update({ name: session.name })
+        .update({ name: session.name, session_notes: session.sessionNotes?.trim() || null })
         .eq('id', session.id)
 
       if (sessionError) throw sessionError
@@ -272,6 +368,12 @@ export default function SessionEditPage() {
       }
 
       for (const exercise of session.exercises) {
+        const { error: exerciseError } = await supabase
+          .from('session_exercises')
+          .update({ variation: exercise.variation ?? {} })
+          .eq('id', exercise.id)
+        if (exerciseError) throw exerciseError
+
         const normalizedSets = exercise.sets.map((set, idx) => ({
           ...set,
           setNumber: idx + 1
@@ -287,7 +389,18 @@ export default function SessionEditPage() {
             rir: normalizeNumber(set.rir),
             notes: set.notes ? set.notes.trim() : null,
             completed: set.completed,
-            performed_at: set.performedAt ?? new Date().toISOString()
+            performed_at: set.performedAt ?? new Date().toISOString(),
+            set_type: set.setType ?? 'working',
+            weight_unit: set.weightUnit ?? 'lb',
+            rest_seconds_actual: normalizeNumber(set.restSecondsActual),
+            failure: Boolean(set.failure),
+            tempo: set.tempo ? set.tempo.trim() : null,
+            rom_cue: set.romCue ? set.romCue.trim() : null,
+            pain_score: normalizeNumber(set.painScore),
+            pain_area: set.painArea ? set.painArea.trim() : null,
+            group_id: set.groupId ? set.groupId.trim() : null,
+            group_type: set.groupType ? set.groupType.trim() : null,
+            extras: normalizeExtras(set.extras ?? {})
           }
 
           if (set.id.startsWith('temp-')) {
@@ -361,6 +474,17 @@ export default function SessionEditPage() {
             onChange={(event) => updateSessionName(event.target.value)}
             className="input-base mt-2"
           />
+          <label className="mt-4 text-xs text-subtle">Session notes</label>
+          <textarea
+            rows={3}
+            value={session.sessionNotes ?? ''}
+            onChange={(event) => updateSessionNotes(event.target.value)}
+            className="input-base mt-2"
+            placeholder="Add summary notes for this session."
+          />
+          {session.timezone && (
+            <p className="mt-2 text-[10px] text-subtle">Timezone: {session.timezone}</p>
+          )}
         </Card>
 
         <div className="space-y-6">
@@ -369,11 +493,41 @@ export default function SessionEditPage() {
               <div>
                 <h2 className="text-lg font-semibold text-strong">{exercise.name}</h2>
                 <p className="text-xs text-subtle">
-                  Primary: {exercise.primaryMuscle ? toMuscleLabel(exercise.primaryMuscle) : '—'}
+                  Primary: {exercise.primaryMuscle ? toMuscleLabel(exercise.primaryMuscle) : 'N/A'}
                   {exercise.secondaryMuscles?.length
                     ? ` · Secondary: ${exercise.secondaryMuscles.map((muscle) => toMuscleLabel(muscle)).join(', ')}`
                     : ''}
                 </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-subtle">Grip</label>
+                  <input
+                    type="text"
+                    value={exercise.variation.grip ?? ''}
+                    onChange={(event) => updateExerciseVariation(exercise.id, 'grip', event.target.value)}
+                    className="input-base mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-subtle">Stance</label>
+                  <input
+                    type="text"
+                    value={exercise.variation.stance ?? ''}
+                    onChange={(event) => updateExerciseVariation(exercise.id, 'stance', event.target.value)}
+                    className="input-base mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-subtle">Equipment</label>
+                  <input
+                    type="text"
+                    value={exercise.variation.equipment ?? ''}
+                    onChange={(event) => updateExerciseVariation(exercise.id, 'equipment', event.target.value)}
+                    className="input-base mt-1"
+                  />
+                </div>
               </div>
 
             <div className="space-y-3">
@@ -392,16 +546,43 @@ export default function SessionEditPage() {
                         Delete set
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div className={`grid gap-3 ${set.setType === 'working' ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
                       <div>
-                        <label className="text-[10px] uppercase tracking-wider text-subtle">Weight (lb)</label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={set.weight}
-                          onChange={(event) => updateSetField(exercise.id, set.id, 'weight', event.target.value === '' ? '' : Number(event.target.value))}
+                        <label className="text-[10px] uppercase tracking-wider text-subtle">Set type</label>
+                        <select
+                          value={set.setType}
+                          onChange={(event) => updateSetField(exercise.id, set.id, 'setType', event.target.value)}
                           className="input-base mt-1"
-                        />
+                        >
+                          {SET_TYPE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider text-subtle">Weight</label>
+                        <div className="mt-1 flex gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            value={set.weight}
+                            onChange={(event) => updateSetField(exercise.id, set.id, 'weight', event.target.value === '' ? '' : Number(event.target.value))}
+                            className="input-base"
+                          />
+                          <select
+                            value={set.weightUnit}
+                            onChange={(event) => updateSetField(exercise.id, set.id, 'weightUnit', event.target.value)}
+                            className="input-base"
+                          >
+                            {WEIGHT_UNIT_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                       <div>
                         <label className="text-[10px] uppercase tracking-wider text-subtle">Reps</label>
@@ -413,64 +594,74 @@ export default function SessionEditPage() {
                           className="input-base mt-1"
                         />
                       </div>
-                      <div>
-                        <label className="text-[10px] uppercase tracking-wider text-subtle">RPE</label>
-                        <select
-                          value={typeof set.rpe === 'number' ? String(set.rpe) : ''}
-                          onChange={(event) => {
-                            const nextValue = event.target.value === '' ? '' : Number(event.target.value)
-                            updateSetField(exercise.id, set.id, 'rpe', nextValue)
-                            if (event.target.value !== '') {
-                              updateSetField(exercise.id, set.id, 'rir', '')
-                            }
-                          }}
-                          className="input-base mt-1"
-                          disabled={typeof set.rir === 'number'}
-                        >
-                          <option value="">Select effort</option>
-                          {RPE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label} — {option.description}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="mt-1 text-[10px] text-subtle">{RPE_HELPER_TEXT}</p>
-                        {typeof set.rpe === 'number' ? (
-                          <p className="text-[10px] text-accent">
-                            {RPE_OPTIONS.find((option) => option.value === set.rpe)?.equivalence}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div>
-                        <label className="text-[10px] uppercase tracking-wider text-subtle">RIR</label>
-                        <select
-                          value={typeof set.rir === 'number' ? String(set.rir) : ''}
-                          onChange={(event) => {
-                            const nextValue = event.target.value === '' ? '' : Number(event.target.value)
-                            updateSetField(exercise.id, set.id, 'rir', nextValue)
-                            if (event.target.value !== '') {
-                              updateSetField(exercise.id, set.id, 'rpe', '')
-                            }
-                          }}
-                          className="input-base mt-1"
-                          disabled={typeof set.rpe === 'number'}
-                        >
-                          <option value="">Select reps left</option>
-                          {RIR_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="mt-1 text-[10px] text-subtle">{RIR_HELPER_TEXT}</p>
-                        {typeof set.rir === 'number' ? (
-                          <p className="text-[10px] text-accent">
-                            {RIR_OPTIONS.find((option) => option.value === set.rir)?.equivalence}
-                          </p>
-                        ) : null}
-                      </div>
+                      {set.setType === 'working' && (
+                        <div>
+                          <label className="text-[10px] uppercase tracking-wider text-subtle">RPE</label>
+                          <select
+                            value={typeof set.rpe === 'number' ? String(set.rpe) : ''}
+                            onChange={(event) => {
+                              const nextValue = event.target.value === '' ? '' : Number(event.target.value)
+                              updateSetField(exercise.id, set.id, 'rpe', nextValue)
+                              if (event.target.value !== '') {
+                                updateSetField(exercise.id, set.id, 'rir', '')
+                              }
+                            }}
+                            className="input-base mt-1"
+                            disabled={typeof set.rir === 'number'}
+                          >
+                            <option value="">Select effort</option>
+                            {RPE_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                              {option.label} - {option.description}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="mt-1 text-[10px] text-subtle">{RPE_HELPER_TEXT}</p>
+                          {typeof set.rpe === 'number' ? (
+                            <p className="text-[10px] text-accent">
+                              {RPE_OPTIONS.find((option) => option.value === set.rpe)?.equivalence}
+                            </p>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-[10px] text-subtle">{INTENSITY_RECOMMENDATION}</p>
+                    {set.setType === 'working' ? (
+                      <>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-subtle">RIR</label>
+                            <select
+                              value={typeof set.rir === 'number' ? String(set.rir) : ''}
+                              onChange={(event) => {
+                                const nextValue = event.target.value === '' ? '' : Number(event.target.value)
+                                updateSetField(exercise.id, set.id, 'rir', nextValue)
+                                if (event.target.value !== '') {
+                                  updateSetField(exercise.id, set.id, 'rpe', '')
+                                }
+                              }}
+                              className="input-base mt-1"
+                              disabled={typeof set.rpe === 'number'}
+                            >
+                              <option value="">Select reps left</option>
+                              {RIR_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <p className="mt-1 text-[10px] text-subtle">{RIR_HELPER_TEXT}</p>
+                            {typeof set.rir === 'number' ? (
+                              <p className="text-[10px] text-accent">
+                                {RIR_OPTIONS.find((option) => option.value === set.rir)?.equivalence}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-subtle">{INTENSITY_RECOMMENDATION}</p>
+                      </>
+                    ) : (
+                      <p className="text-[10px] text-subtle">Effort inputs are hidden for warmup or accessory sets. Use Advanced to log RPE or RIR.</p>
+                    )}
                     <div>
                       <label className="text-[10px] uppercase tracking-wider text-subtle">Notes</label>
                       <input
@@ -480,6 +671,168 @@ export default function SessionEditPage() {
                         className="input-base mt-1"
                       />
                     </div>
+                    <details className="rounded-lg border border-dashed border-[var(--color-border)] p-3">
+                      <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-wider text-subtle">Advanced</summary>
+                      <div className="mt-3 space-y-3">
+                        {set.setType !== 'working' && (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <label className="text-[10px] uppercase tracking-wider text-subtle">RPE</label>
+                              <select
+                                value={typeof set.rpe === 'number' ? String(set.rpe) : ''}
+                                onChange={(event) => {
+                                  const nextValue = event.target.value === '' ? '' : Number(event.target.value)
+                                  updateSetField(exercise.id, set.id, 'rpe', nextValue)
+                                  if (event.target.value !== '') {
+                                    updateSetField(exercise.id, set.id, 'rir', '')
+                                  }
+                                }}
+                                className="input-base mt-1"
+                                disabled={typeof set.rir === 'number'}
+                              >
+                                <option value="">Select effort</option>
+                                {RPE_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                  {option.label} - {option.description}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[10px] uppercase tracking-wider text-subtle">RIR</label>
+                              <select
+                                value={typeof set.rir === 'number' ? String(set.rir) : ''}
+                                onChange={(event) => {
+                                  const nextValue = event.target.value === '' ? '' : Number(event.target.value)
+                                  updateSetField(exercise.id, set.id, 'rir', nextValue)
+                                  if (event.target.value !== '') {
+                                    updateSetField(exercise.id, set.id, 'rpe', '')
+                                  }
+                                }}
+                                className="input-base mt-1"
+                                disabled={typeof set.rpe === 'number'}
+                              >
+                                <option value="">Select reps left</option>
+                                {RIR_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-subtle">Rest seconds</label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={set.restSecondsActual}
+                              onChange={(event) => updateSetField(exercise.id, set.id, 'restSecondsActual', event.target.value === '' ? '' : Number(event.target.value))}
+                              className="input-base mt-1"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted">
+                            <input
+                              type="checkbox"
+                              checked={set.failure}
+                              onChange={(event) => updateSetField(exercise.id, set.id, 'failure', event.target.checked)}
+                              className="h-4 w-4 rounded border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)]"
+                            />
+                            <span>Reached failure</span>
+                          </div>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-subtle">Tempo</label>
+                            <input
+                              type="text"
+                              value={set.tempo}
+                              onChange={(event) => updateSetField(exercise.id, set.id, 'tempo', event.target.value)}
+                              className="input-base mt-1"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-subtle">ROM cue</label>
+                            <input
+                              type="text"
+                              value={set.romCue}
+                              onChange={(event) => updateSetField(exercise.id, set.id, 'romCue', event.target.value)}
+                              className="input-base mt-1"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-subtle">Pain score</label>
+                            <input
+                              type="range"
+                              min={0}
+                              max={10}
+                              value={typeof set.painScore === 'number' ? set.painScore : 0}
+                              onChange={(event) => updateSetField(exercise.id, set.id, 'painScore', Number(event.target.value))}
+                            />
+                            <p className="text-[10px] text-subtle">Score: {typeof set.painScore === 'number' ? set.painScore : 0}</p>
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-subtle">Pain area</label>
+                            <select
+                              value={set.painArea}
+                              onChange={(event) => updateSetField(exercise.id, set.id, 'painArea', event.target.value)}
+                              className="input-base mt-1"
+                              disabled={typeof set.painScore !== 'number' || set.painScore === 0}
+                            >
+                              <option value="">Select area</option>
+                              {PAIN_AREA_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-subtle">Group type</label>
+                            <select
+                              value={set.groupType}
+                              onChange={(event) => updateSetField(exercise.id, set.id, 'groupType', event.target.value)}
+                              className="input-base mt-1"
+                            >
+                              <option value="">None</option>
+                              {GROUP_TYPE_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase tracking-wider text-subtle">Group ID</label>
+                            <input
+                              type="text"
+                              value={set.groupId}
+                              onChange={(event) => updateSetField(exercise.id, set.id, 'groupId', event.target.value)}
+                              className="input-base mt-1"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {EXTRAS_FIELDS.map((field) => (
+                            <div key={field.key}>
+                              <label className="text-[10px] uppercase tracking-wider text-subtle">{field.label}</label>
+                              <input
+                                type="text"
+                                value={set.extras[field.key] ?? ''}
+                                onChange={(event) => updateSetField(exercise.id, set.id, 'extras', { ...set.extras, [field.key]: event.target.value })}
+                                className="input-base mt-1"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </details>
                     <div className="flex items-center gap-2 text-xs text-muted">
                       <input
                         type="checkbox"

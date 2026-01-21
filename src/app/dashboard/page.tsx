@@ -27,6 +27,19 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
 import { promptForSessionMinutes } from '@/lib/session-time'
+import {
+  aggregateBestE1rm,
+  aggregateHardSets,
+  aggregateTonnage,
+  computeSetE1rm,
+  computeSetTonnage,
+  computeWeeklyVolumeByMuscleGroup,
+  E1RM_FORMULA_VERSION,
+  getEffortScore,
+  getGroupLabel,
+  getWeekKey,
+  toWeightInPounds
+} from '@/lib/session-metrics'
 import type { FocusArea, PlanInput } from '@/types/domain'
 
 const formatDate = (value: string) => {
@@ -42,24 +55,13 @@ const formatDateTime = (value: string) => {
 }
 
 const formatDuration = (start?: string | null, end?: string | null) => {
-  if (!start || !end) return '—'
+  if (!start || !end) return 'N/A'
   const startDate = new Date(start)
   const endDate = new Date(end)
-  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return '—'
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return 'N/A'
   const diff = Math.max(0, endDate.getTime() - startDate.getTime())
   const minutes = Math.round(diff / 60000)
   return `${minutes} min`
-}
-
-const getWeekKey = (value: string) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  const temp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const day = temp.getUTCDay() || 7
-  temp.setUTCDate(temp.getUTCDate() + 4 - day)
-  const yearStart = new Date(Date.UTC(temp.getUTCFullYear(), 0, 1))
-  const week = Math.ceil(((temp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
-  return `${temp.getUTCFullYear()}-W${week}`
 }
 
 type SessionRow = {
@@ -69,12 +71,15 @@ type SessionRow = {
   started_at: string
   ended_at: string | null
   status: string | null
+  timezone?: string | null
+  session_notes?: string | null
   session_exercises: Array<{
     id: string
     exercise_name: string
     primary_muscle: string | null
     secondary_muscles: string[] | null
     order_index: number | null
+    variation: Record<string, string> | null
     sets: Array<{
       id: string
       set_number: number | null
@@ -85,6 +90,17 @@ type SessionRow = {
       notes: string | null
       completed: boolean | null
       performed_at: string | null
+      set_type: string | null
+      weight_unit: string | null
+      rest_seconds_actual: number | null
+      failure: boolean | null
+      tempo: string | null
+      rom_cue: string | null
+      pain_score: number | null
+      pain_area: string | null
+      group_id: string | null
+      group_type: string | null
+      extras: Record<string, string> | null
     }>
   }>
 }
@@ -177,7 +193,7 @@ export default function DashboardPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
+          'id, name, template_id, started_at, ended_at, status, timezone, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at, set_type, weight_unit, rest_seconds_actual, failure, tempo, rom_cue, pain_score, pain_area, group_id, group_type, extras))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -222,7 +238,7 @@ export default function DashboardPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at))'
+          'id, name, template_id, started_at, ended_at, status, timezone, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, variation, sets(id, set_number, reps, weight, rpe, rir, notes, completed, performed_at, set_type, weight_unit, rest_seconds_actual, failure, tempo, rom_cue, pain_score, pain_area, group_id, group_type, extras))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -402,7 +418,7 @@ export default function DashboardPage() {
       const normalizedInputs = normalizePlanInput(template.template_inputs ?? {})
       const history = await fetchTemplateHistory(supabase, template.id)
       const nameSuffix = `${toMuscleLabel(template.focus)} ${template.style.replace('_', ' ')}`
-      const { sessionId, startedAt, sessionName, exercises: sessionExercises, impact: sessionImpact } =
+      const { sessionId, startedAt, sessionName, exercises: sessionExercises, impact: sessionImpact, timezone, sessionNotes } =
         await createWorkoutSession({
           supabase,
           userId: user.id,
@@ -423,7 +439,9 @@ export default function DashboardPage() {
         startedAt,
         status: 'in_progress',
         impact: sessionImpact,
-        exercises: sessionExercises
+        exercises: sessionExercises,
+        timezone,
+        sessionNotes
       })
       router.push(`/workout/${template.id}?session=active&sessionId=${sessionId}&from=dashboard`)
     } catch (startError) {
@@ -543,6 +561,7 @@ export default function DashboardPage() {
           exerciseName: exercise.exercise_name,
           primaryMuscle: exercise.primary_muscle,
           secondaryMuscles: exercise.secondary_muscles ?? [],
+          variation: exercise.variation ?? {},
           ...set
         }))
       )
@@ -552,11 +571,14 @@ export default function DashboardPage() {
   const volumeTrend = useMemo(() => {
     const totals = new Map<string, number>()
     allSets.forEach((set) => {
-      const reps = set.reps ?? 0
-      const weight = set.weight ?? 0
-      if (!reps || !weight) return
       const key = getWeekKey(set.performed_at ?? set.startedAt)
-      totals.set(key, (totals.get(key) ?? 0) + reps * weight)
+      const tonnage = computeSetTonnage({
+        reps: set.reps ?? null,
+        weight: set.weight ?? null,
+        weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
+      })
+      if (!tonnage) return
+      totals.set(key, (totals.get(key) ?? 0) + tonnage)
     })
     return Array.from(totals.entries())
       .sort(([a], [b]) => a.localeCompare(b))
@@ -566,7 +588,10 @@ export default function DashboardPage() {
   const effortTrend = useMemo(() => {
     const daily = new Map<string, { total: number; count: number }>()
     allSets.forEach((set) => {
-      const raw = typeof set.rpe === 'number' ? set.rpe : typeof set.rir === 'number' ? 10 - set.rir : null
+      const raw = getEffortScore({
+        rpe: typeof set.rpe === 'number' ? set.rpe : null,
+        rir: typeof set.rir === 'number' ? set.rir : null
+      })
       if (raw === null) return
       const key = formatDate(set.performed_at ?? set.startedAt)
       const current = daily.get(key) ?? { total: 0, count: 0 }
@@ -584,10 +609,12 @@ export default function DashboardPage() {
     allSets
       .filter((set) => set.exerciseName === selectedExercise)
       .forEach((set) => {
-        const reps = set.reps ?? 0
-        const weight = set.weight ?? 0
-        if (!reps || !weight) return
-        const e1rm = weight * (1 + reps / 30)
+        const e1rm = computeSetE1rm({
+          reps: set.reps ?? null,
+          weight: set.weight ?? null,
+          weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
+        })
+        if (!e1rm) return
         const key = formatDate(set.performed_at ?? set.startedAt)
         const current = daily.get(key)
         daily.set(key, Math.max(current ?? 0, e1rm))
@@ -598,11 +625,14 @@ export default function DashboardPage() {
   const muscleBreakdown = useMemo(() => {
     const totals = new Map<string, number>()
     allSets.forEach((set) => {
-      const reps = set.reps ?? 0
-      const weight = set.weight ?? 0
-      if (!reps || !weight) return
+      const tonnage = computeSetTonnage({
+        reps: set.reps ?? null,
+        weight: set.weight ?? null,
+        weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
+      })
+      if (!tonnage) return
       const muscle = set.primaryMuscle ?? 'unknown'
-      totals.set(muscle, (totals.get(muscle) ?? 0) + reps * weight)
+      totals.set(muscle, (totals.get(muscle) ?? 0) + tonnage)
     })
     return Array.from(totals.entries()).map(([muscle, volume]) => ({ muscle: toMuscleLabel(muscle), volume: Math.round(volume) }))
   }, [allSets])
@@ -615,9 +645,14 @@ export default function DashboardPage() {
       const reps = set.reps ?? 0
       const weight = set.weight ?? 0
       if (!reps || !weight) return
-      maxWeight = Math.max(maxWeight, weight)
+      const normalizedWeight = toWeightInPounds(weight, (set.weight_unit as 'lb' | 'kg' | null) ?? null)
+      maxWeight = Math.max(maxWeight, normalizedWeight)
       bestReps = Math.max(bestReps, reps)
-      const e1rm = weight * (1 + reps / 30)
+      const e1rm = computeSetE1rm({
+        reps: set.reps ?? null,
+        weight: set.weight ?? null,
+        weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
+      })
       bestE1rm = Math.max(bestE1rm, e1rm)
     })
     return {
@@ -626,6 +661,50 @@ export default function DashboardPage() {
       bestE1rm: Math.round(bestE1rm)
     }
   }, [allSets])
+
+  const aggregateMetrics = useMemo(() => {
+    const metricSets = allSets.map((set) => ({
+      reps: set.reps ?? null,
+      weight: set.weight ?? null,
+      weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+      rpe: typeof set.rpe === 'number' ? set.rpe : null,
+      rir: typeof set.rir === 'number' ? set.rir : null,
+      failure: set.failure ?? null,
+      setType: (set.set_type as 'working' | 'warmup' | 'backoff' | 'drop' | 'amrap' | null) ?? null
+    }))
+    return {
+      tonnage: Math.round(aggregateTonnage(metricSets)),
+      hardSets: aggregateHardSets(metricSets),
+      bestE1rm: Math.round(aggregateBestE1rm(metricSets))
+    }
+  }, [allSets])
+
+  const weeklyVolumeByMuscle = useMemo(() => {
+    const mappedSessions = filteredSessions.map((session) => ({
+      startedAt: session.started_at,
+      exercises: session.session_exercises.map((exercise) => ({
+        primaryMuscle: exercise.primary_muscle,
+        secondaryMuscles: exercise.secondary_muscles ?? [],
+        sets: (exercise.sets ?? []).map((set) => ({
+          reps: set.reps ?? null,
+          weight: set.weight ?? null,
+          weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+          setType: (set.set_type as 'working' | 'warmup' | 'backoff' | 'drop' | 'amrap' | null) ?? null
+        }))
+      }))
+    }))
+    const volumeMap = computeWeeklyVolumeByMuscleGroup(mappedSessions)
+    const weeks = Array.from(volumeMap.keys()).sort()
+    const latestWeek = weeks[weeks.length - 1]
+    const latestMap = latestWeek ? volumeMap.get(latestWeek) : undefined
+    const entries = latestMap
+      ? Array.from(latestMap.entries()).sort(([, a], [, b]) => b - a)
+      : []
+    return {
+      week: latestWeek ?? 'N/A',
+      entries
+    }
+  }, [filteredSessions])
 
   const sessionsPerWeek = useMemo(() => {
     const weeks = new Set<string>()
@@ -640,15 +719,40 @@ export default function DashboardPage() {
       exercises: session.session_exercises.length,
       sets: 0,
       reps: 0,
-      volume: 0
+      volume: 0,
+      hardSets: 0,
+      bestE1rm: 0
     }
     session.session_exercises.forEach((exercise) => {
       exercise.sets.forEach((set) => {
         totals.sets += 1
         const reps = set.reps ?? 0
-        const weight = set.weight ?? 0
         totals.reps += reps
-        totals.volume += reps && weight ? reps * weight : 0
+        const tonnage = computeSetTonnage({
+          reps: set.reps ?? null,
+          weight: set.weight ?? null,
+          weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
+        })
+        totals.volume += tonnage
+        totals.hardSets += aggregateHardSets([
+          {
+            reps: set.reps ?? null,
+            weight: set.weight ?? null,
+            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+            rpe: typeof set.rpe === 'number' ? set.rpe : null,
+            rir: typeof set.rir === 'number' ? set.rir : null,
+            failure: set.failure ?? null,
+            setType: (set.set_type as 'working' | 'warmup' | 'backoff' | 'drop' | 'amrap' | null) ?? null
+          }
+        ])
+        totals.bestE1rm = Math.max(
+          totals.bestE1rm,
+          computeSetE1rm({
+            reps: set.reps ?? null,
+            weight: set.weight ?? null,
+            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
+          })
+        )
       })
     })
     return totals
@@ -822,7 +926,7 @@ export default function DashboardPage() {
         </div>
         </Card>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
           <Card className="p-6">
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Consistency</h3>
             <p className="mt-3 text-3xl font-semibold text-strong">{sessionsPerWeek}</p>
@@ -831,9 +935,17 @@ export default function DashboardPage() {
           <Card className="p-6">
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">PR Snapshot</h3>
             <div className="mt-3 space-y-1 text-sm text-muted">
-              <p>Max weight: <span className="text-strong">{prMetrics.maxWeight}</span></p>
+              <p>Max weight (lb): <span className="text-strong">{prMetrics.maxWeight}</span></p>
               <p>Best reps: <span className="text-strong">{prMetrics.bestReps}</span></p>
-              <p>Best e1RM: <span className="text-strong">{prMetrics.bestE1rm}</span></p>
+              <p>Best e1RM ({E1RM_FORMULA_VERSION}): <span className="text-strong">{prMetrics.bestE1rm}</span></p>
+            </div>
+          </Card>
+          <Card className="p-6">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Volume Summary</h3>
+            <div className="mt-3 space-y-1 text-sm text-muted">
+              <p>Total tonnage: <span className="text-strong">{aggregateMetrics.tonnage}</span></p>
+              <p>Hard sets: <span className="text-strong">{aggregateMetrics.hardSets}</span></p>
+              <p>Best e1RM: <span className="text-strong">{aggregateMetrics.bestE1rm}</span></p>
             </div>
           </Card>
           <Card className="p-6">
@@ -916,6 +1028,19 @@ export default function DashboardPage() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
+            <div className="mt-4 space-y-1 text-xs text-muted">
+              <p className="text-[10px] uppercase tracking-wider text-subtle">Latest week ({weeklyVolumeByMuscle.week})</p>
+              {weeklyVolumeByMuscle.entries.length === 0 ? (
+                <p className="text-subtle">No tonnage logged this week yet.</p>
+              ) : (
+                weeklyVolumeByMuscle.entries.slice(0, 5).map(([muscle, volume]) => (
+                  <div key={muscle} className="flex items-center justify-between">
+                    <span>{toMuscleLabel(muscle)}</span>
+                    <span className="text-strong">{Math.round(volume)}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </Card>
         </div>
 
@@ -939,13 +1064,18 @@ export default function DashboardPage() {
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                       <div>
                         <p className="text-sm font-semibold text-strong">{session.name}</p>
-                        <p className="text-xs text-subtle">{formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}</p>
+                        <p className="text-xs text-subtle">
+                          {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
+                          {session.timezone ? ` · ${session.timezone}` : ''}
+                        </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                         <span className="badge-neutral px-3 py-1">{totals.exercises} exercises</span>
                         <span className="badge-neutral px-3 py-1">{totals.sets} sets</span>
                         <span className="badge-neutral px-3 py-1">{totals.reps} reps</span>
-                        <span className="badge-neutral px-3 py-1">{Math.round(totals.volume)} volume</span>
+                        <span className="badge-neutral px-3 py-1">{Math.round(totals.volume)} tonnage</span>
+                        <span className="badge-neutral px-3 py-1">{totals.hardSets} hard sets</span>
+                        <span className="badge-neutral px-3 py-1">{Math.round(totals.bestE1rm)} e1RM</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <Link href={`/sessions/${session.id}/edit`}>
@@ -971,26 +1101,60 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     {isExpanded && (
-                      <div className="grid gap-3 md:grid-cols-2">
-                        {session.session_exercises.map((exercise) => (
-                          <div key={exercise.id} className="surface-card-muted p-4 text-xs text-muted">
-                            <p className="text-sm font-semibold text-strong">{exercise.exercise_name}</p>
-                            <p className="text-subtle">Primary: {exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : '—'}</p>
-                            <p className="text-subtle">Secondary: {exercise.secondary_muscles?.length ? exercise.secondary_muscles.map((muscle) => toMuscleLabel(muscle)).join(', ') : '—'}</p>
-                            <div className="mt-3 space-y-1">
-                              {(exercise.sets ?? []).map((set) => (
-                                <div key={set.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--color-border)] px-2 py-1">
-                                  <span>Set {set.set_number ?? '—'}</span>
-                                  <span>
-                                    {set.weight ?? '—'} lb × {set.reps ?? '—'} reps
-                                    {typeof set.rpe === 'number' ? ` · RPE ${set.rpe}` : ''}
-                                    {typeof set.rir === 'number' ? ` · RIR ${set.rir}` : ''}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
+                      <div className="space-y-4">
+                        {session.session_notes && (
+                          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-xs text-muted">
+                            <p className="text-[10px] uppercase tracking-wider text-subtle">Session notes</p>
+                            <p className="mt-2 text-sm text-strong">{session.session_notes}</p>
                           </div>
-                        ))}
+                        )}
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {session.session_exercises.map((exercise) => (
+                            <div key={exercise.id} className="surface-card-muted p-4 text-xs text-muted">
+                              <p className="text-sm font-semibold text-strong">{exercise.exercise_name}</p>
+                              <p className="text-subtle">Primary: {exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'N/A'}</p>
+                              <p className="text-subtle">Secondary: {exercise.secondary_muscles?.length ? exercise.secondary_muscles.map((muscle) => toMuscleLabel(muscle)).join(', ') : 'N/A'}</p>
+                              <p className="text-subtle">Variation: {exercise.variation?.grip || exercise.variation?.stance || exercise.variation?.equipment
+                                ? [exercise.variation?.grip, exercise.variation?.stance, exercise.variation?.equipment].filter(Boolean).join(' · ')
+                                : 'N/A'}</p>
+                              <div className="mt-3 space-y-2">
+                                {(exercise.sets ?? []).map((set) => (
+                                  <div key={set.id} className="rounded border border-[var(--color-border)] px-2 py-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <span>Set {set.set_number ?? 'N/A'}</span>
+                                      <span>
+                                        {set.weight ?? 'N/A'} {set.weight_unit ?? 'lb'} × {set.reps ?? 'N/A'} reps
+                                        {set.set_type ? ` · ${set.set_type}` : ''}
+                                        {typeof set.rpe === 'number' ? ` · RPE ${set.rpe}` : ''}
+                                        {typeof set.rir === 'number' ? ` · RIR ${set.rir}` : ''}
+                                      </span>
+                                    </div>
+                                    <div className="mt-2 grid gap-2 text-[10px] text-subtle sm:grid-cols-2">
+                                      <span>Rest: {set.rest_seconds_actual ?? 'N/A'} sec</span>
+                                      <span>Failure: {set.failure ? 'Yes' : 'No'}</span>
+                                      <span>Tempo: {set.tempo || 'N/A'}</span>
+                                      <span>ROM cue: {set.rom_cue || 'N/A'}</span>
+                                      <span>Pain: {typeof set.pain_score === 'number' ? set.pain_score : 'N/A'} {set.pain_area ? `· ${set.pain_area}` : ''}</span>
+                                      <span>Group: {getGroupLabel(set.group_type as 'superset' | 'circuit' | 'giant_set' | 'dropset' | null, set.group_id)}</span>
+                                      {set.extras && Object.keys(set.extras).length > 0 ? (
+                                        <span>
+                                          Extras:{' '}
+                                          {Object.entries(set.extras)
+                                            .filter(([, value]) => value)
+                                            .map(([key, value]) => `${key.replace('_', ' ')} ${value}`)
+                                            .join(', ') || 'N/A'}
+                                        </span>
+                                      ) : (
+                                        <span>Extras: N/A</span>
+                                      )}
+                                      <span>Notes: {set.notes || 'N/A'}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
