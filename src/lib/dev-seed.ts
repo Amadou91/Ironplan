@@ -430,12 +430,24 @@ export async function clearDevData(supabase: SupabaseClient, userId: string): Pr
     if (sessionDeleteError) throw sessionDeleteError
   }
 
+  // Also clear body weight from any remaining non-dev sessions
+  await supabase
+    .from('sessions')
+    .update({ body_weight_lb: null })
+    .eq('user_id', userId)
+
   const { error: measurementDeleteError } = await supabase
     .from('body_measurements')
     .delete()
     .eq('user_id', userId)
     
   if (measurementDeleteError && !isMissingTableError(measurementDeleteError)) throw measurementDeleteError
+
+  // Reset profile weight
+  await supabase
+    .from('profiles')
+    .update({ weight_lb: null })
+    .eq('id', userId)
 
   if (templateIds.length) {
     const { error: templateDeleteError } = await supabase
