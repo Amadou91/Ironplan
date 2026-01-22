@@ -24,7 +24,7 @@ import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { toMuscleLabel, PRESET_MAPPINGS, isMuscleMatch } from '@/lib/muscle-utils'
+import { toMuscleLabel, PRESET_MAPPINGS, isMuscleMatch, toMuscleSlug } from '@/lib/muscle-utils'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
 import {
@@ -748,26 +748,47 @@ export default function ProgressPage() {
       })
       if (!tonnage) return
       
-      // Primary muscle gets 100% credit
-      const primary = set.primaryMuscle ?? 'unknown'
-      totals.set(primary, (totals.get(primary) ?? 0) + tonnage)
-
-      // Secondary muscles get 50% credit
-      if (set.secondaryMuscles && Array.isArray(set.secondaryMuscles)) {
-        set.secondaryMuscles.forEach(secondary => {
-          if (secondary) {
-            totals.set(secondary, (totals.get(secondary) ?? 0) + (tonnage * 0.5))
-          }
-        })
-      }
-    })
-
-    const data = Array.from(totals.entries())
-      .map(([muscle, volume]) => ({
-        slug: muscle,
-        muscle: toMuscleLabel(muscle),
-        volume: Math.round(volume)
-      }))
+            // Use slug for consistent aggregation keys
+      
+            const primary = toMuscleSlug(set.primaryMuscle ?? 'unknown')
+      
+            totals.set(primary, (totals.get(primary) ?? 0) + tonnage)
+      
+      
+      
+            // Secondary muscles get 50% credit
+      
+            if (set.secondaryMuscles && Array.isArray(set.secondaryMuscles)) {
+      
+              set.secondaryMuscles.forEach(secondary => {
+      
+                if (secondary) {
+      
+                  const secondarySlug = toMuscleSlug(secondary)
+      
+                  totals.set(secondarySlug, (totals.get(secondarySlug) ?? 0) + (tonnage * 0.5))
+      
+                }
+      
+              })
+      
+            }
+      
+          })
+      
+      
+      
+          const data = Array.from(totals.entries())
+      
+            .map(([muscleSlug, volume]) => ({
+      
+              slug: muscleSlug,
+      
+              muscle: toMuscleLabel(muscleSlug),
+      
+              volume: Math.round(volume)
+      
+            }))
       .filter((item) => {
         if (selectedMuscle === 'all') return true
         const targetMuscles = PRESET_MAPPINGS[selectedMuscle] || [selectedMuscle]
@@ -1231,7 +1252,7 @@ export default function ProgressPage() {
               </div>
               <div className="flex flex-col sm:flex-row items-center gap-6 mt-4">
                 <div className="h-64 w-full sm:w-1/2">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <PieChart>
                       <Pie 
                         data={muscleBreakdown.map(m => ({
