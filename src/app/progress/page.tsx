@@ -24,7 +24,7 @@ import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { toMuscleLabel } from '@/lib/muscle-utils'
+import { toMuscleLabel, PRESET_MAPPINGS, isMuscleMatch } from '@/lib/muscle-utils'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
 import {
@@ -96,23 +96,23 @@ const DATE_RANGE_PRESETS: DateRangePreset[] = [
 ]
 
 const MUSCLE_TARGET_DISTRIBUTION: Record<string, number> = {
-  chest: 15,
-  back: 15,
-  shoulders: 10,
-  quads: 15,
-  hamstrings: 10,
-  glutes: 10,
-  biceps: 5,
-  triceps: 5,
-  core: 10,
-  calves: 5
+  chest: 12,
+  back: 18,
+  shoulders: 8,
+  quads: 20,
+  hamstrings: 15,
+  glutes: 12,
+  biceps: 4,
+  triceps: 4,
+  core: 5,
+  calves: 2
 }
 
 const MUSCLE_PRESETS = [
   { label: 'Chest', value: 'chest' },
   { label: 'Back', value: 'back' },
   { label: 'Shoulders', value: 'shoulders' },
-  { label: 'Legs', value: 'quads' },
+  { label: 'Legs', value: 'legs' },
   { label: 'Arms', value: 'arms' },
   { label: 'Core', value: 'core' }
 ]
@@ -443,21 +443,39 @@ export default function ProgressPage() {
   useEffect(() => {
     if (userLoading || !user) return
 
-    const loadBodyWeightHistory = async () => {
-      const { data } = await supabase
-        .from('body_measurements')
-        .select('recorded_at, weight_lb')
-        .eq('user_id', user.id)
-        .order('recorded_at', { ascending: true })
-      
-      if (data) {
-        setBodyWeightHistory(data)
-      }
-    }
-
-    loadBodyWeightHistory()
-  }, [user, userLoading, supabase])
-
+        const loadBodyWeightHistory = async () => {
+          let query = supabase
+            .from('body_measurements')
+            .select('recorded_at, weight_lb')
+            .eq('user_id', user.id)
+            .order('recorded_at', { ascending: true })
+          
+          // Use a wider range for fetching to ensure we cover the local date range,
+          // or just load everything if no range is too large.
+          // For simplicity and correctness with local time filtering,
+          // we'll fetch everything if no range, or a safe buffer.
+          if (startDate) {
+            // Buffer by 1 day to be safe with timezones
+            const start = new Date(startDate)
+            start.setDate(start.getDate() - 1)
+            query = query.gte('recorded_at', start.toISOString())
+          }
+          if (endDate) {
+            // Buffer by 1 day to be safe with timezones
+            const end = new Date(endDate)
+            end.setDate(end.getDate() + 2)
+            query = query.lt('recorded_at', end.toISOString())
+          }
+    
+          const { data } = await query
+          
+          if (data) {
+            setBodyWeightHistory(data)
+          }
+        }
+    
+        loadBodyWeightHistory()
+      }, [user, userLoading, supabase, startDate, endDate])
   const exerciseOptions = useMemo(() => {
     const names = new Set<string>()
     sessions.forEach((session) => {
@@ -484,14 +502,17 @@ export default function ProgressPage() {
         if (!hasExercise) return false
       }
       if (selectedMuscle !== 'all') {
-        const hasMuscle = session.session_exercises.some((exercise) =>
-          exercise.primary_muscle === selectedMuscle || exercise.secondary_muscles?.includes(selectedMuscle)
-        )
+        const hasMuscle = session.session_exercises.some((exercise) => {
+          const libEntry = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())
+          const primary = libEntry?.primaryMuscle || exercise.primary_muscle
+          const secondary = libEntry?.secondaryMuscles || exercise.secondary_muscles || []
+          return isMuscleMatch(selectedMuscle, primary, secondary)
+        })
         if (!hasMuscle) return false
       }
       return true
     }).sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())
-  }, [sessions, startDate, endDate, selectedExercise, selectedMuscle])
+  }, [sessions, startDate, endDate, selectedExercise, selectedMuscle, exerciseLibraryByName])
 
   const readinessBySessionId = useMemo(
     () => new Map(readinessEntries.map((entry) => [entry.session_id, entry])),
@@ -621,9 +642,13 @@ export default function ProgressPage() {
   }, [readinessCorrelation])
 
   const allSets = useMemo(() => {
-    return filteredSessions.flatMap((session) =>
-      session.session_exercises.flatMap((exercise) =>
-        (exercise.sets ?? []).flatMap((set) =>
+    const sets = filteredSessions.flatMap((session) =>
+      session.session_exercises.flatMap((exercise) => {
+        const libEntry = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())
+        const primary = libEntry?.primaryMuscle || exercise.primary_muscle
+        const secondary = libEntry?.secondaryMuscles || exercise.secondary_muscles || []
+
+        return (exercise.sets ?? []).flatMap((set) =>
           set.completed === false
             ? []
             : [
@@ -633,15 +658,19 @@ export default function ProgressPage() {
                   startedAt: session.started_at,
                   endedAt: session.ended_at,
                   exerciseName: exercise.exercise_name,
-                  primaryMuscle: exercise.primary_muscle,
-                  secondaryMuscles: exercise.secondary_muscles ?? [],
+                  primaryMuscle: primary,
+                  secondaryMuscles: secondary,
                   ...set
                 }
               ]
         )
-      )
+      })
     )
-  }, [filteredSessions, getSessionTitle])
+
+    if (selectedMuscle === 'all') return sets
+
+    return sets.filter((set) => isMuscleMatch(selectedMuscle, set.primaryMuscle, set.secondaryMuscles))
+  }, [filteredSessions, getSessionTitle, selectedMuscle, exerciseLibraryByName])
 
   const volumeTrend = useMemo(() => {
     const totals = new Map<string, { volume: number; load: number }>()
@@ -718,15 +747,32 @@ export default function ProgressPage() {
         weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
       })
       if (!tonnage) return
-      const muscle = set.primaryMuscle ?? 'unknown'
-      totals.set(muscle, (totals.get(muscle) ?? 0) + tonnage)
+      
+      // Primary muscle gets 100% credit
+      const primary = set.primaryMuscle ?? 'unknown'
+      totals.set(primary, (totals.get(primary) ?? 0) + tonnage)
+
+      // Secondary muscles get 50% credit
+      if (set.secondaryMuscles && Array.isArray(set.secondaryMuscles)) {
+        set.secondaryMuscles.forEach(secondary => {
+          if (secondary) {
+            totals.set(secondary, (totals.get(secondary) ?? 0) + (tonnage * 0.5))
+          }
+        })
+      }
     })
 
-    const data = Array.from(totals.entries()).map(([muscle, volume]) => ({
-      slug: muscle,
-      muscle: toMuscleLabel(muscle),
-      volume: Math.round(volume)
-    }))
+    const data = Array.from(totals.entries())
+      .map(([muscle, volume]) => ({
+        slug: muscle,
+        muscle: toMuscleLabel(muscle),
+        volume: Math.round(volume)
+      }))
+      .filter((item) => {
+        if (selectedMuscle === 'all') return true
+        const targetMuscles = PRESET_MAPPINGS[selectedMuscle] || [selectedMuscle]
+        return targetMuscles.includes(item.slug.toLowerCase())
+      })
 
     const totalVolume = data.reduce((sum, item) => sum + item.volume, 0)
 
@@ -739,10 +785,9 @@ export default function ProgressPage() {
         ...item,
         relativePct: Number(relativePct.toFixed(1)),
         imbalanceIndex: imbalanceIndex !== null ? Math.round(imbalanceIndex) : null,
-        // The value used by the chart depends on the mode, but we keep the base values here
       }
     })
-  }, [allSets])
+  }, [allSets, selectedMuscle])
 
   const prMetrics = useMemo(() => {
     let maxWeight = 0
@@ -825,7 +870,7 @@ export default function ProgressPage() {
   const bodyWeightTrend = useMemo(() => {
     const points: Array<{ day: string; timestamp: number; weight: number; source: 'session' | 'history' }> = []
     
-    sessions.forEach(session => {
+    filteredSessions.forEach(session => {
       if (session.body_weight_lb) {
         points.push({
           day: formatDate(session.started_at),
@@ -837,9 +882,19 @@ export default function ProgressPage() {
     })
 
     bodyWeightHistory.forEach(entry => {
+      const date = new Date(entry.recorded_at)
+      if (startDate) {
+        const start = new Date(startDate)
+        if (!Number.isNaN(start.getTime()) && date < start) return
+      }
+      if (endDate) {
+        const end = new Date(endDate)
+        if (!Number.isNaN(end.getTime()) && date > new Date(end.getTime() + 86400000)) return
+      }
+
       points.push({
         day: formatDate(entry.recorded_at),
-        timestamp: new Date(entry.recorded_at).getTime(),
+        timestamp: date.getTime(),
         weight: Number(entry.weight_lb),
         source: 'history'
       })
@@ -848,13 +903,20 @@ export default function ProgressPage() {
     if (points.length === 0) return []
 
     const sortedUniquePoints = points
-      .sort((a, b) => a.timestamp - b.timestamp)
+      .sort((a, b) => {
+        if (a.day === b.day) {
+          // Prioritize session source over history if on same day
+          if (a.source === 'session' && b.source !== 'session') return -1
+          if (b.source === 'session' && a.source !== 'session') return 1
+        }
+        return a.timestamp - b.timestamp
+      })
       .filter((point, index, self) => 
         index === self.findIndex((p) => p.day === point.day)
       )
 
     // Fill in sessions that don't have weight by using the last known weight
-    const sessionTrend = [...sessions]
+    const sessionTrend = [...filteredSessions]
       .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
       .map(session => {
         const sessionTime = new Date(session.started_at).getTime()
@@ -878,7 +940,7 @@ export default function ProgressPage() {
       )
 
     return combined
-  }, [bodyWeightHistory, sessions])
+  }, [bodyWeightHistory, filteredSessions, startDate, endDate])
 
   const trainingLoadSummary = useMemo(() => {
     const mappedSessions = filteredSessions.map((session) => ({
@@ -1003,10 +1065,16 @@ export default function ProgressPage() {
   }
 
   const handlePresetClick = (preset: DateRangePreset) => {
-    const { start, end } = preset.getRange()
-    setStartDate(formatDateForInput(start))
-    setEndDate(formatDateForInput(end))
-    setActiveDatePreset(preset.label)
+    if (activeDatePreset === preset.label) {
+      setStartDate('')
+      setEndDate('')
+      setActiveDatePreset(null)
+    } else {
+      const { start, end } = preset.getRange()
+      setStartDate(formatDateForInput(start))
+      setEndDate(formatDateForInput(end))
+      setActiveDatePreset(preset.label)
+    }
   }
 
   if (userLoading || loading) {
@@ -1446,7 +1514,7 @@ export default function ProgressPage() {
             </p>
           </Card>
 
-          <Card className="p-6 min-w-0">
+          <Card className={`p-6 min-w-0 ${exerciseTrend.length > 0 ? 'lg:col-span-2' : ''}`}>
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness vs session effort</h3>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>

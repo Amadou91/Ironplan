@@ -29,6 +29,7 @@ type EditableSession = {
   templateId?: string | null
   userId?: string | null
   timezone?: string | null
+  bodyWeightLb?: number | null
   exercises: EditableExercise[]
 }
 
@@ -40,6 +41,7 @@ type SessionPayload = {
   started_at: string
   ended_at: string | null
   timezone?: string | null
+  body_weight_lb?: number | null
   session_exercises: Array<{
     id: string
     exercise_name: string
@@ -127,6 +129,7 @@ export default function SessionEditPage() {
       templateId: payload.template_id ?? null,
       userId: payload.user_id ?? null,
       timezone: payload.timezone ?? null,
+      bodyWeightLb: payload.body_weight_lb ?? null,
       exercises: payload.session_exercises
         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
         .map((exercise, index) => ({
@@ -159,7 +162,7 @@ export default function SessionEditPage() {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-        'id, user_id, template_id, name, started_at, ended_at, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+        'id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
         )
         .eq('id', params.id)
         .single()
@@ -424,17 +427,28 @@ export default function SessionEditPage() {
     setSuccessMessage(null)
 
     try {
+      const updatePayload = {
+        name: session.name,
+        started_at: session.startedAt,
+        ended_at: session.endedAt,
+        status: session.endedAt ? 'completed' : 'in_progress',
+        body_weight_lb: session.bodyWeightLb
+      }
+
       const { error: sessionError } = await supabase
         .from('sessions')
-        .update({
-          name: session.name,
-          started_at: session.startedAt,
-          ended_at: session.endedAt,
-          status: session.endedAt ? 'completed' : 'in_progress'
-        })
+        .update(updatePayload)
         .eq('id', session.id)
 
       if (sessionError) throw sessionError
+
+      // Sync body weight if it was updated
+      if (session.bodyWeightLb && session.userId) {
+        await Promise.all([
+          supabase.from('profiles').update({ weight_lb: session.bodyWeightLb }).eq('id', session.userId),
+          supabase.from('body_measurements').insert({ user_id: session.userId, weight_lb: session.bodyWeightLb })
+        ])
+      }
 
       if (deletedExerciseIds.length > 0) {
         const { error: deleteExerciseError } = await supabase
@@ -581,6 +595,19 @@ export default function SessionEditPage() {
                 type="datetime-local"
                 value={toDateTimeInputValue(session.endedAt)}
                 onChange={(event) => updateSessionEnd(toIsoString(event.target.value))}
+                className="input-base mt-2"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-subtle">Body weight (lb)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={session.bodyWeightLb ?? ''}
+                onChange={(event) => {
+                  const val = event.target.value === '' ? null : parseFloat(event.target.value)
+                  setSession(prev => prev ? { ...prev, bodyWeightLb: val } : prev)
+                }}
                 className="input-base mt-2"
               />
             </div>

@@ -243,6 +243,24 @@ export default function WorkoutSummaryPage() {
     return totals.sort((a, b) => b.volume - a.volume).slice(0, 3)
   }, [session])
 
+  const handleBodyWeightUpdate = async (value: string) => {
+    if (!session || !user) return
+    const weightVal = parseFloat(value)
+    setSession(prev => prev ? { ...prev, body_weight_lb: isNaN(weightVal) ? null : weightVal } : prev)
+    
+    if (!isNaN(weightVal)) {
+      try {
+        await Promise.all([
+          supabase.from('sessions').update({ body_weight_lb: weightVal }).eq('id', session.id),
+          supabase.from('profiles').update({ weight_lb: weightVal }).eq('id', user.id),
+          supabase.from('body_measurements').insert({ user_id: user.id, weight_lb: weightVal, recorded_at: session.started_at })
+        ])
+      } catch (error) {
+        console.error('Failed to update body weight from summary', error)
+      }
+    }
+  }
+
   if (loading) {
     return <div className="page-shell p-10 text-center text-muted">Loading session summary...</div>
   }
@@ -274,8 +292,21 @@ export default function WorkoutSummaryPage() {
             <h1 className="font-display text-3xl font-semibold text-strong">{sessionTitle}</h1>
             <p className="mt-2 text-sm text-muted">
               {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
-              {session.body_weight_lb ? ` · ${session.body_weight_lb} lb` : ''}
             </p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex items-center gap-2 rounded-lg bg-[var(--color-surface-muted)] px-3 py-1.5">
+                <span className="text-xs font-medium text-subtle">Body weight:</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="lb"
+                  value={session.body_weight_lb ?? ''}
+                  onChange={(e) => handleBodyWeightUpdate(e.target.value)}
+                  className="w-16 bg-transparent text-sm font-semibold text-strong outline-none"
+                />
+                <span className="text-[10px] text-subtle">lb</span>
+              </div>
+            </div>
             {(intensityLabel || parsedNotes?.minutesAvailable) && (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
                 {intensityLabel && <span className="badge-neutral">Intensity: {intensityLabel}</span>}

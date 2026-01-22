@@ -155,8 +155,8 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     2: [
       {
         name: 'Kettlebell Swing',
-        primaryMuscle: 'full_body',
-        secondaryMuscles: ['core'],
+        primaryMuscle: 'glutes',
+        secondaryMuscles: ['hamstrings', 'core', 'shoulders'],
         sets: [
           { reps: 15, weight: 35, weightUnit: 'lb', rpe: 7 },
           { reps: 15, weight: 35, weightUnit: 'lb', rpe: 7.5 },
@@ -166,7 +166,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       {
         name: 'Plank',
         primaryMuscle: 'core',
-        secondaryMuscles: ['shoulders'],
+        secondaryMuscles: ['shoulders', 'glutes'],
         sets: [
           { reps: 45, weight: 0, weightUnit: 'lb', rpe: 6 },
           { reps: 45, weight: 0, weightUnit: 'lb', rpe: 6.5 },
@@ -188,7 +188,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       ...ex,
       sets: ex.sets.map((s) => ({
         ...s,
-        weight: Math.max(1, Math.round((s.weight * progressFactor) / 5) * 5),
+        weight: s.weight === 0 ? 0 : Math.max(1, Math.round((s.weight * progressFactor) / 5) * 5),
         reps: s.reps + (Math.random() > 0.7 ? 1 : 0),
         rpe: Math.min(10, Math.max(6, (s.rpe || 7) + (Math.random() * 2 - 0.5)))
       }))
@@ -206,12 +206,17 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
   const now = Date.now()
   const dayMs = 24 * 60 * 60 * 1000
   const weightStartPoint = 184.2
+  
+  // Helper to get weight for a specific time
+  const getWeightAtTime = (daysAgo: number) => {
+    // Roughly 0.1lb loss per day
+    return Number((weightStartPoint - (30 - daysAgo) * 0.1 + (Math.random() * 0.4 - 0.2)).toFixed(1))
+  }
+
   const sessionRows = sessionSeeds.map((seed) => {
     const startedAt = new Date(now - seed.daysAgo * dayMs - 45 * 60 * 1000)
     const endedAt = new Date(now - seed.daysAgo * dayMs - 15 * 60 * 1000)
-    // Simulate weight trend for each session
-    // Roughly 0.15lb loss per day
-    const sessionWeight = weightStartPoint - ((totalSessions * 2 - seed.daysAgo) * 0.07) + (Math.random() * 0.4 - 0.2)
+    const sessionWeight = getWeightAtTime(seed.daysAgo)
     
     return {
       user_id: userId,
@@ -223,7 +228,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       minutes_available: seed.minutesAvailable,
       generated_exercises: [],
       session_notes: DEV_SEED_MARKER,
-      body_weight_lb: Number(sessionWeight.toFixed(1))
+      body_weight_lb: sessionWeight
     }
   })
 
@@ -351,12 +356,12 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
   // Seed Body Measurements (Daily History for last 30 days)
   const dailyMeasurementRows = []
   for (let i = 0; i < 30; i++) {
-    const dayDate = new Date(now - (29 - i) * dayMs)
-    // Slight downward trend with some noise
-    const currentWeight = weightStartPoint - (i * 0.15) + (Math.random() * 0.6 - 0.3)
+    const daysAgo = 29 - i
+    const dayDate = new Date(now - daysAgo * dayMs)
+    const currentWeight = getWeightAtTime(daysAgo)
     dailyMeasurementRows.push({
       user_id: userId,
-      weight_lb: Number(currentWeight.toFixed(1)),
+      weight_lb: currentWeight,
       recorded_at: dayDate.toISOString()
     })
   }
@@ -423,14 +428,14 @@ export async function clearDevData(supabase: SupabaseClient, userId: string): Pr
       .in('id', sessionIds)
 
     if (sessionDeleteError) throw sessionDeleteError
-
-    const { error: measurementDeleteError } = await supabase
-      .from('body_measurements')
-      .delete()
-      .eq('user_id', userId)
-      
-    if (measurementDeleteError && !isMissingTableError(measurementDeleteError)) throw measurementDeleteError
   }
+
+  const { error: measurementDeleteError } = await supabase
+    .from('body_measurements')
+    .delete()
+    .eq('user_id', userId)
+    
+  if (measurementDeleteError && !isMissingTableError(measurementDeleteError)) throw measurementDeleteError
 
   if (templateIds.length) {
     const { error: templateDeleteError } = await supabase

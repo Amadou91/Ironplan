@@ -58,6 +58,23 @@ const resolveByKeyword = (label: string) => {
   return null;
 };
 
+export const PRESET_MAPPINGS: Record<string, string[]> = {
+  chest: ['chest'],
+  back: ['back'],
+  shoulders: ['shoulders'],
+  legs: ['quads', 'hamstrings', 'glutes', 'calves', 'hip_flexors', 'adductors', 'abductors'],
+  arms: ['arms', 'biceps', 'triceps', 'forearms'],
+  core: ['core']
+};
+
+export const isMuscleMatch = (targetPreset: string, primary?: string | null, secondary?: string[] | null): boolean => {
+  if (targetPreset === 'all') return true;
+  const targetMuscles = PRESET_MAPPINGS[targetPreset] || [targetPreset];
+  const p = primary?.toLowerCase();
+  const s = secondary?.map(m => m.toLowerCase()) ?? [];
+  return targetMuscles.some(m => m === p || s.includes(m));
+};
+
 export const normalizeMuscleGroup = (input: string): { primary: string; secondary: string[] } => {
   const lower = normalizeLabel(input);
   const keywordMatch = resolveByKeyword(lower);

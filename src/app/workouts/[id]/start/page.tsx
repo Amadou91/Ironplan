@@ -107,23 +107,11 @@ export default function WorkoutStartPage() {
     stress: null,
     motivation: null
   })
-  const [bodyWeight, setBodyWeight] = useState<string>('')
 
   const hasActiveSession = Boolean(activeSession)
   const activeSessionLink = activeSession?.templateId
     ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=workouts`
     : '/dashboard'
-
-  useEffect(() => {
-    if (!user) return
-    const fetchProfile = async () => {
-      const { data } = await supabase.from('profiles').select('weight_lb').eq('id', user.id).single()
-      if (data?.weight_lb) {
-        setBodyWeight(String(data.weight_lb))
-      }
-    }
-    fetchProfile()
-  }, [user, supabase])
 
   useEffect(() => {
     const fetchTemplate = async () => {
@@ -222,14 +210,6 @@ export default function WorkoutStartPage() {
     setStartingSession(true)
 
     try {
-      if (bodyWeight) {
-        const weightVal = parseFloat(bodyWeight)
-        if (!isNaN(weightVal)) {
-          await supabase.from('profiles').update({ weight_lb: weightVal }).eq('id', user.id)
-          await supabase.from('body_measurements').insert({ user_id: user.id, weight_lb: weightVal })
-        }
-      }
-
       const normalizedInputs = normalizePlanInput(template.template_inputs ?? {})
       const baseExperience =
         template.template_inputs?.experienceLevel ?? template.experience_level ?? normalizedInputs.experienceLevel
@@ -244,8 +224,6 @@ export default function WorkoutStartPage() {
         readinessSurvey: readinessSurvey as ReadinessSurvey,
         source: 'workout_start'
       }
-      const weightVal = parseFloat(bodyWeight)
-      const validBodyWeight = isNaN(weightVal) ? null : weightVal
 
       const { sessionId, startedAt, sessionName, exercises, impact, timezone, sessionNotes: storedNotes } =
         await createWorkoutSession({
@@ -268,7 +246,6 @@ export default function WorkoutStartPage() {
             score: readinessScore,
             level: readinessLevel
           },
-          bodyWeightLb: validBodyWeight,
           sessionNotes,
           history,
           nameSuffix
@@ -415,28 +392,6 @@ export default function WorkoutStartPage() {
                         <p className="mt-2 text-[10px] text-subtle">{field.helper}</p>
                       </div>
                     ))}
-                  </div>
-                  {!readinessComplete && (
-                    <p className="mt-3 text-xs text-[var(--color-danger)]">
-                      Complete all readiness ratings to unlock the start button.
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between text-xs text-subtle">
-                    <span>Bodyweight (optional)</span>
-                    <span className="text-strong">{bodyWeight ? `${bodyWeight} lb` : 'Not set'}</span>
-                  </div>
-                  <div className="mt-2">
-                    <input
-                      type="number"
-                      placeholder="Enter weight in lb"
-                      value={bodyWeight}
-                      onChange={(e) => setBodyWeight(e.target.value)}
-                      className="input-base w-full"
-                    />
-                    <p className="mt-1 text-[10px] text-subtle">Updated weight will be saved to your profile history.</p>
                   </div>
                 </div>
               </div>
