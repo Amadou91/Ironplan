@@ -417,9 +417,33 @@ export default function ProfilePage() {
     try {
       const result = await clearDevData(supabase, user.id)
       const readiness = result.readiness ? `, ${result.readiness} readiness entries` : ''
+      const measurements = result.measurements ? `, ${result.measurements} body measurements` : ''
       setDevActionMessage(
-        `Cleared ${result.templates} templates, ${result.sessions} sessions${readiness}.`
+        `Cleared ${result.templates} templates, ${result.sessions} sessions${readiness}${measurements}.`
       )
+      // Re-fetch profile to update local state (especially weight)
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('height_in, weight_lb, body_fat_percent, birthdate, sex, updated_at')
+        .eq('id', user.id)
+        .maybeSingle()
+      
+      if (profileData) {
+        const heightIn = typeof profileData.height_in === 'number' ? Math.round(profileData.height_in) : null
+        const heightFeet = typeof heightIn === 'number' ? Math.floor(heightIn / 12) : null
+        const heightInches = typeof heightIn === 'number' ? heightIn - (heightFeet ?? 0) * 12 : null
+        const nextDraft = {
+          weightLb: typeof profileData.weight_lb === 'number' ? String(profileData.weight_lb) : '',
+          heightFeet: typeof heightFeet === 'number' ? String(heightFeet) : '',
+          heightInches: typeof heightInches === 'number' ? String(heightInches) : '',
+          bodyFatPercent: typeof profileData.body_fat_percent === 'number' ? String(profileData.body_fat_percent) : '',
+          birthdate: profileData.birthdate ?? '',
+          sex: profileData.sex ?? ''
+        }
+        setProfile(profileData as ProfileRow)
+        setProfileDraft(nextDraft)
+        setProfileSnapshot(JSON.stringify(nextDraft))
+      }
     } catch (error) {
       console.error('Failed to clear dev data', error)
       setDevActionError('Unable to clear dev data. Check the console for details.')

@@ -31,6 +31,7 @@ export type SeedResult = {
   exercises: number
   sets: number
   readiness: number
+  measurements?: number
 }
 
 export type ClearResult = SeedResult
@@ -395,74 +396,94 @@ export async function clearDevData(supabase: SupabaseClient, userId: string): Pr
     return { templates: 0, sessions: 0, exercises: 0, sets: 0, readiness: 0 }
   }
 
-  const { data: templates } = await supabase
-    .from('workout_templates')
-    .select('id')
-    .eq('user_id', userId)
-    .ilike('title', `${DEV_TEMPLATE_PREFIX}%`)
-
-  const templateIds = templates?.map((row) => row.id) ?? []
-
-  const { data: sessions } = await supabase
-    .from('sessions')
-    .select('id')
-    .eq('user_id', userId)
-    .or(`session_notes.eq.${DEV_SEED_MARKER}${templateIds.length ? `,template_id.in.(${templateIds.join(',')})` : ''}`)
-
-  const sessionIds = sessions?.map((row) => row.id) ?? []
-
-  let readinessDeleted = 0
-  if (sessionIds.length) {
-    const { data: readinessRows, error: readinessError } = await supabase
-      .from('session_readiness')
-      .delete()
-      .in('session_id', sessionIds)
-      .select('id')
-
-    if (readinessError && !isMissingTableError(readinessError)) throw readinessError
-    readinessDeleted = readinessRows?.length ?? 0
-
-    const { error: sessionDeleteError } = await supabase
-      .from('sessions')
-      .delete()
-      .in('id', sessionIds)
-
-    if (sessionDeleteError) throw sessionDeleteError
-  }
-
-  // Also clear body weight from any remaining non-dev sessions
-  await supabase
-    .from('sessions')
-    .update({ body_weight_lb: null })
-    .eq('user_id', userId)
-
-  const { error: measurementDeleteError } = await supabase
-    .from('body_measurements')
-    .delete()
-    .eq('user_id', userId)
-    
-  if (measurementDeleteError && !isMissingTableError(measurementDeleteError)) throw measurementDeleteError
-
-  // Reset profile weight
-  await supabase
-    .from('profiles')
-    .update({ weight_lb: null })
-    .eq('id', userId)
-
-  if (templateIds.length) {
-    const { error: templateDeleteError } = await supabase
-      .from('workout_templates')
-      .delete()
-      .in('id', templateIds)
-
-    if (templateDeleteError) throw templateDeleteError
-  }
-
-  return {
-    templates: templateIds.length,
-    sessions: sessionIds.length,
+  const result: ClearResult = {
+    templates: 0,
+    sessions: 0,
     exercises: 0,
     sets: 0,
-    readiness: readinessDeleted
+    readiness: 0
   }
+
+  try {
+    // 1. Identify seeded templates
+    const { data: templates } = await supabase
+      .from('workout_templates')
+      .select('id')
+      .eq('user_id', userId)
+      .ilike('title', `${DEV_TEMPLATE_PREFIX}%`)
+
+    const templateIds = templates?.map((row) => row.id) ?? []
+
+    // 2. Identify sessions to delete (dev marker or linked to dev templates)
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select('id')
+      .eq('user_id', userId)
+      .or(`session_notes.eq.${DEV_SEED_MARKER}${templateIds.length ? `,template_id.in.(${templateIds.join(',')})` : ''}`)
+
+    const sessionIds = sessions?.map((row) => row.id) ?? []
+
+    // 3. Delete readiness entries
+    if (sessionIds.length) {
+      const { data: readinessRows } = await supabase
+        .from('session_readiness')
+        .delete()
+        .in('session_id', sessionIds)
+        .select('id')
+      
+      result.readiness = readinessRows?.length ?? 0
+
+      // 4. Delete identified sessions
+      const { error: sessionDeleteError } = await supabase
+        .from('sessions')
+        .delete()
+        .in('id', sessionIds)
+
+      if (!sessionDeleteError) {
+        result.sessions = sessionIds.length
+      }
+    }
+
+    // 5. Reset body weight on any remaining sessions
+    await supabase
+      .from('sessions')
+      .update({ body_weight_lb: null })
+      .eq('user_id', userId)
+
+    // 6. Delete all body measurements
+    const { data: measurementRows, error: measurementDeleteError } = await supabase
+      .from('body_measurements')
+      .delete()
+      .eq('user_id', userId)
+      .select('id')
+    
+    if (!measurementDeleteError) {
+      result.measurements = measurementRows?.length ?? 0
+    } else if (!isMissingTableError(measurementDeleteError)) {
+      console.error('Failed to clear body measurements:', measurementDeleteError)
+    }
+
+    // 7. Reset profile weight
+    await supabase
+      .from('profiles')
+      .update({ weight_lb: null })
+      .eq('id', userId)
+
+    // 8. Delete seeded templates
+    if (templateIds.length) {
+      const { error: templateDeleteError } = await supabase
+        .from('workout_templates')
+        .delete()
+        .in('id', templateIds)
+
+      if (!templateDeleteError) {
+        result.templates = templateIds.length
+      }
+    }
+  } catch (error) {
+    console.error('Error during clearDevData:', error)
+    // We still return whatever we managed to clear
+  }
+
+  return result
 }
