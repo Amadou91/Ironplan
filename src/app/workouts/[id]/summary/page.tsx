@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { CheckCircle2, Sparkles } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { createClient } from '@/lib/supabase/client'
@@ -22,6 +22,7 @@ type SessionDetail = {
   ended_at: string | null
   status: string | null
   session_notes: string | null
+  body_weight_lb: number | null
   impact: {
     score?: number
     breakdown?: {
@@ -62,7 +63,6 @@ type SessionNotes = {
   readinessScore?: number
   readinessSurvey?: ReadinessSurvey
   minutesAvailable?: number
-  reflection?: string
 }
 
 const formatDateTime = (value: string) => {
@@ -108,17 +108,14 @@ const getSessionIntensity = (notes?: SessionNotes | null): Intensity | null => {
 }
 
 export default function WorkoutSummaryPage() {
-  const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
   const { user } = useUser()
   const sessionId = searchParams.get('sessionId')
   const [session, setSession] = useState<SessionDetail | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(Boolean(sessionId))
   const [error, setError] = useState<string | null>(null)
-  const [notes, setNotes] = useState('')
-  const [savingNotes, setSavingNotes] = useState(false)
 
   const parsedNotes = useMemo(() => parseSessionNotes(session?.session_notes ?? null), [session?.session_notes])
   const intensityLabel = formatSessionIntensity(getSessionIntensity(parsedNotes))
@@ -134,16 +131,14 @@ export default function WorkoutSummaryPage() {
   }, [parsedNotes?.minutesAvailable, session])
 
   useEffect(() => {
-    if (!sessionId) {
-      setLoading(false)
-      return
-    }
+    if (!sessionId) return
+
     const loadSession = async () => {
       setLoading(true)
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, started_at, ended_at, status, session_notes, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit)), template:workout_templates(id, title, focus, style, intensity, template_inputs)'
+          'id, name, started_at, ended_at, status, session_notes, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit)), template:workout_templates(id, title, focus, style, intensity, template_inputs)'
         )
         .eq('id', sessionId)
         .single()
@@ -152,8 +147,6 @@ export default function WorkoutSummaryPage() {
         setError('Unable to load session summary. Please try again.')
       } else {
         setSession(data as unknown as SessionDetail)
-        const parsed = parseSessionNotes(data?.session_notes)
-        setNotes(parsed?.reflection ?? '')
       }
       setLoading(false)
     }
@@ -250,36 +243,6 @@ export default function WorkoutSummaryPage() {
     return totals.sort((a, b) => b.volume - a.volume).slice(0, 3)
   }, [session])
 
-  const handleSaveNotes = async () => {
-    if (!sessionId) return
-    setSavingNotes(true)
-    try {
-      const currentNotes = parseSessionNotes(session?.session_notes)
-      const updatedNotes = {
-        ...currentNotes,
-        reflection: notes || undefined
-      }
-
-      const { error: saveError } = await supabase
-        .from('sessions')
-        .update({ session_notes: JSON.stringify(updatedNotes) })
-        .eq('id', sessionId)
-      
-      if (saveError) throw saveError
-
-      // Update local session state to reflect changes
-      setSession((prev) => prev ? {
-        ...prev,
-        session_notes: JSON.stringify(updatedNotes)
-      } : null)
-    } catch (saveError) {
-      console.error('Failed to save session notes', saveError)
-      setError('Unable to save session notes. Please try again.')
-    } finally {
-      setSavingNotes(false)
-    }
-  }
-
   if (loading) {
     return <div className="page-shell p-10 text-center text-muted">Loading session summary...</div>
   }
@@ -311,6 +274,7 @@ export default function WorkoutSummaryPage() {
             <h1 className="font-display text-3xl font-semibold text-strong">{sessionTitle}</h1>
             <p className="mt-2 text-sm text-muted">
               {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
+              {session.body_weight_lb ? ` · ${session.body_weight_lb} lb` : ''}
             </p>
             {(intensityLabel || parsedNotes?.minutesAvailable) && (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
@@ -336,8 +300,8 @@ export default function WorkoutSummaryPage() {
 
         {error && <div className="alert-error p-4 text-sm">{error}</div>}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Card className="p-6 lg:col-span-2">
+        <div className="space-y-6">
+          <Card className="p-6">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-[var(--color-success)]" />
               <h2 className="text-lg font-semibold text-strong">Session highlights</h2>
@@ -353,7 +317,7 @@ export default function WorkoutSummaryPage() {
             {effortInsight && (
               <p className="mt-2 text-xs text-subtle">{effortInsight}</p>
             )}
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg border border-[var(--color-border)] p-4 text-sm">
                 <p className="text-xs text-subtle">Total sets</p>
                 <p className="text-2xl font-semibold text-strong">{sessionMetrics.totalSets}</p>
@@ -386,14 +350,14 @@ export default function WorkoutSummaryPage() {
 
             <div className="mt-6">
               <p className="text-xs uppercase tracking-[0.2em] text-subtle">Top exercises</p>
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
                 {exerciseHighlights.map((exercise) => (
-                  <div key={exercise.name} className="flex items-center justify-between rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm">
+                  <div key={exercise.name} className="flex flex-col justify-between rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm">
                     <div>
                       <p className="font-semibold text-strong">{exercise.name}</p>
                       <p className="text-xs text-subtle">{exercise.muscle ? toMuscleLabel(exercise.muscle) : 'Primary muscle'}</p>
                     </div>
-                    <span className="text-sm text-muted">{exercise.volume} tonnage</span>
+                    <span className="mt-2 text-sm text-muted font-medium">{exercise.volume} tonnage</span>
                   </div>
                 ))}
                 {exerciseHighlights.length === 0 && (
@@ -402,43 +366,6 @@ export default function WorkoutSummaryPage() {
               </div>
             </div>
           </Card>
-
-          <div className="space-y-6">
-            <Card className="p-6">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold text-strong">Reflection</h2>
-              </div>
-              <p className="mt-2 text-sm text-muted">
-                Capture how the workout felt so we can personalize upcoming sessions.
-              </p>
-              <textarea
-                rows={5}
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                className="input-base mt-4"
-                placeholder="What felt strong? What should we adjust next time?"
-              />
-              <Button
-                size="sm"
-                onClick={handleSaveNotes}
-                disabled={savingNotes}
-                className="mt-3 w-full justify-center"
-              >
-                {savingNotes ? 'Saving...' : 'Save notes'}
-              </Button>
-            </Card>
-
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-strong">Next suggested move</h2>
-              <p className="mt-2 text-sm text-muted">
-                Recovery matters. Plan your next session within 24-48 hours for optimal gains.
-              </p>
-              <Link href={`/workouts/${params.id}/start`} className="mt-3 inline-flex text-sm font-semibold text-accent">
-                Schedule next workout
-              </Link>
-            </Card>
-          </div>
         </div>
       </div>
     </div>

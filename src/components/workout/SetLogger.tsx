@@ -38,7 +38,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, weightOptions, onUpda
       }
     }
     return options;
-  }, [set.weight, weightOptions]);
+  }, [set.weight, set.weightUnit, weightOptions]);
 
   useEffect(() => {
     if (!isEditing || isCardio) return;

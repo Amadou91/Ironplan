@@ -26,6 +26,6 @@ export const normalizePreferences = (value: unknown): UserPreferences => {
   }
 }
 
-export const applyPreferencesToPlanInput = (input: PlanInput, _preferences: UserPreferences) => {
+export const applyPreferencesToPlanInput = (input: PlanInput) => {
   return input
 }

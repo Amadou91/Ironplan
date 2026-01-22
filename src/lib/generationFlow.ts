@@ -12,7 +12,7 @@ const isIntentValid = (intent?: PlanInput['intent']) => {
 export const getFlowCompletion = (input: Partial<PlanInput>) => {
   const goalStepComplete = Boolean(input.goals?.primary) && Boolean(input.experienceLevel) && isIntentValid(input.intent)
   const intensityStepComplete = goalStepComplete && Boolean(input.intensity)
-  const equipmentStepComplete = intensityStepComplete && Boolean(input.equipment) && isEquipmentValid(input.equipment)
+  const equipmentStepComplete = intensityStepComplete && Boolean(input.equipment) && isEquipmentValid(input.equipment!)
   const preferencesStepComplete = equipmentStepComplete
   const daysAvailable = input.schedule?.daysAvailable ?? []
   const minutesPerSession = input.time?.minutesPerSession ?? 0

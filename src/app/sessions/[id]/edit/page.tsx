@@ -9,7 +9,8 @@ import { SetLogger } from '@/components/workout/SetLogger'
 import { enhanceExerciseData, isTimeBasedExercise, toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
 import { normalizePreferences } from '@/lib/preferences'
-import type { WeightUnit, WorkoutSet } from '@/types/domain'
+import { buildWeightOptions, equipmentPresets } from '@/lib/equipment'
+import type { WeightUnit, WorkoutSet, EquipmentInventory } from '@/types/domain'
 
 type EditableExercise = {
   id: string
@@ -84,7 +85,7 @@ const toIsoString = (value: string) => {
   return date.toISOString()
 }
 
-const normalizeNumber = (value: number | '') => (typeof value === 'number' && Number.isFinite(value) ? value : null)
+const normalizeNumber = (value: number | '' | null | undefined) => (typeof value === 'number' && Number.isFinite(value) ? value : null)
 
 export default function SessionEditPage() {
   const router = useRouter()
@@ -99,11 +100,22 @@ export default function SessionEditPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [preferredUnit, setPreferredUnit] = useState<WeightUnit>('lb')
+  const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null)
+  const [resolvedInventory, setResolvedInventory] = useState<EquipmentInventory>(equipmentPresets.full_gym)
   const [newExerciseName, setNewExerciseName] = useState('')
 
   const exerciseLibraryByName = useMemo(
     () => new Map(EXERCISE_LIBRARY.map((exercise) => [exercise.name.toLowerCase(), exercise])),
     []
+  )
+
+  const getWeightOptions = useCallback(
+    (exerciseName: string) => {
+      const match = exerciseLibraryByName.get(exerciseName.toLowerCase())
+      if (!match?.equipment?.length) return []
+      return buildWeightOptions(resolvedInventory, match.equipment, profileWeightLb, preferredUnit)
+    },
+    [exerciseLibraryByName, preferredUnit, profileWeightLb, resolvedInventory]
   )
 
   const mapSession = useCallback((payload: SessionPayload): EditableSession => {
@@ -176,18 +188,37 @@ export default function SessionEditPage() {
     const loadPreferences = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('preferences')
+        .select('preferences, weight_lb')
         .eq('id', session.userId)
         .maybeSingle()
       if (error) {
-        console.error('Failed to load preferences', error)
+        console.error('Failed to load profile data', error)
         return
       }
       const normalized = normalizePreferences(data?.preferences)
       setPreferredUnit(normalized.settings?.units ?? 'lb')
+      setProfileWeightLb(data?.weight_lb ?? null)
+
+      // Fallback inventory from profile
+      let finalInventory = normalized.equipment?.inventory ?? equipmentPresets.full_gym
+
+      // If session has template, try to get template specific equipment
+      if (session.templateId) {
+        const { data: templateData } = await supabase
+          .from('workout_templates')
+          .select('equipment')
+          .eq('id', session.templateId)
+          .maybeSingle()
+        
+        if (templateData?.equipment?.inventory) {
+          finalInventory = templateData.equipment.inventory
+        }
+      }
+
+      setResolvedInventory(finalInventory)
     }
     loadPreferences()
-  }, [session?.userId, supabase])
+  }, [session?.userId, session?.templateId, supabase])
 
   const hasChanges = useMemo(() => {
     if (!session || !initialSnapshot) return false
@@ -594,6 +625,7 @@ export default function SessionEditPage() {
                     <SetLogger
                       key={set.id}
                       set={set}
+                      weightOptions={getWeightOptions(exercise.name)}
                       onUpdate={(field, val) => updateSetField(exercise.id, set.id, field, val)}
                       onDelete={() => handleDeleteSet(exercise.id, set.id)}
                       onToggleComplete={() => updateSetField(exercise.id, set.id, 'completed', !set.completed)}

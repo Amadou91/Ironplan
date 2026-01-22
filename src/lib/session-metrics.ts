@@ -13,6 +13,7 @@ export type MetricsSet = {
   durationSeconds?: number | null
   distance?: number | null
   completed?: boolean | null
+  restSecondsActual?: number | null
 }
 
 export type MetricsExercise = {

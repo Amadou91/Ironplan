@@ -28,6 +28,7 @@ type CreateSessionParams = {
     score: number
     level: ReadinessLevel
   }
+  bodyWeightLb?: number | null
   sessionNotes?: Record<string, unknown> | string | null
   history?: {
     recentExerciseNames?: string[]
@@ -63,6 +64,7 @@ export const createWorkoutSession = async ({
   input,
   minutesAvailable,
   readiness,
+  bodyWeightLb,
   sessionNotes,
   history,
   nameSuffix
@@ -81,6 +83,15 @@ export const createWorkoutSession = async ({
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? null
   const serializedNotes =
     typeof sessionNotes === 'string' ? sessionNotes : sessionNotes ? JSON.stringify(sessionNotes) : null
+
+  let finalWeight = bodyWeightLb
+  if (!finalWeight) {
+    const { data: profile } = await supabase.from('profiles').select('weight_lb').eq('id', userId).maybeSingle()
+    if (profile?.weight_lb) {
+      finalWeight = profile.weight_lb
+    }
+  }
+
   const { data: sessionData, error: sessionError } = await supabase
     .from('sessions')
     .insert({
@@ -91,7 +102,8 @@ export const createWorkoutSession = async ({
       status: 'in_progress',
       minutes_available: minutesAvailable,
       timezone,
-      session_notes: serializedNotes
+      session_notes: serializedNotes,
+      body_weight_lb: finalWeight
     })
     .select()
     .single()

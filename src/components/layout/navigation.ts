@@ -1,6 +1,12 @@
-import { LayoutDashboard, LineChart, UserRound } from 'lucide-react'
+import { LayoutDashboard, LineChart, UserRound, LucideIcon } from 'lucide-react'
 
-export const primaryNavItems = [
+export type NavItem = {
+  label: string
+  href: string
+  icon: LucideIcon
+}
+
+export const primaryNavItems: NavItem[] = [
   {
     label: 'Today',
     href: '/dashboard',
@@ -18,4 +24,4 @@ export const primaryNavItems = [
   }
 ]
 
-export const secondaryNavItems = []
+export const secondaryNavItems: NavItem[] = []

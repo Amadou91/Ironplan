@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   Cell,
   ComposedChart,
@@ -34,7 +33,6 @@ import {
   computeSetE1rm,
   computeSetLoad,
   computeSetTonnage,
-  computeWeeklyVolumeByMuscleGroup,
   E1RM_FORMULA_VERSION,
   getEffortScore,
   getWeekKey,
@@ -97,6 +95,28 @@ const DATE_RANGE_PRESETS: DateRangePreset[] = [
   }
 ]
 
+const MUSCLE_TARGET_DISTRIBUTION: Record<string, number> = {
+  chest: 15,
+  back: 15,
+  shoulders: 10,
+  quads: 15,
+  hamstrings: 10,
+  glutes: 10,
+  biceps: 5,
+  triceps: 5,
+  core: 10,
+  calves: 5
+}
+
+const MUSCLE_PRESETS = [
+  { label: 'Chest', value: 'chest' },
+  { label: 'Back', value: 'back' },
+  { label: 'Shoulders', value: 'shoulders' },
+  { label: 'Legs', value: 'quads' },
+  { label: 'Arms', value: 'arms' },
+  { label: 'Core', value: 'core' }
+]
+
 const formatDate = (value: string) => {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
@@ -127,6 +147,7 @@ type SessionRow = {
   ended_at: string | null
   status: string | null
   minutes_available?: number | null
+  body_weight_lb?: number | null
   timezone?: string | null
   session_exercises: Array<{
     id: string
@@ -183,6 +204,7 @@ export default function ProgressPage() {
   const [endDate, setEndDate] = useState('')
   const [selectedMuscle, setSelectedMuscle] = useState('all')
   const [selectedExercise, setSelectedExercise] = useState('all')
+  const [muscleVizMode, setMuscleVizMode] = useState<'absolute' | 'relative' | 'index'>('absolute')
   const [activeDatePreset, setActiveDatePreset] = useState<string | null>(null)
   const [deletingSessionIds, setDeletingSessionIds] = useState<Record<string, boolean>>({})
   const [expandedSessions, setExpandedSessions] = useState<Record<string, boolean>>({})
@@ -195,7 +217,10 @@ export default function ProgressPage() {
 
   const templateById = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates])
   const exerciseLibraryByName = useMemo(
-    () => new Map(EXERCISE_LIBRARY.map((exercise) => [exercise.name.toLowerCase(), exercise])),
+    () =>
+      new Map(
+        EXERCISE_LIBRARY.filter((e) => e.name).map((exercise) => [exercise.name.toLowerCase(), exercise])
+      ),
     []
   )
 
@@ -281,7 +306,7 @@ export default function ProgressPage() {
           supabase
             .from('sessions')
             .select(
-              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+              'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
             )
             .eq('user_id', user.id)
             .order('started_at', { ascending: false })
@@ -352,7 +377,7 @@ export default function ProgressPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+          'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -433,17 +458,6 @@ export default function ProgressPage() {
     loadBodyWeightHistory()
   }, [user, userLoading, supabase])
 
-  const muscleOptions = useMemo(() => {
-    const muscles = new Set<string>()
-    sessions.forEach((session) => {
-      session.session_exercises.forEach((exercise) => {
-        if (exercise.primary_muscle) muscles.add(exercise.primary_muscle)
-        exercise.secondary_muscles?.forEach((muscle) => muscles.add(muscle))
-      })
-    })
-    return Array.from(muscles).sort()
-  }, [sessions])
-
   const exerciseOptions = useMemo(() => {
     const names = new Set<string>()
     sessions.forEach((session) => {
@@ -476,7 +490,7 @@ export default function ProgressPage() {
         if (!hasMuscle) return false
       }
       return true
-    })
+    }).sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())
   }, [sessions, startDate, endDate, selectedExercise, selectedMuscle])
 
   const readinessBySessionId = useMemo(
@@ -547,10 +561,10 @@ export default function ProgressPage() {
   const readinessComponents = useMemo(() => {
     if (!readinessAverages) return []
     return [
-      { metric: 'Sleep', value: Number(readinessAverages.sleep.toFixed(1)) },
-      { metric: 'Soreness', value: Number(readinessAverages.soreness.toFixed(1)) },
-      { metric: 'Stress', value: Number(readinessAverages.stress.toFixed(1)) },
-      { metric: 'Motivation', value: Number(readinessAverages.motivation.toFixed(1)) }
+      { metric: 'Sleep', value: Number(readinessAverages.sleep.toFixed(1)), ideal: 4.5 },
+      { metric: 'Soreness', value: Number(readinessAverages.soreness.toFixed(1)), ideal: 1.5 },
+      { metric: 'Stress', value: Number(readinessAverages.stress.toFixed(1)), ideal: 1.5 },
+      { metric: 'Motivation', value: Number(readinessAverages.motivation.toFixed(1)), ideal: 4.5 }
     ]
   }, [readinessAverages])
 
@@ -707,10 +721,27 @@ export default function ProgressPage() {
       const muscle = set.primaryMuscle ?? 'unknown'
       totals.set(muscle, (totals.get(muscle) ?? 0) + tonnage)
     })
-    return Array.from(totals.entries()).map(([muscle, volume]) => ({
+
+    const data = Array.from(totals.entries()).map(([muscle, volume]) => ({
+      slug: muscle,
       muscle: toMuscleLabel(muscle),
       volume: Math.round(volume)
     }))
+
+    const totalVolume = data.reduce((sum, item) => sum + item.volume, 0)
+
+    return data.map(item => {
+      const relativePct = totalVolume > 0 ? (item.volume / totalVolume) * 100 : 0
+      const targetPct = MUSCLE_TARGET_DISTRIBUTION[item.slug] || 0
+      const imbalanceIndex = targetPct > 0 ? (relativePct / targetPct) * 100 : null
+
+      return {
+        ...item,
+        relativePct: Number(relativePct.toFixed(1)),
+        imbalanceIndex: imbalanceIndex !== null ? Math.round(imbalanceIndex) : null,
+        // The value used by the chart depends on the mode, but we keep the base values here
+      }
+    })
   }, [allSets])
 
   const prMetrics = useMemo(() => {
@@ -792,11 +823,62 @@ export default function ProgressPage() {
   }, [aggregateMetrics, prMetrics, profileWeightLb])
 
   const bodyWeightTrend = useMemo(() => {
-    return bodyWeightHistory.map((entry) => ({
-      day: formatDate(entry.recorded_at),
-      weight: Number(entry.weight_lb)
-    }))
-  }, [bodyWeightHistory])
+    const points: Array<{ day: string; timestamp: number; weight: number; source: 'session' | 'history' }> = []
+    
+    sessions.forEach(session => {
+      if (session.body_weight_lb) {
+        points.push({
+          day: formatDate(session.started_at),
+          timestamp: new Date(session.started_at).getTime(),
+          weight: Number(session.body_weight_lb),
+          source: 'session'
+        })
+      }
+    })
+
+    bodyWeightHistory.forEach(entry => {
+      points.push({
+        day: formatDate(entry.recorded_at),
+        timestamp: new Date(entry.recorded_at).getTime(),
+        weight: Number(entry.weight_lb),
+        source: 'history'
+      })
+    })
+
+    if (points.length === 0) return []
+
+    const sortedUniquePoints = points
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .filter((point, index, self) => 
+        index === self.findIndex((p) => p.day === point.day)
+      )
+
+    // Fill in sessions that don't have weight by using the last known weight
+    const sessionTrend = [...sessions]
+      .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
+      .map(session => {
+        const sessionTime = new Date(session.started_at).getTime()
+        // Find the weight at or before this session
+        const lastWeight = [...sortedUniquePoints]
+          .reverse()
+          .find(p => p.timestamp <= sessionTime)
+        
+        return {
+          day: formatDate(session.started_at),
+          timestamp: sessionTime,
+          weight: lastWeight ? lastWeight.weight : (sortedUniquePoints[0]?.weight ?? 0)
+        }
+      })
+
+    // Combine history and session points, again unique by day
+    const combined = [...sortedUniquePoints, ...sessionTrend]
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .filter((point, index, self) => 
+        index === self.findIndex((p) => p.day === point.day)
+      )
+
+    return combined
+  }, [bodyWeightHistory, sessions])
 
   const trainingLoadSummary = useMemo(() => {
     const mappedSessions = filteredSessions.map((session) => ({
@@ -819,32 +901,6 @@ export default function ProgressPage() {
   }, [filteredSessions])
 
   const loadReadiness = useMemo(() => getLoadBasedReadiness(trainingLoadSummary), [trainingLoadSummary])
-
-  const weeklyVolumeByMuscle = useMemo(() => {
-    const mappedSessions = filteredSessions.map((session) => ({
-      startedAt: session.started_at,
-      exercises: session.session_exercises.map((exercise) => ({
-        primaryMuscle: exercise.primary_muscle,
-        secondaryMuscles: exercise.secondary_muscles ?? [],
-        sets: (exercise.sets ?? []).map((set) => ({
-          reps: set.reps ?? null,
-          weight: set.weight ?? null,
-          weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
-        }))
-      }))
-    }))
-    const volumeMap = computeWeeklyVolumeByMuscleGroup(mappedSessions)
-    const weeks = Array.from(volumeMap.keys()).sort()
-    const latestWeek = weeks[weeks.length - 1]
-    const latestMap = latestWeek ? volumeMap.get(latestWeek) : undefined
-    const entries = latestMap
-      ? Array.from(latestMap.entries()).sort(([, a], [, b]) => b - a)
-      : []
-    return {
-      week: latestWeek ?? 'N/A',
-      entries
-    }
-  }, [filteredSessions])
 
   const sessionsPerWeek = useMemo(() => {
     const weeks = new Set<string>()
@@ -990,77 +1046,199 @@ export default function ProgressPage() {
         {error && <div className="alert-error p-4 text-sm">{error}</div>}
 
         <Card className="p-6">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Filters</h2>
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
-            <div className="flex flex-col">
-              <label className="text-xs text-subtle">Start date</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(event) => {
-                  setStartDate(event.target.value)
-                  setActiveDatePreset(null)
-                }}
-                className="input-base mt-1"
-              />
-            </div>
-            <div className="flex flex-col">
-              <label className="text-xs text-subtle">End date</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(event) => {
-                  setEndDate(event.target.value)
-                  setActiveDatePreset(null)
-                }}
-                className="input-base mt-1"
-              />
-            </div>
-            <div className="col-span-full">
-              <p className="text-xs text-subtle mb-2">Preset ranges</p>
-              <div className="flex flex-wrap gap-2">
-                {DATE_RANGE_PRESETS.map((preset) => (
-                  <Button
-                    key={preset.label}
-                    variant={activeDatePreset === preset.label ? 'secondary' : 'outline'}
-                    size="sm"
-                    type="button"
-                    onClick={() => handlePresetClick(preset)}
+          <div className="flex flex-col gap-10 lg:flex-row lg:items-start">
+            <div className="flex-1">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Filters</h2>
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col">
+                  <label className="text-xs text-subtle">Start date</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(event) => {
+                      setStartDate(event.target.value)
+                      setActiveDatePreset(null)
+                    }}
+                    className="input-base mt-1"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs text-subtle">End date</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(event) => {
+                      setEndDate(event.target.value)
+                      setActiveDatePreset(null)
+                    }}
+                    className="input-base mt-1"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-6">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-subtle mb-2.5">Date range presets</p>
+                  <div className="flex flex-wrap gap-2">
+                    {DATE_RANGE_PRESETS.map((preset) => (
+                      <Button
+                        key={preset.label}
+                        variant={activeDatePreset === preset.label ? 'secondary' : 'outline'}
+                        size="sm"
+                        type="button"
+                        onClick={() => handlePresetClick(preset)}
+                        className="h-8 px-3 text-xs"
+                      >
+                        {preset.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-subtle mb-2.5">Muscle group presets</p>
+                  <div className="flex flex-wrap gap-2">
+                    {MUSCLE_PRESETS.map((preset) => (
+                      <Button
+                        key={preset.value}
+                        variant={selectedMuscle === preset.value ? 'secondary' : 'outline'}
+                        size="sm"
+                        type="button"
+                        onClick={() => {
+                          if (selectedMuscle === preset.value) {
+                            setSelectedMuscle('all')
+                          } else {
+                            setSelectedMuscle(preset.value)
+                          }
+                        }}
+                        className="h-8 px-3 text-xs"
+                      >
+                        {preset.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-col max-w-sm">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-subtle mb-2.5">Specific Exercise</label>
+                  <select
+                    value={selectedExercise}
+                    onChange={(event) => setSelectedExercise(event.target.value)}
+                    className="input-base"
                   >
-                    {preset.label}
-                  </Button>
-                ))}
+                    <option value="all">All Exercises</option>
+                    {exerciseOptions.map((exercise) => (
+                      <option key={exercise} value={exercise}>
+                        {exercise}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
-            <div className="flex flex-col">
-              <label className="text-xs text-subtle">Muscle group</label>
-              <select
-                value={selectedMuscle}
-                onChange={(event) => setSelectedMuscle(event.target.value)}
-                className="input-base mt-1"
-              >
-                <option value="all">All</option>
-                {muscleOptions.map((muscle) => (
-                  <option key={muscle} value={muscle}>
-                    {toMuscleLabel(muscle)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col">
-              <label className="text-xs text-subtle">Exercise</label>
-              <select
-                value={selectedExercise}
-                onChange={(event) => setSelectedExercise(event.target.value)}
-                className="input-base mt-1"
-              >
-                <option value="all">All</option>
-                {exerciseOptions.map((exercise) => (
-                  <option key={exercise} value={exercise}>
-                    {exercise}
-                  </option>
-                ))}
-              </select>
+
+            <div className="w-full lg:w-[600px] lg:border-l lg:border-[var(--color-border)] lg:pl-10">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Muscle group volume</h3>
+                <div className="flex gap-1 bg-[var(--color-surface-muted)] p-1 rounded-lg">
+                  <button 
+                    onClick={() => setMuscleVizMode('absolute')}
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'absolute' ? 'bg-[var(--color-surface)] text-[var(--color-primary-strong)] shadow-sm' : 'text-subtle hover:text-muted'}`}
+                  >
+                    ABS
+                  </button>
+                  <button 
+                    onClick={() => setMuscleVizMode('relative')}
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'relative' ? 'bg-[var(--color-surface)] text-[var(--color-primary-strong)] shadow-sm' : 'text-subtle hover:text-muted'}`}
+                  >
+                    %
+                  </button>
+                  {muscleBreakdown.some(m => m.imbalanceIndex !== null) && (
+                    <button 
+                      onClick={() => setMuscleVizMode('index')}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'index' ? 'bg-[var(--color-surface)] text-[var(--color-primary-strong)] shadow-sm' : 'text-subtle hover:text-muted'}`}
+                    >
+                      INDEX
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center gap-6 mt-4">
+                <div className="h-64 w-full sm:w-1/2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie 
+                        data={muscleBreakdown.map(m => ({
+                          ...m,
+                          value: muscleVizMode === 'absolute' ? m.volume : muscleVizMode === 'relative' ? m.relativePct : (m.imbalanceIndex ?? 0)
+                        })).filter(m => m.value > 0)} 
+                        dataKey="value" 
+                        nameKey="muscle" 
+                        outerRadius={90}
+                        innerRadius={60}
+                        paddingAngle={2}
+                        stroke="none"
+                      >
+                        {muscleBreakdown.map((entry, index) => (
+                          <Cell key={entry.muscle} fill={chartColors[index % chartColors.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => {
+                          if (muscleVizMode === 'absolute') return [`${value.toLocaleString()} lb`, 'Volume']
+                          if (muscleVizMode === 'relative') return [`${value}%`, 'Relative %']
+                          return [value, 'Imbalance Index']
+                        }}
+                        contentStyle={{ 
+                          background: 'var(--color-surface)', 
+                          border: '1px solid var(--color-border)', 
+                          color: 'var(--color-text)', 
+                          fontSize: '12px',
+                          borderRadius: '8px',
+                          boxShadow: 'var(--shadow-md)'
+                        }} 
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-full sm:w-1/2 space-y-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-subtle border-b border-[var(--color-border)] pb-1.5 mb-3">
+                    {muscleVizMode === 'absolute' ? 'Volume breakdown (lb)' : muscleVizMode === 'relative' ? 'Relative distribution (%)' : 'Imbalance index (100 = target)'}
+                  </p>
+                  {muscleBreakdown.length === 0 ? (
+                    <p className="text-xs text-subtle italic">No data for selected range.</p>
+                  ) : (
+                    muscleBreakdown
+                      .sort((a, b) => {
+                        const valA = muscleVizMode === 'absolute' ? a.volume : muscleVizMode === 'relative' ? a.relativePct : (a.imbalanceIndex ?? 0)
+                        const valB = muscleVizMode === 'absolute' ? b.volume : muscleVizMode === 'relative' ? b.relativePct : (b.imbalanceIndex ?? 0)
+                        return valB - valA
+                      })
+                      .slice(0, 6)
+                      .map((entry, idx) => {
+                        const displayVal = muscleVizMode === 'absolute' 
+                          ? entry.volume.toLocaleString() 
+                          : muscleVizMode === 'relative' 
+                            ? `${entry.relativePct}%` 
+                            : entry.imbalanceIndex !== null ? entry.imbalanceIndex : 'N/A'
+                        
+                        return (
+                          <div key={entry.muscle} className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2.5">
+                              <div 
+                                className="w-2.5 h-2.5 rounded-sm" 
+                                style={{ background: chartColors[idx % chartColors.length] }} 
+                              />
+                              <span className="text-muted font-medium">{entry.muscle}</span>
+                            </div>
+                            <span className="text-strong font-semibold">{displayVal}</span>
+                          </div>
+                        )
+                      })
+                  )}
+                  {muscleBreakdown.length > 6 && (
+                    <p className="text-[10px] text-subtle text-right pt-1">+ {muscleBreakdown.length - 6} more groups</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </Card>
@@ -1163,9 +1341,7 @@ export default function ProgressPage() {
               </ResponsiveContainer>
             </div>
           </Card>
-        </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {exerciseTrend.length > 0 && (
             <Card className="p-6 min-w-0">
               <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">e1RM trend</h3>
@@ -1187,38 +1363,6 @@ export default function ProgressPage() {
           )}
 
           <Card className="p-6 min-w-0">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Muscle group volume</h3>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
-                <PieChart>
-                  <Pie data={muscleBreakdown} dataKey="volume" nameKey="muscle" outerRadius={90}>
-                    {muscleBreakdown.map((entry, index) => (
-                      <Cell key={entry.muscle} fill={chartColors[index % chartColors.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-4 space-y-1 text-xs text-muted">
-              <p className="text-[10px] uppercase tracking-wider text-subtle">Latest week ({weeklyVolumeByMuscle.week})</p>
-              {weeklyVolumeByMuscle.entries.length === 0 ? (
-                <p className="text-subtle">No tonnage logged this week yet.</p>
-              ) : (
-                weeklyVolumeByMuscle.entries.slice(0, 5).map(([muscle, volume]) => (
-                  <div key={muscle} className="flex items-center justify-between">
-                    <span>{toMuscleLabel(muscle)}</span>
-                    <span className="text-strong">{Math.round(volume)}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card className="p-6 min-w-0">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Bodyweight trend</h3>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
@@ -1227,7 +1371,7 @@ export default function ProgressPage() {
                   <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
                   <YAxis domain={['auto', 'auto']} stroke="var(--color-text-subtle)" />
                   <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
-                  <Line type="monotone" dataKey="weight" stroke="var(--color-accent)" strokeWidth={2} />
+                  <Line type="monotone" dataKey="weight" stroke="var(--color-accent)" strokeWidth={2} dot={{ r: 3, fill: 'var(--color-accent)' }} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -1255,21 +1399,50 @@ export default function ProgressPage() {
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness components</h3>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
-                <BarChart data={readinessComponents}>
+                <ComposedChart data={readinessComponents}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="metric" stroke="var(--color-text-subtle)" />
                   <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" />
                   <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
                   <Bar dataKey="value">
-                    {readinessComponents.map((entry, index) => (
-                      <Cell key={entry.metric} fill={chartColors[index % chartColors.length]} />
-                    ))}
+                    {readinessComponents.map((entry) => {
+                      let color = '#0ea5e9' // Default blue
+                      if (entry.metric === 'Sleep' || entry.metric === 'Motivation') {
+                        if (entry.value >= 4) color = '#1f9d55' // Green
+                        else if (entry.value >= 3) color = '#f59e0b' // Yellow
+                        else color = '#f05a28' // Red
+                      } else {
+                        // Soreness, Stress - lower is better
+                        if (entry.value <= 2) color = '#1f9d55' // Green
+                        else if (entry.value <= 3) color = '#f59e0b' // Yellow
+                        else color = '#f05a28' // Red
+                      }
+                      return <Cell key={entry.metric} fill={color} />
+                    })}
                   </Bar>
-                </BarChart>
+                  <Scatter
+                    dataKey="ideal"
+                    shape={(props: { cx?: number; cy?: number }) => {
+                      const { cx, cy } = props
+                      if (typeof cx !== 'number' || typeof cy !== 'number') return null
+                      return (
+                        <line
+                          x1={cx - 20}
+                          y1={cy}
+                          x2={cx + 20}
+                          y2={cy}
+                          stroke="var(--color-text-subtle)"
+                          strokeWidth={2}
+                          strokeDasharray="4 2"
+                        />
+                      )
+                    }}
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
             <p className="mt-3 text-xs text-subtle">
-              Averages over the selected range. Higher soreness and stress signal lower readiness.
+              Averages over selected range. Dashed lines indicate ideal levels.
             </p>
           </Card>
 
@@ -1319,6 +1492,7 @@ export default function ProgressPage() {
                         <p className="text-xs text-subtle">
                           {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
                           {session.timezone ? ` · ${session.timezone}` : ''}
+                          {session.body_weight_lb ? ` · ${session.body_weight_lb} lb` : ''}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted">

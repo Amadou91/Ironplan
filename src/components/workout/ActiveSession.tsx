@@ -5,7 +5,7 @@ import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { createClient } from '@/lib/supabase/client';
 import { SetLogger } from './SetLogger';
 import { Plus, Clock } from 'lucide-react';
-import type { Intensity, SessionExercise, WeightUnit, WorkoutImpact, WorkoutSession, WorkoutSet } from '@/types/domain';
+import type { Intensity, SessionExercise, WeightUnit, WorkoutImpact, WorkoutSession, WorkoutSet, EquipmentInventory } from '@/types/domain';
 import { enhanceExerciseData, isTimeBasedExercise, toMuscleLabel } from '@/lib/muscle-utils';
 import { EXERCISE_LIBRARY } from '@/lib/generator';
 import { buildWeightOptions, equipmentPresets } from '@/lib/equipment';
@@ -120,13 +120,16 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
     () => activeSession?.exercises.map((exercise) => exercise.name).join('|') ?? '',
     [activeSession?.exercises]
   );
+  const [sessionBodyWeight, setSessionBodyWeight] = useState<string>('');
   const resolvedInventory = useMemo(
     () => equipmentInventory ?? equipmentPresets.full_gym,
     [equipmentInventory]
   );
 
-
   const mapSession = useCallback((payload: SessionPayload): WorkoutSession => {
+    if (payload.body_weight_lb) {
+      setSessionBodyWeight(String(payload.body_weight_lb));
+    }
     return {
       id: payload.id,
       userId: payload.user_id ?? '',
@@ -269,7 +272,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
     return () => {
       isMounted = false;
     };
-  }, [activeSession?.id, exerciseNameKey, exerciseLibraryByName, supabase]);
+  }, [activeSession?.id, activeSession?.exercises, exerciseNameKey, exerciseLibraryByName, supabase]);
 
   const persistSet = useCallback(
     async (exercise: SessionExercise, set: WorkoutSet, exerciseIndex: number) => {
@@ -467,6 +470,24 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
     };
   }, []);
 
+  const handleBodyWeightUpdate = async (value: string) => {
+    setSessionBodyWeight(value);
+    if (!activeSession) return;
+
+    const weightVal = parseFloat(value);
+    if (!isNaN(weightVal)) {
+      try {
+        await Promise.all([
+          supabase.from('sessions').update({ body_weight_lb: weightVal }).eq('id', activeSession.id),
+          supabase.from('profiles').update({ weight_lb: weightVal }).eq('id', activeSession.userId),
+          supabase.from('body_measurements').insert({ user_id: activeSession.userId, weight_lb: weightVal })
+        ]);
+      } catch (error) {
+        console.error('Failed to update body weight', error);
+      }
+    }
+  };
+
   const getWeightOptions = useCallback(
     (exercise: SessionExercise) => {
       const match = exerciseLibraryByName.get(exercise.name.toLowerCase());
@@ -525,14 +546,28 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
               </div>
             )}
             {progressSummary && (
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
-                <span>
-                  {progressSummary.completedSets}/{progressSummary.totalSets} sets
-                </span>
-                <span>•</span>
-                <span>
-                  {progressSummary.completedExercises}/{progressSummary.totalExercises} exercises
-                </span>
+              <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-subtle">
+                <div className="flex items-center gap-2">
+                  <span>
+                    {progressSummary.completedSets}/{progressSummary.totalSets} sets
+                  </span>
+                  <span>•</span>
+                  <span>
+                    {progressSummary.completedExercises}/{progressSummary.totalExercises} exercises
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 border-l border-[var(--color-border)] pl-4">
+                  <span className="font-medium text-muted">Weight:</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="lb"
+                    value={sessionBodyWeight}
+                    onChange={(e) => handleBodyWeightUpdate(e.target.value)}
+                    className="w-16 rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-center font-semibold text-strong outline-none transition-all focus:bg-[var(--color-surface)] focus:ring-1 focus:ring-[var(--color-primary)]"
+                  />
+                  <span className="text-[10px]">lb</span>
+                </div>
               </div>
             )}
           </div>

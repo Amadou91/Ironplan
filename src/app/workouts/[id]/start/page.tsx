@@ -244,6 +244,9 @@ export default function WorkoutStartPage() {
         readinessSurvey: readinessSurvey as ReadinessSurvey,
         source: 'workout_start'
       }
+      const weightVal = parseFloat(bodyWeight)
+      const validBodyWeight = isNaN(weightVal) ? null : weightVal
+
       const { sessionId, startedAt, sessionName, exercises, impact, timezone, sessionNotes: storedNotes } =
         await createWorkoutSession({
           supabase,
@@ -265,6 +268,7 @@ export default function WorkoutStartPage() {
             score: readinessScore,
             level: readinessLevel
           },
+          bodyWeightLb: validBodyWeight,
           sessionNotes,
           history,
           nameSuffix

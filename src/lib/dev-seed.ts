@@ -25,14 +25,6 @@ type SessionSeed = {
   exercises: ExerciseSeed[]
 }
 
-type TemplateSeed = {
-  title: string
-  focus: string
-  style: string
-  experience_level: string
-  intensity: string
-}
-
 export type SeedResult = {
   templates: number
   sessions: number
@@ -54,27 +46,57 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     return { templates: 0, sessions: 0, exercises: 0, sets: 0, readiness: 0 }
   }
 
-  const templateSeeds: TemplateSeed[] = [
+  const fullGymInventory = {
+    bodyweight: true,
+    dumbbells: [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
+    kettlebells: [18, 26, 35, 44, 53],
+    bands: ['light', 'medium', 'heavy'],
+    barbell: { available: true, plates: [45, 35, 25, 10, 5, 2.5] },
+    machines: { cable: true, leg_press: true, treadmill: true, rower: true }
+  }
+
+  const templateSeeds = [
     {
       title: `${DEV_TEMPLATE_PREFIX}Upper Strength`,
       focus: 'upper',
       style: 'strength',
       experience_level: 'intermediate',
-      intensity: 'high'
+      intensity: 'high',
+      equipment: { preset: 'full_gym', inventory: fullGymInventory },
+      template_inputs: {
+        experienceLevel: 'intermediate',
+        intensity: 'high',
+        equipment: { preset: 'full_gym', inventory: fullGymInventory },
+        time: { minutesPerSession: 45 }
+      }
     },
     {
       title: `${DEV_TEMPLATE_PREFIX}Lower Hypertrophy`,
       focus: 'lower',
       style: 'hypertrophy',
       experience_level: 'beginner',
-      intensity: 'moderate'
+      intensity: 'moderate',
+      equipment: { preset: 'full_gym', inventory: fullGymInventory },
+      template_inputs: {
+        experienceLevel: 'beginner',
+        intensity: 'moderate',
+        equipment: { preset: 'full_gym', inventory: fullGymInventory },
+        time: { minutesPerSession: 45 }
+      }
     },
     {
       title: `${DEV_TEMPLATE_PREFIX}Full Body Endurance`,
       focus: 'full_body',
       style: 'endurance',
       experience_level: 'beginner',
-      intensity: 'low'
+      intensity: 'low',
+      equipment: { preset: 'full_gym', inventory: fullGymInventory },
+      template_inputs: {
+        experienceLevel: 'beginner',
+        intensity: 'low',
+        equipment: { preset: 'full_gym', inventory: fullGymInventory },
+        time: { minutesPerSession: 45 }
+      }
     }
   ]
 
@@ -183,9 +205,14 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
 
   const now = Date.now()
   const dayMs = 24 * 60 * 60 * 1000
+  const weightStartPoint = 184.2
   const sessionRows = sessionSeeds.map((seed) => {
     const startedAt = new Date(now - seed.daysAgo * dayMs - 45 * 60 * 1000)
     const endedAt = new Date(now - seed.daysAgo * dayMs - 15 * 60 * 1000)
+    // Simulate weight trend for each session
+    // Roughly 0.15lb loss per day
+    const sessionWeight = weightStartPoint - ((totalSessions * 2 - seed.daysAgo) * 0.07) + (Math.random() * 0.4 - 0.2)
+    
     return {
       user_id: userId,
       template_id: templates?.[seed.templateIndex]?.id ?? null,
@@ -195,7 +222,8 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       ended_at: endedAt.toISOString(),
       minutes_available: seed.minutesAvailable,
       generated_exercises: [],
-      session_notes: DEV_SEED_MARKER
+      session_notes: DEV_SEED_MARKER,
+      body_weight_lb: Number(sessionWeight.toFixed(1))
     }
   })
 
@@ -321,7 +349,6 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
   }
 
   // Seed Body Measurements (Daily History for last 30 days)
-  const weightStartPoint = 184.2
   const dailyMeasurementRows = []
   for (let i = 0; i < 30; i++) {
     const dayDate = new Date(now - (29 - i) * dayMs)

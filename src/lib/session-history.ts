@@ -40,7 +40,7 @@ export const fetchTemplateHistory = async (
     const generated = Array.isArray(row.generated_exercises) ? row.generated_exercises : []
     generated.forEach((exercise) => {
       if (exercise.name) recentExerciseNames.push(exercise.name)
-      if (exercise.movementPattern) recentMovementPatterns.push(exercise.movementPattern)
+      if (exercise.movementPattern) recentMovementPatterns.push(exercise.movementPattern as MovementPattern)
       if (exercise.primaryMuscle) recentPrimaryMuscles.push(exercise.primaryMuscle)
     })
   })

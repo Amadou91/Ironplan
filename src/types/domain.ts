@@ -289,6 +289,7 @@ export interface WorkoutSet {
   durationSeconds?: number | '' | null
   distance?: number | '' | null
   distanceUnit?: string | null
+  restSecondsActual?: number | null
 }
 
 export interface BodyMeasurement {

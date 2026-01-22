@@ -110,11 +110,6 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     e1rmEligible: true
   },
   {
-    durationMinutes: 8,
-    restSeconds: 75,
-    e1rmEligible: false
-  },
-  {
     name: 'Bench Press',
     focus: 'upper',
     movementPattern: 'push',
@@ -203,6 +198,7 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     sets: 3,
     reps: '10-15',
     rpe: 7,
+    equipment: [{ kind: 'machine', machineType: 'cable' }],
     durationMinutes: 8,
     restSeconds: 75,
     e1rmEligible: false
@@ -918,7 +914,7 @@ const isEquipmentOptionAvailable = (inventory: EquipmentInventory, option: Exerc
 }
 
 const selectEquipmentOption = (inventory: EquipmentInventory, options: Exercise['equipment']) =>
-  options.find(option => isEquipmentOptionAvailable(inventory, option))
+  options?.find(option => isEquipmentOptionAvailable(inventory, option))
 
 const pickClosestWeight = (weights: number[], target: number) => {
   if (weights.length === 0) return undefined
@@ -1424,7 +1420,7 @@ const buildSessionForTime = (
   const fillPools: Array<{ source: ExerciseSource; pool: Exercise[] }> = [
     { source: 'secondary', pool: secondaryPool },
     { source: 'accessory', pool: accessoryPool },
-    ...(focusConstraint ? [] : [{ source: 'secondary', pool: [...primaryPool, ...secondaryPool, ...accessoryPool] }])
+    ...(focusConstraint ? [] : [{ source: 'secondary' as ExerciseSource, pool: [...primaryPool, ...secondaryPool, ...accessoryPool] }])
   ]
 
   fillPools.forEach(({ source, pool }) => {
@@ -1716,7 +1712,7 @@ const buildSessionName = (focus: FocusArea, exercises: Exercise[], goal: Goal) =
   return `${formatFocusLabel(focus)} - ${goalLabel} Focus`
 }
 
-const buildPlanTitle = (focus: FocusArea, goal: Goal, intensity?: string, minutes?: number) =>
+const buildPlanTitle = (focus: FocusArea, goal: Goal, intensity?: Intensity, minutes?: number) =>
   buildWorkoutDisplayName({
     focus,
     style: goal,
