@@ -582,10 +582,10 @@ export default function ProgressPage() {
   const readinessComponents = useMemo(() => {
     if (!readinessAverages) return []
     return [
-      { metric: 'Sleep', value: Number(readinessAverages.sleep.toFixed(1)), ideal: 4.5 },
-      { metric: 'Soreness', value: Number(readinessAverages.soreness.toFixed(1)), ideal: 1.5 },
-      { metric: 'Stress', value: Number(readinessAverages.stress.toFixed(1)), ideal: 1.5 },
-      { metric: 'Motivation', value: Number(readinessAverages.motivation.toFixed(1)), ideal: 4.5 }
+      { metric: 'Sleep', value: Number(readinessAverages.sleep.toFixed(1)), ideal: 4.0 },
+      { metric: 'Soreness', value: Number(readinessAverages.soreness.toFixed(1)), ideal: 2.0 },
+      { metric: 'Stress', value: Number(readinessAverages.stress.toFixed(1)), ideal: 2.0 },
+      { metric: 'Motivation', value: Number(readinessAverages.motivation.toFixed(1)), ideal: 4.0 }
     ]
   }, [readinessAverages])
 
@@ -796,11 +796,19 @@ export default function ProgressPage() {
       })
 
     const totalVolume = data.reduce((sum, item) => sum + item.volume, 0)
+    
+    // Calculate total target percentage for the currently visible muscles
+    const totalTargetPct = data.reduce((sum, item) => sum + (MUSCLE_TARGET_DISTRIBUTION[item.slug] || 0), 0)
 
     return data.map(item => {
       const relativePct = totalVolume > 0 ? (item.volume / totalVolume) * 100 : 0
-      const targetPct = MUSCLE_TARGET_DISTRIBUTION[item.slug] || 0
-      const imbalanceIndex = targetPct > 0 ? (relativePct / targetPct) * 100 : null
+      const rawTarget = MUSCLE_TARGET_DISTRIBUTION[item.slug] || 0
+      
+      // Normalize target: if we are only looking at Arms (e.g. 10% total target), 
+      // but they make up 100% of the current view, their new target should be scaled up.
+      const normalizedTarget = totalTargetPct > 0 ? (rawTarget / totalTargetPct) * 100 : 0
+      
+      const imbalanceIndex = normalizedTarget > 0 ? (relativePct / normalizedTarget) * 100 : null
 
       return {
         ...item,
@@ -1301,7 +1309,7 @@ export default function ProgressPage() {
                         const valB = muscleVizMode === 'absolute' ? b.volume : muscleVizMode === 'relative' ? b.relativePct : (b.imbalanceIndex ?? 0)
                         return valB - valA
                       })
-                      .slice(0, 6)
+                      // Removed .slice(0, 6) to show all groups
                       .map((entry, idx) => {
                         const displayVal = muscleVizMode === 'absolute' 
                           ? entry.volume.toLocaleString() 
@@ -1323,9 +1331,7 @@ export default function ProgressPage() {
                         )
                       })
                   )}
-                  {muscleBreakdown.length > 6 && (
-                    <p className="text-[10px] text-subtle text-right pt-1">+ {muscleBreakdown.length - 6} more groups</p>
-                  )}
+                  {/* Removed "+ more groups" indicator */}
                 </div>
               </div>
             </div>

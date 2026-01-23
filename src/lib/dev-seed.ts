@@ -363,7 +363,8 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     dailyMeasurementRows.push({
       user_id: userId,
       weight_lb: currentWeight,
-      recorded_at: dayDate.toISOString()
+      recorded_at: dayDate.toISOString(),
+      source: DEV_SEED_TAG
     })
   }
 
@@ -450,11 +451,12 @@ export async function clearDevData(supabase: SupabaseClient, userId: string): Pr
       .update({ body_weight_lb: null })
       .eq('user_id', userId)
 
-    // 6. Delete all body measurements
+    // 6. Delete seeded body measurements
     const { data: measurementRows, error: measurementDeleteError } = await supabase
       .from('body_measurements')
       .delete()
       .eq('user_id', userId)
+      .eq('source', DEV_SEED_TAG)
       .select('id')
     
     if (!measurementDeleteError) {
