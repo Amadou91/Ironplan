@@ -95,8 +95,8 @@ test('createWorkoutSession falls back to profile weight if bodyWeightLb is missi
     from: (table) => {
       if (table === 'profiles') {
         return {
-          select: (fields) => ({
-            eq: (col, val) => ({
+          select: () => ({
+            eq: () => ({
               maybeSingle: () => Promise.resolve({ data: { weight_lb: 190.2 }, error: null })
             })
           })

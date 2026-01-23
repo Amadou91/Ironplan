@@ -24,7 +24,7 @@ const requireShim = createRequire(import.meta.url)
 const factory = new Function('module', 'exports', 'require', outputText)
 factory(moduleShim, moduleShim.exports, requireShim)
 
-const { isMuscleMatch, PRESET_MAPPINGS } = moduleShim.exports
+const { isMuscleMatch } = moduleShim.exports
 
 test('isMuscleMatch matches primary muscle', () => {
   assert.equal(isMuscleMatch('chest', 'Chest'), true)
