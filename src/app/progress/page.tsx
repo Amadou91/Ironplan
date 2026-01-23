@@ -749,29 +749,22 @@ export default function ProgressPage() {
       if (!tonnage) return
       
             // Use slug for consistent aggregation keys
-      
             const primary = toMuscleSlug(set.primaryMuscle ?? 'unknown')
-      
-            totals.set(primary, (totals.get(primary) ?? 0) + tonnage)
-      
-      
-      
+
+            if (primary) {
+              totals.set(primary, (totals.get(primary) ?? 0) + tonnage)
+            }
+
             // Secondary muscles get 50% credit
-      
             if (set.secondaryMuscles && Array.isArray(set.secondaryMuscles)) {
-      
               set.secondaryMuscles.forEach(secondary => {
-      
                 if (secondary) {
-      
                   const secondarySlug = toMuscleSlug(secondary)
-      
-                  totals.set(secondarySlug, (totals.get(secondarySlug) ?? 0) + (tonnage * 0.5))
-      
+                  if (secondarySlug) {
+                    totals.set(secondarySlug, (totals.get(secondarySlug) ?? 0) + (tonnage * 0.5))
+                  }
                 }
-      
               })
-      
             }
       
           })
@@ -896,7 +889,7 @@ export default function ProgressPage() {
     }
   }, [aggregateMetrics, prMetrics, profileWeightLb])
 
-  const bodyWeightTrend = useMemo(() => {
+  const bodyWeightData = useMemo(() => {
     const points: Array<{ day: string; timestamp: number; weight: number; source: 'session' | 'history' }> = []
     
     filteredSessions.forEach(session => {
@@ -967,6 +960,26 @@ export default function ProgressPage() {
       .filter((point, index, self) => 
         index === self.findIndex((p) => p.day === point.day)
       )
+      .map(p => ({ ...p, trend: null as number | null }))
+
+    if (combined.length >= 2) {
+      const n = combined.length
+      const sumX = combined.reduce((acc, p) => acc + p.timestamp, 0)
+      const sumY = combined.reduce((acc, p) => acc + p.weight, 0)
+      const sumXY = combined.reduce((acc, p) => acc + p.timestamp * p.weight, 0)
+      const sumXX = combined.reduce((acc, p) => acc + p.timestamp * p.timestamp, 0)
+
+      const denominator = (n * sumXX - sumX * sumX)
+      if (denominator !== 0) {
+        const slope = (n * sumXY - sumX * sumY) / denominator
+        const intercept = (sumY - slope * sumX) / n
+        
+        return combined.map(p => ({
+          ...p,
+          trend: slope * p.timestamp + intercept
+        }))
+      }
+    }
 
     return combined
   }, [bodyWeightHistory, filteredSessions, startDate, endDate])
@@ -1279,7 +1292,8 @@ export default function ProgressPage() {
                         ))}
                       </Pie>
                       <Tooltip 
-                        formatter={(value: number) => {
+                        formatter={(value: number | undefined) => {
+                          if (typeof value !== 'number') return []
                           if (muscleVizMode === 'absolute') return [`${value.toLocaleString()} lb`, 'Volume']
                           if (muscleVizMode === 'relative') return [`${value}%`, 'Relative %']
                           return [value, 'Imbalance Index']
@@ -1461,12 +1475,28 @@ export default function ProgressPage() {
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Bodyweight trend</h3>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
-                <LineChart data={bodyWeightTrend}>
+                <LineChart data={bodyWeightData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
                   <YAxis domain={['auto', 'auto']} stroke="var(--color-text-subtle)" />
                   <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
-                  <Line type="monotone" dataKey="weight" stroke="var(--color-accent)" strokeWidth={2} dot={{ r: 3, fill: 'var(--color-accent)' }} activeDot={{ r: 5 }} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="weight" 
+                    stroke="var(--color-primary)" 
+                    strokeWidth={2} 
+                    dot={{ r: 4, fill: 'var(--color-surface)', strokeWidth: 2 }} 
+                    activeDot={{ r: 6 }} 
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="trend" 
+                    stroke="var(--color-text-subtle)" 
+                    strokeWidth={2} 
+                    strokeDasharray="5 5" 
+                    dot={false} 
+                    activeDot={false} 
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>

@@ -28,6 +28,7 @@ type SessionPayload = {
   impact?: WorkoutImpact | null;
   timezone?: string | null;
   session_notes?: string | null;
+  body_weight_lb?: number | null;
   session_exercises: Array<{
     id: string;
     exercise_name: string;
@@ -176,7 +177,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
       const { data, error } = await supabase
         .from('sessions')
         .select(
-          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit))'
+          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_notes, body_weight_lb, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit))'
         )
         .eq('id', sessionId)
         .single();

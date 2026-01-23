@@ -93,8 +93,8 @@ export const calculateSessionImpactFromSets = (
       weight: isNumber(set.weight) ? set.weight : null,
       rpe: isNumber(set.rpe) ? set.rpe : null,
       rir: isNumber(set.rir) ? set.rir : null,
-      failure: Boolean(set.failure),
-      setType: set.setType ?? null,
+      failure: false,
+      setType: null,
       performedAt: set.performedAt ?? null,
       weightUnit: set.weightUnit ?? null
     }))

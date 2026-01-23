@@ -1,4 +1,4 @@
-import type { PlanInput, WeightUnit } from '@/types/domain'
+import type { EquipmentInventory, PlanInput, WeightUnit } from '@/types/domain'
 
 export type SettingsPreferences = {
   units: WeightUnit
@@ -6,6 +6,9 @@ export type SettingsPreferences = {
 
 export type UserPreferences = {
   settings?: SettingsPreferences
+  equipment?: {
+    inventory: EquipmentInventory
+  }
 }
 
 export const defaultPreferences: UserPreferences = {
@@ -22,10 +25,11 @@ export const normalizePreferences = (value: unknown): UserPreferences => {
   return {
     settings: {
       units: input.settings?.units ?? defaultPreferences.settings?.units ?? 'lb'
-    }
+    },
+    equipment: input.equipment
   }
 }
 
-export const applyPreferencesToPlanInput = (input: PlanInput) => {
+export const applyPreferencesToPlanInput = (input: PlanInput, _prefs: UserPreferences) => {
   return input
 }
