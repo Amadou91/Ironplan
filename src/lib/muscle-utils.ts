@@ -25,36 +25,56 @@ const MUSCLE_GROUP_SLUGS = new Set([
 ]);
 
 const resolveByKeyword = (label: string) => {
-  if (label.includes('bench') || label.includes('push up') || label.includes('press')) {
-    return { primary: 'Chest', secondary: ['Triceps', 'Shoulders'] };
-  }
-  if (label.includes('pull up') || label.includes('row') || label.includes('deadlift') || label.includes('lat')) {
-    return { primary: 'Back', secondary: ['Biceps', 'Shoulders'] };
-  }
+  // Specific compound movements first
   if (label.includes('squat') || label.includes('lunge') || label.includes('leg press') || label.includes('split squat')) {
     return { primary: 'Quads', secondary: ['Glutes', 'Core'] };
   }
-  if (label.includes('hinge') || label.includes('rdl') || label.includes('hamstring') || label.includes('good morning')) {
+  if (label.includes('deadlift') || label.includes('rdl') || label.includes('good morning') || label.includes('hinge')) {
     return { primary: 'Hamstrings', secondary: ['Glutes', 'Back'] };
   }
-  if (label.includes('calf')) {
-    return { primary: 'Calves', secondary: ['Lower Body'] };
-  }
-  if (label.includes('shoulder') || label.includes('overhead') || label.includes('raise')) {
+  if (label.includes('overhead') || label.includes('shoulder press') || label.includes('military') || label.includes('raise') || label.includes('face pull')) {
     return { primary: 'Shoulders', secondary: ['Triceps'] };
   }
+  if (label.includes('hip thrust') || label.includes('glute bridge')) {
+    return { primary: 'Glutes', secondary: ['Hamstrings'] };
+  }
+  if (label.includes('calf') || label.includes('calves')) {
+    return { primary: 'Calves', secondary: ['Lower Body'] };
+  }
+
+  // Upper body compounds
+  if (label.includes('bench') || label.includes('push up') || label.includes('chest press') || label.includes('floor press') || label.includes('dip') || label.includes('fly') || label.includes('pec deck')) {
+    return { primary: 'Chest', secondary: ['Triceps', 'Shoulders'] };
+  }
+  if (label.includes('pull up') || label.includes('chin up') || label.includes('row') || label.includes('lat') || label.includes('pull down')) {
+    return { primary: 'Back', secondary: ['Biceps', 'Shoulders'] };
+  }
+  
+  // Isolations
   if (label.includes('curl')) {
     return { primary: 'Biceps', secondary: ['Forearms'] };
   }
-  if (label.includes('extension') || label.includes('dip') || label.includes('pushdown')) {
+  if (label.includes('extension') || label.includes('pushdown') || label.includes('skull crusher')) {
     return { primary: 'Triceps', secondary: ['Chest'] };
   }
-  if (label.includes('plank') || label.includes('crunch') || label.includes('core')) {
+  
+  // Core & Cardio
+  if (label.includes('plank') || label.includes('crunch') || label.includes('core') || label.includes('sit up')) {
     return { primary: 'Core', secondary: [] };
   }
-  if (label.includes('run') || label.includes('rower') || label.includes('bike') || label.includes('cardio')) {
+  if (label.includes('run') || label.includes('rower') || label.includes('bike') || label.includes('cardio') || label.includes('cycle') || label.includes('elliptical')) {
     return { primary: 'Cardio', secondary: [] };
   }
+  
+  // Fallback for generic 'press' if not caught above (likely shoulders or chest, defaulting to Shoulders if it's just 'press', or Chest if context implies)
+  // But usually 'press' is too vague. Let's assume if it hasn't matched 'leg press', 'bench', 'overhead', it might be a machine press.
+  if (label.includes('press')) {
+    // Check for 'shoulder' again just in case
+    if (label.includes('shoulder')) return { primary: 'Shoulders', secondary: ['Triceps'] };
+    // Default to Chest for generic "Press" if not qualified, as it's often Chest Press
+    return { primary: 'Chest', secondary: ['Triceps', 'Shoulders'] };
+  }
+
   return null;
 };
 

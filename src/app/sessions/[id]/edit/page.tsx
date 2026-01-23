@@ -21,6 +21,13 @@ type EditableExercise = {
   sets: WorkoutSet[]
 }
 
+type ReadinessData = {
+  sleep_quality: number
+  muscle_soreness: number
+  stress_level: number
+  motivation: number
+}
+
 type EditableSession = {
   id: string
   name: string
@@ -30,6 +37,7 @@ type EditableSession = {
   userId?: string | null
   timezone?: string | null
   bodyWeightLb?: number | null
+  readiness?: ReadinessData | null
   exercises: EditableExercise[]
 }
 
@@ -42,6 +50,12 @@ type SessionPayload = {
   ended_at: string | null
   timezone?: string | null
   body_weight_lb?: number | null
+  session_readiness: Array<{
+    sleep_quality: number
+    muscle_soreness: number
+    stress_level: number
+    motivation: number
+  }>
   session_exercises: Array<{
     id: string
     exercise_name: string
@@ -130,6 +144,12 @@ export default function SessionEditPage() {
       userId: payload.user_id ?? null,
       timezone: payload.timezone ?? null,
       bodyWeightLb: payload.body_weight_lb ?? null,
+      readiness: payload.session_readiness?.[0] ? {
+        sleep_quality: payload.session_readiness[0].sleep_quality,
+        muscle_soreness: payload.session_readiness[0].muscle_soreness,
+        stress_level: payload.session_readiness[0].stress_level,
+        motivation: payload.session_readiness[0].motivation
+      } : null,
       exercises: payload.session_exercises
         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
         .map((exercise, index) => ({
@@ -162,7 +182,7 @@ export default function SessionEditPage() {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-        'id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+        'id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_readiness(sleep_quality, muscle_soreness, stress_level, motivation), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
         )
         .eq('id', params.id)
         .single()
@@ -450,6 +470,22 @@ export default function SessionEditPage() {
         ])
       }
 
+      // Sync readiness data
+      if (session.readiness) {
+        const { error: readinessError } = await supabase
+          .from('session_readiness')
+          .upsert({
+            session_id: session.id,
+            sleep_quality: session.readiness.sleep_quality,
+            muscle_soreness: session.readiness.muscle_soreness,
+            stress_level: session.readiness.stress_level,
+            motivation: session.readiness.motivation,
+            recorded_at: session.startedAt
+          }, { onConflict: 'session_id' })
+        
+        if (readinessError) throw readinessError
+      }
+
       if (deletedExerciseIds.length > 0) {
         const { error: deleteExerciseError } = await supabase
           .from('session_exercises')
@@ -615,6 +651,56 @@ export default function SessionEditPage() {
           {session.timezone && (
             <p className="mt-2 text-[10px] text-subtle">Timezone: {session.timezone}</p>
           )}
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-strong mb-4">Readiness Survey</h2>
+          <div className="grid gap-6 sm:grid-cols-2">
+            {[
+              { label: 'Sleep Quality', key: 'sleep_quality', min: 1, max: 5, minLabel: 'Poor', maxLabel: 'Excellent' },
+              { label: 'Muscle Soreness', key: 'muscle_soreness', min: 1, max: 5, minLabel: 'None', maxLabel: 'Severe' },
+              { label: 'Stress Level', key: 'stress_level', min: 1, max: 5, minLabel: 'Low', maxLabel: 'High' },
+              { label: 'Motivation', key: 'motivation', min: 1, max: 5, minLabel: 'Low', maxLabel: 'High' }
+            ].map((metric) => (
+              <div key={metric.key}>
+                <div className="flex justify-between mb-2">
+                  <label className="text-sm font-medium text-strong">{metric.label}</label>
+                  <span className="text-sm font-bold text-[var(--color-primary)]">
+                    {session.readiness?.[metric.key as keyof ReadinessData] ?? 3}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={metric.min}
+                  max={metric.max}
+                  step="1"
+                  value={session.readiness?.[metric.key as keyof ReadinessData] ?? 3}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value)
+                    setSession(prev => {
+                      if (!prev) return prev
+                      return {
+                        ...prev,
+                        readiness: {
+                          sleep_quality: 3,
+                          muscle_soreness: 2,
+                          stress_level: 2,
+                          motivation: 3,
+                          ...(prev.readiness ?? {}),
+                          [metric.key]: value
+                        }
+                      }
+                    })
+                  }}
+                  className="w-full h-2 bg-[var(--color-surface-muted)] rounded-lg appearance-none cursor-pointer accent-[var(--color-primary)]"
+                />
+                <div className="flex justify-between mt-1 text-[10px] text-subtle">
+                  <span>{metric.minLabel}</span>
+                  <span>{metric.maxLabel}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
 
         <div className="space-y-6">
