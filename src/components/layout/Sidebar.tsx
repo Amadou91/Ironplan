@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { authStore, useAuthStore } from '@/store/authStore';
 import { getAuthNavState } from '@/lib/authUi';
 import { primaryNavItems, secondaryNavItems } from '@/components/layout/navigation';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -32,14 +33,17 @@ export default function Sidebar() {
 
   return (
     <aside className="hidden h-screen w-72 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] text-strong lg:flex">
-      <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-6 py-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] shadow-[var(--shadow-sm)]">
-          <span className="font-display text-lg font-semibold">IP</span>
+      <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] shadow-[var(--shadow-sm)]">
+            <span className="font-display text-lg font-semibold">IP</span>
+          </div>
+          <div>
+            <div className="font-display text-xl font-semibold tracking-tight">Ironplan</div>
+            <p className="text-xs text-subtle">Coach-led training OS</p>
+          </div>
         </div>
-        <div>
-          <div className="font-display text-xl font-semibold tracking-tight">Ironplan</div>
-          <p className="text-xs text-subtle">Coach-led training OS</p>
-        </div>
+        <ThemeToggle />
       </div>
 
       <div className="flex-1 space-y-6 px-4 py-6">
