@@ -37,6 +37,13 @@ const formatDateTime = (value: string) => {
     : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+const formatDateForInput = (value: Date) => {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const parseNumberInput = (value: string) => {
   const trimmed = value.trim()
   if (!trimmed) return null
@@ -122,6 +129,16 @@ export default function ProfilePage() {
   const [devActionMessage, setDevActionMessage] = useState<string | null>(null)
   const [devActionError, setDevActionError] = useState<string | null>(null)
   
+  // Manual Weight State
+  const [manualWeight, setManualWeight] = useState('')
+  const [manualDate, setManualDate] = useState(formatDateForInput(new Date()))
+  const [manualHistory, setManualHistory] = useState<Array<{ id: string; weight_lb: number; recorded_at: string }>>([])
+  const [manualLoading, setManualLoading] = useState(false)
+  const [manualSaving, setManualSaving] = useState(false)
+  const [manualDeletingId, setManualDeletingId] = useState<string | null>(null)
+  const [isWeightModalOpen, setIsWeightModalOpen] = useState(false)
+  const [editingWeightId, setEditingWeightId] = useState<string | null>(null)
+  
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const titleClickTimeout = useRef<any>(null)
   const titleClickCount = useRef(0)
@@ -194,8 +211,120 @@ export default function ProfilePage() {
       setLoadingPrefs(false)
     }
 
+    const loadManualHistory = async () => {
+      if (!user) return
+      setManualLoading(true)
+      const { data, error } = await supabase
+        .from('body_measurements')
+        .select('id, weight_lb, recorded_at')
+        .eq('user_id', user.id)
+        .eq('source', 'user')
+        .order('recorded_at', { ascending: false })
+        .limit(20)
+      
+      if (!error && data) {
+        setManualHistory(data)
+      }
+      setManualLoading(false)
+    }
+
     loadData()
+    loadManualHistory()
   }, [ensureSession, supabase, user, userLoading])
+
+  const handleEditManualWeight = (entry: { id: string; weight_lb: number; recorded_at: string }) => {
+    setEditingWeightId(entry.id)
+    setManualWeight(String(entry.weight_lb))
+    setManualDate(formatDateForInput(new Date(entry.recorded_at)))
+    setIsWeightModalOpen(true)
+  }
+
+  const handleSaveManualWeight = async () => {
+    if (!user || !manualWeight) return
+    const weight = parseFloat(manualWeight)
+    if (isNaN(weight) || weight <= 0) return
+    
+    setManualSaving(true)
+    try {
+      const recordedAt = new Date(manualDate).toISOString()
+      
+      if (editingWeightId) {
+        const { data, error } = await supabase
+          .from('body_measurements')
+          .update({
+            weight_lb: weight,
+            recorded_at: recordedAt
+          })
+          .eq('id', editingWeightId)
+          .select('id, weight_lb, recorded_at')
+          .single()
+        
+        if (!error && data) {
+          setManualHistory(prev => prev.map(item => item.id === editingWeightId ? data : item).sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()))
+          setProfileSuccess('Weight entry updated.')
+        }
+      } else {
+        const { data, error } = await supabase
+          .from('body_measurements')
+          .insert({
+            user_id: user.id,
+            weight_lb: weight,
+            recorded_at: recordedAt,
+            source: 'user'
+          })
+          .select('id, weight_lb, recorded_at')
+          .single()
+        
+        if (!error && data) {
+          setManualHistory(prev => [data, ...prev].sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()).slice(0, 20))
+          setProfileSuccess('Weight logged.')
+        }
+      }
+
+      // Update profile with latest weight if this is the newest entry
+      const { data: latest } = await supabase
+        .from('body_measurements')
+        .select('weight_lb')
+        .eq('user_id', user.id)
+        .order('recorded_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (latest) {
+        await supabase.from('profiles').update({ weight_lb: latest.weight_lb }).eq('id', user.id)
+        setProfileDraft(prev => ({ ...prev, weightLb: String(latest.weight_lb) }))
+      }
+
+      setManualWeight('')
+      setManualDate(formatDateForInput(new Date()))
+      setEditingWeightId(null)
+      setIsWeightModalOpen(false)
+    } catch (err) {
+      console.error('Failed to save weight', err)
+    } finally {
+      setManualSaving(false)
+    }
+  }
+
+  const handleDeleteManualWeight = async (id: string) => {
+    if (!confirm('Remove this weight entry?')) return
+    setManualDeletingId(id)
+    try {
+      const { error } = await supabase
+        .from('body_measurements')
+        .delete()
+        .eq('id', id)
+      
+      if (!error) {
+        setManualHistory(prev => prev.filter(item => item.id !== id))
+        setProfileSuccess('Entry removed.')
+      }
+    } catch (err) {
+      console.error('Failed to delete weight entry', err)
+    } finally {
+      setManualDeletingId(null)
+    }
+  }
 
   // Dev Tools Persistence
   useEffect(() => {
@@ -241,35 +370,6 @@ export default function ProfilePage() {
   const handleProfileChange = (field: keyof ProfileDraft, value: string) => {
     setProfileDraft((prev) => ({ ...prev, [field]: value }))
   }
-
-  const NumericInput = ({ 
-    value, 
-    onChange, 
-    placeholder, 
-    disabled,
-    className = ""
-  }: { 
-    value: string; 
-    onChange: (val: string) => void; 
-    placeholder?: string;
-    disabled?: boolean;
-    className?: string;
-  }) => (
-    <input
-      type="text"
-      inputMode="decimal"
-      placeholder={placeholder}
-      value={value}
-      onChange={(e) => {
-        const val = e.target.value;
-        if (val === '' || /^-?\d*\.?\d*$/.test(val)) {
-          onChange(val);
-        }
-      }}
-      className={`input-base ${className}`}
-      disabled={disabled}
-    />
-  );
 
   const handleSaveProfile = async () => {
     if (!user) return
@@ -547,10 +647,17 @@ export default function ProfilePage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2">
               <div className="flex flex-col">
                 <label className="text-xs text-subtle">Weight (lb)</label>
-                <NumericInput
+                <input
+                  type="text"
+                  inputMode="decimal"
                   value={profileDraft.weightLb}
-                  onChange={(val) => handleProfileChange('weightLb', val)}
-                  className="mt-1"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      handleProfileChange('weightLb', val);
+                    }
+                  }}
+                  className="input-base mt-1"
                   disabled={profileLoading || profileSaving}
                 />
               </div>
@@ -558,19 +665,35 @@ export default function ProfilePage() {
                 <label className="text-xs text-subtle">Height</label>
                 <div className="mt-1 grid grid-cols-2 gap-2 text-[10px]">
                   <label className="flex flex-col gap-1">
-                    <NumericInput
+                    <input
+                      type="text"
+                      inputMode="decimal"
                       placeholder="ft"
                       value={profileDraft.heightFeet}
-                      onChange={(val) => handleProfileChange('heightFeet', val)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                          handleProfileChange('heightFeet', val);
+                        }
+                      }}
+                      className="input-base"
                       disabled={profileLoading || profileSaving}
                     />
                     <span className="text-subtle">Feet</span>
                   </label>
                   <label className="flex flex-col gap-1">
-                    <NumericInput
+                    <input
+                      type="text"
+                      inputMode="decimal"
                       placeholder="in"
                       value={profileDraft.heightInches}
-                      onChange={(val) => handleProfileChange('heightInches', val)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                          handleProfileChange('heightInches', val);
+                        }
+                      }}
+                      className="input-base"
                       disabled={profileLoading || profileSaving}
                     />
                     <span className="text-subtle">Inches</span>
@@ -579,10 +702,17 @@ export default function ProfilePage() {
               </div>
               <div className="flex flex-col">
                 <label className="text-xs text-subtle">Body fat %</label>
-                <NumericInput
+                <input
+                  type="text"
+                  inputMode="decimal"
                   value={profileDraft.bodyFatPercent}
-                  onChange={(val) => handleProfileChange('bodyFatPercent', val)}
-                  className="mt-1"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      handleProfileChange('bodyFatPercent', val);
+                    }
+                  }}
+                  className="input-base mt-1"
                   disabled={profileLoading || profileSaving}
                 />
               </div>
@@ -683,6 +813,131 @@ export default function ProfilePage() {
               </Button>
             </div>
           </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Ruler className="h-5 w-5 text-accent" />
+                <div>
+                  <h2 className="text-sm font-semibold text-strong">Body Weight History</h2>
+                  <p className="text-xs text-subtle">Manage independent weight logs.</p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setEditingWeightId(null)
+                  setManualWeight('')
+                  setManualDate(formatDateForInput(new Date()))
+                  setIsWeightModalOpen(true)
+                }}
+              >
+                Log Weight
+              </Button>
+            </div>
+
+            <div className="mt-6">
+              <div className="space-y-2">
+                {manualLoading ? (
+                  <p className="text-xs text-muted">Loading history...</p>
+                ) : manualHistory.length === 0 ? (
+                  <p className="text-xs text-muted">No manual entries yet.</p>
+                ) : (
+                  manualHistory.map((entry) => (
+                    <div key={entry.id} className="flex items-center justify-between rounded-lg border border-[var(--color-border)] p-3 text-xs">
+                      <div className="flex items-center gap-4">
+                        <span className="font-semibold text-strong text-sm">{entry.weight_lb} lb</span>
+                        <span className="text-subtle">{formatDateTime(entry.recorded_at)}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-3"
+                          onClick={() => handleEditManualWeight(entry)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-3 text-[var(--color-danger)] hover:text-[var(--color-danger)]"
+                          onClick={() => handleDeleteManualWeight(entry.id)}
+                          disabled={manualDeletingId === entry.id}
+                        >
+                          {manualDeletingId === entry.id ? '...' : 'Delete'}
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {isWeightModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+              <div className="surface-elevated w-full max-w-sm overflow-hidden flex flex-col p-6 space-y-4">
+                <div>
+                  <h3 className="font-semibold text-strong">{editingWeightId ? 'Edit weight' : 'Log body weight'}</h3>
+                  <p className="text-xs text-subtle">Enter your weight and the date recorded.</p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold text-subtle">Weight (lb)</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0.0"
+                      value={manualWeight}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                          setManualWeight(val);
+                        }
+                      }}
+                      className="input-base"
+                      disabled={manualSaving}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold text-subtle">Date</label>
+                    <input
+                      type="date"
+                      value={manualDate}
+                      onChange={(e) => setManualDate(e.target.value)}
+                      className="input-base"
+                      disabled={manualSaving}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setIsWeightModalOpen(false)
+                      setEditingWeightId(null)
+                    }}
+                    disabled={manualSaving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={handleSaveManualWeight}
+                    disabled={manualSaving || !manualWeight || !manualDate}
+                  >
+                    {manualSaving ? 'Saving...' : 'Save'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {devToolsEnabled && isDevMode && (
             <Card className="p-6">

@@ -893,7 +893,7 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
                 
                 return (
                   <SetLogger
-                    key={set.id}
+                    key={`${set.id}-${set.completed}`}
                     set={set}
                     weightOptions={getWeightOptions(exercise)}
                     onUpdate={(field, val) => handleSetUpdate(exIdx, setIdx, field, val)}

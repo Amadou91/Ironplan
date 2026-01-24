@@ -97,6 +97,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
       className={inputClassName(hasError)}
+      disabled={!isEditing}
       readOnly={!isEditing}
     />
   );
@@ -186,7 +187,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
 
   if (effectiveProfile === 'yoga_session') {
     return (
-      <div className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+      <div 
+        key={set.completed ? 'completed' : 'editing'}
+        className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}
+      >
         {renderHeader()}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col">
@@ -249,7 +253,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
 
   if (effectiveProfile === 'cardio_session') {
     return (
-      <div className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+      <div 
+        key={set.completed ? 'completed' : 'editing'}
+        className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}
+      >
         {renderHeader()}
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="flex flex-col">
@@ -295,7 +302,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
 
   if (effectiveProfile === 'mobility_session') {
     return (
-      <div className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+      <div 
+        key={set.completed ? 'completed' : 'editing'}
+        className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}
+      >
         {renderHeader()}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col">
@@ -340,7 +350,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
 
   if (effectiveProfile === 'timed_strength') {
     return (
-      <div className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+      <div 
+        key={set.completed ? 'completed' : 'editing'}
+        className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}
+      >
         {renderHeader()}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col">
@@ -410,7 +423,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
             <div className="flex flex-col">
               <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Reserve</label>
               <select
-                value={rirValue}
+                value={typeof set.rir === 'number' ? String(set.rir) : ''}
                 onChange={(event) => {
                   const nextValue = event.target.value === '' ? '' : Number(event.target.value);
                   onUpdate('rir', nextValue);
@@ -438,7 +451,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
   const derivedRpeLabel = RPE_OPTIONS.find((option) => option.value === derivedRpe)?.label ?? null;
 
   return (
-    <div className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+    <div 
+      key={set.completed ? 'completed' : 'editing'}
+      className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}
+    >
       {renderHeader()}
       <div className="grid gap-2 sm:grid-cols-3">
         <div className="flex flex-col">
@@ -491,7 +507,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
         <div className="flex flex-col">
           <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">RIR</label>
           <select
-            value={rirValue}
+            value={typeof set.rir === 'number' ? String(set.rir) : ''}
             onChange={(event) => {
               const nextValue = event.target.value === '' ? '' : Number(event.target.value);
               onUpdate('rir', nextValue);

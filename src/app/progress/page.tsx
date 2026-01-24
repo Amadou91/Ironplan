@@ -27,6 +27,7 @@ import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { ChartInfoTooltip } from '@/components/ui/ChartInfoTooltip'
 import { toMuscleLabel, PRESET_MAPPINGS, isMuscleMatch, toMuscleSlug } from '@/lib/muscle-utils'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
@@ -494,6 +495,7 @@ export default function ProgressPage() {
           const { data } = await query
           
           if (data) {
+            console.log('Fetched body weight history:', data);
             setBodyWeightHistory(data)
           }
         }
@@ -699,8 +701,36 @@ export default function ProgressPage() {
 
   const volumeTrend = useMemo(() => {
     const totals = new Map<string, { volume: number; load: number }>()
+    
+    // Determine if we should aggregate by day or week
+    let useDaily = false
+    if (startDate && endDate) {
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+      if (diffDays < 14) useDaily = true
+    } else if (startDate || endDate) {
+      // If only one date is set, check vs filtered sessions span
+      const dates = filteredSessions.map(s => new Date(s.started_at).getTime())
+      if (dates.length > 0) {
+        const min = Math.min(...dates)
+        const max = Math.max(...dates)
+        const diffDays = (max - min) / (1000 * 60 * 60 * 24)
+        if (diffDays < 14) useDaily = true
+      }
+    } else if (filteredSessions.length > 0) {
+      // Default view: check actual span of loaded sessions
+      const dates = filteredSessions.map(s => new Date(s.started_at).getTime())
+      const min = Math.min(...dates)
+      const max = Math.max(...dates)
+      const diffDays = (max - min) / (1000 * 60 * 60 * 24)
+      if (diffDays < 14) useDaily = true
+    }
+
     allSets.forEach((set) => {
-      const key = getWeekKey(set.performed_at ?? set.startedAt)
+      const date = set.performed_at ?? set.startedAt
+      const key = useDaily ? formatDate(date) : getWeekKey(date)
+      
       const tonnage = computeSetTonnage({
         metricProfile: (set as any).metricProfile,
         reps: set.reps ?? null,
@@ -721,10 +751,19 @@ export default function ProgressPage() {
       entry.load += load
       totals.set(key, entry)
     })
+
     return Array.from(totals.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([week, values]) => ({ week, volume: Math.round(values.volume), load: Math.round(values.load) }))
-  }, [allSets])
+      .sort(([a], [b]) => {
+        if (useDaily) return new Date(a).getTime() - new Date(b).getTime()
+        return a.localeCompare(b)
+      })
+      .map(([label, values]) => ({ 
+        label, 
+        volume: Math.round(values.volume), 
+        load: Math.round(values.load),
+        isDaily: useDaily
+      }))
+  }, [allSets, startDate, endDate, filteredSessions])
 
   const effortTrend = useMemo(() => {
     const daily = new Map<string, { total: number; count: number }>()
@@ -1225,11 +1264,11 @@ export default function ProgressPage() {
                     {DATE_RANGE_PRESETS.map((preset) => (
                       <Button
                         key={preset.label}
-                        variant={activeDatePreset === preset.label ? 'secondary' : 'outline'}
+                        variant={activeDatePreset === preset.label ? 'primary' : 'outline'}
                         size="sm"
                         type="button"
                         onClick={() => handlePresetClick(preset)}
-                        className="h-8 px-3 text-xs"
+                        className={`h-8 px-3 text-xs ${activeDatePreset === preset.label ? '' : 'bg-transparent text-muted border-[var(--color-border)]'}`}
                       >
                         {preset.label}
                       </Button>
@@ -1242,7 +1281,7 @@ export default function ProgressPage() {
                     {MUSCLE_PRESETS.map((preset) => (
                       <Button
                         key={preset.value}
-                        variant={selectedMuscle === preset.value ? 'secondary' : 'outline'}
+                        variant={selectedMuscle === preset.value ? 'primary' : 'outline'}
                         size="sm"
                         type="button"
                         onClick={() => {
@@ -1252,7 +1291,7 @@ export default function ProgressPage() {
                             setSelectedMuscle(preset.value)
                           }
                         }}
-                        className="h-8 px-3 text-xs"
+                        className={`h-8 px-3 text-xs ${selectedMuscle === preset.value ? '' : 'bg-transparent text-muted border-[var(--color-border)]'}`}
                       >
                         {preset.label}
                       </Button>
@@ -1279,24 +1318,30 @@ export default function ProgressPage() {
 
             <div className="w-full lg:w-[600px] lg:border-l lg:border-[var(--color-border)] lg:pl-10">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Muscle group volume</h3>
+                <div className="flex items-center">
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Muscle group volume</h3>
+                  <ChartInfoTooltip 
+                    description="Distribution of training volume across different muscle groups. Secondary muscles receive 50% volume credit."
+                    goal="Maintain a balanced distribution according to your training phase and priorities."
+                  />
+                </div>
                 <div className="flex gap-1 bg-[var(--color-surface-muted)] p-1 rounded-lg">
                   <button 
                     onClick={() => setMuscleVizMode('absolute')}
-                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'absolute' ? 'bg-[var(--color-surface)] text-[var(--color-primary-strong)] shadow-sm' : 'text-subtle hover:text-muted'}`}
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'absolute' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
                   >
                     ABS
                   </button>
                   <button 
                     onClick={() => setMuscleVizMode('relative')}
-                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'relative' ? 'bg-[var(--color-surface)] text-[var(--color-primary-strong)] shadow-sm' : 'text-subtle hover:text-muted'}`}
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'relative' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
                   >
                     %
                   </button>
                   {muscleBreakdown.some(m => m.imbalanceIndex !== null) && (
                     <button 
                       onClick={() => setMuscleVizMode('index')}
-                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'index' ? 'bg-[var(--color-surface)] text-[var(--color-primary-strong)] shadow-sm' : 'text-subtle hover:text-muted'}`}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'index' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
                     >
                       INDEX
                     </button>
@@ -1450,13 +1495,21 @@ export default function ProgressPage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card className="p-6 min-w-0">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Volume & load by week</h3>
+            <div className="mb-4 flex items-center">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">
+                Volume & load {volumeTrend[0]?.isDaily ? 'by day' : 'by week'}
+              </h3>
+              <ChartInfoTooltip 
+                description="Tonnage (reps × weight) and Training Load (tonnage × effort) aggregated by time period."
+                goal="Aim for progressive overload (gradual increase in volume/load) while managing recovery."
+              />
+            </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <LineChart data={volumeTrend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                  <XAxis dataKey="week" stroke="var(--color-text-subtle)" />
-                  <YAxis stroke="var(--color-text-subtle)" />
+                  <XAxis dataKey="label" stroke="var(--color-text-subtle)" fontSize={10} />
+                  <YAxis stroke="var(--color-text-subtle)" fontSize={10} />
                   <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
                   <Legend />
                   <Line type="monotone" dataKey="volume" stroke="var(--color-primary)" strokeWidth={2} />
@@ -1470,7 +1523,13 @@ export default function ProgressPage() {
           </Card>
 
           <Card className="p-6 min-w-0">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Effort trend</h3>
+            <div className="mb-4 flex items-center">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Effort trend</h3>
+              <ChartInfoTooltip 
+                description="Average effort (RPE or 10-RIR) per session. Shows how hard you are pushing on average."
+                goal="Maintain intensity appropriate for your program; avoid consistent 10/10 effort to prevent burnout."
+              />
+            </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <LineChart data={effortTrend}>
@@ -1486,7 +1545,13 @@ export default function ProgressPage() {
 
           {exerciseTrend.length > 0 && (
             <Card className="p-6 min-w-0">
-              <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">e1RM trend</h3>
+              <div className="mb-4 flex items-center">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">e1RM trend</h3>
+                <ChartInfoTooltip 
+                  description="Estimated 1-Rep Max based on your best sets. A proxy for absolute strength levels."
+                  goal="A steady upward trend over months indicates successful strength adaptation."
+                />
+              </div>
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                   <LineChart data={exerciseTrend}>
@@ -1505,7 +1570,13 @@ export default function ProgressPage() {
           )}
 
           <Card className="p-6 min-w-0">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Bodyweight trend</h3>
+            <div className="mb-4 flex items-center">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Bodyweight trend</h3>
+              <ChartInfoTooltip 
+                description="Your recorded body weight over time. The dashed line shows the overall trend."
+                goal="Align weight changes with your caloric and training goals (bulking, cutting, or maintenance)."
+              />
+            </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <LineChart data={bodyWeightData}>
@@ -1536,7 +1607,13 @@ export default function ProgressPage() {
           </Card>
 
           <Card className="p-6 min-w-0">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness score trend</h3>
+            <div className="mb-4 flex items-center">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness score trend</h3>
+              <ChartInfoTooltip 
+                description="Daily readiness scores calculated from sleep, soreness, stress, and motivation."
+                goal="Aim for higher readiness scores by prioritizing recovery and managing lifestyle stress."
+              />
+            </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <LineChart data={readinessSeries}>
@@ -1554,7 +1631,13 @@ export default function ProgressPage() {
           </Card>
 
           <Card className="p-6 min-w-0">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness components</h3>
+            <div className="mb-4 flex items-center">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness components</h3>
+              <ChartInfoTooltip 
+                description="Breakdown of specific recovery metrics. Bar colors indicate health levels."
+                goal="Identify which factors (e.g. sleep vs stress) are limiting your training capacity."
+              />
+            </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <ComposedChart data={readinessComponents}>
@@ -1605,7 +1688,13 @@ export default function ProgressPage() {
           </Card>
 
           <Card className={`p-6 min-w-0 ${exerciseTrend.length > 0 ? 'lg:col-span-2' : ''}`}>
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness vs session effort</h3>
+            <div className="mb-4 flex items-center">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness vs session effort</h3>
+              <ChartInfoTooltip 
+                description="Correlation between your pre-session readiness and your actual training effort. Quadrants show if you are over-reaching or under-taxing."
+                goal="Look for dots in the 'Optimal' quadrant. Consistent 'Risk Zone' dots suggest a need for a deload."
+              />
+            </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <ComposedChart>

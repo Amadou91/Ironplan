@@ -128,6 +128,22 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         equipment: { preset: 'home_minimal', inventory: { ...fullGymInventory, machines: { cable: false, leg_press: false, treadmill: false, rower: false } } },
         time: { minutesPerSession: 30 }
       })
+    },
+    {
+      title: `${DEV_TEMPLATE_PREFIX}Cardio Conditioning`,
+      focus: 'cardio' as FocusArea,
+      style: 'cardio' as Goal,
+      experience_level: 'intermediate',
+      intensity: 'moderate',
+      equipment: { preset: 'full_gym', inventory: fullGymInventory },
+      template_inputs: normalizePlanInput({
+        intent: { mode: 'style', style: 'cardio' },
+        goals: { primary: 'cardio', priority: 'primary' },
+        experienceLevel: 'intermediate',
+        intensity: 'moderate',
+        equipment: { preset: 'full_gym', inventory: fullGymInventory },
+        time: { minutesPerSession: 45 }
+      })
     }
   ]
 
@@ -233,13 +249,31 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
           { reps: null, weight: null, weightUnit: 'lb', rir: 4, durationSeconds: 600, extraMetrics: { target_area: 'Hips' } }
         ]
       }
+    ],
+    4: [
+      {
+        name: 'Indoor Ride',
+        primaryMuscle: 'cardio',
+        metricProfile: 'cardio_session',
+        sets: [
+          { reps: null, weight: null, weightUnit: 'lb', rpe: 7, durationSeconds: 1800, extraMetrics: { machine: 'stationary bike' } }
+        ]
+      },
+      {
+        name: 'Skipping',
+        primaryMuscle: 'cardio',
+        metricProfile: 'cardio_session',
+        sets: [
+          { reps: null, weight: null, weightUnit: 'lb', rpe: 8, durationSeconds: 600, extraMetrics: { focus: 'intervals' } }
+        ]
+      }
     ]
   }
 
   const sessionSeeds: SessionSeed[] = []
-  const totalSessions = 36
+  const totalSessions = 40
   for (let i = 0; i < totalSessions; i++) {
-    const templateIndex = i % 4
+    const templateIndex = i % 5
     const daysAgo = Math.floor((totalSessions - i) * 2 + Math.random())
     const baseExercises = exerciseTemplates[templateIndex]
 
