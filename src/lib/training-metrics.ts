@@ -47,6 +47,7 @@ type TrainingSession = SessionMetricsInput & {
 type TrainingLoadSummary = {
   acuteLoad: number
   chronicLoad: number
+  chronicWeeklyAvg: number
   loadRatio: number
   status: 'undertraining' | 'balanced' | 'overreaching'
   daysSinceLast: number | null
@@ -192,6 +193,8 @@ export const summarizeTrainingLoad = (sessions: TrainingSession[], now = new Dat
     const time = new Date(session.startedAt).getTime()
     if (!Number.isFinite(time)) return
     const delta = nowTime - time
+    if (delta < 0) return // Skip future sessions relative to calculation date
+
     const sessionLoad = computeSessionMetrics(session).workload
     if (delta <= acuteWindow) acuteLoad += sessionLoad
     if (delta <= chronicWindow) chronicLoad += sessionLoad
@@ -199,8 +202,13 @@ export const summarizeTrainingLoad = (sessions: TrainingSession[], now = new Dat
 
   const chronicWeeklyAverage = chronicLoad ? chronicLoad / 4 : 0
   const loadRatio = chronicWeeklyAverage ? acuteLoad / chronicWeeklyAverage : 0
-  const status =
-    loadRatio >= 1.3 ? 'overreaching' : loadRatio > 0 && loadRatio <= 0.8 ? 'undertraining' : 'balanced'
+  
+  let status: 'undertraining' | 'balanced' | 'overreaching' = 'balanced'
+  if (loadRatio >= 1.3) {
+    status = 'overreaching'
+  } else if (loadRatio <= 0.8 && chronicLoad > 0) {
+    status = 'undertraining'
+  }
 
   const weeklyLoadTrend = Array.from(weeklyLoads.entries())
     .sort(([a], [b]) => a.localeCompare(b))
@@ -209,6 +217,7 @@ export const summarizeTrainingLoad = (sessions: TrainingSession[], now = new Dat
   return {
     acuteLoad: Math.round(acuteLoad),
     chronicLoad: Math.round(chronicLoad),
+    chronicWeeklyAvg: Math.round(chronicWeeklyAverage),
     loadRatio: Number(loadRatio.toFixed(2)),
     status,
     daysSinceLast: typeof daysSinceLast === 'number' ? Number(daysSinceLast.toFixed(1)) : null,

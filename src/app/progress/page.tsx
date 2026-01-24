@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -170,6 +170,7 @@ type SessionRow = {
       completed: boolean | null
       performed_at: string | null
       weight_unit: string | null
+      duration_seconds?: number | null
     }>
   }>
 }
@@ -304,7 +305,7 @@ export default function ProgressPage() {
       let query = supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+          'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -402,7 +403,7 @@ export default function ProgressPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+          'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -928,6 +929,7 @@ export default function ProgressPage() {
     )
 
     let bestE1rmValue = 0
+    let bestE1rmExercise = ''
     allSets.forEach((set) => {
       const session = sessions.find((s) => s.id === set.sessionId)
       const template = session?.template_id ? templateById.get(session.template_id) : null
@@ -935,17 +937,25 @@ export default function ProgressPage() {
       const isEligible = exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible
 
       const e1rm = computeSetE1rm(set, sessionGoal, isEligible)
-      if (e1rm) bestE1rmValue = Math.max(bestE1rmValue, e1rm)
+      if (e1rm && e1rm > bestE1rmValue) {
+        bestE1rmValue = e1rm
+        bestE1rmExercise = set.exerciseName
+      }
     })
+
+    const workload = Math.round(metricSets.reduce((sum, set) => sum + computeSetLoad(set), 0))
+    const sessionCount = filteredSessions.length
 
     return {
       tonnage: Math.round(aggregateTonnage(metricSets)),
       hardSets: aggregateHardSets(metricSets),
       bestE1rm: Math.round(bestE1rmValue),
-      workload: Math.round(metricSets.reduce((sum, set) => sum + computeSetLoad(set), 0)),
+      bestE1rmExercise,
+      workload,
+      avgWorkload: sessionCount > 0 ? Math.round(workload / sessionCount) : 0,
       avgEffort: effortTotals.count ? Number((effortTotals.total / effortTotals.count).toFixed(1)) : null
     }
-  }, [allSets, sessions, templateById, exerciseLibraryByName])
+  }, [allSets, sessions, templateById, exerciseLibraryByName, filteredSessions.length])
 
   const relativeMetrics = useMemo(() => {
     if (!profileWeightLb || profileWeightLb <= 0) return null
@@ -1052,11 +1062,28 @@ export default function ProgressPage() {
   }, [bodyWeightHistory, filteredSessions, startDate, endDate])
 
   const trainingLoadSummary = useMemo(() => {
-    const mappedSessions = filteredSessions.map((session) => ({
+    // ACR must be calculated using ALL loaded history (which includes 28d buffer), 
+    // but relative to the "end" of the user's selected range.
+    const mappedSessions = sessions.map((session) => ({
       startedAt: session.started_at,
       endedAt: session.ended_at,
-      sets: session.session_exercises.flatMap((exercise) =>
-        (exercise.sets ?? [])
+      sets: session.session_exercises.flatMap((exercise) => {
+        // Apply Exercise filter
+        if (selectedExercise !== 'all' && exercise.exercise_name !== selectedExercise) {
+          return []
+        }
+        
+        // Apply Muscle filter
+        if (selectedMuscle !== 'all') {
+          const libEntry = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())
+          const primary = libEntry?.primaryMuscle || exercise.primary_muscle
+          const secondary = libEntry?.secondaryMuscles || exercise.secondary_muscles || []
+          if (!isMuscleMatch(selectedMuscle, primary, secondary)) {
+            return []
+          }
+        }
+
+        return (exercise.sets ?? [])
           .filter((set) => set.completed !== false)
           .map((set) => ({
             metricProfile: (exercise as any).metric_profile,
@@ -1065,12 +1092,28 @@ export default function ProgressPage() {
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
             rpe: typeof set.rpe === 'number' ? set.rpe : null,
             rir: typeof set.rir === 'number' ? set.rir : null,
-            performedAt: set.performed_at ?? null
+            performedAt: set.performed_at ?? null,
+            durationSeconds: set.duration_seconds ?? null
           }))
-      )
+      })
     }))
-    return summarizeTrainingLoad(mappedSessions)
-  }, [filteredSessions])
+    
+    const calculationDate = endDate ? new Date(new Date(endDate).getTime() + 86400000 - 1) : new Date()
+    
+    const summary = summarizeTrainingLoad(mappedSessions, calculationDate)
+    console.log('ACR Calculation:', { 
+      asOf: calculationDate.toISOString(), 
+      acute: summary.acuteLoad, 
+      chronic: summary.chronicLoad, 
+      ratio: summary.loadRatio,
+      sessionsUsed: mappedSessions.length
+    })
+    
+    return {
+      ...summary,
+      calculationDate
+    }
+  }, [sessions, endDate, selectedMuscle, selectedExercise, exerciseLibraryByName])
 
   const loadReadiness = useMemo(() => getLoadBasedReadiness(trainingLoadSummary), [trainingLoadSummary])
 
@@ -1126,7 +1169,8 @@ export default function ProgressPage() {
           weight: set.weight ?? null,
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
           rpe: typeof set.rpe === 'number' ? set.rpe : null,
-          rir: typeof set.rir === 'number' ? set.rir : null
+          rir: typeof set.rir === 'number' ? set.rir : null,
+          durationSeconds: set.duration_seconds ?? null
         })
 
         const e1rm = computeSetE1rm(
@@ -1321,8 +1365,8 @@ export default function ProgressPage() {
                 <div className="flex items-center">
                   <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Muscle group volume</h3>
                   <ChartInfoTooltip 
-                    description="Distribution of training volume across different muscle groups. Secondary muscles receive 50% volume credit."
-                    goal="Maintain a balanced distribution according to your training phase and priorities."
+                    description="Shows how much work each muscle group did. The bigger the slice, the more work that muscle did."
+                    goal="Try to keep things even so you don't over-train one spot and under-train another."
                   />
                 </div>
                 <div className="flex gap-1 bg-[var(--color-surface-muted)] p-1 rounded-lg">
@@ -1429,67 +1473,186 @@ export default function ProgressPage() {
           </div>
         </Card>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+          {/* 1. Training Status & ACR */}
           <Card className="p-6">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Consistency</h3>
-            <p className="mt-3 text-3xl font-semibold text-strong">{sessionsPerWeek}</p>
-            <p className="text-xs text-subtle">sessions per week</p>
-          </Card>
-          <Card className="p-6">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">PR Snapshot</h3>
-            <div className="mt-3 space-y-1 text-sm text-muted">
-              <p>Max weight (lb): <span className="text-strong">{prMetrics.maxWeight}</span></p>
-              <p>Best reps: <span className="text-strong">{prMetrics.bestReps}</span></p>
-              {prMetrics.bestE1rm > 0 && (
-                <p>Best e1RM ({E1RM_FORMULA_VERSION}): <span className="text-strong">{prMetrics.bestE1rm}</span></p>
-              )}
-              {relativeMetrics && (
-                <>
-                  <p>Max / bodyweight: <span className="text-strong">{relativeMetrics.maxWeightRatio.toFixed(2)}x</span></p>
-                  {prMetrics.bestE1rm > 0 && (
-                    <p>e1RM / bodyweight: <span className="text-strong">{relativeMetrics.bestE1rmRatio.toFixed(2)}x</span></p>
-                  )}
-                </>
-              )}
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <div className="flex items-center">
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Training Status</h3>
+                  <ChartInfoTooltip 
+                    description="A score comparing your work this week to your average over the last month. Green (Balanced) is the sweet spot for growth. Red means you need more rest. Yellow means you can push harder."
+                    goal="Stay in the Green (Balanced) zone most of the time to get stronger without getting hurt."
+                  />
+                </div>
+              </div>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                trainingLoadSummary.status === 'balanced' ? 'bg-[var(--color-success-soft)] text-[var(--color-success)] border border-[var(--color-success-border)]' :
+                trainingLoadSummary.status === 'overreaching' ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger)] border border-[var(--color-danger-border)]' :
+                trainingLoadSummary.status === 'undertraining' ? 'bg-[#fef3c7] text-[#92400e] border border-[#fde68a] dark:bg-[#92400e]/20 dark:text-[#fcd34d] dark:border-[#92400e]/40' :
+                'bg-[var(--color-surface-muted)] text-subtle border border-[var(--color-border)]'
+              }`}>
+                {trainingLoadSummary.status.replace('_', ' ')}
+              </span>
             </div>
-          </Card>
-          <Card className="p-6">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Volume Summary</h3>
-            <div className="mt-3 space-y-1 text-sm text-muted">
-              <p>Total tonnage: <span className="text-strong">{aggregateMetrics.tonnage}</span></p>
-              <p>Hard sets: <span className="text-strong">{aggregateMetrics.hardSets}</span></p>
-              {aggregateMetrics.bestE1rm > 0 && (
-                <p>Best e1RM: <span className="text-strong">{aggregateMetrics.bestE1rm}</span></p>
-              )}
-              <p>Avg effort: <span className="text-strong">{aggregateMetrics.avgEffort ?? 'N/A'}</span></p>
-              {relativeMetrics && (
-                <p>Tonnage / bodyweight: <span className="text-strong">{relativeMetrics.tonnagePerBodyweight.toFixed(1)}</span></p>
-              )}
+            <div className="mt-4">
+              <div className="flex items-end gap-3">
+                <p className="text-3xl font-semibold text-strong">{trainingLoadSummary.loadRatio}</p>
+                <span className="text-[10px] mb-1 font-bold text-subtle uppercase tracking-wider">
+                  Target: 0.8 – 1.3
+                </span>
+              </div>
+              <p className="text-[10px] uppercase font-bold tracking-widest text-subtle">Acute:Chronic Ratio</p>
+              
+              {/* Visual Sweet Spot Gauge */}
+              <div className="mt-4 group relative">
+                <div className="h-1.5 w-full bg-[var(--color-surface-muted)] rounded-full overflow-hidden flex">
+                  <div className="h-full bg-[var(--color-warning)] opacity-20" style={{ width: '40%' }} />
+                  <div className="h-full bg-[var(--color-success)] opacity-30" style={{ width: '25%' }} />
+                  <div className="h-full bg-[var(--color-danger)] opacity-20" style={{ width: '35%' }} />
+                </div>
+                
+                {/* Needle */}
+                <div 
+                  className={`absolute -top-1 h-3.5 w-1 rounded-full transition-all duration-700 shadow-sm ${
+                    trainingLoadSummary.status === 'balanced' ? 'bg-[var(--color-success)]' :
+                    trainingLoadSummary.status === 'overreaching' ? 'bg-[var(--color-danger)]' :
+                    'bg-[#92400e]'
+                  }`}
+                  style={{ 
+                    left: `${Math.min(100, (trainingLoadSummary.loadRatio / 2.0) * 100)}%`,
+                    transform: 'translateX(-50%)'
+                  }}
+                />
+              </div>
+              <div className="mt-1.5 flex justify-between text-[8px] uppercase font-bold tracking-tighter text-subtle/50">
+                <span>0.0</span>
+                <span>0.8</span>
+                <span className="text-[var(--color-success)] opacity-80">Sweet Spot</span>
+                <span>1.3</span>
+                <span>2.0+</span>
+              </div>
             </div>
-          </Card>
-          <Card className="p-6">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Training Load</h3>
-            <p className="mt-3 text-3xl font-semibold text-strong">{aggregateMetrics.workload}</p>
-            <p className="text-xs text-subtle">total load in range</p>
-            <div className="mt-3 pt-3 border-t border-[var(--color-border)] space-y-1 text-[10px] uppercase tracking-wider text-muted">
-              <p>Current ACR: <span className="text-strong">{trainingLoadSummary.loadRatio}</span></p>
-              <p>Acute (7d): <span className="text-strong">{trainingLoadSummary.acuteLoad}</span></p>
-              <p>Status: <span className="text-strong">{trainingLoadSummary.status.replace('_', ' ')}</span></p>
+            <div className="mt-4 pt-4 border-t border-[var(--color-border)] grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] text-subtle uppercase font-bold tracking-wider">This Week (7d)</p>
+                <p className="text-lg font-semibold text-strong">{trainingLoadSummary.acuteLoad.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-subtle uppercase font-bold tracking-wider">Weekly Baseline</p>
+                <p className="text-lg font-semibold text-strong">{trainingLoadSummary.chronicWeeklyAvg.toLocaleString()}</p>
+              </div>
             </div>
-          </Card>
-          <Card className="p-6">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness Avg</h3>
-            <p className="mt-3 text-3xl font-semibold text-strong">
-              {typeof readinessAverages?.score === 'number' ? Math.round(readinessAverages.score) : 'N/A'}
+            <p className="mt-3 text-[10px] text-subtle leading-tight">
+              {trainingLoadSummary.status === 'undertraining' ? `You've done ${Math.round(trainingLoadSummary.loadRatio * 100)}% of your normal weekly work. Pick up the pace to reach the sweet spot.` :
+               trainingLoadSummary.status === 'overreaching' ? `You're training ${Math.round(trainingLoadSummary.loadRatio * 100)}% harder than your recent average. Consider a rest day.` :
+               `Your training intensity is perfectly aligned with your recent history.`}
             </p>
-            <p className="text-xs text-subtle">
-              {readinessAverages ? `${readinessAverages.count} check(s)` : 'No readiness data yet'}
-            </p>
           </Card>
+
+          {/* 2. Performance Snapshot */}
           <Card className="p-6">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Total Sessions</h3>
-            <p className="mt-3 text-3xl font-semibold text-strong">{filteredSessions.length}</p>
-            <p className="text-xs text-subtle">in selected range</p>
+            <div className="flex items-center">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Performance PRs</h3>
+              <ChartInfoTooltip 
+                description="Shows the heaviest weights you've lifted. Your 'Peak' is an estimate of your 1-rep max strength."
+                goal="Try to see these numbers slowly go up every few months. It's proof you're getting stronger!"
+              />
+            </div>
+            <div className="mt-4">
+              <p className="text-3xl font-semibold text-strong">{aggregateMetrics.bestE1rm || prMetrics.maxWeight || 0}</p>
+              <p className="text-[10px] uppercase font-bold tracking-widest text-subtle">Peak e1RM / Max (lb)</p>
+            </div>
+            <div className="mt-4 pt-4 border-t border-[var(--color-border)] space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-subtle">Best reps</span>
+                <span className="text-strong font-semibold">{prMetrics.bestReps} reps</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-subtle">Max weight</span>
+                <span className="text-strong font-semibold">{prMetrics.maxWeight} lb</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* 3. Workload & Volume */}
+          <Card className="p-6">
+            <div className="flex items-center">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Workload & Volume</h3>
+              <ChartInfoTooltip 
+                description="Tonnage is the total amount of weight you moved (sets x reps x weight). Workload is tonnage adjusted for how hard you worked."
+                goal="Higher total work over time usually leads to more muscle growth, as long as you can recover from it."
+              />
+            </div>
+            <div className="mt-4">
+              <p className="text-3xl font-semibold text-strong">{aggregateMetrics.tonnage.toLocaleString()}</p>
+              <p className="text-[10px] uppercase font-bold tracking-widest text-subtle">Total Tonnage (lb)</p>
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-[var(--color-border)]">
+              <div className="flex justify-between items-center text-xs">
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-subtle tracking-tighter">Total Workload</span>
+                  <span className="text-strong font-semibold">{aggregateMetrics.workload.toLocaleString()}</span>
+                </div>
+                <div className="h-8 w-px bg-[var(--color-border)] mx-2" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-subtle tracking-tighter">Avg Load</span>
+                  <span className="text-strong font-semibold">{aggregateMetrics.avgWorkload.toLocaleString()}</span>
+                </div>
+                <div className="h-8 w-px bg-[var(--color-border)] mx-2" />
+                <div className="flex flex-col text-right">
+                  <span className="text-[10px] uppercase font-bold text-subtle tracking-tighter">Hard Sets</span>
+                  <span className="text-strong font-semibold">{aggregateMetrics.hardSets}</span>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* 4. Activity & Recovery */}
+          <Card className="p-6">
+            <div className="flex items-center">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Activity & Recovery</h3>
+              <ChartInfoTooltip 
+                description="Consistency is how often you show up. Readiness is how good your body feels. Effort is how hard you push when you're there."
+                goal="The goal is to show up consistently and push hard when your readiness score is high."
+              />
+            </div>
+            <div className="mt-4">
+              <p className="text-3xl font-semibold text-strong">
+                {typeof readinessAverages?.score === 'number' ? Math.round(readinessAverages.score) : 'N/A'}
+              </p>
+              <p className="text-[10px] uppercase font-bold tracking-widest text-subtle">Readiness Avg</p>
+              
+              {typeof readinessAverages?.score === 'number' && (
+                <div className="mt-4">
+                  <div className="h-1.5 w-full bg-[var(--color-surface-muted)] rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-1000 ${
+                        readinessAverages.score >= 70 ? 'bg-[var(--color-success)]' :
+                        readinessAverages.score >= 40 ? 'bg-[var(--color-warning)]' :
+                        'bg-[var(--color-danger)]'
+                      }`}
+                      style={{ width: `${readinessAverages.score}%` }} 
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="mt-4 pt-4 border-t border-[var(--color-border)] space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-subtle">Sessions</span>
+                <span className="text-strong font-semibold">{filteredSessions.length} total</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-subtle">Consistency</span>
+                <span className="text-strong font-semibold">{sessionsPerWeek} / week</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-subtle">Avg Effort</span>
+                <span className="text-strong font-semibold">{aggregateMetrics.avgEffort ?? 'N/A'}/10</span>
+              </div>
+            </div>
           </Card>
         </div>
 
@@ -1500,8 +1663,8 @@ export default function ProgressPage() {
                 Volume & load {volumeTrend[0]?.isDaily ? 'by day' : 'by week'}
               </h3>
               <ChartInfoTooltip 
-                description="Tonnage (reps × weight) and Training Load (tonnage × effort) aggregated by time period."
-                goal="Aim for progressive overload (gradual increase in volume/load) while managing recovery."
+                description="Volume is total weight moved. Load is volume adjusted by how hard it felt. It's your 'total effort' for the period."
+                goal="Look for a slow and steady crawl upward over time. This is how you get stronger!"
               />
             </div>
             <div className="h-64 w-full">
