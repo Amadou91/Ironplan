@@ -7,6 +7,7 @@ import { useUser } from '@/hooks/useUser'
 import { ArrowRight, Loader2, Wand2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Checkbox } from '@/components/ui/Checkbox'
 import { buildWorkoutTemplate, normalizePlanInput } from '@/lib/generator'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import {
@@ -35,7 +36,8 @@ const styleOptions: { value: Goal; label: string; description: string }[] = [
   { value: 'strength', label: 'Strength', description: 'Heavier loads, lower reps, power focus.' },
   { value: 'hypertrophy', label: 'Hypertrophy', description: 'Muscle growth with balanced volume.' },
   { value: 'endurance', label: 'Endurance', description: 'Higher reps and conditioning focus.' },
-  { value: 'cardio', label: 'Cardio', description: 'Conditioning-focused sessions and intervals.' }
+  { value: 'cardio', label: 'Cardio', description: 'Conditioning-focused sessions and intervals.' },
+  { value: 'general_fitness', label: 'Yoga', description: 'Mobility, flexibility, and core strength.' }
 ]
 const focusOptions: { value: PlanInput['preferences']['focusAreas'][number]; label: string }[] = [
   { value: 'arms', label: 'Arms' },
@@ -91,49 +93,19 @@ type WeightRangeSelectorProps = {
   onToggleRange: (weights: readonly number[]) => void
 }
 
-type RangeCheckboxProps = {
-  label: string
-  checked: boolean
-  indeterminate: boolean
-  onChange: () => void
-}
-
-const RangeCheckbox = ({ label, checked, indeterminate, onChange }: RangeCheckboxProps) => {
-  const checkboxRef = useRef<HTMLInputElement | null>(null)
-
-  useEffect(() => {
-    if (checkboxRef.current) checkboxRef.current.indeterminate = indeterminate
-  }, [indeterminate])
-
-  return (
-    <label className="flex items-center gap-2 text-sm text-muted">
-      <input
-        ref={checkboxRef}
-        type="checkbox"
-        checked={checked}
-        aria-checked={indeterminate ? 'mixed' : checked}
-        onChange={onChange}
-        className="accent-[var(--color-primary)]"
-      />
-      {label}
-    </label>
-  )
-}
-
 const WeightRangeSelector = ({ field, label, ranges, selected, onToggleRange }: WeightRangeSelectorProps) => (
   <div className="space-y-3">
     <p className="text-sm font-semibold text-strong">{label}</p>
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       {ranges.map((range) => {
         const allSelected = range.weights.every(weight => selected.includes(weight))
         const someSelected = !allSelected && range.weights.some(weight => selected.includes(weight))
         return (
-          <RangeCheckbox
+          <Checkbox
             key={`${field}-${range.label}`}
             label={range.label}
-            checked={allSelected}
-            indeterminate={someSelected}
-            onChange={() => onToggleRange(range.weights)}
+            checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+            onCheckedChange={() => onToggleRange(range.weights)}
           />
         )
       })}
@@ -331,21 +303,29 @@ export default function GeneratePage() {
   const updatePrimaryStyle = (style: Goal) => {
     updateFormData((prev) => {
       const isCardio = style === 'cardio'
+      const isYoga = style === 'general_fitness'
       const wasCardio = prev.goals.primary === 'cardio'
-      if (isCardio && !wasCardio) {
+      const wasYoga = prev.goals.primary === 'general_fitness'
+
+      if ((isCardio || isYoga) && !wasCardio && !wasYoga) {
         lastStrengthInventoryRef.current = cloneInventory(prev.equipment.inventory)
         lastStrengthPresetRef.current = prev.equipment.preset
       }
+      
       const fallbackFocus = prev.intent.bodyParts?.[0] ?? prev.preferences.focusAreas[0] ?? 'chest'
-      const bodyFocus = fallbackFocus === 'cardio' ? 'chest' : fallbackFocus
+      const bodyFocus = (fallbackFocus === 'cardio' || fallbackFocus === 'mobility') ? 'chest' : fallbackFocus
+      
+      const nextFocus = isCardio ? 'cardio' : isYoga ? 'mobility' : bodyFocus
+
       const nextInventory = isCardio
         ? buildCardioInventory(prev.equipment.inventory)
-        : wasCardio
+        : (wasCardio || wasYoga)
           ? cloneInventory(lastStrengthInventoryRef.current ?? equipmentPresets.full_gym)
           : prev.equipment.inventory
+      
       const nextPreset = isCardio
         ? 'custom'
-        : wasCardio
+        : (wasCardio || wasYoga)
           ? lastStrengthPresetRef.current ?? 'full_gym'
           : prev.equipment.preset
 
@@ -353,9 +333,9 @@ export default function GeneratePage() {
         ...prev,
         intent: {
           ...prev.intent,
-          mode: isCardio ? 'style' : 'body_part',
+          mode: (isCardio || isYoga) ? 'style' : 'body_part',
           style,
-          bodyParts: isCardio ? prev.intent.bodyParts : [bodyFocus]
+          bodyParts: (isCardio || isYoga) ? prev.intent.bodyParts : [bodyFocus]
         },
         goals: {
           ...prev.goals,
@@ -368,7 +348,7 @@ export default function GeneratePage() {
         },
         preferences: {
           ...prev.preferences,
-          focusAreas: isCardio ? ['cardio'] : [bodyFocus]
+          focusAreas: [nextFocus]
         },
         schedule: {
           ...prev.schedule,
@@ -376,7 +356,7 @@ export default function GeneratePage() {
             {
               sessionIndex: 0,
               style,
-              focus: isCardio ? 'cardio' : bodyFocus
+              focus: nextFocus
             }
           ]
         }
@@ -642,13 +622,14 @@ export default function GeneratePage() {
 
   const invalidEquipment = !isEquipmentValid(formData.equipment)
   const isCardioStyle = formData.goals.primary === 'cardio'
+  const isYogaStyle = formData.goals.primary === 'general_fitness'
   const inventory = formData.equipment.inventory
 
   const equipmentSummary = (
-    isCardioStyle
+    (isCardioStyle || isYogaStyle)
       ? [
         inventory.bodyweight ? 'Bodyweight' : null,
-        ...cardioMachineOptions
+        ...(isCardioStyle ? cardioMachineOptions : [])
           .filter((machine) => inventory.machines[machine])
           .map((machine) => machineLabels[machine])
       ]
@@ -744,7 +725,7 @@ export default function GeneratePage() {
                 </p>
               </div>
 
-              {!isCardioStyle ? (
+              {!isCardioStyle && !isYogaStyle ? (
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                   {focusOptions.map((option) => (
                     <button
@@ -765,7 +746,9 @@ export default function GeneratePage() {
                 </div>
               ) : (
                 <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm text-muted">
-                  Cardio plans focus on conditioning rather than a specific muscle group.
+                  {isCardioStyle
+                    ? 'Cardio plans focus on conditioning rather than a specific muscle group.'
+                    : 'Yoga plans focus on full-body mobility, flexibility, and core strength.'}
                 </div>
               )}
 
@@ -794,7 +777,7 @@ export default function GeneratePage() {
               </div>
 
               <div className="space-y-5">
-                {!isCardioStyle && (
+                {!isCardioStyle && !isYogaStyle && (
                   <>
                     <div className="surface-card p-5 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]">
                       <div className="flex flex-col gap-2 border-b border-[var(--color-primary-border)] pb-4">
@@ -848,38 +831,34 @@ export default function GeneratePage() {
                         </div>
                         <div className="space-y-3">
                           <p className="text-sm font-semibold text-strong">Barbell + plates</p>
-                          <label className="flex items-center gap-2 text-sm text-muted">
-                            <input
-                              type="checkbox"
-                              checked={inventory.barbell.available}
-                              onChange={() =>
-                                updateFormData(prev => ({
-                                  ...prev,
-                                  equipment: {
-                                    ...prev.equipment,
-                                    preset: 'custom',
-                                    inventory: {
-                                      ...prev.equipment.inventory,
-                                      barbell: {
-                                        ...prev.equipment.inventory.barbell,
-                                        available: !prev.equipment.inventory.barbell.available
-                                      }
+                          <Checkbox
+                            label="Barbell available"
+                            checked={inventory.barbell.available}
+                            onCheckedChange={() =>
+                              updateFormData(prev => ({
+                                ...prev,
+                                equipment: {
+                                  ...prev.equipment,
+                                  preset: 'custom',
+                                  inventory: {
+                                    ...prev.equipment.inventory,
+                                    barbell: {
+                                      ...prev.equipment.inventory.barbell,
+                                      available: !prev.equipment.inventory.barbell.available
                                     }
                                   }
-                                }))
-                              }
-                              className="accent-[var(--color-primary)]"
-                            />
-                            Barbell available
-                          </label>
+                                }
+                              }))
+                            }
+                          />
                           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                             {BARBELL_PLATE_OPTIONS.map((plate) => (
-                              <RangeCheckbox
+                              <Checkbox
                                 key={`barbell-${plate}`}
                                 label={`${plate} lb`}
                                 checked={inventory.barbell.plates.includes(plate)}
-                                indeterminate={false}
-                                onChange={() => toggleBarbellPlate(plate)}
+                                onCheckedChange={() => toggleBarbellPlate(plate)}
+                                disabled={!inventory.barbell.available}
                               />
                             ))}
                           </div>
@@ -891,32 +870,29 @@ export default function GeneratePage() {
                       <div className="border-b border-[var(--color-border)] pb-3">
                         <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-strong">Machines</h3>
                       </div>
-                      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                         {strengthMachineOptions.map(machine => (
-                          <label key={machine} className="flex items-center gap-2 text-sm text-muted">
-                            <input
-                              type="checkbox"
-                              checked={inventory.machines[machine]}
-                              onChange={() =>
-                                updateFormData(prev => ({
-                                  ...prev,
-                                  equipment: {
-                                    ...prev.equipment,
-                                    preset: 'custom',
-                                    inventory: {
-                                      ...prev.equipment.inventory,
-                                      machines: {
-                                        ...prev.equipment.inventory.machines,
-                                        [machine]: !prev.equipment.inventory.machines[machine]
-                                      }
+                          <Checkbox
+                            key={machine}
+                            label={machineLabels[machine]}
+                            checked={inventory.machines[machine]}
+                            onCheckedChange={() =>
+                              updateFormData(prev => ({
+                                ...prev,
+                                equipment: {
+                                  ...prev.equipment,
+                                  preset: 'custom',
+                                  inventory: {
+                                    ...prev.equipment.inventory,
+                                    machines: {
+                                      ...prev.equipment.inventory.machines,
+                                      [machine]: !prev.equipment.inventory.machines[machine]
                                     }
                                   }
-                                }))
-                              }
-                              className="accent-[var(--color-primary)]"
-                            />
-                            {machineLabels[machine]}
-                          </label>
+                                }
+                              }))
+                            }
+                          />
                         ))}
                       </div>
                     </div>
@@ -925,57 +901,51 @@ export default function GeneratePage() {
                       <div className="border-b border-[var(--color-border)] pb-3">
                         <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-strong">Resistance & bodyweight</h3>
                       </div>
-                      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-3">
                           <p className="text-sm font-semibold text-strong">Bands</p>
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {(['light', 'medium', 'heavy'] as BandResistance[]).map(level => (
-                              <label key={level} className="flex items-center gap-2 text-sm text-muted">
-                                <input
-                                  type="checkbox"
-                                  checked={inventory.bands.includes(level)}
-                                  onChange={() =>
-                                    updateFormData(prev => ({
-                                      ...prev,
-                                      equipment: {
-                                        ...prev.equipment,
-                                        preset: 'custom',
-                                        inventory: {
-                                          ...prev.equipment.inventory,
-                                          bands: toggleArrayValue(prev.equipment.inventory.bands, level)
-                                        }
+                              <Checkbox
+                                key={level}
+                                label={bandLabels[level]}
+                                checked={inventory.bands.includes(level)}
+                                onCheckedChange={() =>
+                                  updateFormData(prev => ({
+                                    ...prev,
+                                    equipment: {
+                                      ...prev.equipment,
+                                      preset: 'custom',
+                                      inventory: {
+                                        ...prev.equipment.inventory,
+                                        bands: toggleArrayValue(prev.equipment.inventory.bands, level)
                                       }
-                                    }))
-                                  }
-                                  className="accent-[var(--color-primary)]"
-                                />
-                                {bandLabels[level]}
-                              </label>
+                                    }
+                                  }))
+                                }
+                              />
                             ))}
                           </div>
                         </div>
-                        <div className="flex items-start">
-                          <label className="flex items-center gap-2 text-sm text-muted">
-                            <input
-                              type="checkbox"
-                              checked={inventory.bodyweight}
-                              onChange={() =>
-                                updateFormData(prev => ({
-                                  ...prev,
-                                  equipment: {
-                                    ...prev.equipment,
-                                    preset: 'custom',
-                                    inventory: {
-                                      ...prev.equipment.inventory,
-                                      bodyweight: !prev.equipment.inventory.bodyweight
-                                    }
+                        <div className="space-y-3">
+                          <p className="text-sm font-semibold text-strong">Bodyweight</p>
+                          <Checkbox
+                            label="Bodyweight movements"
+                            checked={inventory.bodyweight}
+                            onCheckedChange={() =>
+                              updateFormData(prev => ({
+                                ...prev,
+                                equipment: {
+                                  ...prev.equipment,
+                                  preset: 'custom',
+                                  inventory: {
+                                    ...prev.equipment.inventory,
+                                    bodyweight: !prev.equipment.inventory.bodyweight
                                   }
-                                }))
-                              }
-                              className="accent-[var(--color-primary)]"
-                            />
-                            Bodyweight movements
-                          </label>
+                                }
+                              }))
+                            }
+                          />
                         </div>
                       </div>
                     </div>
@@ -991,32 +961,29 @@ export default function GeneratePage() {
                       <div className="mt-4 space-y-4">
                         <div>
                           <p className="text-sm font-semibold text-strong">Machines</p>
-                          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                             {cardioMachineOptions.map(machine => (
-                              <label key={machine} className="flex items-center gap-2 text-sm text-muted">
-                                <input
-                                  type="checkbox"
-                                  checked={inventory.machines[machine]}
-                                  onChange={() =>
-                                    updateFormData(prev => ({
-                                      ...prev,
-                                      equipment: {
-                                        ...prev.equipment,
-                                        preset: 'custom',
-                                        inventory: {
-                                          ...prev.equipment.inventory,
-                                          machines: {
-                                            ...prev.equipment.inventory.machines,
-                                            [machine]: !prev.equipment.inventory.machines[machine]
-                                          }
+                              <Checkbox
+                                key={machine}
+                                label={machineLabels[machine]}
+                                checked={inventory.machines[machine]}
+                                onCheckedChange={() =>
+                                  updateFormData(prev => ({
+                                    ...prev,
+                                    equipment: {
+                                      ...prev.equipment,
+                                      preset: 'custom',
+                                      inventory: {
+                                        ...prev.equipment.inventory,
+                                        machines: {
+                                          ...prev.equipment.inventory.machines,
+                                          [machine]: !prev.equipment.inventory.machines[machine]
                                         }
                                       }
-                                    }))
-                                  }
-                                  className="accent-[var(--color-primary)]"
-                                />
-                                {machineLabels[machine]}
-                              </label>
+                                    }
+                                  }))
+                                }
+                              />
                             ))}
                           </div>
                         </div>
@@ -1028,31 +995,59 @@ export default function GeneratePage() {
                         <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-strong">Cardio activities</h3>
                       </div>
                       <div className="mt-4 space-y-3">
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {CARDIO_ACTIVITY_OPTIONS.map((option) => (
-                            <label key={option.value} className="flex items-center gap-2 text-sm text-muted">
-                              <input
-                                type="checkbox"
-                                checked={formData.preferences.cardioActivities.includes(option.value)}
-                                onChange={() =>
-                                  updateFormData(prev => ({
-                                    ...prev,
-                                    preferences: {
-                                      ...prev.preferences,
-                                      cardioActivities: toggleArrayValue(prev.preferences.cardioActivities, option.value)
-                                    }
-                                  }))
-                                }
-                                className="accent-[var(--color-primary)]"
-                              />
-                              {option.label}
-                            </label>
+                            <Checkbox
+                              key={option.value}
+                              label={option.label}
+                              checked={formData.preferences.cardioActivities.includes(option.value)}
+                              onCheckedChange={() =>
+                                updateFormData(prev => ({
+                                  ...prev,
+                                  preferences: {
+                                    ...prev.preferences,
+                                    cardioActivities: toggleArrayValue(prev.preferences.cardioActivities, option.value)
+                                  }
+                                }))
+                              }
+                            />
                           ))}
                         </div>
                         <p className="text-xs text-subtle">Leave blank to allow any cardio activity.</p>
                       </div>
                     </div>
                   </>
+                )}
+
+                {isYogaStyle && (
+                  <div className="surface-card-subtle p-5">
+                    <div className="border-b border-[var(--color-border)] pb-3">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-strong">Essentials</h3>
+                    </div>
+                    <div className="mt-4">
+                      <div className="space-y-3">
+                        <p className="text-sm font-semibold text-strong">Bodyweight</p>
+                        <Checkbox
+                          label="Bodyweight movements"
+                          checked={inventory.bodyweight}
+                          onCheckedChange={() =>
+                            updateFormData(prev => ({
+                              ...prev,
+                              equipment: {
+                                ...prev.equipment,
+                                preset: 'custom',
+                                inventory: {
+                                  ...prev.equipment.inventory,
+                                  bodyweight: !prev.equipment.inventory.bodyweight
+                                }
+                              }
+                            }))
+                          }
+                        />
+                        <p className="mt-2 text-xs text-subtle">Yoga primarily uses bodyweight. Ensure this is checked.</p>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
 

@@ -22,11 +22,15 @@ export const buildWorkoutDisplayName = ({
   fallback
 }: WorkoutNamingInput) => {
   const parts: string[] = []
-  if (focus) parts.push(formatFocusLabel(focus))
+  const focusLabel = focus ? formatFocusLabel(focus) : null
   const styleLabel = formatGoalLabel(style)
-  if (styleLabel) parts.push(styleLabel)
+
+  if (focusLabel) parts.push(focusLabel)
+  if (styleLabel && styleLabel !== focusLabel) parts.push(styleLabel)
+  
   const minutesLabel = formatMinutes(minutes)
   if (minutesLabel) parts.push(minutesLabel)
+  
   if (!parts.length) return fallback ?? ''
   return parts.join(' · ')
 }

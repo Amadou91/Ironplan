@@ -15,6 +15,7 @@ import type { ReadinessSurvey } from '@/lib/training-metrics';
 type ActiveSessionProps = {
   sessionId?: string | null;
   equipmentInventory?: EquipmentInventory | null;
+  onBodyWeightChange?: (weight: number | null) => void;
 };
 
 type SessionPayload = {
@@ -34,6 +35,7 @@ type SessionPayload = {
     exercise_name: string;
     primary_muscle: string | null;
     secondary_muscles: string[] | null;
+    metric_profile?: string | null;
     order_index: number | null;
     sets: Array<{
       id: string;
@@ -49,6 +51,7 @@ type SessionPayload = {
       distance?: number | null;
       distance_unit?: string | null;
       extras?: Record<string, string | null> | null;
+      extra_metrics?: Record<string, unknown> | null;
     }>;
   }>;
 };
@@ -102,7 +105,7 @@ const getSessionIntensity = (notes?: SessionNotes | null): Intensity | null => {
   return 'moderate';
 };
 
-export default function ActiveSession({ sessionId, equipmentInventory }: ActiveSessionProps) {
+export default function ActiveSession({ sessionId, equipmentInventory, onBodyWeightChange }: ActiveSessionProps) {
   const { activeSession, addSet, removeSet, updateSet, startSession } = useWorkoutStore();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null);
@@ -131,6 +134,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
   const mapSession = useCallback((payload: SessionPayload): WorkoutSession => {
     if (payload.body_weight_lb) {
       setSessionBodyWeight(String(payload.body_weight_lb));
+      onBodyWeightChange?.(payload.body_weight_lb);
     }
     return {
       id: payload.id,
@@ -151,6 +155,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
           name: exercise.exercise_name,
           primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
           secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
+          metricProfile: (exercise.metric_profile as any) ?? undefined,
           orderIndex: exercise.order_index ?? idx,
           sets: (exercise.sets ?? [])
             .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
@@ -167,7 +172,8 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
               durationSeconds: set.duration_seconds ?? undefined,
               distance: set.distance ?? undefined,
               distanceUnit: set.distance_unit ?? undefined,
-              extras: set.extras ?? undefined
+              extras: set.extras ?? undefined,
+              extraMetrics: set.extra_metrics ?? undefined
             }))
         }))
     };
@@ -179,7 +185,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
       const { data, error } = await supabase
         .from('sessions')
         .select(
-          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_notes, body_weight_lb, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit, extras))'
+          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_notes, body_weight_lb, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit, extras, extra_metrics))'
         )
         .eq('id', sessionId)
         .single();
@@ -297,7 +303,8 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
         duration_seconds: typeof set.durationSeconds === 'number' ? set.durationSeconds : null,
         distance: typeof set.distance === 'number' ? set.distance : null,
         distance_unit: set.distanceUnit ?? null,
-        extras: set.extras ?? null
+        extras: set.extras ?? null,
+        extra_metrics: set.extraMetrics ?? null
       };
 
       if (set.id && !set.id.startsWith('temp-')) {
@@ -466,29 +473,39 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
     []
   );
 
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     return () => {
       if (restIntervalRef.current) {
         window.clearInterval(restIntervalRef.current);
       }
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
     };
   }, []);
 
-  const handleBodyWeightUpdate = async (value: string) => {
+  const handleBodyWeightUpdate = (value: string) => {
     setSessionBodyWeight(value);
     if (!activeSession) return;
 
     const weightVal = parseFloat(value);
-    if (!isNaN(weightVal)) {
-      try {
-        await Promise.all([
-          supabase.from('sessions').update({ body_weight_lb: weightVal }).eq('id', activeSession.id),
-          supabase.from('profiles').update({ weight_lb: weightVal }).eq('id', activeSession.userId),
-          supabase.from('body_measurements').insert({ user_id: activeSession.userId, weight_lb: weightVal })
-        ]);
-      } catch (error) {
-        console.error('Failed to update body weight', error);
+    const validWeight = !isNaN(weightVal) ? weightVal : null;
+    onBodyWeightChange?.(validWeight);
+
+    if (validWeight !== null) {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
       }
+
+      debounceTimerRef.current = setTimeout(async () => {
+        try {
+          await supabase.from('sessions').update({ body_weight_lb: weightVal }).eq('id', activeSession.id);
+        } catch (error) {
+          console.error('Failed to update body weight', error);
+        }
+      }, 1000);
     }
   };
 
@@ -639,8 +656,11 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
                     onUpdate={(field, val) => handleSetUpdate(exIdx, setIdx, field, val)}
                     onDelete={() => handleDeleteSet(exIdx, setIdx)}
                     onToggleComplete={() => handleSetUpdate(exIdx, setIdx, 'completed', !set.completed)}
-                    isCardio={exercise.primaryMuscle === 'Cardio'}
-                    isYoga={exercise.primaryMuscle === 'Yoga'}
+                    metricProfile={exercise.metricProfile}
+                    // Legacy props for backward compat or specific overrides if needed
+                    isCardio={exercise.primaryMuscle === 'cardio' || exercise.metricProfile === 'cardio_session'}
+                    isYoga={exercise.primaryMuscle === 'yoga' || exercise.metricProfile === 'yoga_session'}
+                    isTimeBased={isTimeBased || exercise.metricProfile === 'timed_strength'}
                     repsLabel={repsLabel}
                   />
                 );

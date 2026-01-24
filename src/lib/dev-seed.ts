@@ -10,10 +10,12 @@ type ExerciseSeed = {
   primaryMuscle: string
   secondaryMuscles?: string[]
   sets: Array<{
-    reps: number
-    weight: number
+    reps: number | null
+    weight: number | null
     weightUnit: 'lb' | 'kg'
     rpe?: number
+    durationSeconds?: number
+    extras?: Record<string, string | null>
   }>
 }
 
@@ -98,6 +100,20 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         equipment: { preset: 'full_gym', inventory: fullGymInventory },
         time: { minutesPerSession: 45 }
       }
+    },
+    {
+      title: `${DEV_TEMPLATE_PREFIX}Yoga`,
+      focus: 'mobility',
+      style: 'general_fitness',
+      experience_level: 'beginner',
+      intensity: 'low',
+      equipment: { preset: 'home_minimal', inventory: { ...fullGymInventory, machines: {} } },
+      template_inputs: {
+        experienceLevel: 'beginner',
+        intensity: 'low',
+        equipment: { preset: 'home_minimal', inventory: { ...fullGymInventory, machines: {} } },
+        time: { minutesPerSession: 30 }
+      }
     }
   ]
 
@@ -106,7 +122,10 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     .insert(templateSeeds.map((seed) => ({ ...seed, user_id: userId })))
     .select('id, title')
 
-  if (templateError) throw templateError
+  if (templateError) {
+    console.error('Seed templates error:', templateError)
+    throw { step: 'templates', ...templateError }
+  }
 
   const exerciseTemplates: Record<number, ExerciseSeed[]> = {
     0: [
@@ -174,13 +193,24 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
           { reps: 45, weight: 0, weightUnit: 'lb', rpe: 7 }
         ]
       }
+    ],
+    3: [
+      {
+        name: 'Yoga',
+        primaryMuscle: 'yoga',
+        secondaryMuscles: ['core', 'full_body'],
+        sets: [
+          { reps: null, weight: null, weightUnit: 'lb', rpe: 6, durationSeconds: 600 },
+          { reps: null, weight: null, weightUnit: 'lb', rpe: 7, durationSeconds: 600 }
+        ]
+      }
     ]
   }
 
   const sessionSeeds: SessionSeed[] = []
   const totalSessions = 36
   for (let i = 0; i < totalSessions; i++) {
-    const templateIndex = i % 3
+    const templateIndex = i % 4
     const daysAgo = Math.floor((totalSessions - i) * 2 + Math.random())
     const baseExercises = exerciseTemplates[templateIndex]
 
@@ -189,8 +219,8 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       ...ex,
       sets: ex.sets.map((s) => ({
         ...s,
-        weight: s.weight === 0 ? 0 : Math.max(1, Math.round((s.weight * progressFactor) / 5) * 5),
-        reps: s.reps + (Math.random() > 0.7 ? 1 : 0),
+        weight: typeof s.weight === 'number' && s.weight > 0 ? Math.max(1, Math.round((s.weight * progressFactor) / 5) * 5) : s.weight,
+        reps: typeof s.reps === 'number' ? s.reps + (Math.random() > 0.7 ? 1 : 0) : s.reps,
         rpe: Math.min(10, Math.max(6, (s.rpe || 7) + (Math.random() * 2 - 0.5)))
       }))
     }))
@@ -238,7 +268,10 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     .insert(sessionRows)
     .select('id, name, started_at')
 
-  if (sessionError) throw sessionError
+  if (sessionError) {
+    console.error('Seed sessions error:', sessionError)
+    throw { step: 'sessions', ...sessionError }
+  }
 
   const seedByName = new Map(sessionSeeds.map((seed) => [seed.name, seed]))
   const sessionExerciseRows: Array<{
@@ -268,7 +301,10 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     .insert(sessionExerciseRows)
     .select('id, session_id, exercise_name')
 
-  if (exerciseError) throw exerciseError
+  if (exerciseError) {
+    console.error('Seed exercises error:', exerciseError)
+    throw { step: 'exercises', ...exerciseError }
+  }
 
   const sessionIdByName = new Map(sessions?.map((session) => [session.name, session.id]))
   const sessionStartedAtById = new Map(sessions?.map((session) => [session.id, session.started_at]))
@@ -283,12 +319,14 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
   const setRows: Array<{
     session_exercise_id: string
     set_number: number
-    reps: number
-    weight: number
+    reps: number | null
+    weight: number | null
     rpe: number | null
     completed: boolean
     performed_at: string
     weight_unit: 'lb' | 'kg'
+    duration_seconds?: number | null
+    extras?: Record<string, string | null> | null
   }> = []
 
   sessionExercises?.forEach((exerciseRow) => {
@@ -300,9 +338,11 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       setRows.push({
         session_exercise_id: exerciseRow.id,
         set_number: index + 1,
-        reps: set.reps,
-        weight: set.weight,
+        reps: set.reps ?? null,
+        weight: set.weight ?? null,
         rpe: set.rpe ?? null,
+        duration_seconds: set.durationSeconds ?? null,
+        extras: set.extras ?? {},
         completed: true,
         performed_at: performedAt,
         weight_unit: set.weightUnit
@@ -315,7 +355,10 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     .insert(setRows)
     .select('id')
 
-  if (setError) throw setError
+  if (setError) {
+    console.error('Seed sets error:', setError)
+    throw { step: 'sets', ...setError }
+  }
 
   let readinessCount = 0
   if (sessions?.length) {
@@ -350,7 +393,10 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       .insert(readinessRows)
       .select('id')
 
-    if (readinessError && !isMissingTableError(readinessError)) throw readinessError
+    if (readinessError && !isMissingTableError(readinessError)) {
+      console.error('Seed readiness error:', readinessError)
+      throw { step: 'readiness', ...readinessError }
+    }
     readinessCount = readinessRowsInserted?.length ?? 0
   }
 

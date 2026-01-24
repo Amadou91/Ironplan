@@ -399,6 +399,14 @@ export default function ProfilePage() {
       )
     } catch (error) {
       console.error('Failed to seed dev data', error)
+      if (typeof error === 'object' && error !== null) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const err = error as any
+        if (err.step) {
+          console.error(`Failed at step: ${err.step}`)
+        }
+        console.error('Error details:', JSON.stringify(error, null, 2))
+      }
       setDevActionError('Unable to seed dev data. Check the console for details.')
     } finally {
       setDevActionState('idle')

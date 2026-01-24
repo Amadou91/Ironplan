@@ -5,25 +5,25 @@ export interface User {
 }
 
 export type MuscleGroup =
-  | 'Chest'
-  | 'Back'
-  | 'Shoulders'
-  | 'Biceps'
-  | 'Triceps'
-  | 'Forearms'
-  | 'Core'
-  | 'Glutes'
-  | 'Quads'
-  | 'Hamstrings'
-  | 'Calves'
-  | 'Hip Flexors'
-  | 'Adductors'
-  | 'Abductors'
-  | 'Full Body'
-  | 'Cardio'
-  | 'Yoga'
-  | 'Lower Body'
-  | 'Upper Body'
+  | 'chest'
+  | 'back'
+  | 'shoulders'
+  | 'biceps'
+  | 'triceps'
+  | 'forearms'
+  | 'core'
+  | 'glutes'
+  | 'quads'
+  | 'hamstrings'
+  | 'calves'
+  | 'hip_flexors'
+  | 'adductors'
+  | 'abductors'
+  | 'full_body'
+  | 'cardio'
+  | 'yoga'
+  | 'lower_body'
+  | 'upper_body'
 
 export type BandResistance = 'light' | 'medium' | 'heavy'
 
@@ -97,10 +97,13 @@ export interface ExerciseLoad {
   label: string
 }
 
+export type MetricProfile = 'strength' | 'timed_strength' | 'yoga_session' | 'cardio_session' | 'mobility_session'
+
 export interface Exercise {
   id?: string
   name: string
   focus: FocusArea
+  metricProfile?: MetricProfile
   sets: number
   reps: string | number
   rpe: number
@@ -266,6 +269,7 @@ export interface SessionExercise {
   name: string
   primaryMuscle: string
   secondaryMuscles: string[]
+  metricProfile?: MetricProfile
   sets: WorkoutSet[]
   orderIndex: number
   variation?: ExerciseVariation
@@ -287,6 +291,7 @@ export interface WorkoutSet {
   groupId?: string | '' | null
   groupType?: GroupType | '' | null
   extras?: Record<string, string | null> | null
+  extraMetrics?: Record<string, unknown> | null
   durationSeconds?: number | '' | null
   distance?: number | '' | null
   distanceUnit?: string | null

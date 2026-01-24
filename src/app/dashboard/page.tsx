@@ -29,6 +29,7 @@ type SessionRow = {
     exercise_name: string
     primary_muscle: string | null
     secondary_muscles: string[] | null
+    metric_profile?: string | null
     sets: Array<{
       id: string
       reps: number | null
@@ -113,7 +114,7 @@ export default function DashboardPage() {
           supabase
             .from('sessions')
             .select(
-              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
             )
             .eq('user_id', user.id)
             .order('started_at', { ascending: false })
@@ -216,6 +217,7 @@ export default function DashboardPage() {
         exercise.sets
           .filter((set) => set.completed !== false)
           .map((set) => ({
+            metricProfile: (exercise as any).metric_profile,
             reps: set.reps ?? null,
             weight: set.weight ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
@@ -321,12 +323,15 @@ export default function DashboardPage() {
       session.session_exercises.forEach((exercise) => {
         exercise.sets.forEach((set) => {
           if (set.completed === false) return
+          const metricProfile = (exercise as any).metric_profile
           tonnage += computeSetTonnage({
+            metricProfile,
             reps: set.reps ?? null,
             weight: set.weight ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
           })
           workload += computeSetLoad({
+            metricProfile,
             reps: set.reps ?? null,
             weight: set.weight ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
@@ -335,6 +340,7 @@ export default function DashboardPage() {
           })
           hardSets += aggregateHardSets([
             {
+              metricProfile,
               reps: set.reps ?? null,
               weight: set.weight ?? null,
               weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,

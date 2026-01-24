@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle2, X } from 'lucide-react'
@@ -35,6 +35,7 @@ export default function WorkoutActivePage() {
   const [finishingSession, setFinishingSession] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
   const [cancelingSession, setCancelingSession] = useState(false)
+  const bodyWeightRef = useRef<number | null>(null)
 
   const sessionId = searchParams.get('sessionId')
   const currentSessionId = activeSession?.id ?? sessionId
@@ -71,13 +72,26 @@ export default function WorkoutActivePage() {
     setFinishingSession(true)
     try {
       const endedAt = new Date().toISOString()
+      
+      if (bodyWeightRef.current && user?.id) {
+        await Promise.all([
+          supabase.from('profiles').update({ weight_lb: bodyWeightRef.current }).eq('id', user.id),
+          supabase.from('body_measurements').insert({ 
+            user_id: user.id, 
+            weight_lb: bodyWeightRef.current,
+            recorded_at: endedAt 
+          })
+        ])
+      }
+
       const recalculatedImpact = activeSession
         ? calculateSessionImpactFromSets(activeSession, endedAt)
         : null
       const sessionUpdate = {
         ended_at: endedAt,
         status: 'completed',
-        impact: recalculatedImpact
+        impact: recalculatedImpact,
+        body_weight_lb: bodyWeightRef.current
       }
       const { error } = await supabase
         .from('sessions')
@@ -166,7 +180,11 @@ export default function WorkoutActivePage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,_1fr)_320px]">
           <div>
-            <ActiveSession sessionId={currentSessionId} equipmentInventory={template?.template_inputs?.equipment?.inventory ?? null} />
+            <ActiveSession
+              sessionId={currentSessionId}
+              equipmentInventory={template?.template_inputs?.equipment?.inventory ?? null}
+              onBodyWeightChange={(weight) => (bodyWeightRef.current = weight)}
+            />
           </div>
 
           <div className="space-y-4">

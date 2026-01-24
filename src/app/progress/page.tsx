@@ -154,6 +154,7 @@ type SessionRow = {
     exercise_name: string
     primary_muscle: string | null
     secondary_muscles: string[] | null
+    metric_profile?: string | null
     order_index: number | null
     sets: Array<{
       id: string
@@ -306,7 +307,7 @@ export default function ProgressPage() {
           supabase
             .from('sessions')
             .select(
-              'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+              'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
             )
             .eq('user_id', user.id)
             .order('started_at', { ascending: false })
@@ -377,7 +378,7 @@ export default function ProgressPage() {
       const { data, error: fetchError } = await supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+          'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -660,6 +661,7 @@ export default function ProgressPage() {
                   exerciseName: exercise.exercise_name,
                   primaryMuscle: primary,
                   secondaryMuscles: secondary,
+                  metricProfile: (exercise as any).metric_profile,
                   ...set
                 }
               ]
@@ -677,11 +679,13 @@ export default function ProgressPage() {
     allSets.forEach((set) => {
       const key = getWeekKey(set.performed_at ?? set.startedAt)
       const tonnage = computeSetTonnage({
+        metricProfile: (set as any).metricProfile,
         reps: set.reps ?? null,
         weight: set.weight ?? null,
         weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
       })
       const load = computeSetLoad({
+        metricProfile: (set as any).metricProfile,
         reps: set.reps ?? null,
         weight: set.weight ?? null,
         weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
@@ -742,6 +746,7 @@ export default function ProgressPage() {
     const totals = new Map<string, number>()
     allSets.forEach((set) => {
       const tonnage = computeSetTonnage({
+        metricProfile: (set as any).metricProfile,
         reps: set.reps ?? null,
         weight: set.weight ?? null,
         weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
@@ -992,6 +997,7 @@ export default function ProgressPage() {
         (exercise.sets ?? [])
           .filter((set) => set.completed !== false)
           .map((set) => ({
+            metricProfile: (exercise as any).metric_profile,
             reps: set.reps ?? null,
             weight: set.weight ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
@@ -1036,6 +1042,7 @@ export default function ProgressPage() {
         const reps = set.reps ?? 0
         totals.reps += reps
         const tonnage = computeSetTonnage({
+          metricProfile: (exercise as any).metric_profile,
           reps: set.reps ?? null,
           weight: set.weight ?? null,
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
@@ -1043,6 +1050,7 @@ export default function ProgressPage() {
         totals.volume += tonnage
         totals.hardSets += aggregateHardSets([
           {
+            metricProfile: (exercise as any).metric_profile,
             reps: set.reps ?? null,
             weight: set.weight ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
@@ -1051,6 +1059,7 @@ export default function ProgressPage() {
           }
         ])
         totals.workload += computeSetLoad({
+          metricProfile: (exercise as any).metric_profile,
           reps: set.reps ?? null,
           weight: set.weight ?? null,
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,

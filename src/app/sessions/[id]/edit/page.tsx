@@ -17,6 +17,7 @@ type EditableExercise = {
   name: string
   primaryMuscle: string | null
   secondaryMuscles: string[] | null
+  metricProfile?: string | null
   orderIndex: number | null
   sets: WorkoutSet[]
 }
@@ -61,6 +62,7 @@ type SessionPayload = {
     exercise_name: string
     primary_muscle: string | null
     secondary_muscles: string[] | null
+    metric_profile?: string | null
     order_index: number | null
     sets: Array<{
       id: string
@@ -157,6 +159,7 @@ export default function SessionEditPage() {
           name: exercise.exercise_name,
           primaryMuscle: exercise.primary_muscle,
           secondaryMuscles: exercise.secondary_muscles,
+          metricProfile: exercise.metric_profile,
           orderIndex: exercise.order_index ?? index,
           sets: (exercise.sets ?? [])
             .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
@@ -182,7 +185,7 @@ export default function SessionEditPage() {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-        'id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_readiness(sleep_quality, muscle_soreness, stress_level, motivation), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+        'id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_readiness(sleep_quality, muscle_soreness, stress_level, motivation), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
         )
         .eq('id', params.id)
         .single()
@@ -359,7 +362,7 @@ export default function SessionEditPage() {
           restSeconds: 0
         })
 
-    const primarySlug = toMuscleSlug(String(baseExercise.primaryMuscle ?? 'Full Body'), 'full_body')
+    const primarySlug = toMuscleSlug(String(baseExercise.primaryMuscle ?? 'full_body'), 'full_body')
     const secondarySlugs = (baseExercise.secondaryMuscles ?? [])
       .map((muscle) => toMuscleSlug(muscle, null))
       .filter((muscle): muscle is string => Boolean(muscle))
@@ -742,7 +745,9 @@ export default function SessionEditPage() {
                       onUpdate={(field, val) => updateSetField(exercise.id, set.id, field, val)}
                       onDelete={() => handleDeleteSet(exercise.id, set.id)}
                       onToggleComplete={() => updateSetField(exercise.id, set.id, 'completed', !set.completed)}
-                      isCardio={exercise.primaryMuscle === 'Cardio'}
+                      metricProfile={exercise.metricProfile as any}
+                      isCardio={exercise.primaryMuscle === 'cardio' || exercise.metricProfile === 'cardio_session'}
+                      isYoga={exercise.primaryMuscle === 'yoga' || exercise.metricProfile === 'yoga_session'}
                       repsLabel={repsLabel}
                     />
                   );

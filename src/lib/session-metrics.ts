@@ -1,9 +1,10 @@
-import type { Goal, GroupType, WeightUnit } from '@/types/domain'
+import type { Goal, GroupType, WeightUnit, MetricProfile } from '@/types/domain'
 import { convertWeight } from '@/lib/units'
 
 export const E1RM_FORMULA_VERSION = 'epley_v1'
 
 export type MetricsSet = {
+  metricProfile?: MetricProfile
   reps?: number | null
   weight?: number | null
   weightUnit?: WeightUnit | null
@@ -107,6 +108,7 @@ export const computeSetE1rm = (
   sessionGoal?: Goal | null,
   exerciseEligible?: boolean | null
 ) => {
+  if (set.metricProfile && set.metricProfile !== 'strength') return null
   if (!isSetE1rmEligible(sessionGoal, exerciseEligible, set)) return null
   if (typeof set.weight !== 'number' || typeof set.reps !== 'number') return null
   if (!Number.isFinite(set.weight) || !Number.isFinite(set.reps)) return null
@@ -130,6 +132,7 @@ export const getEffortScore = (set: MetricsSet) => {
 }
 
 export const isHardSet = (set: MetricsSet) => {
+  if (set.metricProfile && set.metricProfile !== 'strength' && set.metricProfile !== 'timed_strength') return false
   const effort = getEffortScore(set)
   return typeof effort === 'number' ? effort >= 8 : false
 }

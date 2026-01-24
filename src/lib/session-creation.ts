@@ -141,6 +141,7 @@ export const createWorkoutSession = async ({
         exercise_name: exercise.name,
         primary_muscle: primaryMuscle,
         secondary_muscles: secondaryMuscles,
+        metric_profile: exercise.metricProfile ?? 'strength',
         order_index: index
       }
     })
@@ -150,6 +151,7 @@ export const createWorkoutSession = async ({
       exercise_name: string
       primary_muscle: string | null
       secondary_muscles: string[] | null
+      metric_profile?: string
       order_index: number | null
     }> = []
 
@@ -157,7 +159,7 @@ export const createWorkoutSession = async ({
       const { data: insertedExercises, error: exerciseError } = await supabase
         .from('session_exercises')
         .insert(exercisePayload)
-        .select('id, exercise_name, primary_muscle, secondary_muscles, order_index')
+        .select('id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index')
         .order('order_index', { ascending: true })
 
       if (exerciseError) throw exerciseError
@@ -170,6 +172,7 @@ export const createWorkoutSession = async ({
       name: exercise.exercise_name,
       primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
       secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
+      metricProfile: (exercise.metric_profile as any) ?? 'strength',
       sets: [],
       orderIndex: exercise.order_index ?? idx
     }))

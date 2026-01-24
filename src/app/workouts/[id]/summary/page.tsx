@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle2 } from 'lucide-react'
@@ -243,21 +243,37 @@ export default function WorkoutSummaryPage() {
     return totals.sort((a, b) => b.volume - a.volume).slice(0, 3)
   }, [session])
 
-  const handleBodyWeightUpdate = async (value: string) => {
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleBodyWeightUpdate = (value: string) => {
     if (!session || !user) return
     const weightVal = parseFloat(value)
     setSession(prev => prev ? { ...prev, body_weight_lb: isNaN(weightVal) ? null : weightVal } : prev)
     
     if (!isNaN(weightVal)) {
-      try {
-        await Promise.all([
-          supabase.from('sessions').update({ body_weight_lb: weightVal }).eq('id', session.id),
-          supabase.from('profiles').update({ weight_lb: weightVal }).eq('id', user.id),
-          supabase.from('body_measurements').insert({ user_id: user.id, weight_lb: weightVal, recorded_at: session.started_at })
-        ])
-      } catch (error) {
-        console.error('Failed to update body weight from summary', error)
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
       }
+
+      debounceTimerRef.current = setTimeout(async () => {
+        try {
+          await Promise.all([
+            supabase.from('sessions').update({ body_weight_lb: weightVal }).eq('id', session.id),
+            supabase.from('profiles').update({ weight_lb: weightVal }).eq('id', user.id),
+            supabase.from('body_measurements').insert({ user_id: user.id, weight_lb: weightVal, recorded_at: session.started_at })
+          ])
+        } catch (error) {
+          console.error('Failed to update body weight from summary', error)
+        }
+      }, 1000);
     }
   }
 
