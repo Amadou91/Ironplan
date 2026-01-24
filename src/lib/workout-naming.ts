@@ -7,6 +7,7 @@ type WorkoutNamingInput = {
   intensity?: PlanInput['intensity'] | null
   minutes?: number | null
   fallback?: string | null
+  cardioExerciseName?: string | null
 }
 
 const formatMinutes = (minutes?: number | null) => {
@@ -19,14 +20,29 @@ export const buildWorkoutDisplayName = ({
   focus,
   style,
   minutes,
-  fallback
+  fallback,
+  cardioExerciseName
 }: WorkoutNamingInput) => {
   const parts: string[] = []
-  const focusLabel = focus ? formatFocusLabel(focus) : null
   const styleLabel = formatGoalLabel(style)
-
-  if (focusLabel) parts.push(focusLabel)
-  if (styleLabel && styleLabel !== focusLabel) parts.push(styleLabel)
+  
+  // Special cases for Yoga and Cardio to avoid redundancy
+  if (style === 'general_fitness') {
+     parts.push('Yoga')
+  } else if (style === 'cardio') {
+     if (cardioExerciseName) {
+       parts.push(`Cardio ${cardioExerciseName}`)
+     } else {
+       parts.push('Cardio')
+     }
+  } else {
+    // Standard format: "[Focus] [Style]"
+    const focusLabel = focus ? formatFocusLabel(focus) : null
+    const nameParts = []
+    if (focusLabel) nameParts.push(focusLabel)
+    if (styleLabel && styleLabel !== focusLabel) nameParts.push(styleLabel)
+    if (nameParts.length > 0) parts.push(nameParts.join(' '))
+  }
   
   const minutesLabel = formatMinutes(minutes)
   if (minutesLabel) parts.push(minutesLabel)

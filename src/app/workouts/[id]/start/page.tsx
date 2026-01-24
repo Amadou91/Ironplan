@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { Clock, Sparkles } from 'lucide-react'
+import { Clock, Sparkles, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { normalizePlanInput } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
@@ -96,10 +96,12 @@ export default function WorkoutStartPage() {
   const { user } = useUser()
   const startSession = useWorkoutStore((state) => state.startSession)
   const activeSession = useWorkoutStore((state) => state.activeSession)
+  const endSession = useWorkoutStore((state) => state.endSession)
   const [template, setTemplate] = useState<WorkoutTemplate | null>(null)
   const [loading, setLoading] = useState(true)
   const [startingSession, setStartingSession] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+  const [showConflictModal, setShowConflictModal] = useState(false)
   const [minutesAvailable, setMinutesAvailable] = useState(45)
   const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurveyDraft>({
     sleep: null,
@@ -111,7 +113,9 @@ export default function WorkoutStartPage() {
   const hasActiveSession = Boolean(activeSession)
   const activeSessionLink = activeSession?.templateId
     ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=workouts`
-    : '/dashboard'
+    : activeSession?.id
+      ? `/workouts/active?sessionId=${activeSession.id}&from=workouts`
+      : '/dashboard'
 
   useEffect(() => {
     const fetchTemplate = async () => {
@@ -191,7 +195,7 @@ export default function WorkoutStartPage() {
     }
   }
 
-  const handleStartSession = async () => {
+  const handleStartSession = async (force = false) => {
     if (!template) return
     if (!user) {
       setStartError('Please sign in again to start a session.')
@@ -201,15 +205,27 @@ export default function WorkoutStartPage() {
       setStartError('Complete the readiness check before starting the session.')
       return
     }
-    if (hasActiveSession) {
-      setStartError('Finish your current session before starting a new one.')
-      router.push(activeSessionLink)
+    if (hasActiveSession && !force) {
+      setShowConflictModal(true)
       return
     }
     setStartError(null)
     setStartingSession(true)
 
     try {
+      if (force && activeSession?.id) {
+        // Explicitly cancel the existing session in DB
+        await supabase
+          .from('sessions')
+          .update({
+            status: 'cancelled',
+            ended_at: new Date().toISOString()
+          })
+          .eq('id', activeSession.id)
+        
+        endSession()
+      }
+
       const normalizedInputs = normalizePlanInput(template.template_inputs ?? {})
       const baseExperience =
         template.template_inputs?.experienceLevel ?? template.experience_level ?? normalizedInputs.experienceLevel
@@ -234,7 +250,6 @@ export default function WorkoutStartPage() {
             focus: template.focus,
             style: template.style,
             intensity: template.intensity,
-            minutes: template.template_inputs?.time?.minutesPerSession ?? null,
             fallback: template.title
           }),
           focus: template.focus,
@@ -282,7 +297,7 @@ export default function WorkoutStartPage() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-              <Link href="/workouts" className="transition-colors hover:text-strong">
+              <Link href="/dashboard" className="transition-colors hover:text-strong">
                 Workouts
               </Link>
               <span>/</span>
@@ -291,7 +306,6 @@ export default function WorkoutStartPage() {
                   focus: template.focus,
                   style: template.style,
                   intensity: template.intensity,
-                  minutes: template.template_inputs?.time?.minutesPerSession ?? null,
                   fallback: template.title
                 })}
               </span>
@@ -302,16 +316,10 @@ export default function WorkoutStartPage() {
                 focus: template.focus,
                 style: template.style,
                 intensity: template.intensity,
-                minutes: template.template_inputs?.time?.minutesPerSession ?? null,
                 fallback: template.title
               })}
             </h1>
             {template.description && <p className="text-sm text-muted">{template.description}</p>}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="ghost" onClick={() => router.push(`/workout/${template.id}`)}>
-              Preview
-            </Button>
           </div>
         </div>
 
@@ -435,16 +443,17 @@ export default function WorkoutStartPage() {
               </p>
               <Button
                 type="button"
-                onClick={handleStartSession}
-                disabled={startingSession || hasActiveSession || !readinessComplete}
+                onClick={() => handleStartSession()}
+                disabled={startingSession || !readinessComplete}
                 className="mt-4 w-full justify-center"
               >
-                {hasActiveSession
-                  ? 'Session Active'
-                  : startingSession
-                    ? 'Starting...'
-                    : 'Start Session'}
+                {startingSession ? 'Starting...' : 'Start Session'}
               </Button>
+              {hasActiveSession && (
+                <p className="mt-3 text-center text-xs font-medium text-accent">
+                  Session in progress
+                </p>
+              )}
               <p className="mt-3 text-xs text-subtle">
                 {readinessLevel
                   ? `Readiness is ${readinessLevel}. Intensity set to ${selectedIntensity.label}.`
@@ -454,6 +463,47 @@ export default function WorkoutStartPage() {
           </div>
         </div>
       </div>
+
+      {showConflictModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="surface-elevated w-full max-w-md p-6 shadow-2xl border border-[var(--color-border-strong)]">
+            <div className="flex items-center gap-3 text-[var(--color-warning)] mb-4">
+              <AlertTriangle size={24} />
+              <h3 className="text-xl font-bold text-strong">Session in Progress</h3>
+            </div>
+            
+            <p className="text-sm text-muted mb-6">
+              You already have an active workout session. Would you like to continue it, or cancel it and start this new one?
+            </p>
+
+            <div className="space-y-3">
+              <Button 
+                className="w-full justify-center py-6"
+                onClick={() => router.push(activeSessionLink)}
+              >
+                Continue Current Session
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                className="w-full justify-center text-[var(--color-danger)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
+                onClick={() => handleStartSession(true)}
+                disabled={startingSession}
+              >
+                {startingSession ? 'Starting...' : 'Cancel & Start New'}
+              </Button>
+
+              <Button 
+                variant="secondary" 
+                className="w-full justify-center"
+                onClick={() => setShowConflictModal(false)}
+              >
+                Go Back
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

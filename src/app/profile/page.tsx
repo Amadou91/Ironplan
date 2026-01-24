@@ -242,6 +242,35 @@ export default function ProfilePage() {
     setProfileDraft((prev) => ({ ...prev, [field]: value }))
   }
 
+  const NumericInput = ({ 
+    value, 
+    onChange, 
+    placeholder, 
+    disabled,
+    className = ""
+  }: { 
+    value: string; 
+    onChange: (val: string) => void; 
+    placeholder?: string;
+    disabled?: boolean;
+    className?: string;
+  }) => (
+    <input
+      type="text"
+      inputMode="decimal"
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => {
+        const val = e.target.value;
+        if (val === '' || /^-?\d*\.?\d*$/.test(val)) {
+          onChange(val);
+        }
+      }}
+      className={`input-base ${className}`}
+      disabled={disabled}
+    />
+  );
+
   const handleSaveProfile = async () => {
     if (!user) return
     setProfileSaving(true)
@@ -518,12 +547,10 @@ export default function ProfilePage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2">
               <div className="flex flex-col">
                 <label className="text-xs text-subtle">Weight (lb)</label>
-                <input
-                  type="number"
-                  min={0}
+                <NumericInput
                   value={profileDraft.weightLb}
-                  onChange={(event) => handleProfileChange('weightLb', event.target.value)}
-                  className="input-base mt-1"
+                  onChange={(val) => handleProfileChange('weightLb', val)}
+                  className="mt-1"
                   disabled={profileLoading || profileSaving}
                 />
               </div>
@@ -531,26 +558,19 @@ export default function ProfilePage() {
                 <label className="text-xs text-subtle">Height</label>
                 <div className="mt-1 grid grid-cols-2 gap-2 text-[10px]">
                   <label className="flex flex-col gap-1">
-                    <input
-                      type="number"
-                      min={0}
+                    <NumericInput
                       placeholder="ft"
                       value={profileDraft.heightFeet}
-                      onChange={(event) => handleProfileChange('heightFeet', event.target.value)}
-                      className="input-base"
+                      onChange={(val) => handleProfileChange('heightFeet', val)}
                       disabled={profileLoading || profileSaving}
                     />
                     <span className="text-subtle">Feet</span>
                   </label>
                   <label className="flex flex-col gap-1">
-                    <input
-                      type="number"
-                      min={0}
-                      max={11}
+                    <NumericInput
                       placeholder="in"
                       value={profileDraft.heightInches}
-                      onChange={(event) => handleProfileChange('heightInches', event.target.value)}
-                      className="input-base"
+                      onChange={(val) => handleProfileChange('heightInches', val)}
                       disabled={profileLoading || profileSaving}
                     />
                     <span className="text-subtle">Inches</span>
@@ -559,13 +579,10 @@ export default function ProfilePage() {
               </div>
               <div className="flex flex-col">
                 <label className="text-xs text-subtle">Body fat %</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={70}
+                <NumericInput
                   value={profileDraft.bodyFatPercent}
-                  onChange={(event) => handleProfileChange('bodyFatPercent', event.target.value)}
-                  className="input-base mt-1"
+                  onChange={(val) => handleProfileChange('bodyFatPercent', val)}
+                  className="mt-1"
                   disabled={profileLoading || profileSaving}
                 />
               </div>

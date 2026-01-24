@@ -223,7 +223,8 @@ export default function DashboardPage() {
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
             rpe: typeof set.rpe === 'number' ? set.rpe : null,
             rir: typeof set.rir === 'number' ? set.rir : null,
-            performedAt: set.performed_at ?? null
+            performedAt: set.performed_at ?? null,
+            durationSeconds: (set as any).duration_seconds ?? null
           }))
       )
     }))
@@ -282,7 +283,6 @@ export default function DashboardPage() {
       focus: template.focus,
       style: template.style,
       intensity: template.intensity,
-      minutes: template.template_inputs?.time?.minutesPerSession,
       fallback: template.title
     })
     if (!confirm(`Delete "${displayTitle}"? This cannot be undone.`)) return
@@ -305,7 +305,9 @@ export default function DashboardPage() {
 
   const activeSessionLink = activeSession?.templateId
     ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=dashboard`
-    : '/dashboard'
+    : activeSession?.id 
+      ? `/workouts/active?sessionId=${activeSession.id}&from=dashboard`
+      : '/dashboard'
 
   const greetingName = user?.email?.split('@')[0] || 'there'
   const recentSessions = sessions.slice(0, 3)
@@ -440,7 +442,6 @@ export default function DashboardPage() {
                         focus: recommendedTemplate.focus,
                         style: recommendedTemplate.style,
                         intensity: recommendedTemplate.intensity,
-                        minutes: recommendedTemplate.template_inputs?.time?.minutesPerSession ?? null,
                         fallback: recommendedTemplate.title
                       })}
                     </p>
@@ -505,13 +506,16 @@ export default function DashboardPage() {
               ) : (
                 recentSessions.map((session) => {
                   const template = session.template_id ? templateById.get(session.template_id) : null
-                  const sessionTitle = buildWorkoutDisplayName({
-                    focus: template?.focus ?? null,
-                    style: template?.style ?? null,
-                    intensity: template?.intensity ?? null,
-                    minutes: session.minutes_available ?? template?.template_inputs?.time?.minutesPerSession ?? null,
-                    fallback: session.name
-                  })
+                  const sessionTitle = (template && session.name === template.title) 
+                    ? buildWorkoutDisplayName({
+                        focus: template.focus,
+                        style: template.style,
+                        intensity: template.intensity,
+                        minutes: typeof session.minutes_available === 'number' ? session.minutes_available : null,
+                        fallback: session.name,
+                        cardioExerciseName: template.style === 'cardio' && session.session_exercises?.[0]?.exercise_name ? session.session_exercises[0].exercise_name : null
+                      })
+                    : session.name;
                   return (
                     <div key={session.id} className="rounded-xl border border-[var(--color-border)] p-4">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -552,7 +556,6 @@ export default function DashboardPage() {
                     focus: template.focus,
                     style: template.style,
                     intensity: template.intensity,
-                    minutes: template.template_inputs?.time?.minutesPerSession,
                     fallback: template.title
                   })
                   return (

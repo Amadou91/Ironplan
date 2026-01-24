@@ -126,10 +126,12 @@ export const createWorkoutSession = async ({
     })
     if (readinessError) throw readinessError
 
-    const exercises = generateSessionExercises(input, focus, minutesAvailable, goal, {
-      seed: sessionData.id,
-      history
-    })
+    const exercises = goal === 'cardio' 
+      ? [] 
+      : generateSessionExercises(input, focus, minutesAvailable, goal, {
+          seed: sessionData.id,
+          history
+        })
     const impact = exercises.length ? calculateExerciseImpact(exercises) : undefined
     const exercisePayload = exercises.map((exercise, index) => {
       const primaryMuscle = toMuscleSlug(getPrimaryMuscle(exercise), 'full_body')

@@ -11,7 +11,7 @@ interface WorkoutState {
   addSessionExercise: (exercise: SessionExercise) => void;
   removeSessionExercise: (exerciseIndex: number) => void;
   updateSet: (exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => void;
-  addSet: (exerciseIndex: number, weightUnit?: WeightUnit) => WorkoutSet | null;
+  addSet: (exerciseIndex: number, weightUnit?: WeightUnit, defaultWeight?: number | null) => WorkoutSet | null;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
 }
 
@@ -53,7 +53,7 @@ export const useWorkoutStore = create<WorkoutState>()(
         return { activeSession: { ...state.activeSession, exercises } };
       }),
 
-      addSet: (exerciseIndex, weightUnit) => {
+      addSet: (exerciseIndex, weightUnit, defaultWeight) => {
         let createdSet: WorkoutSet | null = null;
         set((state) => {
         if (!state.activeSession) return state;
@@ -64,7 +64,7 @@ export const useWorkoutStore = create<WorkoutState>()(
           id: `temp-${crypto.randomUUID()}`,
           setNumber: exercise.sets.length + 1,
           reps: '',
-          weight: '',
+          weight: typeof defaultWeight === 'number' ? defaultWeight : '',
           rpe: '',
           rir: '',
           performedAt: new Date().toISOString(),

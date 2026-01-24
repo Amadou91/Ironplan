@@ -35,17 +35,17 @@ import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, Pla
 const styleOptions: { value: Goal; label: string; description: string }[] = [
   { value: 'strength', label: 'Strength', description: 'Heavier loads, lower reps, power focus.' },
   { value: 'hypertrophy', label: 'Hypertrophy', description: 'Muscle growth with balanced volume.' },
-  { value: 'endurance', label: 'Endurance', description: 'Higher reps and conditioning focus.' },
-  { value: 'cardio', label: 'Cardio', description: 'Conditioning-focused sessions and intervals.' },
-  { value: 'general_fitness', label: 'Yoga', description: 'Mobility, flexibility, and core strength.' }
+  { value: 'endurance', label: 'Endurance', description: 'Higher reps and conditioning focus.' }
 ]
-const focusOptions: { value: PlanInput['preferences']['focusAreas'][number]; label: string }[] = [
+const focusOptions: { value: FocusArea; label: string; description?: string }[] = [
+  { value: 'chest', label: 'Chest' },
+  { value: 'back', label: 'Back' },
   { value: 'arms', label: 'Arms' },
   { value: 'legs', label: 'Legs' },
   { value: 'biceps', label: 'Biceps' },
   { value: 'triceps', label: 'Triceps' },
-  { value: 'chest', label: 'Chest' },
-  { value: 'back', label: 'Back' }
+  { value: 'mobility', label: 'Yoga' },
+  { value: 'cardio', label: 'Cardio' }
 ]
 
 type WeightField = 'dumbbells' | 'kettlebells'
@@ -133,7 +133,6 @@ const buildWorkoutTitle = (template: WorkoutTemplateDraft) =>
     focus: template.focus,
     style: template.style,
     intensity: template.inputs.intensity,
-    minutes: template.inputs.time.minutesPerSession,
     fallback: template.title
   })
 
@@ -280,24 +279,64 @@ export default function GeneratePage() {
     })
   }
 
-  const updateBodyPartFocus = (focus: FocusArea) => {
-    updateFormData((prev) => ({
-      ...prev,
-      intent: {
-        ...prev.intent,
-        mode: 'body_part',
-        bodyParts: [focus]
-      },
-      preferences: {
-        ...prev.preferences,
-        focusAreas: [focus]
-      },
-      schedule: {
-        ...prev.schedule,
-        daysAvailable: [0],
-        weeklyLayout: [{ sessionIndex: 0, style: prev.goals.primary, focus }]
+  const handleFocusChange = (focus: FocusArea) => {
+    updateFormData((prev) => {
+      let targetStyle: Goal = prev.goals.primary
+      if (focus === 'mobility') targetStyle = 'general_fitness'
+      else if (focus === 'cardio') targetStyle = 'cardio'
+      else if (['cardio', 'general_fitness'].includes(prev.goals.primary)) {
+          targetStyle = 'strength'
       }
-    }))
+
+      const isCardio = targetStyle === 'cardio'
+      const isYoga = targetStyle === 'general_fitness'
+      const wasCardio = prev.goals.primary === 'cardio'
+      const wasYoga = prev.goals.primary === 'general_fitness'
+
+      if ((isCardio || isYoga) && !wasCardio && !wasYoga) {
+        lastStrengthInventoryRef.current = cloneInventory(prev.equipment.inventory)
+        lastStrengthPresetRef.current = prev.equipment.preset
+      }
+      
+      const nextInventory = isCardio
+        ? buildCardioInventory(prev.equipment.inventory)
+        : (wasCardio || wasYoga) && !isCardio && !isYoga
+          ? cloneInventory(lastStrengthInventoryRef.current ?? equipmentPresets.full_gym)
+          : prev.equipment.inventory
+      
+      const nextPreset = isCardio
+        ? 'custom'
+        : (wasCardio || wasYoga) && !isCardio && !isYoga
+          ? lastStrengthPresetRef.current ?? 'full_gym'
+          : prev.equipment.preset
+
+      return {
+        ...prev,
+        intent: {
+          ...prev.intent,
+          mode: (isCardio || isYoga) ? 'style' : 'body_part',
+          style: (isCardio || isYoga) ? targetStyle : undefined,
+          bodyParts: [focus]
+        },
+        goals: {
+          ...prev.goals,
+          primary: targetStyle
+        },
+        equipment: {
+          ...prev.equipment,
+          preset: nextPreset,
+          inventory: nextInventory
+        },
+        preferences: {
+          ...prev.preferences,
+          focusAreas: [focus]
+        },
+        schedule: {
+          ...prev.schedule,
+          weeklyLayout: [{ sessionIndex: 0, style: targetStyle, focus }]
+        }
+      }
+    })
   }
 
   const updatePrimaryStyle = (style: Goal) => {
@@ -393,7 +432,6 @@ export default function GeneratePage() {
       focus: entry.template.focus,
       style: entry.template.style,
       intensity: entry.template.inputs.intensity,
-      minutes: entry.template.inputs.time.minutesPerSession,
       fallback: entry.title
     })
     if (!confirm(`Delete "${entryTitle}" from your saved templates? This cannot be undone.`)) return
@@ -565,6 +603,9 @@ export default function GeneratePage() {
       setStartSessionError('Finish your current session before starting a new one.')
       if (activeSession.templateId && activeSession.id) {
         router.push(`/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=generate`)
+      } else if (activeSession.id) {
+        // Fallback for manual sessions or sessions without a template link
+        router.push(`/workouts/active?sessionId=${activeSession.id}&from=generate`)
       }
       return
     }
@@ -706,7 +747,7 @@ export default function GeneratePage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="ghost" onClick={() => router.push('/workouts')}>
+            <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
               <X className="h-4 w-4" /> Close
             </Button>
           </div>
@@ -721,51 +762,64 @@ export default function GeneratePage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 1</p>
                 <h2 className="text-xl font-semibold text-strong">Choose your workout focus</h2>
                 <p className="text-sm text-muted">
-                  Pick the muscle group you want to train and the training style for this template.
+                  Pick a muscle group, or select Yoga/Cardio.
                 </p>
               </div>
 
-              {!isCardioStyle && !isYogaStyle ? (
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                  {focusOptions.map((option) => (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                {focusOptions.map((option) => {
+                  const isSelected = formData.intent.bodyParts?.[0] === option.value
+                  
+                  // Dynamic styling based on focus type
+                  let baseColors = ''
+                  let selectedColors = ''
+                  
+                  if (option.value === 'mobility') {
+                    // Yoga - Gentle Emerald
+                    baseColors = 'border-[var(--color-border)] bg-[var(--color-surface-subtle)]/40 text-strong hover:border-emerald-500/30 hover:bg-emerald-500/[0.02]'
+                    selectedColors = 'border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-4 ring-emerald-500/20'
+                  } else if (option.value === 'cardio') {
+                    // Cardio - Friendly Purple
+                    baseColors = 'border-[var(--color-border)] bg-[var(--color-surface-subtle)]/40 text-strong hover:border-purple-500/30 hover:bg-purple-500/[0.02]'
+                    selectedColors = 'border-purple-500/50 bg-purple-500/10 text-purple-700 dark:text-purple-400 ring-4 ring-purple-500/20'
+                  } else {
+                    // Muscle - Soft Blue
+                    baseColors = 'border-[var(--color-border)] bg-[var(--color-surface-subtle)]/40 text-strong hover:border-blue-500/30 hover:bg-blue-500/[0.02]'
+                    selectedColors = 'border-blue-500/50 bg-blue-500/10 text-blue-700 dark:text-blue-400 ring-4 ring-blue-500/20'
+                  }
+
+                  return (
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => updateBodyPartFocus(option.value)}
-                      className={`rounded-lg border px-4 py-4 text-left transition ${
-                        formData.intent.bodyParts?.[0] === option.value
-                          ? 'border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
-                          : 'border-[var(--color-border)] bg-[var(--color-surface)] text-muted hover:border-[var(--color-border-strong)]'
+                      onClick={() => handleFocusChange(option.value)}
+                      className={`rounded-xl border px-4 py-5 text-center transition-all duration-200 ${
+                        isSelected ? selectedColors : baseColors
                       }`}
-                      aria-pressed={formData.intent.bodyParts?.[0] === option.value}
+                      aria-pressed={isSelected}
                     >
-                      <p className="text-sm font-semibold text-strong">{option.label}</p>
-                      <p className="mt-1 text-xs text-subtle">Create a dedicated {option.label.toLowerCase()} template.</p>
+                      <p className="text-sm font-bold uppercase tracking-wide">{option.label}</p>
                     </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm text-muted">
-                  {isCardioStyle
-                    ? 'Cardio plans focus on conditioning rather than a specific muscle group.'
-                    : 'Yoga plans focus on full-body mobility, flexibility, and core strength.'}
+                  )
+                })}
+              </div>
+
+              {!isCardioStyle && !isYogaStyle && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-strong">Training style</label>
+                  <select
+                    value={formData.goals.primary}
+                    onChange={(e) => updatePrimaryStyle(e.target.value as Goal)}
+                    className="input-base"
+                  >
+                    {styleOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-strong">Training style</label>
-                <select
-                  value={formData.goals.primary}
-                  onChange={(e) => updatePrimaryStyle(e.target.value as Goal)}
-                  className="input-base"
-                >
-                  {styleOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
             </section>
 
@@ -1069,13 +1123,15 @@ export default function GeneratePage() {
                   <div>
                     <dt className="text-subtle">Muscle focus</dt>
                     <dd className="text-strong capitalize">
-                      {formData.intent.bodyParts?.[0]?.replace('_', ' ') ?? 'Not set'}
+                      {isYogaStyle ? 'Yoga' : isCardioStyle ? 'Cardio' : formData.intent.bodyParts?.[0]?.replace('_', ' ') ?? 'Not set'}
                     </dd>
                   </div>
-                  <div>
-                    <dt className="text-subtle">Training style</dt>
-                    <dd className="text-strong capitalize">{(formData.intent.style ?? formData.goals.primary).replace('_', ' ')}</dd>
-                  </div>
+                  {!isYogaStyle && !isCardioStyle && (
+                    <div>
+                      <dt className="text-subtle">Training style</dt>
+                      <dd className="text-strong capitalize">{(formData.intent.style ?? formData.goals.primary).replace('_', ' ')}</dd>
+                    </div>
+                  )}
                   <div>
                     <dt className="text-subtle">Equipment</dt>
                     <dd className="text-strong">{equipmentSummary.length ? equipmentSummary.join(', ') : 'Not set'}</dd>
@@ -1139,7 +1195,6 @@ export default function GeneratePage() {
                 focus: entry.template.focus,
                 style: entry.template.style,
                 intensity: entry.template.inputs.intensity,
-                minutes: entry.template.inputs.time.minutesPerSession,
                 fallback: entry.title
               })
               return (
@@ -1196,7 +1251,7 @@ export default function GeneratePage() {
           Done here? Head back to your workouts or jump into your latest template.
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="ghost" onClick={() => router.push('/workouts')}>
+          <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
             Back to workouts <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
           <Button

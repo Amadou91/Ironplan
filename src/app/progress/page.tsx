@@ -13,11 +13,14 @@ import {
   LineChart,
   Pie,
   PieChart,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Scatter,
   Tooltip,
   XAxis,
-  YAxis
+  YAxis,
+  Label
 } from 'recharts'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
@@ -42,7 +45,7 @@ import { computeSessionMetrics, getLoadBasedReadiness, summarizeTrainingLoad } f
 import type { FocusArea, Goal, PlanInput } from '@/types/domain'
 
 const chartColors = ['#f05a28', '#1f9d55', '#0ea5e9', '#f59e0b', '#ec4899']
-const SESSION_PAGE_SIZE = 20
+const SESSION_PAGE_SIZE = 50
 
 const startOfDay = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate())
 
@@ -288,12 +291,7 @@ export default function ProgressPage() {
   }, [ensureSession, router, supabase])
 
   useEffect(() => {
-    if (userLoading) return
-    if (!user) return
-
-    setSessions([])
-    setSessionPage(0)
-    setHasMoreSessions(true)
+    if (userLoading || !user) return
 
     const loadSessions = async () => {
       setSessionsLoaded(false)
@@ -302,16 +300,39 @@ export default function ProgressPage() {
       setLoading(true)
       setError(null)
 
+      let query = supabase
+        .from('sessions')
+        .select(
+          'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+        )
+        .eq('user_id', user.id)
+        .order('started_at', { ascending: false })
+
+      // If we have a date range, we need to load enough history for ACWR (at least 28 days before the range)
+      if (endDate) {
+        const end = new Date(endDate)
+        if (!Number.isNaN(end.getTime())) {
+          // Include buffer for timezones and end-of-day
+          const endISO = new Date(end.getTime() + 86400000 * 2).toISOString()
+          query = query.lt('started_at', endISO)
+        }
+      }
+
+      // If a startDate is selected, we still need the previous 28 days for chronic load calculation
+      if (startDate) {
+        const start = new Date(startDate)
+        if (!Number.isNaN(start.getTime())) {
+          const chronicStart = new Date(start.getTime() - 28 * 86400000)
+          query = query.gte('started_at', chronicStart.toISOString())
+        }
+      } else {
+        // Default: just load the first page
+        query = query.range(0, SESSION_PAGE_SIZE - 1)
+      }
+
       const [{ data: sessionData, error: fetchError }, { data: templateData, error: templateError }] =
         await Promise.all([
-          supabase
-            .from('sessions')
-            .select(
-              'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
-            )
-            .eq('user_id', user.id)
-            .order('started_at', { ascending: false })
-            .range(0, SESSION_PAGE_SIZE - 1),
+          query,
           supabase
             .from('workout_templates')
             .select('id, title, focus, style, intensity, template_inputs')
@@ -331,8 +352,10 @@ export default function ProgressPage() {
       } else {
         const nextSessions = (sessionData as SessionRow[]) ?? []
         setSessions(nextSessions)
-        setHasMoreSessions(nextSessions.length === SESSION_PAGE_SIZE)
+        // If we filtered by date, we might have loaded everything requested
+        setHasMoreSessions(!startDate && nextSessions.length === SESSION_PAGE_SIZE)
         setSessionsLoaded(true)
+        setSessionPage(0)
 
         const sessionIds = nextSessions.map((session) => session.id)
         if (sessionIds.length) {
@@ -361,7 +384,7 @@ export default function ProgressPage() {
     }
 
     loadSessions()
-  }, [ensureSession, supabase, user, userLoading, setUser])
+  }, [ensureSession, supabase, user, userLoading, setUser, startDate, endDate])
 
   useEffect(() => {
     if (userLoading || !user) return
@@ -1393,7 +1416,6 @@ export default function ProgressPage() {
               {aggregateMetrics.bestE1rm > 0 && (
                 <p>Best e1RM: <span className="text-strong">{aggregateMetrics.bestE1rm}</span></p>
               )}
-              <p>Workload: <span className="text-strong">{aggregateMetrics.workload}</span></p>
               <p>Avg effort: <span className="text-strong">{aggregateMetrics.avgEffort ?? 'N/A'}</span></p>
               {relativeMetrics && (
                 <p>Tonnage / bodyweight: <span className="text-strong">{relativeMetrics.tonnagePerBodyweight.toFixed(1)}</span></p>
@@ -1402,11 +1424,13 @@ export default function ProgressPage() {
           </Card>
           <Card className="p-6">
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Training Load</h3>
-            <p className="mt-3 text-3xl font-semibold text-strong">{trainingLoadSummary.acuteLoad}</p>
-            <p className="text-xs text-subtle">
-              ACR {trainingLoadSummary.loadRatio} · {trainingLoadSummary.status.replace('_', ' ')}
-            </p>
-            <p className="text-xs text-subtle">Readiness: {loadReadiness}</p>
+            <p className="mt-3 text-3xl font-semibold text-strong">{aggregateMetrics.workload}</p>
+            <p className="text-xs text-subtle">total load in range</p>
+            <div className="mt-3 pt-3 border-t border-[var(--color-border)] space-y-1 text-[10px] uppercase tracking-wider text-muted">
+              <p>Current ACR: <span className="text-strong">{trainingLoadSummary.loadRatio}</span></p>
+              <p>Acute (7d): <span className="text-strong">{trainingLoadSummary.acuteLoad}</span></p>
+              <p>Status: <span className="text-strong">{trainingLoadSummary.status.replace('_', ' ')}</span></p>
+            </div>
           </Card>
           <Card className="p-6">
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Readiness Avg</h3>
@@ -1585,13 +1609,23 @@ export default function ProgressPage() {
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <ComposedChart>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                  <XAxis dataKey="readiness" type="number" name="Readiness" domain={['auto', 'auto']} stroke="var(--color-text-subtle)" />
-                  <YAxis dataKey="effort" type="number" name="Avg effort" domain={[0, 10]} stroke="var(--color-text-subtle)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="readiness" type="number" name="Readiness" domain={[0, 100]} stroke="var(--color-text-subtle)" fontSize={10} />
+                  <YAxis dataKey="effort" type="number" name="Avg effort" domain={[0, 10]} stroke="var(--color-text-subtle)" fontSize={10} />
                   <Tooltip
                     cursor={{ strokeDasharray: '3 3' }}
                     contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
                   />
+                  
+                  {/* Quadrants */}
+                  <ReferenceArea x1={0} x2={50} y1={5} y2={10} fill="var(--color-danger)" fillOpacity={0.03} label={{ value: 'Risk Zone', position: 'insideTopLeft', fontSize: 9, fill: 'var(--color-text-subtle)', offset: 10 }} />
+                  <ReferenceArea x1={50} x2={100} y1={5} y2={10} fill="var(--color-success)" fillOpacity={0.03} label={{ value: 'Optimal', position: 'insideTopRight', fontSize: 9, fill: 'var(--color-text-subtle)', offset: 10 }} />
+                  <ReferenceArea x1={0} x2={50} y1={0} y2={5} fill="var(--color-warning)" fillOpacity={0.03} label={{ value: 'Recovery', position: 'insideBottomLeft', fontSize: 9, fill: 'var(--color-text-subtle)', offset: 10 }} />
+                  <ReferenceArea x1={50} x2={100} y1={0} y2={5} fill="var(--color-primary)" fillOpacity={0.03} label={{ value: 'Under-taxing', position: 'insideBottomRight', fontSize: 9, fill: 'var(--color-text-subtle)', offset: 10 }} />
+                  
+                  <ReferenceLine x={50} stroke="var(--color-border)" strokeWidth={1} strokeDasharray="3 3" />
+                  <ReferenceLine y={5} stroke="var(--color-border)" strokeWidth={1} strokeDasharray="3 3" />
+
                   <Scatter data={readinessCorrelation} fill="var(--color-primary)" />
                   <Line data={readinessTrendLine} dataKey="effort" stroke="var(--color-text-subtle)" strokeDasharray="5 5" dot={false} activeDot={false} />
                 </ComposedChart>

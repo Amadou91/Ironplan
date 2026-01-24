@@ -53,6 +53,7 @@ export default function WorkoutActivePage() {
 
   useEffect(() => {
     const fetchTemplate = async () => {
+      if (!params.id) return;
       const { data, error } = await supabase
         .from('workout_templates')
         .select('id, title, focus, style, template_inputs')
@@ -66,7 +67,7 @@ export default function WorkoutActivePage() {
       }
     }
 
-    if (params.id) fetchTemplate()
+    fetchTemplate()
   }, [params.id, supabase])
 
   const handleFinishSession = async () => {
@@ -115,7 +116,11 @@ export default function WorkoutActivePage() {
 
       if (error) throw error
       endSession()
-      router.push(`/workouts/${params.id}/summary?sessionId=${currentSessionId}`)
+      if (params.id) {
+        router.push(`/workouts/${params.id}/summary?sessionId=${currentSessionId}`)
+      } else {
+        router.push(`/workouts/summary?sessionId=${currentSessionId}`)
+      }
     } catch (error) {
       console.error('Failed to finish workout:', error)
       setFinishError('Failed to finish workout. Please try again.')

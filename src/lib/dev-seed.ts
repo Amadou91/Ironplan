@@ -1,4 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { normalizePlanInput } from '@/lib/generator'
+import { getReadinessLevel } from '@/lib/training-metrics'
+import type { FocusArea, Goal } from '@/types/domain'
 
 export const DEV_SEED_MARKER = 'IRONPLAN_DEV_SEED'
 export const DEV_SEED_TAG = 'dev_seed'
@@ -9,13 +12,16 @@ type ExerciseSeed = {
   name: string
   primaryMuscle: string
   secondaryMuscles?: string[]
+  metricProfile?: string
   sets: Array<{
     reps: number | null
     weight: number | null
     weightUnit: 'lb' | 'kg'
     rpe?: number
+    rir?: number
     durationSeconds?: number
     extras?: Record<string, string | null>
+    extraMetrics?: Record<string, unknown>
   }>
 }
 
@@ -61,59 +67,67 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
   const templateSeeds = [
     {
       title: `${DEV_TEMPLATE_PREFIX}Upper Strength`,
-      focus: 'upper',
-      style: 'strength',
+      focus: 'upper' as FocusArea,
+      style: 'strength' as Goal,
       experience_level: 'intermediate',
       intensity: 'high',
       equipment: { preset: 'full_gym', inventory: fullGymInventory },
-      template_inputs: {
+      template_inputs: normalizePlanInput({
+        intent: { mode: 'body_part', bodyParts: ['upper'] },
+        goals: { primary: 'strength', priority: 'primary' },
         experienceLevel: 'intermediate',
         intensity: 'high',
         equipment: { preset: 'full_gym', inventory: fullGymInventory },
         time: { minutesPerSession: 45 }
-      }
+      })
     },
     {
       title: `${DEV_TEMPLATE_PREFIX}Lower Hypertrophy`,
-      focus: 'lower',
-      style: 'hypertrophy',
+      focus: 'lower' as FocusArea,
+      style: 'hypertrophy' as Goal,
       experience_level: 'beginner',
       intensity: 'moderate',
       equipment: { preset: 'full_gym', inventory: fullGymInventory },
-      template_inputs: {
+      template_inputs: normalizePlanInput({
+        intent: { mode: 'body_part', bodyParts: ['lower'] },
+        goals: { primary: 'hypertrophy', priority: 'primary' },
         experienceLevel: 'beginner',
         intensity: 'moderate',
         equipment: { preset: 'full_gym', inventory: fullGymInventory },
         time: { minutesPerSession: 45 }
-      }
+      })
     },
     {
       title: `${DEV_TEMPLATE_PREFIX}Full Body Endurance`,
-      focus: 'full_body',
-      style: 'endurance',
+      focus: 'full_body' as FocusArea,
+      style: 'endurance' as Goal,
       experience_level: 'beginner',
       intensity: 'low',
       equipment: { preset: 'full_gym', inventory: fullGymInventory },
-      template_inputs: {
+      template_inputs: normalizePlanInput({
+        intent: { mode: 'body_part', bodyParts: ['full_body'] },
+        goals: { primary: 'endurance', priority: 'primary' },
         experienceLevel: 'beginner',
         intensity: 'low',
         equipment: { preset: 'full_gym', inventory: fullGymInventory },
         time: { minutesPerSession: 45 }
-      }
+      })
     },
     {
-      title: `${DEV_TEMPLATE_PREFIX}Yoga`,
-      focus: 'mobility',
-      style: 'general_fitness',
+      title: `${DEV_TEMPLATE_PREFIX}Yoga Flow`,
+      focus: 'mobility' as FocusArea,
+      style: 'general_fitness' as Goal,
       experience_level: 'beginner',
       intensity: 'low',
-      equipment: { preset: 'home_minimal', inventory: { ...fullGymInventory, machines: {} } },
-      template_inputs: {
+      equipment: { preset: 'home_minimal', inventory: { ...fullGymInventory, machines: { cable: false, leg_press: false, treadmill: false, rower: false } } },
+      template_inputs: normalizePlanInput({
+        intent: { mode: 'style', style: 'general_fitness' },
+        goals: { primary: 'general_fitness', priority: 'primary' },
         experienceLevel: 'beginner',
         intensity: 'low',
-        equipment: { preset: 'home_minimal', inventory: { ...fullGymInventory, machines: {} } },
+        equipment: { preset: 'home_minimal', inventory: { ...fullGymInventory, machines: { cable: false, leg_press: false, treadmill: false, rower: false } } },
         time: { minutesPerSession: 30 }
-      }
+      })
     }
   ]
 
@@ -133,6 +147,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         name: 'Bench Press',
         primaryMuscle: 'chest',
         secondaryMuscles: ['triceps', 'shoulders'],
+        metricProfile: 'strength',
         sets: [
           { reps: 5, weight: 185, weightUnit: 'lb', rpe: 8 },
           { reps: 5, weight: 185, weightUnit: 'lb', rpe: 8.5 },
@@ -140,21 +155,23 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         ]
       },
       {
-        name: 'Bent-Over Row',
+        name: 'Dumbbell Row',
         primaryMuscle: 'back',
         secondaryMuscles: ['biceps'],
+        metricProfile: 'strength',
         sets: [
-          { reps: 8, weight: 155, weightUnit: 'lb', rpe: 7.5 },
-          { reps: 8, weight: 155, weightUnit: 'lb', rpe: 8 },
-          { reps: 8, weight: 155, weightUnit: 'lb', rpe: 8.5 }
+          { reps: 8, weight: 60, weightUnit: 'lb', rpe: 7.5 },
+          { reps: 8, weight: 60, weightUnit: 'lb', rpe: 8 },
+          { reps: 8, weight: 60, weightUnit: 'lb', rpe: 8.5 }
         ]
       }
     ],
     1: [
       {
-        name: 'Back Squat',
+        name: 'Barbell Back Squat',
         primaryMuscle: 'quads',
         secondaryMuscles: ['glutes', 'hamstrings'],
+        metricProfile: 'strength',
         sets: [
           { reps: 8, weight: 225, weightUnit: 'lb', rpe: 8 },
           { reps: 8, weight: 225, weightUnit: 'lb', rpe: 8.5 },
@@ -165,6 +182,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         name: 'Romanian Deadlift',
         primaryMuscle: 'hamstrings',
         secondaryMuscles: ['glutes'],
+        metricProfile: 'strength',
         sets: [
           { reps: 10, weight: 185, weightUnit: 'lb', rpe: 7.5 },
           { reps: 10, weight: 185, weightUnit: 'lb', rpe: 8 },
@@ -177,6 +195,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         name: 'Kettlebell Swing',
         primaryMuscle: 'glutes',
         secondaryMuscles: ['hamstrings', 'core', 'shoulders'],
+        metricProfile: 'strength',
         sets: [
           { reps: 15, weight: 35, weightUnit: 'lb', rpe: 7 },
           { reps: 15, weight: 35, weightUnit: 'lb', rpe: 7.5 },
@@ -187,10 +206,11 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         name: 'Plank',
         primaryMuscle: 'core',
         secondaryMuscles: ['shoulders', 'glutes'],
+        metricProfile: 'timed_strength',
         sets: [
-          { reps: 45, weight: 0, weightUnit: 'lb', rpe: 6 },
-          { reps: 45, weight: 0, weightUnit: 'lb', rpe: 6.5 },
-          { reps: 45, weight: 0, weightUnit: 'lb', rpe: 7 }
+          { reps: null, weight: 0, weightUnit: 'lb', rpe: 6, durationSeconds: 45 },
+          { reps: null, weight: 0, weightUnit: 'lb', rpe: 6.5, durationSeconds: 45 },
+          { reps: null, weight: 0, weightUnit: 'lb', rpe: 7, durationSeconds: 45 }
         ]
       }
     ],
@@ -199,9 +219,18 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         name: 'Yoga',
         primaryMuscle: 'yoga',
         secondaryMuscles: ['core', 'full_body'],
+        metricProfile: 'yoga_session',
         sets: [
-          { reps: null, weight: null, weightUnit: 'lb', rpe: 6, durationSeconds: 600 },
-          { reps: null, weight: null, weightUnit: 'lb', rpe: 7, durationSeconds: 600 }
+          { reps: null, weight: null, weightUnit: 'lb', rir: 6, durationSeconds: 900, extraMetrics: { style: 'Vinyasa', focus: 'Flow' } }
+        ]
+      },
+      {
+        name: 'Stretching',
+        primaryMuscle: 'full_body',
+        secondaryMuscles: ['core'],
+        metricProfile: 'mobility_session',
+        sets: [
+          { reps: null, weight: null, weightUnit: 'lb', rir: 4, durationSeconds: 600, extraMetrics: { target_area: 'Hips' } }
         ]
       }
     ]
@@ -217,12 +246,30 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     const progressFactor = 0.85 + (1 - daysAgo / 72) * 0.25 // More progression range
     const exercises = baseExercises.map((ex) => ({
       ...ex,
-      sets: ex.sets.map((s) => ({
-        ...s,
-        weight: typeof s.weight === 'number' && s.weight > 0 ? Math.max(1, Math.round((s.weight * progressFactor) / 5) * 5) : s.weight,
-        reps: typeof s.reps === 'number' ? s.reps + (Math.random() > 0.7 ? 1 : 0) : s.reps,
-        rpe: Math.min(10, Math.max(6, (s.rpe || 7) + (Math.random() * 2 - 0.5)))
-      }))
+      sets: ex.sets.map((s) => {
+        const setUpdate: any = {
+          ...s,
+          weight: typeof s.weight === 'number' && s.weight > 0 ? Math.max(1, Math.round((s.weight * progressFactor) / 5) * 5) : s.weight,
+          reps: typeof s.reps === 'number' ? s.reps + (Math.random() > 0.7 ? 1 : 0) : s.reps,
+          durationSeconds: typeof s.durationSeconds === 'number' ? Math.round(s.durationSeconds * (0.9 + Math.random() * 0.2)) : null
+        };
+
+        const isYogaOrCardio = ex.metricProfile === 'yoga_session' || ex.metricProfile === 'cardio_session' || ex.metricProfile === 'mobility_session';
+
+        if (isYogaOrCardio) {
+          // Yoga/Cardio effort is 1-10, stored in RPE
+          setUpdate.rpe = Math.min(10, Math.max(1, Math.round((s.rir || s.rpe || 6) + (Math.random() * 4 - 2))));
+          setUpdate.rir = null;
+        } else if (typeof s.rir === 'number') {
+          setUpdate.rir = Math.min(10, Math.max(1, Math.round(s.rir + (Math.random() * 2 - 1))));
+          setUpdate.rpe = null;
+        } else if (typeof s.rpe === 'number') {
+          setUpdate.rpe = Math.min(10, Math.max(6, (s.rpe || 7) + (Math.random() * 2 - 0.5)));
+          setUpdate.rir = null;
+        }
+
+        return setUpdate;
+      })
     }))
 
     sessionSeeds.push({
@@ -279,6 +326,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     exercise_name: string
     primary_muscle: string
     secondary_muscles: string[]
+    metric_profile: string
     order_index: number
   }> = []
 
@@ -291,6 +339,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         exercise_name: exercise.name,
         primary_muscle: exercise.primaryMuscle,
         secondary_muscles: exercise.secondaryMuscles ?? [],
+        metric_profile: exercise.metricProfile ?? 'strength',
         order_index: index
       })
     })
@@ -322,11 +371,13 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     reps: number | null
     weight: number | null
     rpe: number | null
+    rir: number | null
     completed: boolean
     performed_at: string
     weight_unit: 'lb' | 'kg'
     duration_seconds?: number | null
-    extras?: Record<string, string | null> | null
+    extras: Record<string, string | null>
+    extra_metrics: Record<string, unknown>
   }> = []
 
   sessionExercises?.forEach((exerciseRow) => {
@@ -341,8 +392,10 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         reps: set.reps ?? null,
         weight: set.weight ?? null,
         rpe: set.rpe ?? null,
+        rir: set.rir ?? null,
         duration_seconds: set.durationSeconds ?? null,
         extras: set.extras ?? {},
+        extra_metrics: set.extraMetrics ?? {},
         completed: true,
         performed_at: performedAt,
         weight_unit: set.weightUnit
@@ -363,17 +416,18 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
   let readinessCount = 0
   if (sessions?.length) {
     const readinessRows = sessions.map((session, index) => {
-      // Simulate varied readiness data
-      // Cycles slightly based on index to show trends
-      const baseScore = 65 + (index % 3) * 10 + Math.floor(Math.random() * 15)
-      const sleep = Math.max(1, Math.min(5, Math.floor(3 + Math.random() * 2.5 - (index % 2) * 0.5)))
-      const soreness = Math.max(1, Math.min(5, Math.floor(2 + Math.random() * 3 - (index % 2))))
-      const stress = Math.max(1, Math.min(5, Math.floor(2 + Math.random() * 3)))
-      const motivation = Math.max(1, Math.min(5, Math.floor(3 + Math.random() * 2)))
+      // Simulate varied readiness data across the entire 0-100 spectrum
+      // We'll use a sine wave + random to create some "cycles" of fatigue/recovery
+      const cycle = Math.sin(index / 3) * 30 // -30 to +30
+      const base = 50 + cycle
+      const score = Math.min(100, Math.max(0, Math.round(base + Math.random() * 20 - 10)))
       
-      let level = 'steady'
-      if (baseScore < 60) level = 'low'
-      if (baseScore > 85) level = 'high'
+      const sleep = Math.max(1, Math.min(5, Math.round((score / 20))))
+      const soreness = Math.max(1, Math.min(5, Math.round(6 - (score / 20))))
+      const stress = Math.max(1, Math.min(5, Math.round(6 - (score / 20))))
+      const motivation = Math.max(1, Math.min(5, Math.round((score / 20))))
+      
+      const level = getReadinessLevel(score)
 
       return {
         session_id: session.id,
@@ -383,7 +437,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         muscle_soreness: soreness,
         stress_level: stress,
         motivation: motivation,
-        readiness_score: baseScore,
+        readiness_score: score,
         readiness_level: level
       }
     })

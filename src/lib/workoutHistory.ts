@@ -80,7 +80,6 @@ export const buildWorkoutHistoryEntry = (template: WorkoutTemplateDraft, remoteI
     focus: template.focus,
     style: template.style,
     intensity: template.inputs.intensity,
-    minutes: template.inputs.time.minutesPerSession,
     fallback: template.title
   }),
   createdAt: new Date().toISOString(),

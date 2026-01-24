@@ -313,21 +313,22 @@ export default function WorkoutSummaryPage() {
               {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
             </p>
             <div className="mt-3 flex items-center gap-3">
-                              <div className="flex items-center gap-2 rounded-lg bg-[var(--color-surface-muted)] px-3 py-1.5">
-                                <span className="text-xs font-medium text-subtle">Body weight:</span>
-                                <input
-                                  type="text"
-                                  inputMode="decimal"
-                                  step="0.1"
-                                  placeholder={session.template?.template_inputs?.equipment?.inventory?.barbell?.available ? "lb" : "kg"}
-                                  value={session.body_weight_lb ?? ''}
-                                  onChange={(e) => handleBodyWeightUpdate(e.target.value)}
-                                  className="w-16 bg-transparent text-sm font-semibold text-strong outline-none"
-                                />
-                                <span className="text-[10px] text-subtle">
-                                  {session.template?.template_inputs?.equipment?.inventory?.barbell?.available ? "lb" : "kg"}
-                                </span>
-                              </div>            </div>
+              <div className="flex items-center gap-2 rounded-lg bg-[var(--color-surface-muted)] px-3 py-1.5">
+                <span className="text-xs font-medium text-subtle">Body weight:</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  step="0.1"
+                  placeholder={session.template?.template_inputs?.equipment?.inventory?.barbell?.available ? "lb" : "kg"}
+                  value={session.body_weight_lb ?? ''}
+                  onChange={(e) => handleBodyWeightUpdate(e.target.value)}
+                  className="w-16 bg-transparent text-sm font-semibold text-strong outline-none"
+                />
+                <span className="text-[10px] text-subtle">
+                  {session.template?.template_inputs?.equipment?.inventory?.barbell?.available ? "lb" : "kg"}
+                </span>
+              </div>
+            </div>
             {(intensityLabel || parsedNotes?.minutesAvailable) && (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
                 {intensityLabel && <span className="badge-neutral">Intensity: {intensityLabel}</span>}

@@ -1,4 +1,4 @@
-import { Exercise } from '@/types/domain';
+import { Exercise, MetricProfile } from '@/types/domain';
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
 
@@ -161,4 +161,33 @@ export const isTimeBasedExercise = (exerciseName: string, targetReps?: string | 
     }
   }
   return false;
+};
+
+export const getMetricProfile = (exercise: Partial<Exercise>): MetricProfile => {
+  if (exercise.metricProfile) return exercise.metricProfile;
+  
+  const name = (exercise.name ?? '').toLowerCase();
+  
+  if (name.includes('yoga') || name.includes('flow')) return 'yoga_session';
+  
+  if (
+    name.includes('run') || 
+    name.includes('bike') || 
+    name.includes('row') || 
+    name.includes('elliptical') || 
+    name.includes('cycling') || 
+    name.includes('cardio') || 
+    name.includes('skipping')
+  ) return 'cardio_session';
+  
+  if (name.includes('stretch') || name.includes('mobility')) return 'mobility_session';
+  
+  if (
+    name.includes('plank') || 
+    name.includes('wall sit') || 
+    name.includes('hold') || 
+    name.includes('carry')
+  ) return 'timed_strength';
+  
+  return 'strength';
 };

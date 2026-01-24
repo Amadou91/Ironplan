@@ -77,23 +77,14 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 
 export const mapRirToRpe = (rir: number) => {
   if (!Number.isFinite(rir)) return null
-  const rounded = Math.round(rir)
-  if (rounded <= 0) return 10
-  if (rounded === 1) return 9
-  if (rounded === 2) return 8
-  if (rounded === 3) return 7
-  return 5.5
+  // standard RIR to effort mapping: 0 RIR = 10 effort, 10 RIR = 0 effort
+  return clamp(10 - rir, 0, 10)
 }
 
 export const mapRpeToRir = (rpe: number) => {
-  if (!Number.isFinite(rpe)) return null
+  if (!Number.isFinite(rpe) || rpe < 5) return null
   if (rpe >= 10) return 0
-  if (rpe >= 9.5) return 0.5
-  if (rpe >= 9) return 1
-  if (rpe >= 8) return 2
-  if (rpe >= 7) return 3
-  if (rpe >= 5.5) return 4
-  return null
+  return 10 - rpe
 }
 
 export const computeSetTonnage = (set: MetricsSet) => {
@@ -158,12 +149,8 @@ export const computeSetLoad = (set: MetricsSet) => {
   if (typeof set.durationSeconds === 'number' && set.durationSeconds > 0) {
     const minutes = set.durationSeconds / 60
     const effort = getEffortScore(set)
-    // If no effort logged, default to 1 to just count minutes, or 0? 
-    // User said "intensity-weighted minutes". If intensity is 0, it's 0.
-    // But let's assume if they didn't log intensity, we count minutes (effort 1) or moderate (effort 5)?
-    // Let's stick to strict formula: duration * intensity. If intensity is null, treat as 0 or maybe unweighted?
-    // Given "Intensity (1-10)" is primary, we expect it.
-    return minutes * (typeof effort === 'number' ? effort : 0)
+    // Fallback to 3.0 (moderate-low) if no effort logged, so session is not ignored in ACWR
+    return minutes * (typeof effort === 'number' ? effort : 3.0)
   }
 
   return 0

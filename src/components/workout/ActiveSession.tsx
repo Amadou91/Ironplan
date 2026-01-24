@@ -4,18 +4,23 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { createClient } from '@/lib/supabase/client';
 import { SetLogger } from './SetLogger';
-import { Plus, Clock } from 'lucide-react';
-import type { Intensity, SessionExercise, WeightUnit, WorkoutImpact, WorkoutSession, WorkoutSet, EquipmentInventory } from '@/types/domain';
-import { enhanceExerciseData, isTimeBasedExercise, toMuscleLabel } from '@/lib/muscle-utils';
+import { Plus, Clock, RefreshCcw, X, Trash2, Search } from 'lucide-react';
+import type { Intensity, SessionExercise, WeightUnit, WorkoutImpact, WorkoutSession, WorkoutSet, EquipmentInventory, Exercise } from '@/types/domain';
+import { enhanceExerciseData, isTimeBasedExercise, toMuscleLabel, toMuscleSlug, getMetricProfile } from '@/lib/muscle-utils';
 import { EXERCISE_LIBRARY } from '@/lib/generator';
 import { buildWeightOptions, equipmentPresets } from '@/lib/equipment';
 import { normalizePreferences } from '@/lib/preferences';
+import { convertWeight, roundWeight } from '@/lib/units';
 import type { ReadinessSurvey } from '@/lib/training-metrics';
+import { getSwapSuggestions } from '@/lib/exercise-swap';
+import { fetchExerciseHistory, type ExerciseHistoryPoint } from '@/lib/session-history';
 
 type ActiveSessionProps = {
   sessionId?: string | null;
   equipmentInventory?: EquipmentInventory | null;
   onBodyWeightChange?: (weight: number | null) => void;
+  focus?: FocusArea | null;
+  style?: Goal | null;
 };
 
 type SessionPayload = {
@@ -105,12 +110,17 @@ const getSessionIntensity = (notes?: SessionNotes | null): Intensity | null => {
   return 'moderate';
 };
 
-export default function ActiveSession({ sessionId, equipmentInventory, onBodyWeightChange }: ActiveSessionProps) {
-  const { activeSession, addSet, removeSet, updateSet, startSession } = useWorkoutStore();
+export default function ActiveSession({ sessionId, equipmentInventory, onBodyWeightChange, focus, style }: ActiveSessionProps) {
+  const { activeSession, addSet, removeSet, updateSet, startSession, replaceSessionExercise, removeSessionExercise, addSessionExercise } = useWorkoutStore();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [swappingExIdx, setSwappingExIdx] = useState<number | null>(null);
+  const [isAddingExercise, setIsAddingExercise] = useState(false);
+  const [exerciseSearch, setExerciseSearch] = useState('');
+  const [sessionBodyWeight, setSessionBodyWeight] = useState<string>('');
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null);
   const [preferredUnit, setPreferredUnit] = useState<WeightUnit>('lb');
   const [exerciseTargets, setExerciseTargets] = useState<Record<string, GeneratedExerciseTarget>>({});
+  const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistoryPoint[]>([]);
   const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; label: string } | null>(null);
   const restIntervalRef = useRef<number | null>(null);
   const supabase = createClient();
@@ -125,7 +135,6 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
     () => activeSession?.exercises.map((exercise) => exercise.name).join('|') ?? '',
     [activeSession?.exercises]
   );
-  const [sessionBodyWeight, setSessionBodyWeight] = useState<string>('');
   const resolvedInventory = useMemo(
     () => equipmentInventory ?? equipmentPresets.full_gym,
     [equipmentInventory]
@@ -133,7 +142,10 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
 
   const mapSession = useCallback((payload: SessionPayload): WorkoutSession => {
     if (payload.body_weight_lb) {
-      setSessionBodyWeight(String(payload.body_weight_lb));
+      const displayWeight = preferredUnit === 'kg' 
+        ? roundWeight(convertWeight(payload.body_weight_lb, 'lb', 'kg')) 
+        : payload.body_weight_lb;
+      setSessionBodyWeight(String(displayWeight));
       onBodyWeightChange?.(payload.body_weight_lb);
     }
     return {
@@ -173,11 +185,11 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
               distance: set.distance ?? undefined,
               distanceUnit: set.distance_unit ?? undefined,
               extras: set.extras ?? undefined,
-              extraMetrics: set.extra_metrics ?? undefined
+              extra_metrics: set.extra_metrics ?? undefined
             }))
         }))
     };
-  }, []);
+  }, [onBodyWeightChange, preferredUnit]);
 
   useEffect(() => {
     if (activeSession || !sessionId) return;
@@ -222,6 +234,58 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
     };
     loadProfileWeight();
   }, [activeSession?.userId, supabase]);
+
+  useEffect(() => {
+    if (!activeSession?.userId) return;
+    const loadHistory = async () => {
+      const history = await fetchExerciseHistory(supabase, activeSession.userId);
+      setExerciseHistory(history);
+    };
+    loadHistory();
+  }, [activeSession?.userId, supabase]);
+
+  const getDefaultWeightForExercise = useCallback((exerciseName: string) => {
+    const searchName = exerciseName.toLowerCase();
+    
+    // 1. Try exact match
+    const exactMatch = exerciseHistory.find(h => h.exerciseName.toLowerCase() === searchName);
+    if (exactMatch) {
+      return roundWeight(convertWeight(exactMatch.weight, (exactMatch.weightUnit as WeightUnit) || 'lb', preferredUnit));
+    }
+
+    // 2. Try movement pattern match
+    const libMatch = exerciseLibraryByName.get(searchName);
+    if (libMatch?.movementPattern) {
+      const patternMatch = exerciseHistory.find(h => {
+        const hLib = exerciseLibraryByName.get(h.exerciseName.toLowerCase());
+        return hLib?.movementPattern === libMatch.movementPattern;
+      });
+      if (patternMatch) {
+        return roundWeight(convertWeight(patternMatch.weight, (patternMatch.weightUnit as WeightUnit) || 'lb', preferredUnit));
+      }
+    }
+
+    return null;
+  }, [exerciseHistory, exerciseLibraryByName, preferredUnit]);
+
+  useEffect(() => {
+    if (!activeSession || exerciseHistory.length === 0) return;
+
+    activeSession.exercises.forEach((exercise, exIdx) => {
+      exercise.sets.forEach((set, setIdx) => {
+        if (!set.completed && (set.weight === '' || set.weight === null)) {
+          const defaultWeight = getDefaultWeightForExercise(exercise.name) ?? profileWeightLb;
+          if (defaultWeight !== null) {
+            updateSet(exIdx, setIdx, 'weight', defaultWeight);
+            // Also ensure weight unit is set
+            if (!set.weightUnit) {
+              updateSet(exIdx, setIdx, 'weightUnit', preferredUnit);
+            }
+          }
+        }
+      });
+    });
+  }, [activeSession?.id, activeSession?.exercises.length, exerciseHistory, getDefaultWeightForExercise, profileWeightLb, updateSet, preferredUnit]);
 
   useEffect(() => {
     if (!activeSession?.id) return;
@@ -303,8 +367,8 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
         duration_seconds: typeof set.durationSeconds === 'number' ? set.durationSeconds : null,
         distance: typeof set.distance === 'number' ? set.distance : null,
         distance_unit: set.distanceUnit ?? null,
-        extras: set.extras ?? null,
-        extra_metrics: set.extraMetrics ?? null
+        extras: set.extras ?? {},
+        extra_metrics: set.extraMetrics ?? {}
       };
 
       if (set.id && !set.id.startsWith('temp-')) {
@@ -358,7 +422,7 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
 
     updates.forEach(([key, val]) => updateSet(exIdx, setIdx, key, val));
 
-    if (field === 'completed' && normalizedValue === true) {
+    if (field === 'completed' && normalizedValue === true && exercise.metricProfile !== 'yoga_session') {
       startRestTimer(getRestSeconds(exercise), exercise.name);
     }
 
@@ -377,9 +441,10 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
 
   const handleAddSet = async (exIdx: number) => {
     if (!activeSession) return;
-    const newSet = addSet(exIdx, preferredUnit);
-    if (!newSet) return;
     const exercise = activeSession.exercises[exIdx];
+    const defaultWeight = getDefaultWeightForExercise(exercise.name) ?? profileWeightLb;
+    const newSet = addSet(exIdx, preferredUnit, defaultWeight);
+    if (!newSet) return;
     try {
       await persistSet(
         exercise,
@@ -407,6 +472,156 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
       }
     }
   };
+
+  const handleSwapExercise = async (exIdx: number, newExercise: Exercise) => {
+    if (!activeSession) return;
+    const oldExercise = activeSession.exercises[exIdx];
+    if (!oldExercise.id) return;
+
+    try {
+      const metricProfile = getMetricProfile(newExercise);
+      const updates = {
+        exercise_name: newExercise.name,
+        primary_muscle: toMuscleSlug(newExercise.primaryMuscle ?? 'full_body'),
+        secondary_muscles: newExercise.secondaryMuscles?.map(m => toMuscleSlug(m)) ?? [],
+        metric_profile: metricProfile
+      };
+
+      const { error } = await supabase
+        .from('session_exercises')
+        .update(updates)
+        .eq('id', oldExercise.id);
+
+      if (error) throw error;
+
+      replaceSessionExercise(exIdx, {
+        name: newExercise.name,
+        primaryMuscle: toMuscleLabel(newExercise.primaryMuscle ?? 'Full Body'),
+        secondaryMuscles: (newExercise.secondaryMuscles ?? []).map(m => toMuscleLabel(m)),
+        metricProfile: metricProfile
+      });
+
+      setSwappingExIdx(null);
+    } catch (error) {
+      console.error('Failed to swap exercise', error);
+      setErrorMessage('Unable to swap exercise. Please try again.');
+    }
+  };
+
+  const handleDeleteExercise = async (exIdx: number) => {
+    if (!activeSession) return;
+    const exercise = activeSession.exercises[exIdx];
+    if (!confirm(`Remove "${exercise.name}" from this session?`)) return;
+
+    try {
+      if (exercise.id && !exercise.id.startsWith('temp-')) {
+        const { error } = await supabase
+          .from('session_exercises')
+          .delete()
+          .eq('id', exercise.id);
+
+        if (error) throw error;
+      }
+
+      removeSessionExercise(exIdx);
+    } catch (error) {
+      console.error('Failed to delete exercise', error);
+      setErrorMessage('Unable to remove exercise. Please try again.');
+    }
+  };
+
+  const handleAddExercise = async (newExercise: Exercise) => {
+    if (!activeSession) return;
+
+    try {
+      const metricProfile = getMetricProfile(newExercise);
+      const payload = {
+        session_id: activeSession.id,
+        exercise_name: newExercise.name,
+        primary_muscle: toMuscleSlug(newExercise.primaryMuscle ?? 'full_body'),
+        secondary_muscles: newExercise.secondaryMuscles?.map(m => toMuscleSlug(m)) ?? [],
+        metric_profile: metricProfile,
+        order_index: activeSession.exercises.length
+      };
+
+      const { data, error } = await supabase
+        .from('session_exercises')
+        .insert(payload)
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
+      addSessionExercise({
+        id: data.id,
+        sessionId: activeSession.id,
+        name: newExercise.name,
+        primaryMuscle: toMuscleLabel(newExercise.primaryMuscle ?? 'Full Body'),
+        secondaryMuscles: (newExercise.secondaryMuscles ?? []).map(m => toMuscleLabel(m)),
+        metricProfile: metricProfile,
+        sets: [],
+        orderIndex: activeSession.exercises.length
+      });
+
+      setIsAddingExercise(false);
+      setExerciseSearch('');
+    } catch (error) {
+      console.error('Failed to add exercise', error);
+      setErrorMessage('Unable to add exercise. Please try again.');
+    }
+  };
+
+  const filteredLibrary = useMemo(() => {
+    const search = exerciseSearch.toLowerCase();
+    
+    // Base filtering on relevance to session
+    let baseLibrary = EXERCISE_LIBRARY;
+    
+    if (!search) {
+      if (style === 'cardio' || focus === 'cardio') {
+        baseLibrary = EXERCISE_LIBRARY.filter(ex => ex.focus === 'cardio' || ex.primaryMuscle === 'cardio' || ex.metricProfile === 'cardio_session');
+      } else if (style === 'general_fitness' || focus === 'mobility') {
+        baseLibrary = EXERCISE_LIBRARY.filter(ex => ex.focus === 'mobility' || ex.primaryMuscle === 'yoga' || ex.metricProfile === 'yoga_session' || ex.metricProfile === 'mobility_session');
+      } else if (focus && focus !== 'full_body') {
+        // For specific muscle focus, prioritize that muscle but also allow general strength
+        const muscleRelevant = EXERCISE_LIBRARY.filter(ex => 
+          ex.primaryMuscle?.toLowerCase().includes(focus.toLowerCase()) || 
+          ex.focus?.toLowerCase().includes(focus.toLowerCase())
+        );
+        if (muscleRelevant.length > 0) {
+          baseLibrary = muscleRelevant;
+        }
+      }
+    }
+
+    if (!search) return baseLibrary.slice(0, 15);
+    
+    return baseLibrary.filter(ex => 
+      ex.name.toLowerCase().includes(search) || 
+      ex.primaryMuscle?.toLowerCase().includes(search)
+    ).slice(0, 15);
+  }, [exerciseSearch, focus, style]);
+
+  const swapSuggestions = useMemo(() => {
+    if (swappingExIdx === null || !activeSession) return [];
+    const currentSessionEx = activeSession.exercises[swappingExIdx];
+    const libraryMatch = exerciseLibraryByName.get(currentSessionEx.name.toLowerCase());
+    if (!libraryMatch) return [];
+
+    const sessionExsAsLibrary = activeSession.exercises
+      .map(ex => exerciseLibraryByName.get(ex.name.toLowerCase()))
+      .filter((ex): ex is Exercise => Boolean(ex));
+
+    const { suggestions } = getSwapSuggestions({
+      current: libraryMatch,
+      sessionExercises: sessionExsAsLibrary,
+      inventory: resolvedInventory,
+      library: exerciseLibrary,
+      limit: 6
+    });
+
+    return suggestions;
+  }, [swappingExIdx, activeSession, exerciseLibrary, exerciseLibraryByName, resolvedInventory]);
 
   const heading = useMemo(() => {
     if (!activeSession) return 'Session Active';
@@ -492,7 +707,13 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
 
     const weightVal = parseFloat(value);
     const validWeight = !isNaN(weightVal) ? weightVal : null;
-    onBodyWeightChange?.(validWeight);
+    
+    // Convert to LB for internal state and DB storage
+    const lbWeight = (validWeight !== null && preferredUnit === 'kg') 
+      ? convertWeight(validWeight, 'kg', 'lb') 
+      : validWeight;
+
+    onBodyWeightChange?.(lbWeight);
 
     if (validWeight !== null) {
       if (debounceTimerRef.current) {
@@ -501,7 +722,7 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
 
       debounceTimerRef.current = setTimeout(async () => {
         try {
-          await supabase.from('sessions').update({ body_weight_lb: weightVal }).eq('id', activeSession.id);
+          await supabase.from('sessions').update({ body_weight_lb: lbWeight }).eq('id', activeSession.id);
         } catch (error) {
           console.error('Failed to update body weight', error);
         }
@@ -534,8 +755,10 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
     if (target.reps !== undefined && target.reps !== null && target.reps !== '') {
       parts.push(`${target.reps} reps`);
     }
-    if (typeof target.rpe === 'number') parts.push(`RPE ${target.rpe}`);
-    if (typeof target.restSeconds === 'number') parts.push(`${formatRestTime(target.restSeconds)} rest`);
+    if (typeof target.rpe === 'number' && exercise.metricProfile !== 'yoga_session' && exercise.metricProfile !== 'cardio_session' && exercise.metricProfile !== 'mobility_session') {
+      parts.push(`RPE ${target.rpe}`);
+    }
+    if (typeof target.restSeconds === 'number' && exercise.metricProfile !== 'yoga_session') parts.push(`${formatRestTime(target.restSeconds)} rest`);
     return parts.length ? parts.join(' · ') : null;
   };
 
@@ -580,14 +803,15 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
                 <div className="flex items-center gap-2 border-l border-[var(--color-border)] pl-4">
                   <span className="font-medium text-muted">Weight:</span>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     step="0.1"
-                    placeholder="lb"
+                    placeholder={preferredUnit}
                     value={sessionBodyWeight}
                     onChange={(e) => handleBodyWeightUpdate(e.target.value)}
                     className="w-16 rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-center font-semibold text-strong outline-none transition-all focus:bg-[var(--color-surface)] focus:ring-1 focus:ring-[var(--color-primary)]"
                   />
-                  <span className="text-[10px]">lb</span>
+                  <span className="text-[10px]">{preferredUnit}</span>
                 </div>
               </div>
             )}
@@ -623,7 +847,26 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
           <div key={`${exercise.name}-${exIdx}`} className="surface-card-muted p-4 md:p-6">
             <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
               <div className="min-w-[220px] flex-1">
-                <h3 className="text-lg font-semibold text-strong">{exercise.name}</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-strong">{exercise.name}</h3>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setSwappingExIdx(exIdx)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent/80 transition-colors"
+                    >
+                      <RefreshCcw size={14} />
+                      Swap
+                    </button>
+                    <button
+                      onClick={() => handleDeleteExercise(exIdx)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-subtle hover:text-[var(--color-danger)] transition-colors"
+                      title="Remove exercise"
+                    >
+                      <Trash2 size={14} />
+                      Remove
+                    </button>
+                  </div>
+                </div>
                 <div className="flex gap-2 mt-2 flex-wrap">
                   <span className="badge-accent">
                     {exercise.primaryMuscle}
@@ -675,7 +918,104 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
             </button>
           </div>
         ))}
+
+        <button
+          onClick={() => setIsAddingExercise(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--color-primary-border)] py-4 text-sm font-semibold text-[var(--color-primary-strong)] transition-all hover:bg-[var(--color-primary-soft)]"
+        >
+          <Search size={18} /> Add Workout
+        </button>
       </div>
+
+      {isAddingExercise && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="surface-elevated w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)]">
+              <div>
+                <h3 className="font-semibold text-strong">Add Workout</h3>
+                <p className="text-xs text-subtle">Search and add a new exercise to your session</p>
+              </div>
+              <button onClick={() => setIsAddingExercise(false)} className="text-muted hover:text-strong">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-4 border-b border-[var(--color-border)]">
+              <input
+                type="text"
+                placeholder="Search exercises..."
+                value={exerciseSearch}
+                onChange={(e) => setExerciseSearch(e.target.value)}
+                className="input-base"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {filteredLibrary.map((exercise) => (
+                <button
+                  key={exercise.name}
+                  onClick={() => handleAddExercise(exercise)}
+                  className="w-full text-left p-3 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]/30 transition-all"
+                >
+                  <p className="font-semibold text-sm text-strong">{exercise.name}</p>
+                  <p className="text-[10px] text-muted uppercase tracking-wider">{toMuscleLabel(exercise.primaryMuscle ?? '')}</p>
+                </button>
+              ))}
+              {filteredLibrary.length === 0 && (
+                <p className="py-8 text-center text-sm text-muted">No exercises found.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {swappingExIdx !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="surface-elevated w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)]">
+              <div>
+                <h3 className="font-semibold text-strong">Swap Exercise</h3>
+                <p className="text-xs text-subtle">Choose an alternative for {activeSession.exercises[swappingExIdx].name}</p>
+              </div>
+              <button onClick={() => setSwappingExIdx(null)} className="text-muted hover:text-strong">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {swapSuggestions.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted">
+                  No suitable alternatives found.
+                </div>
+              ) : (
+                swapSuggestions.map(({ exercise, score }) => (
+                  <button
+                    key={exercise.name}
+                    onClick={() => handleSwapExercise(swappingExIdx, exercise)}
+                    className="w-full text-left p-4 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]/30 transition-all group"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-strong group-hover:text-[var(--color-primary-strong)]">{exercise.name}</span>
+                      <span className="text-[10px] uppercase font-bold tracking-widest text-subtle">Match Score: {score}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="text-[10px] font-medium text-muted uppercase tracking-wider">{toMuscleLabel(exercise.primaryMuscle ?? '')}</span>
+                      {exercise.secondaryMuscles?.slice(0, 2).map(m => (
+                        <span key={m} className="text-[10px] text-subtle uppercase tracking-wider">· {toMuscleLabel(m)}</span>
+                      ))}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface-subtle)]/50">
+              <p className="text-[10px] text-center text-subtle">Swapping ensures your muscle focus and volume calculations remain accurate.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

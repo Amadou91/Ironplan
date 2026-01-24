@@ -74,7 +74,9 @@ export default function WorkoutDetailPage() {
   const isCurrentSessionActive = activeSession?.templateId === template?.id
   const activeSessionLink = activeSession?.templateId
     ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=template`
-    : '/dashboard'
+    : activeSession?.id
+      ? `/workouts/active?sessionId=${activeSession.id}&from=template`
+      : '/dashboard'
 
   if (loading) return <div className="page-shell p-10 text-center text-muted">Loading template...</div>
   if (!template) return <div className="page-shell p-10 text-center text-muted">Template not found.</div>
@@ -83,7 +85,6 @@ export default function WorkoutDetailPage() {
     focus: template.focus,
     style: template.style,
     intensity: template.intensity,
-    minutes: template.template_inputs?.time?.minutesPerSession,
     fallback: template.title
   })
 
@@ -93,7 +94,7 @@ export default function WorkoutDetailPage() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-              <Link href="/workouts" className="transition-colors hover:text-strong">
+              <Link href="/dashboard" className="transition-colors hover:text-strong">
                 Workouts
               </Link>
               <span>/</span>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { WorkoutSet, MetricProfile } from '@/types/domain';
 import { Trash2, Check, Circle } from 'lucide-react';
 import { INTENSITY_RECOMMENDATION, RIR_HELPER_TEXT, RIR_OPTIONS, RPE_OPTIONS } from '@/constants/intensityOptions';
@@ -19,17 +19,17 @@ interface SetLoggerProps {
   repsLabel?: string;
 }
 
-export const SetLogger: React.FC<SetLoggerProps> = ({ 
-  set, 
-  weightOptions, 
-  onUpdate, 
-  onDelete, 
-  onToggleComplete, 
+export const SetLogger: React.FC<SetLoggerProps> = ({
+  set,
+  weightOptions,
+  onUpdate,
+  onDelete,
+  onToggleComplete,
   metricProfile,
-  isCardio = false, 
-  isYoga = false, 
-  isTimeBased = false, 
-  repsLabel = 'Reps' 
+  isCardio = false,
+  isYoga = false,
+  isTimeBased = false,
+  repsLabel = 'Reps'
 }) => {
   const isEditing = !set.completed;
   
@@ -49,8 +49,58 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
     return Number.isNaN(date.getTime()) ? 'Not logged yet' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }, [set.performedAt]);
 
-  const inputClassName = `input-base input-compact text-center ${!isEditing ? 'input-muted' : ''}`;
+  const [weightError, setWeightError] = useState(false);
+  const [repsError, setRepsError] = useState(false);
+
+  const inputClassName = (hasError?: boolean) => `input-base input-compact text-center ${!isEditing ? 'input-muted' : ''} ${hasError ? 'border-[var(--color-danger)] ring-1 ring-[var(--color-danger)]' : ''}`;
   
+  const validateAndUpdate = (field: keyof WorkoutSet, val: string) => {
+    if (val === '') {
+      onUpdate(field, '');
+      if (field === 'weight') setWeightError(false);
+      if (field === 'reps') setRepsError(false);
+      return;
+    }
+
+    // Allow decimals for weight, integers for reps/duration
+    const regex = field === 'weight' ? /^\d*\.?\d*$/ : /^\d*$/;
+    if (regex.test(val)) {
+      const num = Number(val);
+      if (Number.isFinite(num)) {
+        onUpdate(field, num);
+        if (field === 'weight') setWeightError(false);
+        if (field === 'reps') setRepsError(false);
+      }
+    } else {
+      if (field === 'weight') setWeightError(true);
+      if (field === 'reps') setRepsError(true);
+    }
+  };
+
+  const NumericInput = ({ 
+    value, 
+    onChange, 
+    placeholder, 
+    hasError,
+    mode = "decimal" as const
+  }: { 
+    value: string | number; 
+    onChange: (val: string) => void; 
+    placeholder: string;
+    hasError?: boolean;
+    mode?: "decimal" | "numeric";
+  }) => (
+    <input
+      type="text"
+      inputMode={mode}
+      placeholder={placeholder}
+      value={value ?? ''}
+      onChange={(e) => onChange(e.target.value)}
+      className={inputClassName(hasError)}
+      readOnly={!isEditing}
+    />
+  );
+
   // Helpers
   const updateExtra = (key: string, value: unknown) => {
     const currentExtras = (set.extraMetrics as Record<string, unknown>) ?? {};
@@ -62,7 +112,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
     return extras[key];
   };
 
-  const rirValue = typeof set.rir === 'number' ? String(set.rir) : '';
+  const rirValue = (effectiveProfile === 'yoga_session' || effectiveProfile === 'cardio_session' || effectiveProfile === 'mobility_session')
+    ? (typeof set.rpe === 'number' ? String(set.rpe) : '')
+    : (typeof set.rir === 'number' ? String(set.rir) : '');
+
   const weightChoices = useMemo(() => {
     const options = weightOptions ?? [];
     if (typeof set.weight === 'number' && Number.isFinite(set.weight)) {
@@ -138,22 +191,19 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col">
             <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Duration (min)</label>
-            <input
-              type="number"
+            <NumericInput
               placeholder="0"
               value={durationMinutes}
-              onChange={(e) => handleDurationChange(e.target.value)}
-              className={inputClassName}
-              min={0}
-              readOnly={!isEditing}
+              onChange={(val) => handleDurationChange(val)}
+              mode="numeric"
             />
           </div>
           <div className="flex flex-col">
             <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Effort (1-10)</label>
             <select
               value={rirValue}
-              onChange={(e) => onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value))}
-              className={inputClassName}
+              onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))}
+              className={inputClassName()}
               disabled={!isEditing}
             >
               <option value="">Select effort</option>
@@ -164,15 +214,21 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
           </div>
            {/* Extras */}
            <div className="flex flex-col">
-             <label className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-subtle">Style (Optional)</label>
-             <input
-                type="text"
-                placeholder="e.g. Vinyasa"
+             <label className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-subtle">Category</label>
+             <select
                 value={(getExtra('style') as string) ?? ''}
                 onChange={(e) => updateExtra('style', e.target.value)}
-                className={`${inputClassName} text-left px-2`}
-                readOnly={!isEditing}
-             />
+                className={inputClassName()}
+                disabled={!isEditing}
+             >
+                <option value="">Select style</option>
+                <option value="Flow">Flow</option>
+                <option value="Power">Power</option>
+                <option value="Restorative">Restorative</option>
+                <option value="Yin">Yin</option>
+                <option value="Mobility">Mobility</option>
+                <option value="Breathwork">Breathwork</option>
+             </select>
            </div>
            <div className="flex flex-col">
              <label className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-subtle">Focus (Optional)</label>
@@ -181,7 +237,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
                 placeholder="e.g. Hips"
                 value={(getExtra('focus') as string) ?? ''}
                 onChange={(e) => updateExtra('focus', e.target.value)}
-                className={`${inputClassName} text-left px-2`}
+                className={`${inputClassName()} text-left px-2`}
                 readOnly={!isEditing}
              />
            </div>
@@ -198,22 +254,19 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="flex flex-col">
             <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Duration (min)</label>
-            <input
-              type="number"
+            <NumericInput
               placeholder="0"
               value={durationMinutes}
-              onChange={(e) => handleDurationChange(e.target.value)}
-              className={inputClassName}
-              min={0}
-              readOnly={!isEditing}
+              onChange={(val) => handleDurationChange(val)}
+              mode="numeric"
             />
           </div>
           <div className="flex flex-col">
             <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Effort (1-10)</label>
             <select
               value={rirValue}
-              onChange={(e) => onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value))}
-              className={inputClassName}
+              onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))}
+              className={inputClassName()}
               disabled={!isEditing}
             >
               <option value="">Select effort</option>
@@ -224,20 +277,14 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
           </div>
           <div className="flex flex-col">
             <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Distance (km)</label>
-             <input
-                type="number"
+             <NumericInput
                 placeholder="0.0"
                 value={(getExtra('distance_km') as string) ?? set.distance ?? ''}
-                onChange={(e) => {
-                   const val = e.target.value === '' ? '' : Number(e.target.value);
-                   updateExtra('distance_km', val);
-                   // Sync to legacy distance col
-                   onUpdate('distance', val === '' ? null : val);
+                onChange={(val) => {
+                   validateAndUpdate('distance', val);
+                   const num = val === '' ? null : Number(val);
+                   if (!isNaN(num as number)) updateExtra('distance_km', num);
                 }}
-                className={inputClassName}
-                min={0}
-                step={0.1}
-                readOnly={!isEditing}
               />
           </div>
         </div>
@@ -253,14 +300,11 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col">
             <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Duration (min)</label>
-            <input
-              type="number"
+            <NumericInput
               placeholder="0"
               value={durationMinutes}
-              onChange={(e) => handleDurationChange(e.target.value)}
-              className={inputClassName}
-              min={0}
-              readOnly={!isEditing}
+              onChange={(val) => handleDurationChange(val)}
+              mode="numeric"
             />
           </div>
            <div className="flex flex-col">
@@ -268,7 +312,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
             <select
               value={(getExtra('difficulty') as string) ?? ''}
               onChange={(e) => updateExtra('difficulty', e.target.value === '' ? '' : Number(e.target.value))}
-              className={inputClassName}
+              className={inputClassName()}
               disabled={!isEditing}
             >
               <option value="">Select</option>
@@ -284,7 +328,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
                 placeholder="e.g. Hips"
                 value={(getExtra('target_area') as string) ?? ''}
                 onChange={(e) => updateExtra('target_area', e.target.value)}
-                className={`${inputClassName} text-left px-2`}
+                className={`${inputClassName()} text-left px-2`}
                 readOnly={!isEditing}
              />
            </div>
@@ -301,14 +345,11 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col">
             <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Duration (min)</label>
-            <input
-              type="number"
+            <NumericInput
               placeholder="0"
               value={durationMinutes}
-              onChange={(e) => handleDurationChange(e.target.value)}
-              className={inputClassName}
-              min={0}
-              readOnly={!isEditing}
+              onChange={(val) => handleDurationChange(val)}
+              mode="numeric"
             />
           </div>
 
@@ -325,7 +366,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
                         onUpdate('weightUnit', option.unit);
                       }
                     }}
-                    className={inputClassName}
+                    className={inputClassName()}
                     disabled={!isEditing}
                   >
                     <option value="">Select weight</option>
@@ -336,14 +377,11 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
                     ))}
                   </select>
                 ) : (
-                  <input
-                    type="number"
+                  <NumericInput
                     placeholder="0"
                     value={set.weight ?? ''}
-                    onChange={(e) => onUpdate('weight', e.target.value === '' ? '' : Number(e.target.value))}
-                    className={inputClassName}
-                    min={0}
-                    readOnly={!isEditing}
+                    onChange={(val) => validateAndUpdate('weight', val)}
+                    hasError={weightError}
                   />
                 )}
                <div className="mt-1 text-center text-[10px] text-subtle">
@@ -358,7 +396,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
                     const nextValue = event.target.value === '' ? '' : Number(event.target.value);
                     onUpdate('rpe', nextValue);
                   }}
-                  className={inputClassName}
+                  className={inputClassName()}
                   disabled={!isEditing}
                 >
                   <option value="">Select effort</option>
@@ -377,7 +415,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
                   const nextValue = event.target.value === '' ? '' : Number(event.target.value);
                   onUpdate('rir', nextValue);
                 }}
-                className={inputClassName}
+                className={inputClassName()}
                 disabled={!isEditing}
               >
                 <option value="">Select reserve</option>
@@ -416,7 +454,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
                   onUpdate('weightUnit', option.unit);
                 }
               }}
-              className={inputClassName}
+              className={inputClassName()}
               disabled={!isEditing}
             >
               <option value="">Select weight</option>
@@ -427,14 +465,11 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
               ))}
             </select>
           ) : (
-            <input
-              type="number"
+            <NumericInput
               placeholder="0"
               value={set.weight ?? ''}
-              onChange={(e) => onUpdate('weight', e.target.value === '' ? '' : Number(e.target.value))}
-              className={inputClassName}
-              min={0}
-              readOnly={!isEditing}
+              onChange={(val) => validateAndUpdate('weight', val)}
+              hasError={weightError}
             />
           )}
           <div className="mt-1 text-[10px] text-subtle">
@@ -444,14 +479,12 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
 
         <div className="flex flex-col">
           <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">{repsLabel}</label>
-          <input
-            type="number"
+          <NumericInput
             placeholder={repsLabel === 'Reps' ? '0' : '--'}
             value={set.reps ?? ''}
-            onChange={(e) => onUpdate('reps', e.target.value === '' ? '' : Number(e.target.value))}
-            className={inputClassName}
-            min={0}
-            readOnly={!isEditing}
+            onChange={(val) => validateAndUpdate('reps', val)}
+            hasError={repsError}
+            mode={repsLabel === 'Reps' ? 'numeric' : 'decimal'}
           />
         </div>
 
@@ -464,7 +497,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
               onUpdate('rir', nextValue);
               onUpdate('rpe', '');
             }}
-            className={inputClassName}
+            className={inputClassName()}
             disabled={!isEditing}
           >
             <option value="">Select reps left</option>

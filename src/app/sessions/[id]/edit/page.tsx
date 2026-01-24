@@ -110,6 +110,7 @@ export default function SessionEditPage() {
   const params = useParams()
   const supabase = createClient()
   const [session, setSession] = useState<EditableSession | null>(null)
+  const [template, setTemplate] = useState<{ focus: FocusArea; style: Goal } | null>(null)
   const [initialSnapshot, setInitialSnapshot] = useState('')
   const [deletedSetIds, setDeletedSetIds] = useState<string[]>([])
   const [deletedExerciseIds, setDeletedExerciseIds] = useState<string[]>([])
@@ -185,7 +186,7 @@ export default function SessionEditPage() {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-        'id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_readiness(sleep_quality, muscle_soreness, stress_level, motivation), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+        'id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_readiness(sleep_quality, muscle_soreness, stress_level, motivation), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit)), template:workout_templates(focus, style)'
         )
         .eq('id', params.id)
         .single()
@@ -194,8 +195,12 @@ export default function SessionEditPage() {
       console.error('Failed to load session', error)
       setErrorMessage('Unable to load session details. Please try again.')
     } else if (data) {
-      const mapped = mapSession(data as SessionPayload)
+      const payload = data as unknown as SessionPayload & { template: { focus: FocusArea; style: Goal } | null }
+      const mapped = mapSession(payload)
       setSession(mapped)
+      if (payload.template) {
+        setTemplate(payload.template)
+      }
       setInitialSnapshot(JSON.stringify(mapped))
       setDeletedSetIds([])
       setDeletedExerciseIds([])
@@ -564,6 +569,26 @@ export default function SessionEditPage() {
     }
   }
 
+  const filteredLibrary = useMemo(() => {
+    if (!template) return EXERCISE_LIBRARY;
+    
+    const { focus, style } = template;
+    if (style === 'cardio' || focus === 'cardio') {
+      return EXERCISE_LIBRARY.filter(ex => ex.focus === 'cardio' || ex.primaryMuscle === 'cardio' || ex.metricProfile === 'cardio_session');
+    }
+    if (style === 'general_fitness' || focus === 'mobility') {
+      return EXERCISE_LIBRARY.filter(ex => ex.focus === 'mobility' || ex.primaryMuscle === 'yoga' || ex.metricProfile === 'yoga_session' || ex.metricProfile === 'mobility_session');
+    }
+    if (focus && focus !== 'full_body') {
+      const muscleRelevant = EXERCISE_LIBRARY.filter(ex => 
+        ex.primaryMuscle?.toLowerCase().includes(focus.toLowerCase()) || 
+        ex.focus?.toLowerCase().includes(focus.toLowerCase())
+      );
+      return muscleRelevant.length > 0 ? muscleRelevant : EXERCISE_LIBRARY;
+    }
+    return EXERCISE_LIBRARY;
+  }, [template]);
+
   if (loading) {
     return <div className="page-shell p-10 text-center text-muted">Loading session details...</div>
   }
@@ -637,19 +662,20 @@ export default function SessionEditPage() {
                 className="input-base mt-2"
               />
             </div>
-            <div>
-              <label className="text-xs text-subtle">Body weight (lb)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={session.bodyWeightLb ?? ''}
-                onChange={(event) => {
-                  const val = event.target.value === '' ? null : parseFloat(event.target.value)
-                  setSession(prev => prev ? { ...prev, bodyWeightLb: val } : prev)
-                }}
-                className="input-base mt-2"
-              />
-            </div>
+              <div>
+                <label className="text-xs text-subtle">Body weight (lb)</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  step="0.1"
+                  value={session.bodyWeightLb ?? ''}
+                  onChange={(event) => {
+                    const val = event.target.value === '' ? null : parseFloat(event.target.value)
+                    setSession(prev => prev ? { ...prev, bodyWeightLb: val } : prev)
+                  }}
+                  className="input-base"
+                />
+              </div>
           </div>
           {session.timezone && (
             <p className="mt-2 text-[10px] text-subtle">Timezone: {session.timezone}</p>
@@ -775,7 +801,7 @@ export default function SessionEditPage() {
                 className="input-base"
               />
               <datalist id="exercise-library">
-                {EXERCISE_LIBRARY.map((exercise) => (
+                {filteredLibrary.map((exercise) => (
                   <option key={exercise.name} value={exercise.name} />
                 ))}
               </datalist>

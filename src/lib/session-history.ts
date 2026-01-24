@@ -51,3 +51,50 @@ export const fetchTemplateHistory = async (
     recentPrimaryMuscles
   }
 }
+
+export type ExerciseHistoryPoint = {
+  weight: number
+  weightUnit: string
+  reps: number
+  performedAt: string
+  exerciseName: string
+}
+
+export const fetchExerciseHistory = async (
+  supabase: SupabaseClient,
+  userId: string
+): Promise<ExerciseHistoryPoint[]> => {
+  const { data, error } = await supabase
+    .from('sets')
+    .select(`
+      weight,
+      weight_unit,
+      reps,
+      performed_at,
+      session_exercise:session_exercises!inner (
+        exercise_name,
+        session:sessions!inner (
+          user_id
+        )
+      )
+    `)
+    .eq('session_exercise.session.user_id', userId)
+    .eq('completed', true)
+    .not('weight', 'is', null)
+    .order('performed_at', { ascending: false })
+    .limit(200)
+
+  if (error) {
+    console.error('Failed to fetch exercise history:', error)
+    return []
+  }
+
+  return (data as any[]).map((row) => ({
+    weight: Number(row.weight),
+    weightUnit: row.weight_unit,
+    reps: Number(row.reps),
+    performedAt: row.performed_at,
+    exerciseName: row.session_exercise.exercise_name
+  }))
+}
+

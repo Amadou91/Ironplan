@@ -137,19 +137,25 @@ export const computeSessionMetrics = ({
 export const computeReadinessScore = (survey: ReadinessSurvey) => {
   const values = Object.values(survey)
   if (values.some((value) => !Number.isFinite(value))) return null
+  
   const normalize = (value: number) => clamp(value, 1, 5)
-  const normalized =
-    (normalize(survey.sleep) +
-      normalize(survey.motivation) +
-      (6 - normalize(survey.soreness)) +
-      (6 - normalize(survey.stress))) / 20
-  return Math.round(clamp(normalized, 0, 1) * 100)
+  
+  // Raw sum range is 4 (all worst) to 20 (all best)
+  const rawSum = 
+    normalize(survey.sleep) +
+    normalize(survey.motivation) +
+    (6 - normalize(survey.soreness)) +
+    (6 - normalize(survey.stress))
+    
+  // Map 4-20 to 0-100
+  const score = ((rawSum - 4) / 16) * 100
+  return Math.round(clamp(score, 0, 100))
 }
 
 export const getReadinessLevel = (score: number | null): ReadinessLevel => {
   if (typeof score !== 'number') return 'steady'
   if (score >= 70) return 'high'
-  if (score <= 45) return 'low'
+  if (score < 40) return 'low'
   return 'steady'
 }
 

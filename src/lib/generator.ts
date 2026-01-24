@@ -597,21 +597,6 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     restSeconds: 60
   },
   {
-    name: 'Cardio',
-    focus: 'cardio',
-    metricProfile: 'cardio_session',
-    movementPattern: 'cardio',
-    difficulty: 'beginner',
-    goal: 'endurance',
-    primaryMuscle: 'cardio',
-    sets: 1,
-    reps: '20-30 min',
-    rpe: 6,
-    equipment: [{ kind: 'machine', machineType: 'treadmill' }, { kind: 'bodyweight' }],
-    durationMinutes: 20,
-    restSeconds: 60
-  },
-  {
     name: 'Yoga',
     focus: 'mobility',
     metricProfile: 'yoga_session',
