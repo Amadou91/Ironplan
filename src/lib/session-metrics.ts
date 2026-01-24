@@ -144,10 +144,26 @@ export const computeSetIntensity = (set: MetricsSet) => {
 
 export const computeSetLoad = (set: MetricsSet) => {
   const tonnage = computeSetTonnage(set)
-  if (!tonnage) return 0
-  const effort = getEffortScore(set)
-  const effortFactor = typeof effort === 'number' ? clamp(effort / 10, 0.4, 1.1) : 0.65
-  return tonnage * effortFactor
+  if (tonnage > 0) {
+    const effort = getEffortScore(set)
+    const effortFactor = typeof effort === 'number' ? clamp(effort / 10, 0.4, 1.1) : 0.65
+    return tonnage * effortFactor
+  }
+
+  // Fallback for duration-based activities (Yoga, Cardio)
+  // volume_proxy = duration_minutes * intensity
+  if (typeof set.durationSeconds === 'number' && set.durationSeconds > 0) {
+    const minutes = set.durationSeconds / 60
+    const effort = getEffortScore(set)
+    // If no effort logged, default to 1 to just count minutes, or 0? 
+    // User said "intensity-weighted minutes". If intensity is 0, it's 0.
+    // But let's assume if they didn't log intensity, we count minutes (effort 1) or moderate (effort 5)?
+    // Let's stick to strict formula: duration * intensity. If intensity is null, treat as 0 or maybe unweighted?
+    // Given "Intensity (1-10)" is primary, we expect it.
+    return minutes * (typeof effort === 'number' ? effort : 0)
+  }
+
+  return 0
 }
 
 export const aggregateTonnage = (sets: MetricsSet[]) =>

@@ -21,6 +21,7 @@ export type MuscleGroup =
   | 'Abductors'
   | 'Full Body'
   | 'Cardio'
+  | 'Yoga'
   | 'Lower Body'
   | 'Upper Body'
 

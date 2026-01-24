@@ -4,6 +4,7 @@ import { Trash2, CheckCircle, Circle } from 'lucide-react';
 import { INTENSITY_RECOMMENDATION, RIR_HELPER_TEXT, RIR_OPTIONS, RPE_OPTIONS } from '@/constants/intensityOptions';
 import type { WeightOption } from '@/lib/equipment';
 import { mapRirToRpe } from '@/lib/session-metrics';
+import { YOGA_STYLES, YOGA_FOCUS_AREAS } from '@/constants/yogaOptions';
 
 interface SetLoggerProps {
   set: WorkoutSet;
@@ -12,10 +13,11 @@ interface SetLoggerProps {
   onDelete: () => void;
   onToggleComplete: () => void;
   isCardio?: boolean;
+  isYoga?: boolean;
   repsLabel?: string;
 }
 
-export const SetLogger: React.FC<SetLoggerProps> = ({ set, weightOptions, onUpdate, onDelete, onToggleComplete, isCardio = false, repsLabel = 'Reps' }) => {
+export const SetLogger: React.FC<SetLoggerProps> = ({ set, weightOptions, onUpdate, onDelete, onToggleComplete, isCardio = false, isYoga = false, repsLabel = 'Reps' }) => {
   const isEditing = !set.completed;
   const timeLabel = useMemo(() => {
     if (!set.performedAt) return 'Not logged yet';
@@ -24,10 +26,13 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, weightOptions, onUpda
   }, [set.performedAt]);
 
   const inputClassName = `input-base input-compact text-center ${!isEditing ? 'input-muted' : ''}`;
+  
+  // Standard Strength/Cardio Helpers
   const rirValue = typeof set.rir === 'number' ? String(set.rir) : '';
   const rirEquivalence = RIR_OPTIONS.find((option) => option.value === set.rir)?.equivalence;
   const derivedRpe = typeof set.rir === 'number' ? mapRirToRpe(set.rir) : null;
   const derivedRpeLabel = RPE_OPTIONS.find((option) => option.value === derivedRpe)?.label ?? null;
+  
   const weightChoices = useMemo(() => {
     const options = weightOptions ?? [];
     if (typeof set.weight === 'number' && Number.isFinite(set.weight)) {
@@ -40,15 +45,159 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, weightOptions, onUpda
     return options;
   }, [set.weight, set.weightUnit, weightOptions]);
 
+  // Yoga Helpers
+  const updateExtras = (key: string, value: string | null) => {
+    const currentExtras = set.extras ?? {};
+    onUpdate('extras', { ...currentExtras, [key]: value });
+  };
+
+  const yogaStyle = set.extras?.style ?? '';
+  const yogaFocus = set.extras?.focus ? set.extras.focus.split(',') : [];
+  const yogaNotes = set.extras?.notes ?? '';
+
+  const toggleFocus = (focus: string) => {
+    const current = new Set(yogaFocus);
+    if (current.has(focus)) {
+      current.delete(focus);
+    } else {
+      current.add(focus);
+    }
+    updateExtras('focus', Array.from(current).join(','));
+  };
+
   useEffect(() => {
-    if (!isEditing || isCardio) return;
+    if (!isEditing || isCardio || isYoga) return;
     const isEmptyWeight = set.weight === '' || set.weight === null || typeof set.weight !== 'number';
     if (isEmptyWeight && weightChoices.length > 0) {
       onUpdate('weight', weightChoices[0].value);
       onUpdate('weightUnit', weightChoices[0].unit ?? set.weightUnit ?? 'lb');
     }
-  }, [isEditing, isCardio, onUpdate, set.weight, set.weightUnit, weightChoices]);
+  }, [isEditing, isCardio, isYoga, onUpdate, set.weight, set.weightUnit, weightChoices]);
 
+  // YOGA UI
+  if (isYoga) {
+    return (
+      <div className={`flex flex-col gap-3 mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+        <div className="flex items-center gap-2">
+          <div className="w-8 text-center font-semibold text-muted">{set.setNumber}</div>
+          <div className="text-[10px] uppercase tracking-wider text-subtle">{timeLabel}</div>
+          <div className="ml-auto text-[10px] uppercase tracking-wider text-subtle">
+            {set.completed ? 'Completed' : 'In progress'}
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Row 1: Duration & Intensity */}
+          <div className="flex gap-4">
+            <div className="flex-1 flex flex-col">
+              <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Duration (min)</label>
+              <input
+                type="number"
+                placeholder="0"
+                value={typeof set.durationSeconds === 'number' ? Math.round(set.durationSeconds / 60) : ''}
+                onChange={(e) => onUpdate('durationSeconds', e.target.value === '' ? '' : Number(e.target.value) * 60)}
+                className={inputClassName}
+                min={0}
+                readOnly={!isEditing}
+              />
+            </div>
+            <div className="flex-1 flex flex-col">
+              <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Intensity (1-10)</label>
+              <select
+                value={typeof set.rpe === 'number' ? String(set.rpe) : ''}
+                onChange={(event) => {
+                  const nextValue = event.target.value === '' ? '' : Number(event.target.value);
+                  onUpdate('rpe', nextValue);
+                }}
+                className={inputClassName}
+                disabled={!isEditing}
+              >
+                <option value="">Scale 1-10</option>
+                {RPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.value} - {option.label.split('–')[0].trim()}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 2: Style & Focus (Optional) */}
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col">
+               <label className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-subtle">Style (Optional)</label>
+               <select
+                  value={yogaStyle}
+                  onChange={(e) => updateExtras('style', e.target.value)}
+                  className={`${inputClassName} text-left`}
+                  disabled={!isEditing}
+                >
+                  <option value="">Select Style</option>
+                  {YOGA_STYLES.map((style) => (
+                    <option key={style} value={style}>{style}</option>
+                  ))}
+                </select>
+            </div>
+          </div>
+        </div>
+        
+        {/* Focus Multi-Select */}
+        <div className="flex flex-col gap-1">
+             <label className="text-[10px] font-semibold uppercase tracking-wider text-subtle">Focus (Optional)</label>
+             <div className="flex flex-wrap gap-2">
+               {YOGA_FOCUS_AREAS.map((focus) => {
+                 const isActive = yogaFocus.includes(focus);
+                 return (
+                   <button
+                     key={focus}
+                     onClick={() => toggleFocus(focus)}
+                     disabled={!isEditing}
+                     className={`px-2 py-1 rounded-md text-[10px] border transition-colors ${
+                       isActive 
+                         ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]' 
+                         : 'bg-[var(--color-surface-muted)] text-subtle border-transparent hover:border-[var(--color-border)]'
+                     }`}
+                   >
+                     {focus}
+                   </button>
+                 )
+               })}
+             </div>
+        </div>
+
+        {/* Notes */}
+        <div className="flex flex-col">
+           <label className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-subtle">Notes</label>
+           <input
+             type="text"
+             placeholder="How did it feel?"
+             value={yogaNotes}
+             onChange={(e) => updateExtras('notes', e.target.value)}
+             className={`${inputClassName} text-left px-2`}
+             readOnly={!isEditing}
+           />
+        </div>
+
+        <div className="flex items-center justify-between gap-2 mt-2">
+          <button
+            onClick={onToggleComplete}
+            className={`rounded-full p-2 transition-colors ${set.completed ? 'text-[var(--color-success)] hover:bg-[var(--color-success-soft)]' : 'text-subtle hover:bg-[var(--color-surface-muted)]'}`}
+          >
+            {set.completed ? <CheckCircle size={20} /> : <Circle size={20} />}
+          </button>
+
+          <button
+            onClick={onDelete}
+            className="rounded-full p-2 text-subtle transition-colors hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // CARDIO UI
   if (isCardio) {
     return (
       <div className={`flex flex-col gap-3 mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
@@ -134,6 +283,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({ set, weightOptions, onUpda
     );
   }
 
+  // STANDARD UI
   return (
     <div className={`flex flex-col gap-3 mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
       <div className="flex items-center gap-2">

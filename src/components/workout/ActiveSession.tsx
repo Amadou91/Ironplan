@@ -48,6 +48,7 @@ type SessionPayload = {
       duration_seconds?: number | null;
       distance?: number | null;
       distance_unit?: string | null;
+      extras?: Record<string, string | null> | null;
     }>;
   }>;
 };
@@ -165,7 +166,8 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
               weightUnit: set.weight_unit === 'kg' ? 'kg' : 'lb',
               durationSeconds: set.duration_seconds ?? undefined,
               distance: set.distance ?? undefined,
-              distanceUnit: set.distance_unit ?? undefined
+              distanceUnit: set.distance_unit ?? undefined,
+              extras: set.extras ?? undefined
             }))
         }))
     };
@@ -177,7 +179,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
       const { data, error } = await supabase
         .from('sessions')
         .select(
-          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_notes, body_weight_lb, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit))'
+          'id, user_id, name, template_id, started_at, ended_at, status, impact, timezone, session_notes, body_weight_lb, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit, extras))'
         )
         .eq('id', sessionId)
         .single();
@@ -294,7 +296,8 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
         weight_unit: set.weightUnit ?? 'lb',
         duration_seconds: typeof set.durationSeconds === 'number' ? set.durationSeconds : null,
         distance: typeof set.distance === 'number' ? set.distance : null,
-        distance_unit: set.distanceUnit ?? null
+        distance_unit: set.distanceUnit ?? null,
+        extras: set.extras ?? null
       };
 
       if (set.id && !set.id.startsWith('temp-')) {
@@ -637,6 +640,7 @@ export default function ActiveSession({ sessionId, equipmentInventory }: ActiveS
                     onDelete={() => handleDeleteSet(exIdx, setIdx)}
                     onToggleComplete={() => handleSetUpdate(exIdx, setIdx, 'completed', !set.completed)}
                     isCardio={exercise.primaryMuscle === 'Cardio'}
+                    isYoga={exercise.primaryMuscle === 'Yoga'}
                     repsLabel={repsLabel}
                   />
                 );
