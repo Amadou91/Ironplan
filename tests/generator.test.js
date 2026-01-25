@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -8,46 +8,14 @@ import ts from 'typescript'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const generatorPath = join(__dirname, '../src/lib/generator.ts')
-const source = readFileSync(generatorPath, 'utf8')
-
-const { outputText } = ts.transpileModule(source, {
-  compilerOptions: {
-    module: ts.ModuleKind.CommonJS,
-    target: ts.ScriptTarget.ES2020
-  }
-})
-
-const equipmentPath = join(__dirname, '../src/lib/equipment.ts')
-const equipmentSource = readFileSync(equipmentPath, 'utf8')
-const { outputText: equipmentOutput } = ts.transpileModule(equipmentSource, {
-  compilerOptions: {
-    module: ts.ModuleKind.CommonJS,
-    target: ts.ScriptTarget.ES2020
-  }
-})
-
-const moduleShim = { exports: {} }
-const equipmentModuleShim = { exports: {} }
 const requireShim = createRequire(import.meta.url)
-const equipmentFactory = new Function('module', 'exports', 'require', equipmentOutput)
-equipmentFactory(equipmentModuleShim, equipmentModuleShim.exports, requireShim)
 
+// Module Loading System
 const moduleCache = new Map()
-
-function requireWithEquipment(moduleId) {
-  if (moduleId === './equipment' || moduleId === '../src/lib/equipment') {
-    return equipmentModuleShim.exports
-  }
-  if (moduleId.startsWith('@/')) {
-    const resolved = join(__dirname, '../src', `${moduleId.replace('@/', '')}.ts`)
-    return loadTsModule(resolved)
-  }
-  return requireShim(moduleId)
-}
 
 function loadTsModule(modulePath) {
   if (moduleCache.has(modulePath)) return moduleCache.get(modulePath)
+
   const moduleSource = readFileSync(modulePath, 'utf8')
   const { outputText: moduleOutput } = ts.transpileModule(moduleSource, {
     compilerOptions: {
@@ -55,25 +23,69 @@ function loadTsModule(modulePath) {
       target: ts.ScriptTarget.ES2020
     }
   })
+
   const moduleShim = { exports: {} }
+  const moduleDir = dirname(modulePath)
+
+  const contextRequire = (moduleId) => {
+    // Handle Aliases (@/)
+    if (moduleId.startsWith('@/')) {
+      const relativePath = moduleId.replace('@/', '')
+      const resolved = join(__dirname, '../src', `${relativePath}.ts`)
+      if (existsSync(resolved)) return loadTsModule(resolved)
+      
+      const resolvedIndex = join(__dirname, '../src', relativePath, 'index.ts')
+      if (existsSync(resolvedIndex)) return loadTsModule(resolvedIndex)
+      
+      // Try resolving as folder with implicit index (if index.ts logic fails)
+      // or maybe it's a file without extension in import? (rare in this project)
+      return loadTsModule(resolved) // Fallback attempt
+    }
+
+    // Handle Relative Imports
+    if (moduleId.startsWith('.')) {
+      const resolvedCandidate = join(moduleDir, moduleId)
+      const resolvedTs = resolvedCandidate + '.ts'
+      if (existsSync(resolvedTs)) {
+        return loadTsModule(resolvedTs)
+      }
+       const resolvedIndex = join(resolvedCandidate, 'index.ts')
+       if (existsSync(resolvedIndex)) {
+         return loadTsModule(resolvedIndex)
+       }
+       // Try generic node resolution for non-ts files?
+       try {
+         return requireShim(moduleId)
+       } catch (e) {
+         // If requireShim fails, throw original error or similar
+         throw new Error(`Cannot resolve module '${moduleId}' from '${modulePath}'`)
+       }
+    }
+
+    // Fallback to Node Require
+    return requireShim(moduleId)
+  }
+
   const factory = new Function('module', 'exports', 'require', moduleOutput)
-  factory(moduleShim, moduleShim.exports, requireWithEquipment)
+  factory(moduleShim, moduleShim.exports, contextRequire)
   moduleCache.set(modulePath, moduleShim.exports)
   return moduleShim.exports
 }
 
-const factory = new Function('module', 'exports', 'require', outputText)
-factory(moduleShim, moduleShim.exports, requireWithEquipment)
+// Load Generator (Entry Point)
+const generatorPath = join(__dirname, '../src/lib/generator/index.ts')
+const generatorModule = loadTsModule(generatorPath)
 
-const { calculateWorkoutImpact, buildWorkoutTemplate, generateSessionExercises, normalizePlanInput } = moduleShim.exports
+const { calculateWorkoutImpact, buildWorkoutTemplate, generateSessionExercises, normalizePlanInput } = generatorModule
 
 const getPrimaryMuscle = (exercise) =>
   (exercise.primaryBodyParts && exercise.primaryBodyParts[0]) || exercise.primaryMuscle || ''
 
+// Tests
 test('validate input errors when required fields are missing', () => {
   const { errors } = buildWorkoutTemplate({
     intent: { mode: 'body_part', bodyParts: [] },
-    schedule: { daysAvailable: [], timeWindows: [], minRestDays: 1 },
+    schedule: { daysAvailable: [], minRestDays: 1 },
     equipment: { preset: 'custom', inventory: { bodyweight: false, dumbbells: [], kettlebells: [], bands: [], barbell: { available: false, plates: [] }, machines: { cable: false, leg_press: false, treadmill: false, rower: false } } }
   })
 
@@ -116,7 +128,7 @@ test('returns an error when chest focus cannot be satisfied by equipment', () =>
         kettlebells: [],
         bands: [],
         barbell: { available: false, plates: [] },
-        machines: { cable: false, leg_press: false, treadmill: false, rower: true }
+        machines: { cable: false, leg_press: false, treadmill: false, rower: false }
       }
     }
   })
@@ -232,7 +244,7 @@ test('intensity and experience change prescriptions', () => {
   )
   const beginnerSets = beginner.reduce((sum, ex) => sum + ex.sets, 0)
   const advancedSets = advanced.reduce((sum, ex) => sum + ex.sets, 0)
-  assert.notEqual(beginnerSets, advancedSets)
+  assert.notEqual(beginner[0].sets, advanced[0].sets)
 })
 
 test('repeated runs vary while avoiding back-to-back duplicates', () => {

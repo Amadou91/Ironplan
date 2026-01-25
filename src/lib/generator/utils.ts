@@ -1,0 +1,405 @@
+import type {
+  Exercise,
+  FocusArea,
+  Goal,
+  GoalPriority,
+  PlanDay,
+  WorkoutImpact,
+  MovementPattern,
+  EquipmentInventory,
+  EquipmentOption,
+  PlanInput
+} from '@/types/domain'
+import { computeExerciseMetrics } from '@/lib/workout-metrics'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { matchesCardioSelection } from '@/lib/cardio-activities'
+import type { ExercisePrescription, FocusConstraint } from './types'
+import { focusMuscleMap, focusAccessoryMap, bandLoadMap } from './constants'
+
+export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+
+export const normalizeExerciseKey = (name: string) => name.trim().toLowerCase()
+
+export const hashSeed = (seed: string) => {
+  let hash = 2166136261
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+export const createSeededRandom = (seed: string) => {
+  let state = hashSeed(seed)
+  return () => {
+    state += 0x6d2b79f5
+    let t = state
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+export const getPrimaryMuscleKey = (exercise: Exercise) =>
+  String(exercise.primaryMuscle ?? '').trim().toLowerCase()
+
+export const getMovementFamilyFromName = (name: string, movementPattern?: MovementPattern | null) => {
+  const lower = name.toLowerCase()
+  if (lower.includes('press') || lower.includes('push-up') || lower.includes('pushup')) return 'press'
+  if (lower.includes('fly') || lower.includes('pec deck')) return 'fly'
+  if (lower.includes('dip')) return 'dip'
+  if (lower.includes('row')) return 'row'
+  if (lower.includes('pull')) return 'pull'
+  if (lower.includes('curl')) return 'curl'
+  if (lower.includes('extension')) return 'extension'
+  if (lower.includes('raise') || lower.includes('lateral')) return 'raise'
+  if (lower.includes('squat')) return 'squat'
+  if (lower.includes('deadlift') || lower.includes('rdl') || lower.includes('hinge')) return 'hinge'
+  if (lower.includes('lunge') || lower.includes('split squat')) return 'lunge'
+  if (lower.includes('carry')) return 'carry'
+  if (lower.includes('plank') || lower.includes('core')) return 'core'
+  if (lower.includes('run') || lower.includes('bike') || lower.includes('rower') || lower.includes('interval')) {
+    return 'cardio'
+  }
+  return movementPattern ?? 'other'
+}
+
+export const getMovementFamily = (exercise: Exercise) =>
+  getMovementFamilyFromName(exercise.name, exercise.movementPattern)
+
+export const isCompoundMovement = (exercise: Exercise) =>
+  ['squat', 'hinge', 'push', 'pull', 'carry'].includes(exercise.movementPattern ?? '')
+
+export const formatFocusLabel = (focus: FocusArea) =>
+  focus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+
+export const getPrimaryMuscleLabel = (exercise: Exercise) => {
+  if (exercise.primaryBodyParts?.length) return exercise.primaryBodyParts[0]
+  if (typeof exercise.primaryMuscle === 'string') return exercise.primaryMuscle
+  return ''
+}
+
+export const matchesPrimaryMuscle = (exercise: Exercise, muscles: string[]) => {
+  const primary = getPrimaryMuscleLabel(exercise).toLowerCase()
+  return muscles.some((muscle) => primary.includes(muscle.toLowerCase()))
+}
+
+export const matchesFocusArea = (focus: FocusArea, exercise: Exercise) => {
+  if (focus === 'full_body') return true
+  if (focus === 'cardio') return exercise.focus === 'cardio'
+  const focusConfig = focusMuscleMap[focus]
+  if (focusConfig?.primaryMuscles?.length) {
+    const matchesMuscle = matchesPrimaryMuscle(exercise, focusConfig.primaryMuscles)
+    const matchesBase = focusConfig.baseFocus ? exercise.focus === focusConfig.baseFocus : true
+    return matchesMuscle && matchesBase
+  }
+  return exercise.focus === focus
+}
+
+export const getFocusConstraint = (focus: FocusArea): FocusConstraint | null => {
+  const focusConfig = focusMuscleMap[focus]
+  if (!focusConfig?.primaryMuscles?.length) return null
+  return {
+    focus,
+    primaryMuscles: focusConfig.primaryMuscles,
+    accessoryMuscles: focusAccessoryMap[focus] ?? [],
+    minPrimarySetRatio: 0.75
+  }
+}
+
+export const hasMachine = (inventory: EquipmentInventory, machineType?: keyof EquipmentInventory['machines']) =>
+  machineType ? inventory.machines[machineType] : Object.values(inventory.machines).some(Boolean)
+
+export const isEquipmentOptionAvailable = (inventory: EquipmentInventory, option: Exercise['equipment'][number]) => {
+  switch (option.kind) {
+    case 'bodyweight':
+      return inventory.bodyweight
+    case 'dumbbell':
+      return inventory.dumbbells.length > 0
+    case 'kettlebell':
+      return inventory.kettlebells.length > 0
+    case 'band':
+      return inventory.bands.length > 0
+    case 'barbell':
+      return inventory.barbell.available
+    case 'machine':
+      return hasMachine(inventory, option.machineType)
+    default:
+      return false
+  }
+}
+
+export const selectEquipmentOption = (inventory: EquipmentInventory, options: Exercise['equipment']) =>
+  options?.find(option => isEquipmentOptionAvailable(inventory, option))
+
+export const pickClosestWeight = (weights: number[], target: number) => {
+  if (weights.length === 0) return undefined
+  return weights.reduce((closest, weight) =>
+    Math.abs(weight - target) < Math.abs(closest - target) ? weight : closest
+  , weights[0])
+}
+
+export const buildBarbellLoad = (target: number, inventory: EquipmentInventory) => {
+  const base = 45
+  if (!inventory.barbell.available) {
+    return { value: base, label: `${base} lb barbell (no plates)` }
+  }
+  if (inventory.barbell.plates.length === 0) {
+    return { value: base, label: `${base} lb barbell` }
+  }
+
+  const platePairs = inventory.barbell.plates
+  const possibleLoads = new Set<number>([base])
+
+  platePairs.forEach((plateWeight) => {
+    const currentLoads = Array.from(possibleLoads)
+    currentLoads.forEach(load => {
+      possibleLoads.add(load + plateWeight * 2)
+    })
+  })
+
+  const closest = Array.from(possibleLoads).reduce((closestLoad, load) =>
+    Math.abs(load - target) < Math.abs(closestLoad - target) ? load : closestLoad
+  , base)
+
+  return { value: closest, label: `${closest} lb barbell` }
+}
+
+export const buildLoad = (
+  option: Exercise['equipment'][number] | undefined,
+  target: number | undefined,
+  inventory: EquipmentInventory
+) => {
+  if (!option || !target) return undefined
+
+  const adjustedTarget = option.kind === 'dumbbell' && target > 80 ? Math.round(target / 3) : target
+
+  switch (option.kind) {
+    case 'dumbbell': {
+      const perHand = pickClosestWeight(inventory.dumbbells, adjustedTarget)
+      if (!perHand) return undefined
+      return { value: perHand * 2, unit: 'lb' as const, label: `2x${perHand} lb dumbbells` }
+    }
+    case 'kettlebell': {
+      const weight = pickClosestWeight(inventory.kettlebells, target)
+      if (!weight) return undefined
+      return { value: weight, unit: 'lb' as const, label: `${weight} lb kettlebell` }
+    }
+    case 'band': {
+      const band = inventory.bands.includes('heavy')
+        ? 'heavy'
+        : inventory.bands.includes('medium')
+          ? 'medium'
+          : inventory.bands[0]
+      const value = bandLoadMap[band] ?? 10
+      return { value, unit: 'lb' as const, label: `${band} band` }
+    }
+    case 'barbell': {
+      const barbellLoad = buildBarbellLoad(target, inventory)
+      return { value: barbellLoad.value, unit: 'lb' as const, label: barbellLoad.label }
+    }
+    case 'machine': {
+      const stackValue = target
+      return { value: stackValue, unit: 'lb' as const, label: `Select ~${stackValue} lb on the stack` }
+    }
+    default:
+      return undefined
+  }
+}
+
+export const getSetupMinutes = (option?: EquipmentOption | null) => {
+  switch (option?.kind) {
+    case 'bodyweight':
+      return 1
+    case 'dumbbell':
+    case 'kettlebell':
+    case 'band':
+      return 2
+    case 'barbell':
+    case 'machine':
+      return 3
+    default:
+      return 2
+  }
+}
+
+export const getWorkSeconds = (goal: Goal, exercise: Exercise) => {
+  if (exercise.focus === 'cardio' || exercise.movementPattern === 'cardio') return 60
+  if (goal === 'strength') return 50
+  if (goal === 'endurance' || goal === 'cardio') return 60
+  return 45
+}
+
+export const estimateExerciseMinutes = (
+  exercise: Exercise,
+  prescription: ExercisePrescription,
+  option?: EquipmentOption | null,
+  goal?: Goal
+) => {
+  const setupMinutes = getSetupMinutes(option)
+  const workSeconds = getWorkSeconds(goal ?? exercise.goal ?? 'general_fitness', exercise)
+  const workMinutes = (prescription.sets * (workSeconds + prescription.restSeconds)) / 60
+  const fallbackPerSet = exercise.durationMinutes
+    ? exercise.durationMinutes / Math.max(exercise.sets, 1)
+    : null
+  const fallbackMinutes = fallbackPerSet ? setupMinutes + prescription.sets * fallbackPerSet : 0
+  const estimated = setupMinutes + workMinutes
+  return Math.max(1, Math.round(Math.max(estimated, fallbackMinutes) * 10) / 10)
+}
+
+export const buildSessionName = (focus: FocusArea, exercises: Exercise[], goal: Goal) => {
+  const goalLabel = goal.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+  const movementCounts = exercises.reduce<Record<string, number>>((acc, exercise) => {
+    if (exercise.movementPattern) {
+      acc[exercise.movementPattern] = (acc[exercise.movementPattern] ?? 0) + 1
+    }
+    return acc
+  }, {})
+
+  if (focus === 'upper') {
+    const pushCount = movementCounts.push ?? 0
+    const pullCount = movementCounts.pull ?? 0
+    if (pushCount > pullCount) return 'Push - Chest & Tris'
+    if (pullCount > pushCount) return 'Pull - Back & Biceps'
+    return `Upper Body - ${goalLabel} Focus`
+  }
+
+  if (focus === 'lower') {
+    const squatCount = movementCounts.squat ?? 0
+    const hingeCount = movementCounts.hinge ?? 0
+    if (squatCount > hingeCount) return 'Legs - Squat Focus'
+    if (hingeCount > squatCount) return 'Legs - Hinge Focus'
+    return `Lower Body - ${goalLabel} Focus`
+  }
+
+  if (focus === 'full_body') {
+    return `Full Body - ${goalLabel} Flow`
+  }
+
+  if (focus === 'core') {
+    return 'Core - Stability Focus'
+  }
+
+  if (focus === 'cardio') {
+    return `Conditioning - ${goalLabel} Circuit`
+  }
+
+  if (focus === 'mobility') {
+    return 'Mobility - Recovery Flow'
+  }
+
+  return `${formatFocusLabel(focus)} - ${goalLabel} Focus`
+}
+
+export const buildPlanTitle = (focus: FocusArea, goal: Goal, intensity?: PlanInput['intensity'], minutes?: number) =>
+  buildWorkoutDisplayName({
+    focus,
+    style: goal,
+    intensity,
+    minutes,
+    fallback: formatFocusLabel(focus)
+  })
+
+export const buildFocusDistribution = (schedule: PlanDay[]) => schedule.reduce<Record<FocusArea, number>>((acc, day) => {
+  acc[day.focus] = (acc[day.focus] ?? 0) + 1
+  return acc
+}, {
+  upper: 0,
+  lower: 0,
+  full_body: 0,
+  core: 0,
+  cardio: 0,
+  mobility: 0,
+  arms: 0,
+  legs: 0,
+  biceps: 0,
+  triceps: 0,
+  chest: 0,
+  back: 0
+})
+
+export const calculateExerciseImpact = (exercises: Exercise[]): WorkoutImpact => {
+  const totals = exercises.reduce(
+    (acc, exercise) => {
+      const metrics = computeExerciseMetrics(exercise)
+      acc.volume += metrics.volume ?? 0
+      acc.intensity += metrics.intensity ?? 0
+      acc.density += metrics.density ?? 0
+      return acc
+    },
+    { volume: 0, intensity: 0, density: 0 }
+  )
+
+  const volumeScore = Math.round(totals.volume)
+  const intensityScore = Math.round(totals.intensity)
+  const densityScore = Math.round(totals.density)
+
+  return {
+    score: volumeScore + intensityScore + densityScore,
+    breakdown: {
+      volume: volumeScore,
+      intensity: intensityScore,
+      density: densityScore
+    }
+  }
+}
+
+export const calculateWorkoutImpact = (schedule: PlanDay[]): WorkoutImpact =>
+  calculateExerciseImpact(schedule.flatMap(day => day.exercises))
+
+export const goalToFocus = (goal: Goal): FocusArea[] => {
+  switch (goal) {
+    case 'endurance':
+    case 'cardio':
+      return ['cardio', 'full_body', 'mobility']
+    case 'hypertrophy':
+      return ['upper', 'lower', 'full_body']
+    case 'general_fitness':
+      return ['full_body', 'cardio', 'mobility']
+    default:
+      return ['upper', 'lower', 'core']
+  }
+}
+
+export const mergeFocusByPriority = (primary: FocusArea[], secondary: FocusArea[] | undefined, priority: GoalPriority) => {
+  if (!secondary || priority === 'primary') {
+    return primary
+  }
+
+  if (priority === 'secondary') {
+    return [...secondary, ...secondary, ...primary]
+  }
+
+  return primary.flatMap((focus, index) => [focus, secondary[index % secondary.length]])
+}
+
+export const buildFocusSequence = (
+  sessions: number,
+  preferences: PlanInput['preferences'],
+  goals: PlanInput['goals']
+): FocusArea[] => {
+  const preferencePool = preferences.focusAreas.length > 0 ? preferences.focusAreas : undefined
+  const primaryPool = preferencePool ?? goalToFocus(goals.primary)
+  const secondaryPool = goals.secondary ? goalToFocus(goals.secondary) : undefined
+  const focusPool = preferencePool ?? mergeFocusByPriority(primaryPool, secondaryPool, goals.priority)
+
+  const sequence: FocusArea[] = []
+  for (let i = 0; i < sessions; i += 1) {
+    sequence.push(focusPool[i % focusPool.length])
+  }
+  return sequence
+}
+
+export const buildRationale = (
+  focus: FocusArea,
+  duration: number,
+  restPreference: PlanInput['preferences']['restPreference'],
+  style: Goal
+) => {
+  const recoveryNote = restPreference === 'high_recovery'
+    ? 'Extra recovery was prioritized between sessions.'
+    : restPreference === 'minimal_rest'
+      ? 'Sessions are designed for minimal rest between workouts.'
+      : 'Recovery is balanced across the rotation.'
+  return `${duration} minute ${style.replace('_', ' ')} session focused on ${formatFocusLabel(focus)}. ${recoveryNote}`
+}
