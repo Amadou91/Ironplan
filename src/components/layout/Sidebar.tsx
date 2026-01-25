@@ -17,15 +17,12 @@ export default function Sidebar() {
   const hydrated = useAuthStore((state) => state.hydrated);
   const clearUser = useAuthStore((state) => state.clearUser);
   const supabase = createClient();
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  // Persistence for sidebar state
-  useEffect(() => {
+  
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
     const saved = localStorage.getItem('sidebar-collapsed');
-    if (saved !== null) {
-      setIsCollapsed(saved === 'true');
-    }
-  }, []);
+    return saved !== null ? saved === 'true' : false;
+  });
 
   const toggleSidebar = () => {
     const nextState = !isCollapsed;

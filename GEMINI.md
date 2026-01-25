@@ -2,7 +2,7 @@ Ironplan Project Context
 
 Core Tech Stack
 
-Framework: Next.js 15+ (App Router)
+Framework: Next.js 16+ (App Router)
 
 Language: TypeScript (Strict Mode)
 
@@ -10,7 +10,7 @@ Database: Supabase (PostgreSQL)
 
 State: Zustand (useWorkoutStore) + React Context (AuthProvider)
 
-UI: Tailwind CSS (Mobile-first), Radix UI, Recharts
+UI: Tailwind CSS (Mobile-first), Recharts, Lucide React
 
 Coding Standards (Mandatory)
 
@@ -51,3 +51,9 @@ Styling: Use standard Tailwind utility classes.
 Linting: Do not run or suggest linting commands. The user manages linting and formatting manually.
 
 Focus: Prioritize code correctness and adhering to the existing directory structure.
+
+6. File Size & Modularity
+
+Target Size: Maintain files around ~15-20KB to optimize for AI context ingestion.
+
+Refactoring Strategy: If a file exceeds this soft limit, refactor by extracting logical sub-components, hooks, or utility functions. Avoid arbitrary splitting; prioritize code cohesion (keeping related logic together) while reducing file size.

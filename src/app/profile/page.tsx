@@ -17,16 +17,13 @@ export default function ProfilePage() {
   
   // Dev Tools State
   const devToolsKey = 'ironplan-dev-tools'
-  const [devToolsEnabled, setDevToolsEnabled] = useState(false)
-  const [devToolsNotice, setDevToolsNotice] = useState<string | null>(null)
   const isDevMode = process.env.NODE_ENV !== 'production'
-
-  // Persist Dev Tools state
-  useEffect(() => {
-    if (!isDevMode) return
-    const saved = localStorage.getItem(devToolsKey)
-    setDevToolsEnabled(saved === 'true')
-  }, [isDevMode])
+  
+  const [devToolsEnabled, setDevToolsEnabled] = useState(() => {
+    if (typeof window === 'undefined' || !isDevMode) return false
+    return localStorage.getItem(devToolsKey) === 'true'
+  })
+  const [devToolsNotice, setDevToolsNotice] = useState<string | null>(null)
 
   const toggleDevTools = () => {
     if (!isDevMode) return

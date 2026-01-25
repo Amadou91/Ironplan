@@ -8,6 +8,7 @@ import { computeSessionMetrics, type ReadinessSurvey } from '@/lib/training-metr
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
 import { useUser } from '@/hooks/useUser'
+import { Button } from '@/components/ui/Button'
 import type { FocusArea, Goal, Intensity, PlanInput } from '@/types/domain'
 import { SummaryHeader } from '@/components/workout/SummaryHeader'
 import { SessionHighlights } from '@/components/workout/SessionHighlights'
@@ -110,17 +111,24 @@ export default function WorkoutSummaryPage() {
 
   const parsedNotes = useMemo(() => parseSessionNotes(session?.session_notes ?? null), [session?.session_notes])
   const intensityLabel = formatSessionIntensity(getSessionIntensity(parsedNotes))
+
+  const minutesAvailable = parsedNotes?.minutesAvailable
+  const template = session?.template
+  const sessionName = session?.name
+  const firstExerciseName = session?.session_exercises?.[0]?.exercise_name
+  const style = template?.style
+
   const sessionTitle = useMemo(() => {
-    if (!session) return ''
+    if (!sessionName) return ''
     return buildWorkoutDisplayName({
-      focus: session.template?.focus ?? null,
-      style: session.template?.style ?? null,
-      intensity: session.template?.intensity ?? null,
-      minutes: typeof parsedNotes?.minutesAvailable === 'number' ? parsedNotes.minutesAvailable : null,
-      fallback: session.name,
-      cardioExerciseName: session.template?.style === 'cardio' && session.session_exercises?.[0]?.exercise_name ? session.session_exercises[0].exercise_name : null
+      focus: template?.focus ?? null,
+      style: template?.style ?? null,
+      intensity: template?.intensity ?? null,
+      minutes: minutesAvailable,
+      fallback: sessionName,
+      cardioExerciseName: style === 'cardio' && firstExerciseName ? firstExerciseName : null
     })
-  }, [parsedNotes?.minutesAvailable, session])
+  }, [minutesAvailable, template, sessionName, firstExerciseName, style])
 
   useEffect(() => {
     if (!sessionId) return
@@ -155,12 +163,15 @@ export default function WorkoutSummaryPage() {
     return { ...metrics, bestE1rm: Math.round(bestE1rm) }
   }, [parsedNotes, session])
 
+  const readiness = parsedNotes?.readiness
+  const avgEffort = sessionMetrics?.avgEffort
+
   const effortInsight = useMemo(() => {
-    if (!sessionMetrics?.avgEffort) return null
-    if (parsedNotes?.readiness === 'low' && sessionMetrics.avgEffort >= 8) return 'You pushed hard on a low-readiness day. Plan extra recovery.'
-    if (parsedNotes?.readiness === 'high' && sessionMetrics.avgEffort <= 7) return 'Readiness was high but effort stayed controlled. Consider a load bump.'
+    if (!avgEffort) return null
+    if (readiness === 'low' && avgEffort >= 8) return 'You pushed hard on a low-readiness day. Plan extra recovery.'
+    if (readiness === 'high' && avgEffort <= 7) return 'Readiness was high but effort stayed controlled. Consider a load bump.'
     return null
-  }, [parsedNotes?.readiness, sessionMetrics?.avgEffort])
+  }, [readiness, avgEffort])
 
   const exerciseHighlights = useMemo(() => {
     if (!session) return []
