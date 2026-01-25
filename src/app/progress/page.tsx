@@ -154,6 +154,12 @@ const formatDuration = (start?: string | null, end?: string | null) => {
   return `${minutes} min`
 }
 
+const formatChartDate = (value: string | number) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
 const getStatusDescription = (status: string, ratio: number, insufficientData?: boolean, isInitialPhase?: boolean) => {
   if (insufficientData) {
     return "Log your first session to begin tracking your systemic training load."
@@ -354,6 +360,12 @@ export default function ProgressPage() {
 
       query = query.gte('started_at', effectiveStart.toISOString())
 
+      // If no explicit date range is set, ensure we load a decent amount of sessions (first page)
+      // to populate the charts meaningfully.
+      if (!startDate) {
+        query = query.limit(SESSION_PAGE_SIZE)
+      }
+
       const [{ data: sessionData, error: fetchError }, { data: templateData, error: templateError }] =
         await Promise.all([
           query,
@@ -537,6 +549,10 @@ export default function ProgressPage() {
 
   const filteredSessions = useMemo(() => {
     const seenIds = new Set<string>()
+    
+    // Default to Last 90 Days if no explicit range is set for consistent chart viewing
+    const effectiveStartDate = startDate || formatDateForInput(createPastRange(90).start)
+    
     return sessions.filter((session) => {
       if (seenIds.has(session.id)) return false
       seenIds.add(session.id)
@@ -544,7 +560,7 @@ export default function ProgressPage() {
       const date = new Date(session.started_at)
       const localDay = formatDateForInput(date)
 
-      if (startDate && localDay < startDate) return false
+      if (effectiveStartDate && localDay < effectiveStartDate) return false
       if (endDate && localDay > endDate) return false
       if (selectedExercise !== 'all') {
         const hasExercise = session.session_exercises.some((exercise) => exercise.exercise_name === selectedExercise)
@@ -582,8 +598,9 @@ export default function ProgressPage() {
     return readinessSessions
       .map(({ session, entry }) => {
         const timestamp = new Date(entry.recorded_at || session.started_at).getTime()
+        const dayKey = formatDateForInput(new Date(session.started_at))
         return {
-          day: formatDate(session.started_at),
+          day: formatChartDate(dayKey),
           timestamp,
           score: entry.readiness_score,
           sleep: entry.sleep_quality,
@@ -781,7 +798,7 @@ export default function ProgressPage() {
         return a.localeCompare(b)
       })
       .map(([label, values]) => ({ 
-        label, 
+        label: useDaily ? formatChartDate(label) : label, 
         volume: Math.round(values.volume), 
         load: Math.round(values.load),
         isDaily: useDaily
@@ -796,14 +813,16 @@ export default function ProgressPage() {
         rir: typeof set.rir === 'number' ? set.rir : null
       })
       if (raw === null) return
-      const key = formatDate(set.performed_at ?? set.startedAt)
+      const key = formatDateForInput(new Date(set.performed_at ?? set.startedAt))
       const current = daily.get(key) ?? { total: 0, count: 0 }
       daily.set(key, { total: current.total + raw, count: current.count + 1 })
     })
-    return Array.from(daily.entries()).map(([day, value]) => ({
-      day,
-      effort: Number((value.total / value.count).toFixed(1))
-    }))
+    return Array.from(daily.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, value]) => ({
+        day: formatChartDate(day),
+        effort: Number((value.total / value.count).toFixed(1))
+      }))
   }, [allSets])
 
   const exerciseTrend = useMemo(() => {
@@ -818,13 +837,33 @@ export default function ProgressPage() {
 
       const e1rm = computeSetE1rm(set, sessionGoal, isEligible)
       if (!e1rm) return
-      const key = formatDate(set.performed_at ?? set.startedAt)
+      const key = formatDateForInput(new Date(set.performed_at ?? set.startedAt))
       const current = daily.get(key)
       daily.set(key, Math.max(current ?? 0, e1rm))
     })
-    return Array.from(daily.entries())
-      .map(([day, e1rm]) => ({ day, e1rm: Math.round(e1rm) }))
-      .sort((a, b) => new Date(a.day).getTime() - new Date(b.day).getTime())
+
+    const sortedDaily = Array.from(daily.entries())
+      .map(([day, e1rm]) => ({ 
+        day: formatChartDate(day), 
+        e1rm: Math.round(e1rm), 
+        timestamp: new Date(day).getTime(), 
+        trend: null as number | null 
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp)
+
+    // Calculate a simple 7-day rolling average for the trend line if we have enough data
+    if (sortedDaily.length >= 3) {
+      sortedDaily.forEach((point, idx) => {
+        const windowSize = 7 * 86400000 // 7 days in ms
+        const window = sortedDaily.filter(p => p.timestamp <= point.timestamp && p.timestamp > point.timestamp - windowSize)
+        if (window.length > 0) {
+          const sum = window.reduce((acc, p) => acc + p.e1rm, 0)
+          point.trend = Math.round(sum / window.length)
+        }
+      })
+    }
+
+    return sortedDaily
   }, [allSets, selectedExercise, sessions, templateById, exerciseLibraryByName])
 
   const muscleBreakdown = useMemo(() => {
@@ -1778,7 +1817,23 @@ export default function ProgressPage() {
                     <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
                     <YAxis stroke="var(--color-text-subtle)" />
                     <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
-                    <Line type="monotone" dataKey="e1rm" stroke="var(--color-warning)" strokeWidth={2} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="e1rm" 
+                      stroke="var(--color-warning)" 
+                      strokeWidth={2} 
+                      dot={{ r: 4, fill: 'var(--color-surface)', strokeWidth: 2 }}
+                      activeDot={{ r: 6 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="trend" 
+                      stroke="var(--color-text-subtle)" 
+                      strokeWidth={2} 
+                      strokeDasharray="5 5" 
+                      dot={false} 
+                      activeDot={false} 
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

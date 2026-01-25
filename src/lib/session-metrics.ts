@@ -35,20 +35,20 @@ export const isSetE1rmEligible = (
   exerciseEligible?: boolean | null,
   set?: MetricsSet | null
 ): boolean => {
-  // 1) Session Goal Gate
-  if (sessionGoal !== 'strength') return false
-
-  // 2) Exercise Library Gate
+  // 1) Exercise Library Gate - must be a movement suitable for e1RM (e.g. not stretching)
   if (!exerciseEligible) return false
 
-  // 3) Set Level Gate
+  // 2) Set Level Gate
   if (!set || set.completed === false) return false
-  if (typeof set.reps !== 'number' || set.reps <= 0 || set.reps > 5) return false
+  
+  // Formulas are most accurate at low reps, but valid for trend tracking up to ~12.
+  if (typeof set.reps !== 'number' || set.reps <= 0 || set.reps > 12) return false
 
   const rpe = typeof set.rpe === 'number' ? set.rpe : null
   const rir = typeof set.rir === 'number' ? set.rir : null
 
   // Close enough effort: RPE 8+ or RIR 2 or stricter
+  // We need a high effort set to get a valid estimate of max strength.
   if (rpe !== null && rpe < 8) return false
   if (rir !== null && rir > 2) return false
   if (rpe === null && rir === null) return false
