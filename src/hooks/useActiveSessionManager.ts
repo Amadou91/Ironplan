@@ -31,8 +31,8 @@ type SetPayload = {
   duration_seconds: number | null;
   distance: number | null;
   distance_unit: string | null;
-  extras: Record<string, any> | null;
-  extra_metrics: Record<string, any> | null;
+  extras: Record<string, unknown> | null;
+  extra_metrics: Record<string, unknown> | null;
 }
 
 type SessionExercisePayload = {
@@ -141,8 +141,8 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
               durationSeconds: set.duration_seconds ?? undefined,
               distance: set.distance ?? undefined,
               distanceUnit: set.distance_unit ?? undefined,
-              extras: set.extras ?? undefined,
-              extra_metrics: set.extra_metrics ?? undefined
+              extras: set.extras as Record<string, string | null> ?? undefined,
+              extraMetrics: set.extra_metrics ?? undefined
             }))
         }))
     };
