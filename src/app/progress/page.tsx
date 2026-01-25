@@ -1441,174 +1441,148 @@ export default function ProgressPage() {
                     </div>
                   </div>
                 </Card>
-        <Card className="p-6">
-          <div className="flex flex-col gap-10 xl:flex-row xl:items-start">
-            <div className="flex-1">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Filters</h2>
-              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="flex flex-col">
-                  <label className="text-xs text-subtle">Start date</label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(event) => {
-                      setStartDate(event.target.value)
-                      setActiveDatePreset(null)
-                    }}
-                    className="input-base mt-1"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-xs text-subtle">End date</label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(event) => {
-                      setEndDate(event.target.value)
-                      setActiveDatePreset(null)
-                    }}
-                    className="input-base mt-1"
-                  />
-                </div>
+        <Card className="p-6 md:p-8">
+          <div className="flex flex-col gap-10">
+            <div>
+              <div className="flex items-center gap-2 mb-6">
+                <h2 className="text-xs font-black uppercase tracking-[0.25em] text-subtle">Data Insights Control</h2>
+                <div className="h-px flex-1 bg-[var(--color-border)] opacity-50" />
               </div>
-
-              <div className="mt-6 space-y-6">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-subtle mb-2.5">Date range presets</p>
-                  <div className="flex flex-wrap gap-2">
-                    {DATE_RANGE_PRESETS.map((preset) => (
-                      <Button
-                        key={preset.label}
-                        variant={activeDatePreset === preset.label ? 'primary' : 'outline'}
-                        size="sm"
-                        type="button"
-                        onClick={() => handlePresetClick(preset)}
-                        className={`h-8 px-3 text-xs ${activeDatePreset === preset.label ? '' : 'bg-transparent text-muted border-[var(--color-border)]'}`}
-                      >
-                        {preset.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-subtle mb-2.5">Muscle group presets</p>
-                  <div className="flex flex-wrap gap-2">
-                    {MUSCLE_PRESETS.map((preset) => (
-                      <Button
-                        key={preset.value}
-                        variant={selectedMuscle === preset.value ? 'primary' : 'outline'}
-                        size="sm"
-                        type="button"
-                        onClick={() => {
-                          if (selectedMuscle === preset.value) {
-                            setSelectedMuscle('all')
-                          } else {
-                            setSelectedMuscle(preset.value)
-                          }
-                        }}
-                        className={`h-8 px-3 text-xs ${selectedMuscle === preset.value ? '' : 'bg-transparent text-muted border-[var(--color-border)]'}`}
-                      >
-                        {preset.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex flex-col max-w-sm">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-subtle mb-2.5">Specific Exercise</label>
-                  <select
-                    value={selectedExercise}
-                    onChange={(event) => setSelectedExercise(event.target.value)}
-                    className="input-base"
-                  >
-                    <option value="all">All Exercises</option>
-                    {exerciseOptions.map((exercise) => (
-                      <option key={exercise} value={exercise}>
-                        {exercise}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-10 lg:flex-row lg:items-start xl:border-l xl:border-[var(--color-border)] xl:pl-10">
-              <div className="w-full lg:w-[500px]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Muscle group volume</h3>
-                    <ChartInfoTooltip 
-                      description="Shows how much work each muscle group did. The bigger the slice, the more work that muscle did."
-                      goal="Try to keep things even so you don't over-train one spot and under-train another."
-                    />
-                  </div>
-                  <div className="flex gap-1 bg-[var(--color-surface-muted)] p-1 rounded-lg">
-                    <button 
-                      onClick={() => setMuscleVizMode('absolute')}
-                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'absolute' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
-                    >
-                      ABS
-                    </button>
-                    <button 
-                      onClick={() => setMuscleVizMode('relative')}
-                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'relative' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
-                    >
-                      %
-                    </button>
-                    {muscleBreakdown.some(m => m.imbalanceIndex !== null) && (
-                      <button 
-                        onClick={() => setMuscleVizMode('index')}
-                        className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'index' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
-                      >
-                        INDEX
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row items-center gap-6 mt-4">
-                  <div className="h-64 w-full sm:w-1/2">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                      <PieChart>
-                        <Pie 
-                          data={muscleBreakdown.map(m => ({
-                            ...m,
-                            value: muscleVizMode === 'absolute' ? m.volume : muscleVizMode === 'relative' ? m.relativePct : (m.imbalanceIndex ?? 0)
-                          })).filter(m => m.value > 0)} 
-                          dataKey="value" 
-                          nameKey="muscle" 
-                          outerRadius={90}
-                          innerRadius={60}
-                          paddingAngle={2}
-                          stroke="none"
-                        >
-                          {muscleBreakdown.map((entry, index) => (
-                            <Cell key={entry.muscle} fill={chartColors[index % chartColors.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          formatter={(value: number | undefined) => {
-                            if (typeof value !== 'number') return []
-                            if (muscleVizMode === 'absolute') return [`${value.toLocaleString()} lb`, 'Volume']
-                            if (muscleVizMode === 'relative') return [`${value}%`, 'Relative %']
-                            return [value, 'Imbalance Index']
+              
+              <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
+                {/* Date Selection Column */}
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-strong mb-3">Time Horizon</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex flex-col">
+                        <label className="text-[9px] uppercase font-bold text-subtle mb-1 ml-1">From</label>
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(event) => {
+                            setStartDate(event.target.value)
+                            setActiveDatePreset(null)
                           }}
-                          contentStyle={{ 
-                            background: 'var(--color-surface)', 
-                            border: '1px solid var(--color-border)', 
-                            color: 'var(--color-text)', 
-                            fontSize: '12px',
-                            borderRadius: '8px',
-                            boxShadow: 'var(--shadow-md)'
-                          }} 
+                          className="input-base text-sm"
                         />
-                      </PieChart>
-                    </ResponsiveContainer>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-[9px] uppercase font-bold text-subtle mb-1 ml-1">To</label>
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(event) => {
+                            setEndDate(event.target.value)
+                            setActiveDatePreset(null)
+                          }}
+                          className="input-base text-sm"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="w-full sm:w-1/2 space-y-2.5">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-subtle border-b border-[var(--color-border)] pb-1.5 mb-3">
-                      {muscleVizMode === 'absolute' ? 'Volume breakdown (lb)' : muscleVizMode === 'relative' ? 'Relative distribution (%)' : 'Imbalance index (100 = target)'}
-                    </p>
+
+                  <div>
+                    <p className="text-[9px] uppercase font-bold text-subtle mb-2.5 ml-1">Quick Ranges</p>
+                    <div className="flex flex-wrap gap-2">
+                      {DATE_RANGE_PRESETS.map((preset) => (
+                        <Button
+                          key={preset.label}
+                          variant={activeDatePreset === preset.label ? 'primary' : 'outline'}
+                          size="sm"
+                          type="button"
+                          onClick={() => handlePresetClick(preset)}
+                          className={`h-8 px-3 text-[11px] font-bold transition-all ${activeDatePreset === preset.label ? 'shadow-md' : 'bg-transparent text-muted border-[var(--color-border)] hover:border-strong'}`}
+                        >
+                          {preset.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Focus Selection Column */}
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-strong mb-3">Muscle Group Focus</p>
+                    <div className="flex flex-wrap gap-2">
+                      {MUSCLE_PRESETS.map((preset) => (
+                        <Button
+                          key={preset.value}
+                          variant={selectedMuscle === preset.value ? 'primary' : 'outline'}
+                          size="sm"
+                          type="button"
+                          onClick={() => {
+                            if (selectedMuscle === preset.value) {
+                              setSelectedMuscle('all')
+                            } else {
+                              setSelectedMuscle(preset.value)
+                            }
+                          }}
+                          className={`h-8 px-4 text-[11px] font-bold transition-all ${selectedMuscle === preset.value ? 'shadow-md scale-105' : 'bg-transparent text-muted border-[var(--color-border)] hover:border-strong'}`}
+                        >
+                          {preset.label}
+                        </Button>
+                      ))}
+                      <Button
+                        variant={selectedMuscle === 'all' ? 'primary' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedMuscle('all')}
+                        className={`h-8 px-4 text-[11px] font-bold transition-all ${selectedMuscle === 'all' ? 'shadow-md' : 'bg-transparent text-muted border-[var(--color-border)] hover:border-strong'}`}
+                      >
+                        All Groups
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-strong mb-3">Specific Movement</label>
+                    <select
+                      value={selectedExercise}
+                      onChange={(event) => setSelectedExercise(event.target.value)}
+                      className="input-base text-sm font-semibold"
+                    >
+                      <option value="all">All Exercises</option>
+                      {exerciseOptions.map((exercise) => (
+                        <option key={exercise} value={exercise}>
+                          {exercise}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Analysis Perspective Column */}
+                <div className="lg:border-l lg:border-[var(--color-border)] lg:pl-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-strong">Muscle Distribution</h3>
+                    <div className="flex gap-1 bg-[var(--color-surface-muted)] p-1 rounded-lg">
+                      <button 
+                        onClick={() => setMuscleVizMode('absolute')}
+                        className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${muscleVizMode === 'absolute' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
+                      >
+                        ABS
+                      </button>
+                      <button 
+                        onClick={() => setMuscleVizMode('relative')}
+                        className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${muscleVizMode === 'relative' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
+                      >
+                        %
+                      </button>
+                      {muscleBreakdown.some(m => m.imbalanceIndex !== null) && (
+                        <button 
+                          onClick={() => setMuscleVizMode('index')}
+                          className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${muscleVizMode === 'index' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
+                        >
+                          INDEX
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-[180px] overflow-y-auto pr-2 scrollbar-hide">
                     {muscleBreakdown.length === 0 ? (
-                      <p className="text-xs text-subtle italic">No data for selected range.</p>
+                      <p className="text-xs text-subtle italic">Select a wider range to see breakdown.</p>
                     ) : (
                       muscleBreakdown
                         .sort((a, b) => {
@@ -1618,21 +1592,21 @@ export default function ProgressPage() {
                         })
                         .map((entry, idx) => {
                           const displayVal = muscleVizMode === 'absolute' 
-                            ? entry.volume.toLocaleString() 
+                            ? `${entry.volume.toLocaleString()} lb`
                             : muscleVizMode === 'relative' 
                               ? `${entry.relativePct}%` 
                               : entry.imbalanceIndex !== null ? entry.imbalanceIndex : 'N/A'
                           
                           return (
-                            <div key={entry.muscle} className="flex items-center justify-between text-xs">
+                            <div key={entry.muscle} className="flex items-center justify-between text-xs py-1 border-b border-[var(--color-border)]/30 last:border-0">
                               <div className="flex items-center gap-2.5">
                                 <div 
-                                  className="w-2.5 h-2.5 rounded-sm" 
+                                  className="w-2 h-2 rounded-full" 
                                   style={{ background: chartColors[idx % chartColors.length] }} 
                                 />
-                                <span className="text-muted font-medium">{entry.muscle}</span>
+                                <span className="text-muted font-bold uppercase text-[10px] tracking-tight">{entry.muscle}</span>
                               </div>
-                              <span className="text-strong font-semibold">{displayVal}</span>
+                              <span className="text-strong font-black tabular-nums text-[11px]">{displayVal}</span>
                             </div>
                           )
                         })
