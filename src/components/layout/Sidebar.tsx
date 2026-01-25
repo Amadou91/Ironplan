@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogIn, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -18,11 +18,14 @@ export default function Sidebar() {
   const clearUser = useAuthStore((state) => state.clearUser);
   const supabase = createClient();
   
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false;
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed');
-    return saved !== null ? saved === 'true' : false;
-  });
+    if (saved === 'true') {
+      setIsCollapsed(true);
+    }
+  }, []);
 
   const toggleSidebar = () => {
     const nextState = !isCollapsed;

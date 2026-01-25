@@ -11,8 +11,6 @@ import {
 } from '@/lib/body-metrics'
 import { BodyMetricsForm } from './BodyMetricsForm'
 import { WeightHistorySection } from './WeightHistorySection'
-import { TrainingGoalsForm } from './TrainingGoalsForm'
-import type { Goal, FocusArea } from '@/types/domain'
 
 type ProfileRow = {
   id: string
@@ -22,12 +20,7 @@ type ProfileRow = {
   birthdate: string | null
   sex: string | null
   updated_at: string | null
-  preferences?: {
-    trainingGoals?: {
-      goal?: Goal
-      focusAreas?: FocusArea[]
-    }
-  } | null
+  preferences?: any | null
 }
 
 type ProfileDraft = {
@@ -76,10 +69,6 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
 
-  // Training Goals State
-  const [trainingGoal, setTrainingGoal] = useState<Goal>('hypertrophy')
-  const [focusAreas, setFocusAreas] = useState<FocusArea[]>(['full_body'])
-
   // Manual Weight State
   const [manualWeight, setManualWeight] = useState('')
   const [manualDate, setManualDate] = useState(formatDateForInput(new Date()))
@@ -117,11 +106,6 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
       setProfile(data ? (data as ProfileRow) : null)
       setProfileDraft(nextDraft)
       setProfileSnapshot(JSON.stringify(nextDraft))
-      
-      if (data?.preferences?.trainingGoals) {
-        setTrainingGoal(data.preferences.trainingGoals.goal || 'hypertrophy')
-        setFocusAreas(data.preferences.trainingGoals.focusAreas || ['full_body'])
-      }
     }
     setProfileLoading(false)
   }, [user, supabase, onError])
@@ -204,13 +188,7 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
       body_fat_percent: bodyFatPercent,
       birthdate: profileDraft.birthdate || null,
       sex: profileDraft.sex || null,
-      preferences: {
-        ...(profile?.preferences || {}),
-        trainingGoals: {
-          goal: trainingGoal,
-          focusAreas
-        }
-      }
+      preferences: profile?.preferences || {}
     }
 
     const { data, error: saveError } = await supabase
@@ -288,13 +266,6 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
         lastUpdated={profile?.updated_at}
         onChange={handleProfileChange}
         onSave={handleSaveProfile}
-      />
-
-      <TrainingGoalsForm 
-        goal={trainingGoal}
-        focusAreas={focusAreas}
-        onGoalChange={setTrainingGoal}
-        onFocusAreasChange={setFocusAreas}
       />
 
       <WeightHistorySection 

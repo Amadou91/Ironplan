@@ -102,6 +102,15 @@ export default function DashboardPage() {
         )}
 
         <div className="grid grid-cols-1 gap-8">
+          <TrainingStatusCard
+            status={trainingLoadSummary.status}
+            loadRatio={trainingLoadSummary.loadRatio}
+            acuteLoad={trainingLoadSummary.acuteLoad}
+            chronicWeeklyAvg={trainingLoadSummary.chronicWeeklyAvg}
+            insufficientData={trainingLoadSummary.insufficientData}
+            isInitialPhase={trainingLoadSummary.isInitialPhase}
+          />
+
           <RecommendedSession recommendedTemplate={recommendedTemplate} trainingLoadStatus={trainingLoadSummary.status} />
 
           <TemplateInventory
@@ -112,15 +121,6 @@ export default function DashboardPage() {
           />
 
           <RecentActivity recentSessions={recentSessions} templateById={templateById} />
-
-          <TrainingStatusCard
-            status={trainingLoadSummary.status}
-            loadRatio={trainingLoadSummary.loadRatio}
-            acuteLoad={trainingLoadSummary.acuteLoad}
-            chronicWeeklyAvg={trainingLoadSummary.chronicWeeklyAvg}
-            insufficientData={trainingLoadSummary.insufficientData}
-            isInitialPhase={trainingLoadSummary.isInitialPhase}
-          />
         </div>
       </div>
     </div>

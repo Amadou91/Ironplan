@@ -15,15 +15,7 @@ interface RecommendedSessionProps {
 
 export function RecommendedSession({ recommendedTemplate, trainingLoadStatus }: RecommendedSessionProps) {
   return (
-    <Card
-      className={`overflow-hidden border-t-4 ${
-        trainingLoadStatus === 'balanced'
-          ? 'border-t-[var(--color-success)]'
-          : trainingLoadStatus === 'overreaching'
-            ? 'border-t-[var(--color-danger)]'
-            : 'border-t-[var(--color-warning)]'
-      }`}
-    >
+    <Card className="overflow-hidden">
       <div className="p-6 md:p-8">
         <div className="flex items-center gap-3 mb-6">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary)] shadow-sm">

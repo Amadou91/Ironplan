@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
@@ -19,11 +19,17 @@ export default function ProfilePage() {
   const devToolsKey = 'ironplan-dev-tools'
   const isDevMode = process.env.NODE_ENV !== 'production'
   
-  const [devToolsEnabled, setDevToolsEnabled] = useState(() => {
-    if (typeof window === 'undefined' || !isDevMode) return false
-    return localStorage.getItem(devToolsKey) === 'true'
-  })
+  const [devToolsEnabled, setDevToolsEnabled] = useState(false)
   const [devToolsNotice, setDevToolsNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isDevMode) {
+      const saved = localStorage.getItem(devToolsKey)
+      if (saved === 'true') {
+        setDevToolsEnabled(true)
+      }
+    }
+  }, [isDevMode])
 
   const toggleDevTools = () => {
     if (!isDevMode) return
