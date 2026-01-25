@@ -38,12 +38,14 @@ export function MuscleSplitChart({ data }: MuscleSplitChartProps) {
         </div>
         <div className="flex gap-1 bg-[var(--color-surface-muted)] p-1 rounded-lg">
           <button 
+            type="button"
             onClick={() => setMuscleVizMode('absolute')}
             className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${muscleVizMode === 'absolute' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
           >
             ABS
           </button>
           <button 
+            type="button"
             onClick={() => setMuscleVizMode('relative')}
             className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${muscleVizMode === 'relative' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
           >
@@ -51,6 +53,7 @@ export function MuscleSplitChart({ data }: MuscleSplitChartProps) {
           </button>
           {data.some(m => m.imbalanceIndex !== null) && (
             <button 
+              type="button"
               onClick={() => setMuscleVizMode('index')}
               className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${muscleVizMode === 'index' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
             >

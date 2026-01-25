@@ -15,7 +15,7 @@ export default function ProgressPage() {
   const router = useRouter()
   const supabase = createClient()
   const {
-    user, userLoading, loading, error, setError, setSessions, filteredSessions,
+    user, userLoading, loading, error, setError, sessions, setSessions, filteredSessions,
     templateById, exerciseOptions, startDate, setStartDate, endDate, setEndDate,
     selectedMuscle, setSelectedMuscle, selectedExercise, setSelectedExercise,
     hasMoreSessions, setSessionPage, trainingLoadSummary, aggregateMetrics,
@@ -43,7 +43,10 @@ export default function ProgressPage() {
     } catch { setError('Unable to create a manual session.') } finally { setCreatingManualSession(false) }
   }, [ensureSession, router, supabase, setError])
 
-  if (userLoading || loading) return (
+  // Only show full page skeleton on initial load or when we have no data
+  const isInitialLoad = userLoading || (loading && sessions.length === 0)
+
+  if (isInitialLoad) return (
     <div className="page-shell"><div className="w-full space-y-8 px-4 py-10 sm:px-6 lg:px-10 2xl:px-16 animate-pulse">
       <div className="h-20 w-full rounded bg-[var(--color-surface-muted)]" />
       <div className="h-[300px] w-full rounded bg-[var(--color-surface-muted)]" />
@@ -59,8 +62,8 @@ export default function ProgressPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div><p className="text-xs uppercase tracking-[0.3em] text-subtle">Progress</p><h1 className="font-display text-3xl font-semibold text-strong">Progress and insights</h1></div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleCreateManualSession} disabled={creatingManualSession}>{creatingManualSession ? 'Creating...' : 'Log past workout'}</Button>
-            <Button variant="secondary" size="sm" onClick={() => { setStartDate(''); setEndDate(''); setSelectedMuscle('all'); setSelectedExercise('all'); }}>Reset filters</Button>
+            <Button variant="outline" size="sm" type="button" onClick={handleCreateManualSession} disabled={creatingManualSession}>{creatingManualSession ? 'Creating...' : 'Log past workout'}</Button>
+            <Button variant="secondary" size="sm" type="button" onClick={() => { setStartDate(''); setEndDate(''); setSelectedMuscle('all'); setSelectedExercise('all'); }}>Reset filters</Button>
           </div>
         </div>
         {error && <div className="alert-error p-4 text-sm">{error}</div>}

@@ -176,6 +176,7 @@ export function ProgressFilters({
                     <Button
                       variant={selectedMuscle === 'all' ? 'primary' : 'outline'}
                       size="sm"
+                      type="button"
                       onClick={() => setSelectedMuscle('all')}
                       className={`h-8 px-4 text-[11px] font-bold transition-all ${
                         selectedMuscle === 'all' 
