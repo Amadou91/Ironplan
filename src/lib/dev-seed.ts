@@ -254,7 +254,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         secondaryMuscles: ['core', 'full_body'],
         metricProfile: 'yoga_session',
         sets: [
-          { reps: null, weight: null, weightUnit: 'lb', rir: 6, durationSeconds: 900, extraMetrics: { style: 'Vinyasa', focus: 'Flow' } }
+          { reps: null, weight: null, weightUnit: 'lb', rpe: 6, durationSeconds: 900, extraMetrics: { style: 'Vinyasa', focus: 'Flow' } }
         ]
       },
       {
@@ -263,7 +263,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         secondaryMuscles: ['core'],
         metricProfile: 'mobility_session',
         sets: [
-          { reps: null, weight: null, weightUnit: 'lb', rir: 4, durationSeconds: 600, extraMetrics: { target_area: 'Hips' } }
+          { reps: null, weight: null, weightUnit: 'lb', rpe: 4, durationSeconds: 600, extraMetrics: { target_area: 'Hips' } }
         ]
       }
     ],

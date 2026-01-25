@@ -242,6 +242,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
                 value={(getExtra('focus') as string) ?? ''}
                 onChange={(e) => updateExtra('focus', e.target.value)}
                 className={`${inputClassName()} text-left px-2`}
+                disabled={!isEditing}
                 readOnly={!isEditing}
              />
            </div>
@@ -318,14 +319,14 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
             />
           </div>
            <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Difficulty (1-10)</label>
+            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Effort (1-10)</label>
             <select
-              value={(getExtra('difficulty') as string) ?? ''}
-              onChange={(e) => updateExtra('difficulty', e.target.value === '' ? '' : Number(e.target.value))}
+              value={rirValue}
+              onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))}
               className={inputClassName()}
               disabled={!isEditing}
             >
-              <option value="">Select</option>
+              <option value="">Select effort</option>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((val) => (
                 <option key={val} value={val}>{val}</option>
               ))}
@@ -339,6 +340,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
                 value={(getExtra('target_area') as string) ?? ''}
                 onChange={(e) => updateExtra('target_area', e.target.value)}
                 className={`${inputClassName()} text-left px-2`}
+                disabled={!isEditing}
                 readOnly={!isEditing}
              />
            </div>
