@@ -199,41 +199,21 @@ export default function WorkoutActivePage() {
               sessionId={currentSessionId}
               equipmentInventory={template?.template_inputs?.equipment?.inventory ?? null}
               onBodyWeightChange={(weight) => (bodyWeightRef.current = weight)}
+              onFinish={handleFinishSession}
+              onCancel={handleCancelSession}
+              isFinishing={finishingSession}
               focus={template?.focus}
               style={template?.style}
             />
           </div>
 
           <div className="space-y-4">
-            <Card className="p-6">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold text-strong">Session controls</h2>
-              </div>
-              {finishError && <div className="mt-3 alert-error px-3 py-2 text-xs">{finishError}</div>}
-              {cancelError && <div className="mt-3 alert-error px-3 py-2 text-xs">{cancelError}</div>}
-
-              <div className="mt-4 space-y-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleFinishSession}
-                  disabled={finishingSession}
-                  className="w-full justify-center"
-                >
-                  {finishingSession ? 'Finishing...' : 'Finish Session'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={handleCancelSession}
-                  disabled={cancelingSession}
-                  className="w-full justify-center text-[var(--color-danger)] hover:text-[var(--color-danger)]"
-                >
-                  {cancelingSession ? 'Cancelling...' : 'Cancel Session'}
-                </Button>
-              </div>
-            </Card>
+            {(finishError || cancelError) && (
+              <Card className="p-4 border-[var(--color-danger)] bg-[var(--color-danger-soft)]/10">
+                {finishError && <div className="text-xs text-[var(--color-danger)] font-medium">{finishError}</div>}
+                {cancelError && <div className="mt-2 text-xs text-[var(--color-danger)] font-medium">{cancelError}</div>}
+              </Card>
+            )}
 
             <Card className="p-6">
               <h2 className="text-lg font-semibold text-strong">Focus cues</h2>

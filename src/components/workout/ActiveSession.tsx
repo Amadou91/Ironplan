@@ -5,6 +5,9 @@ import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { createClient } from '@/lib/supabase/client';
 import { SetLogger } from './SetLogger';
 import { Plus, Clock, RefreshCcw, X, Trash2, Search } from 'lucide-react';
+import { SessionHeader } from './session/SessionHeader';
+import { SessionControls } from './session/SessionControls';
+import { ExerciseNavigator } from './session/ExerciseNavigator';
 import type { Intensity, SessionExercise, WeightUnit, WorkoutImpact, WorkoutSession, WorkoutSet, EquipmentInventory, Exercise } from '@/types/domain';
 import { enhanceExerciseData, isTimeBasedExercise, toMuscleLabel, toMuscleSlug, getMetricProfile } from '@/lib/muscle-utils';
 import { EXERCISE_LIBRARY } from '@/lib/generator';
@@ -19,6 +22,9 @@ type ActiveSessionProps = {
   sessionId?: string | null;
   equipmentInventory?: EquipmentInventory | null;
   onBodyWeightChange?: (weight: number | null) => void;
+  onFinish?: () => void;
+  onCancel?: () => void;
+  isFinishing?: boolean;
   focus?: FocusArea | null;
   style?: Goal | null;
 };
@@ -110,7 +116,7 @@ const getSessionIntensity = (notes?: SessionNotes | null): Intensity | null => {
   return 'moderate';
 };
 
-export default function ActiveSession({ sessionId, equipmentInventory, onBodyWeightChange, focus, style }: ActiveSessionProps) {
+export default function ActiveSession({ sessionId, equipmentInventory, onBodyWeightChange, onFinish, onCancel, isFinishing, focus, style }: ActiveSessionProps) {
   const { activeSession, addSet, removeSet, updateSet, startSession, replaceSessionExercise, removeSessionExercise, addSessionExercise } = useWorkoutStore();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [swappingExIdx, setSwappingExIdx] = useState<number | null>(null);
@@ -122,9 +128,21 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
   const [exerciseTargets, setExerciseTargets] = useState<Record<string, GeneratedExerciseTarget>>({});
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistoryPoint[]>([]);
   const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; label: string } | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const exerciseRefs = useRef<(HTMLDivElement | null)[]>([]);
   const restIntervalRef = useRef<number | null>(null);
   const supabase = createClient();
   const isLoading = Boolean(sessionId) && !activeSession && !errorMessage;
+
+  const handleExerciseSelect = (index: number) => {
+    setCurrentIndex(index);
+    const element = exerciseRefs.current[index];
+    if (element) {
+      const yOffset = -220; // Account for sticky header + navigator
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
 
   const exerciseLibrary = useMemo(() => EXERCISE_LIBRARY.map((exercise) => enhanceExerciseData(exercise)), []);
   const exerciseLibraryByName = useMemo(
@@ -789,82 +807,36 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
   if (!activeSession) return null;
 
   return (
-    <div className="space-y-8 pb-24">
-      <div className="sticky top-0 z-10 surface-elevated p-4 backdrop-blur">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-strong">{heading}</h2>
-            <div className="flex items-center gap-1 text-sm text-muted">
-              <Clock size={14} />
-              <span>Started at {new Date(activeSession.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-            {(intensityLabel || sessionNotes?.minutesAvailable) && (
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
-                {intensityLabel && <span className="badge-neutral">Intensity: {intensityLabel}</span>}
-                {sessionNotes?.minutesAvailable && (
-                  <span className="badge-neutral">{sessionNotes.minutesAvailable} min plan</span>
-                )}
-                {typeof sessionNotes?.readinessScore === 'number' && (
-                  <span className="badge-neutral">Readiness {sessionNotes.readinessScore}</span>
-                )}
-              </div>
-            )}
-            {progressSummary && (
-              <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-subtle">
-                <div className="flex items-center gap-2">
-                  <span>
-                    {progressSummary.completedSets}/{progressSummary.totalSets} sets
-                  </span>
-                  <span>•</span>
-                  <span>
-                    {progressSummary.completedExercises}/{progressSummary.totalExercises} exercises
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 border-l border-[var(--color-border)] pl-4">
-                  <span className="font-medium text-muted">Weight:</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    step="0.1"
-                    placeholder={preferredUnit}
-                    value={sessionBodyWeight}
-                    onChange={(e) => handleBodyWeightUpdate(e.target.value)}
-                    className="w-16 rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-center font-semibold text-strong outline-none transition-all focus:bg-[var(--color-surface)] focus:ring-1 focus:ring-[var(--color-primary)]"
-                  />
-                  <span className="text-[10px]">{preferredUnit}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        {restTimer && (
-          <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs text-muted">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-strong">Rest · {restTimer.label}</span>
-              <button type="button" onClick={clearRestTimer} className="text-xs font-semibold text-accent">
-                Skip
-              </button>
-            </div>
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-lg font-semibold text-strong">{formatRestTime(restTimer.remaining)}</span>
-              <span className="text-xs text-subtle">{restTimer.total}s</span>
-            </div>
-            <div className="mt-2 h-1 rounded-full bg-[var(--color-surface-muted)]">
-              <div
-                className="h-1 rounded-full bg-[var(--color-primary)]"
-                style={{ width: `${restProgress}%` }}
-              />
-            </div>
-          </div>
-        )}
-        {errorMessage && (
-          <div className="mt-3 alert-error px-3 py-2 text-xs">{errorMessage}</div>
-        )}
-      </div>
+    <div className="space-y-8 pb-32">
+      <SessionHeader
+        name={heading}
+        startedAt={activeSession.startedAt}
+        intensityLabel={intensityLabel}
+        minutesAvailable={sessionNotes?.minutesAvailable}
+        readinessScore={sessionNotes?.readinessScore}
+        progressSummary={progressSummary}
+        sessionBodyWeight={sessionBodyWeight}
+        preferredUnit={preferredUnit}
+        onBodyWeightUpdate={handleBodyWeightUpdate}
+        onCancel={() => onCancel?.()}
+        errorMessage={errorMessage}
+        restTimer={restTimer}
+        onClearRestTimer={clearRestTimer}
+      />
+
+      <ExerciseNavigator
+        exercises={activeSession.exercises}
+        currentIndex={currentIndex}
+        onSelect={handleExerciseSelect}
+      />
 
       <div className="space-y-6">
         {activeSession.exercises.map((exercise: SessionExercise, exIdx: number) => (
-          <div key={`${exercise.name}-${exIdx}`} className="surface-card-muted p-4 md:p-6">
+          <div 
+            key={`${exercise.name}-${exIdx}`} 
+            ref={(el) => (exerciseRefs.current[exIdx] = el)}
+            className="surface-card-muted p-4 md:p-6 scroll-mt-[220px]"
+          >
             <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
               <div className="min-w-[220px] flex-1">
                 <div className="flex items-center justify-between">
@@ -920,7 +892,6 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
                     onDelete={() => handleDeleteSet(exIdx, setIdx)}
                     onToggleComplete={() => handleSetUpdate(exIdx, setIdx, 'completed', !set.completed)}
                     metricProfile={exercise.metricProfile}
-                    // Legacy props for backward compat or specific overrides if needed
                     isCardio={exercise.primaryMuscle === 'cardio' || exercise.metricProfile === 'cardio_session'}
                     isYoga={exercise.primaryMuscle === 'yoga' || exercise.metricProfile === 'yoga_session'}
                     isTimeBased={isTimeBased || exercise.metricProfile === 'timed_strength'}
@@ -938,14 +909,17 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
             </button>
           </div>
         ))}
-
-        <button
-          onClick={() => setIsAddingExercise(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--color-primary-border)] py-4 text-sm font-semibold text-[var(--color-primary-strong)] transition-all hover:bg-[var(--color-primary-soft)]"
-        >
-          <Search size={18} /> Add Workout
-        </button>
       </div>
+
+      <div className="pt-4">
+        <SessionControls
+          onFinish={() => onFinish?.()}
+          onAddExercise={() => setIsAddingExercise(true)}
+          onReorder={() => {}} // Placeholder as requested
+          isFinishing={isFinishing}
+        />
+      </div>
+
 
       {isAddingExercise && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
