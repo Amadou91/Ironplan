@@ -178,12 +178,12 @@ export const buildLoad = (
     case 'dumbbell': {
       const perHand = pickClosestWeight(inventory.dumbbells, adjustedTarget)
       if (!perHand) return undefined
-      return { value: perHand * 2, unit: 'lb' as const, label: `2x${perHand} lb dumbbells` }
+      return { value: perHand * 2, unit: 'lb', label: `2x${perHand} lb dumbbells` }
     }
     case 'kettlebell': {
       const weight = pickClosestWeight(inventory.kettlebells, target)
       if (!weight) return undefined
-      return { value: weight, unit: 'lb' as const, label: `${weight} lb kettlebell` }
+      return { value: weight, unit: 'lb', label: `${weight} lb kettlebell` }
     }
     case 'band': {
       const band = inventory.bands.includes('heavy')
@@ -192,15 +192,15 @@ export const buildLoad = (
           ? 'medium'
           : inventory.bands[0]
       const value = bandLoadMap[band] ?? 10
-      return { value, unit: 'lb' as const, label: `${band} band` }
+      return { value, unit: 'lb', label: `${band} band` }
     }
     case 'barbell': {
       const barbellLoad = buildBarbellLoad(target, inventory)
-      return { value: barbellLoad.value, unit: 'lb' as const, label: barbellLoad.label }
+      return { value: barbellLoad.value, unit: 'lb', label: barbellLoad.label }
     }
     case 'machine': {
       const stackValue = target
-      return { value: stackValue, unit: 'lb' as const, label: `Select ~${stackValue} lb on the stack` }
+      return { value: stackValue, unit: 'lb', label: `Select ~${stackValue} lb on the stack` }
     }
     default:
       return undefined
@@ -238,7 +238,9 @@ export const estimateExerciseMinutes = (
 ) => {
   const setupMinutes = getSetupMinutes(option)
   const workSeconds = getWorkSeconds(goal ?? exercise.goal ?? 'general_fitness', exercise)
-  const workMinutes = (prescription.sets * (workSeconds + prescription.restSeconds)) / 60
+  // Robustly handle undefined restSeconds by defaulting to 90s (typical rest)
+  const restSeconds = prescription.restSeconds ?? 90
+  const workMinutes = (prescription.sets * (workSeconds + restSeconds)) / 60
   const fallbackPerSet = exercise.durationMinutes
     ? exercise.durationMinutes / Math.max(exercise.sets, 1)
     : null
@@ -319,27 +321,49 @@ export const buildFocusDistribution = (schedule: PlanDay[]) => schedule.reduce<R
 })
 
 export const calculateExerciseImpact = (exercises: Exercise[]): WorkoutImpact => {
-  const totals = exercises.reduce(
-    (acc, exercise) => {
-      const metrics = computeExerciseMetrics(exercise)
-      acc.volume += metrics.volume ?? 0
-      acc.intensity += metrics.intensity ?? 0
-      acc.density += metrics.density ?? 0
-      return acc
-    },
-    { volume: 0, intensity: 0, density: 0 }
-  )
+  let totalWorkload = 0
+  let totalVolume = 0
+  let totalDuration = 0
+  let totalIntensity = 0
 
-  const volumeScore = Math.round(totals.volume)
-  const intensityScore = Math.round(totals.intensity)
-  const densityScore = Math.round(totals.density)
+  exercises.forEach((exercise) => {
+    const metrics = computeExerciseMetrics(exercise)
+    totalWorkload += metrics.workload
+    totalVolume += metrics.volume ?? 0
+    totalIntensity += metrics.intensity ?? 0
+    
+    // Estimate duration for density calc
+    const estimatedMinutes = estimateExerciseMinutes(
+      exercise, 
+      {
+        sets: exercise.sets,
+        reps: exercise.reps, // Reps string, not used in estimate directly but type compatibility
+        rpe: exercise.rpe,
+        restSeconds: exercise.restSeconds,
+        load: exercise.load // might be undefined, fine
+      } as any, // Cast because ExercisePrescription expects numbers/specifics, this is approximate
+      undefined, // equipment option
+      exercise.goal
+    )
+    totalDuration += estimatedMinutes
+  })
+
+  // Normalized scoring matching `workout-metrics.ts`
+  // Score = Workload / 10
+  const score = Math.round(totalWorkload / 10)
+  
+  // Calculate average intensity (RPE)
+  const avgIntensity = exercises.length > 0 ? totalIntensity / exercises.length : 0
+  
+  // Calculate overall density (Volume KG / Minutes)
+  const density = totalDuration > 0 ? totalVolume / totalDuration : 0
 
   return {
-    score: volumeScore + intensityScore + densityScore,
+    score,
     breakdown: {
-      volume: volumeScore,
-      intensity: intensityScore,
-      density: densityScore
+      volume: Math.round(totalVolume),
+      intensity: Math.round(avgIntensity * 10), // Scale 0-100
+      density: Math.round(density)
     }
   }
 }

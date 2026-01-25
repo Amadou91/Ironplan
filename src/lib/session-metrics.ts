@@ -1,5 +1,5 @@
 import type { Goal, GroupType, WeightUnit, MetricProfile } from '@/types/domain'
-import { convertWeight } from '@/lib/units'
+import { toKg, toLbs, normalizeIntensity, convertWeight } from '@/lib/units'
 
 export const E1RM_FORMULA_VERSION = 'epley_v1'
 
@@ -35,20 +35,13 @@ export const isSetE1rmEligible = (
   exerciseEligible?: boolean | null,
   set?: MetricsSet | null
 ): boolean => {
-  // 1) Exercise Library Gate - must be a movement suitable for e1RM (e.g. not stretching)
   if (!exerciseEligible) return false
-
-  // 2) Set Level Gate
   if (!set || set.completed === false) return false
-  
-  // Formulas are most accurate at low reps, but valid for trend tracking up to ~12.
   if (typeof set.reps !== 'number' || set.reps <= 0 || set.reps > 12) return false
 
   const rpe = typeof set.rpe === 'number' ? set.rpe : null
   const rir = typeof set.rir === 'number' ? set.rir : null
 
-  // Close enough effort: RPE 8+ or RIR 2 or stricter
-  // We need a high effort set to get a valid estimate of max strength.
   if (rpe !== null && rpe < 8) return false
   if (rir !== null && rir > 2) return false
   if (rpe === null && rir === null) return false
@@ -77,7 +70,6 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 
 export const mapRirToRpe = (rir: number) => {
   if (!Number.isFinite(rir)) return null
-  // standard RIR to effort mapping: 0 RIR = 10 effort, 10 RIR = 0 effort
   return clamp(10 - rir, 0, 10)
 }
 
@@ -87,11 +79,15 @@ export const mapRpeToRir = (rpe: number) => {
   return 10 - rpe
 }
 
-export const computeSetTonnage = (set: MetricsSet) => {
+/**
+ * Calculates Volume Load in Pounds.
+ * Formula: Reps * Weight(lb)
+ */
+export const computeSetTonnage = (set: MetricsSet): number => {
   if (typeof set.weight !== 'number' || typeof set.reps !== 'number') return 0
   if (!Number.isFinite(set.weight) || !Number.isFinite(set.reps)) return 0
   if (set.weight <= 0 || set.reps <= 0) return 0
-  return toWeightInPounds(set.weight, set.weightUnit) * set.reps
+  return toLbs(set.weight, set.weightUnit) * set.reps
 }
 
 export const computeSetE1rm = (
@@ -104,7 +100,9 @@ export const computeSetE1rm = (
   if (typeof set.weight !== 'number' || typeof set.reps !== 'number') return null
   if (!Number.isFinite(set.weight) || !Number.isFinite(set.reps)) return null
   if (set.weight <= 0 || set.reps <= 0) return null
-  const weight = toWeightInPounds(set.weight, set.weightUnit)
+  
+  // Use KG for internal calculation consistency
+  const weight = toKg(set.weight, set.weightUnit)
   const derivedRir =
     typeof set.rir === 'number' && Number.isFinite(set.rir)
       ? set.rir
@@ -129,34 +127,44 @@ export const isHardSet = (set: MetricsSet) => {
 }
 
 export const computeSetIntensity = (set: MetricsSet) => {
-  const e1rm = computeSetE1rm(set, 'strength', true) // Default true for legacy/generic intensity calculations
+  const e1rm = computeSetE1rm(set, 'strength', true)
   if (!e1rm) return 0
   if (typeof set.weight !== 'number' || set.weight <= 0) return 0
-  const weight = toWeightInPounds(set.weight, set.weightUnit)
+  const weight = toKg(set.weight, set.weightUnit)
   return weight / e1rm
 }
 
-export const computeSetLoad = (set: MetricsSet) => {
+/**
+ * Calculates Workload Score (Physiological Stress).
+ * Formula: Volume Load (kg) * Normalized Intensity Factor
+ */
+export const computeSetLoad = (set: MetricsSet): number => {
+  // Strategy 1: Strength/Hypertrophy (Load-based)
   const tonnage = computeSetTonnage(set)
   if (tonnage > 0) {
     const effort = getEffortScore(set)
-    const effortFactor = typeof effort === 'number' ? clamp(effort / 10, 0.4, 1.1) : 0.65
-    return tonnage * effortFactor
+    const intensityFactor = normalizeIntensity(effort)
+    // Tonnage (kg) * IntensityFactor.
+    // Example: 100kg * 10 reps = 1000kg volume. RPE 8 = ~0.7 factor. Load = 700.
+    return tonnage * intensityFactor
   }
 
-  // Fallback for duration-based activities (Yoga, Cardio)
-  // volume_proxy = duration_minutes * intensity_factor
+  // Strategy 2: Duration-based (Cardio/Yoga)
+  // We need to normalize minutes to be comparable to Tonnage.
+  // 1 minute of moderate cardio ~ 50 units of load?
+  // Let's align with TRIMP concepts implicitly.
   if (typeof set.durationSeconds === 'number' && set.durationSeconds > 0) {
     const minutes = set.durationSeconds / 60
     const effort = getEffortScore(set)
-    const effortValue = typeof effort === 'number' ? effort : 3.0
+    const intensityFactor = normalizeIntensity(effort)
     
-    // Use a non-linear multiplier for effort to reflect systemic stress
-    // e.g. 5/10 effort is moderate, but 9/10 effort is significantly more taxing
-    // Multiplier = (effort^1.5) / 10
-    const intensityFactor = Math.pow(effortValue, 1.5) / 10
-    
-    return minutes * intensityFactor * 10 // scale to be roughly comparable to tonnage loads
+    // Base scaling: 1 minute @ RPE 10 = 100 Load Units?
+    // 30 min @ RPE 5 (0.3) = 30 * 0.3 * Scale
+    // Let's use a constant to align with typical Tonnage numbers (which are often in thousands).
+    // A decent workout might be 5000-10000 volume load units.
+    // 60 min cardio should be comparable.
+    const DURATION_SCALAR = 50 
+    return minutes * intensityFactor * DURATION_SCALAR
   }
 
   return 0

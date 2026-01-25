@@ -161,6 +161,7 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     rpe: 8,
     equipment: [{ kind: 'bodyweight' }],
     durationMinutes: 9,
+    loadTarget: 150, // Added explicit load proxy for bodyweight
     restSeconds: 90,
     e1rmEligible: false
   },
@@ -176,6 +177,7 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     rpe: 7,
     equipment: [{ kind: 'machine', machineType: 'cable' }],
     durationMinutes: 8,
+    loadTarget: 30, // Added load target
     restSeconds: 75,
     e1rmEligible: false
   },
@@ -191,6 +193,7 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     rpe: 7,
     equipment: [{ kind: 'machine' }],
     durationMinutes: 8,
+    loadTarget: 70, // Added load target
     restSeconds: 75,
     e1rmEligible: false
   },
@@ -495,6 +498,7 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
     rpe: 6,
     equipment: [{ kind: 'bodyweight' }],
     durationMinutes: 6,
+    loadTarget: 10, // Added small load for core
     restSeconds: 60
   },
   {

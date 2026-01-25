@@ -42,6 +42,7 @@ export type EquipmentOption =
   | { kind: 'machine'; machineType?: MachineType }
 
 export type WeightUnit = 'lb' | 'kg'
+export type DistanceUnit = 'm' | 'km' | 'miles'
 
 export type GroupType = 'superset' | 'circuit' | 'giant_set' | 'dropset'
 
@@ -93,7 +94,7 @@ export type CardioActivity = 'skipping' | 'indoor_cycling' | 'outdoor_cycling'
 
 export interface ExerciseLoad {
   value: number
-  unit: 'lb'
+  unit: WeightUnit
   label: string
 }
 

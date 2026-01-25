@@ -302,14 +302,19 @@ test('calculates a stable impact score for a known fixture', () => {
           rpe: 7,
           equipment: [{ kind: 'dumbbell' }],
           durationMinutes: 10,
+          loadTarget: 40,
           load: { value: 40, unit: 'lb', label: '2x20 lb dumbbells' }
         }
       ]
     }
   ])
 
-  assert.equal(impact.breakdown.volume, 30)
-  assert.equal(impact.breakdown.intensity, 7)
-  assert.equal(impact.breakdown.density, 3)
-  assert.equal(impact.score, 40)
+  // Volume: 40lbs * 30 reps = 1200 lbs
+  // Intensity: 7 RPE -> 70 Scaled
+  // Density: 1200 lbs / 12 min (calculated duration with setup) = 100
+  // Score: Workload / 10. Workload = 1200 * 0.57 (RPE 7 factor) = ~685. Score ~69.
+  assert.equal(impact.breakdown.volume, 1200)
+  assert.equal(impact.breakdown.intensity, 70)
+  assert.equal(impact.breakdown.density, 100)
+  assert.equal(impact.score, 69)
 })
