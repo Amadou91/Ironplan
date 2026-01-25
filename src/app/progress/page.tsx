@@ -154,6 +154,17 @@ const formatDuration = (start?: string | null, end?: string | null) => {
   return `${minutes} min`
 }
 
+const getStatusDescription = (status: string, ratio: number) => {
+  const percentage = Math.round(Math.abs(1 - ratio) * 100)
+  if (status === 'undertraining') {
+    return `Your recent load is ${percentage}% lower than your baseline. This reduces fatigue but may stall progress if maintained.`
+  }
+  if (status === 'overreaching') {
+    return `You've increased volume by ${percentage}% abruptly. Short periods here can drive growth, but long periods increase injury risk.`
+  }
+  return "Your current training stress is well-matched to your fitness level, keeping you in the 'sweet spot' for progressive overload."
+}
+
 type SessionRow = {
   id: string
   name: string
@@ -321,27 +332,21 @@ export default function ProgressPage() {
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
 
-      // If we have a date range, we need to load enough history for ACWR (at least 28 days before the range)
-      if (endDate) {
-        const end = new Date(endDate)
-        if (!Number.isNaN(end.getTime())) {
-          // Include buffer for timezones and end-of-day
-          const endISO = new Date(end.getTime() + 86400000 * 2).toISOString()
-          query = query.lt('started_at', endISO)
-        }
-      }
+      // Systemic Training Status needs the last 28 days of data from TODAY.
+      // If a startDate filter is active, we also need 28 days before THAT for historical chronic load.
+      const now = new Date()
+      const acrChronicStart = new Date(now.getTime() - 28 * 86400000)
+      let effectiveStart = acrChronicStart
 
-      // If a startDate is selected, we still need the previous 28 days for chronic load calculation
       if (startDate) {
         const start = new Date(startDate)
         if (!Number.isNaN(start.getTime())) {
           const chronicStart = new Date(start.getTime() - 28 * 86400000)
-          query = query.gte('started_at', chronicStart.toISOString())
+          if (chronicStart < effectiveStart) effectiveStart = chronicStart
         }
-      } else {
-        // Default: just load the first page
-        query = query.range(0, SESSION_PAGE_SIZE - 1)
       }
+
+      query = query.gte('started_at', effectiveStart.toISOString())
 
       const [{ data: sessionData, error: fetchError }, { data: templateData, error: templateError }] =
         await Promise.all([
@@ -1098,27 +1103,13 @@ export default function ProgressPage() {
   }, [bodyWeightHistory, filteredSessions, startDate, endDate])
 
   const trainingLoadSummary = useMemo(() => {
-    // ACR must be calculated using ALL loaded history (which includes 28d buffer), 
-    // but relative to the "end" of the user's selected range.
+    // ACR represents "Systemic Load" (total body stress).
+    // We always calculate this relative to TODAY so the dashboard shows your current recovery state,
+    // regardless of which historical range you are currently reviewing in the charts below.
     const mappedSessions = sessions.map((session) => ({
       startedAt: session.started_at,
       endedAt: session.ended_at,
       sets: session.session_exercises.flatMap((exercise) => {
-        // Apply Exercise filter
-        if (selectedExercise !== 'all' && exercise.exercise_name !== selectedExercise) {
-          return []
-        }
-        
-        // Apply Muscle filter
-        if (selectedMuscle !== 'all') {
-          const libEntry = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())
-          const primary = libEntry?.primaryMuscle || exercise.primary_muscle
-          const secondary = libEntry?.secondaryMuscles || exercise.secondary_muscles || []
-          if (!isMuscleMatch(selectedMuscle, primary, secondary)) {
-            return []
-          }
-        }
-
         return (exercise.sets ?? [])
           .filter((set) => set.completed !== false)
           .map((set) => ({
@@ -1134,22 +1125,14 @@ export default function ProgressPage() {
       })
     }))
     
-    const calculationDate = endDate ? new Date(new Date(endDate).getTime() + 86400000 - 1) : new Date()
-    
+    const calculationDate = new Date()
     const summary = summarizeTrainingLoad(mappedSessions, calculationDate)
-    console.log('ACR Calculation:', { 
-      asOf: calculationDate.toISOString(), 
-      acute: summary.acuteLoad, 
-      chronic: summary.chronicLoad, 
-      ratio: summary.loadRatio,
-      sessionsUsed: mappedSessions.length
-    })
     
     return {
       ...summary,
       calculationDate
     }
-  }, [sessions, endDate, selectedMuscle, selectedExercise, exerciseLibraryByName])
+  }, [sessions])
 
   const loadReadiness = useMemo(() => getLoadBasedReadiness(trainingLoadSummary), [trainingLoadSummary])
 
@@ -1307,7 +1290,7 @@ export default function ProgressPage() {
         {error && <div className="alert-error p-4 text-sm">{error}</div>}
 
         {/* 1. Training Status (Full Width Top) */}
-        <Card className={`overflow-hidden border-t-4 ${
+        <Card className={`relative z-10 border-t-4 ${
           trainingLoadSummary.status === 'balanced' ? 'border-t-[var(--color-success)]' :
           trainingLoadSummary.status === 'overreaching' ? 'border-t-[var(--color-danger)]' :
           'border-t-[var(--color-warning)]'
@@ -1317,13 +1300,13 @@ export default function ProgressPage() {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-subtle">Training Status</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-strong">Systemic Training Status</h3>
                     <ChartInfoTooltip 
-                      description="A score comparing your work this week to your average over the last month. Green (Balanced) is the sweet spot for growth."
+                      description="The ratio between your Acute Load (Last 7 days) and Chronic Load (Last 28 days). It indicates if you are ramping up too fast or doing too little."
                       goal="Stay in the Green (Balanced) zone most of the time to get stronger without getting hurt."
                     />
                   </div>
-                  <p className="text-sm text-muted">Comprehensive analysis of your current training load vs baseline.</p>
+                  <p className="text-[9px] text-muted italic mt-0.5">Based on total body workload (ignores filters)</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border-2 ${
@@ -1396,9 +1379,7 @@ export default function ProgressPage() {
               <div className="pt-6 border-t border-[var(--color-border)]/50">
                 <p className="text-sm text-muted leading-relaxed">
                   <span className="font-semibold text-strong">Coach Insight:</span> {
-                    trainingLoadSummary.status === 'undertraining' ? `You're currently performing at ${Math.round(trainingLoadSummary.loadRatio * 100)}% of your established baseline. Increasing volume or intensity gradually will help you reach the optimal growth zone.` :
-                    trainingLoadSummary.status === 'overreaching' ? `Your current load is ${Math.round(trainingLoadSummary.loadRatio * 100)}% higher than your recent average. This indicates overtraining and requires strategic recovery to avoid fatigue accumulation.` :
-                    `Your training is perfectly balanced. This is the 'sweet spot' for long-term physiological adaptation and consistent strength gains without excessive injury risk.`
+                    getStatusDescription(trainingLoadSummary.status, trainingLoadSummary.loadRatio)
                   }
                 </p>
               </div>

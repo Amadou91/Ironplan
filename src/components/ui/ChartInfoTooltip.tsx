@@ -14,10 +14,10 @@ export function ChartInfoTooltip({ description, goal }: ChartInfoTooltipProps) {
         aria-label="Info" 
       />
       
-      <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-64 -translate-x-1/2 opacity-0 transform translate-y-1 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 z-50">
+      <div className="pointer-events-none absolute top-full left-1/2 mt-2 w-64 -translate-x-1/2 opacity-0 transform -translate-y-1 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 z-50">
         <div className="relative rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-lg shadow-black/5 backdrop-blur-sm">
           {/* Arrow */}
-          <div className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-[var(--color-border)] bg-[var(--color-surface)]"></div>
+          <div className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-t border-l border-[var(--color-border)] bg-[var(--color-surface)]"></div>
           
           <div className="flex flex-col gap-1 relative z-10">
             <span className="text-xs font-semibold text-strong uppercase tracking-wide">About this graph</span>
