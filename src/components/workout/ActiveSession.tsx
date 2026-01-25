@@ -571,20 +571,30 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
     }
   };
 
+  const uniqueLibrary = useMemo(() => {
+    const seen = new Set<string>();
+    return EXERCISE_LIBRARY.filter((ex) => {
+      const name = ex.name.toLowerCase();
+      if (seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    });
+  }, []);
+
   const filteredLibrary = useMemo(() => {
     const search = exerciseSearch.toLowerCase();
     
     // Base filtering on relevance to session
-    let baseLibrary = EXERCISE_LIBRARY;
+    let baseLibrary = uniqueLibrary;
     
     if (!search) {
       if (style === 'cardio' || focus === 'cardio') {
-        baseLibrary = EXERCISE_LIBRARY.filter(ex => ex.focus === 'cardio' || ex.primaryMuscle === 'cardio' || ex.metricProfile === 'cardio_session');
+        baseLibrary = uniqueLibrary.filter(ex => ex.focus === 'cardio' || ex.primaryMuscle === 'cardio' || ex.metricProfile === 'cardio_session');
       } else if (style === 'general_fitness' || focus === 'mobility') {
-        baseLibrary = EXERCISE_LIBRARY.filter(ex => ex.focus === 'mobility' || ex.primaryMuscle === 'yoga' || ex.metricProfile === 'yoga_session' || ex.metricProfile === 'mobility_session');
+        baseLibrary = uniqueLibrary.filter(ex => ex.focus === 'mobility' || ex.primaryMuscle === 'yoga' || ex.metricProfile === 'yoga_session' || ex.metricProfile === 'mobility_session');
       } else if (focus && focus !== 'full_body') {
         // For specific muscle focus, prioritize that muscle but also allow general strength
-        const muscleRelevant = EXERCISE_LIBRARY.filter(ex => 
+        const muscleRelevant = uniqueLibrary.filter(ex => 
           ex.primaryMuscle?.toLowerCase().includes(focus.toLowerCase()) || 
           ex.focus?.toLowerCase().includes(focus.toLowerCase())
         );
@@ -600,7 +610,7 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
       ex.name.toLowerCase().includes(search) || 
       ex.primaryMuscle?.toLowerCase().includes(search)
     ).slice(0, 15);
-  }, [exerciseSearch, focus, style]);
+  }, [exerciseSearch, focus, style, uniqueLibrary]);
 
   const swapSuggestions = useMemo(() => {
     if (swappingExIdx === null || !activeSession) return [];

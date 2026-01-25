@@ -10,6 +10,7 @@ import { enhanceExerciseData, isTimeBasedExercise, toMuscleLabel, toMuscleSlug }
 import { EXERCISE_LIBRARY } from '@/lib/generator'
 import { normalizePreferences } from '@/lib/preferences'
 import { buildWeightOptions, equipmentPresets } from '@/lib/equipment'
+import { computeReadinessScore, getReadinessLevel } from '@/lib/training-metrics'
 import type { WeightUnit, WorkoutSet, EquipmentInventory, FocusArea, Goal } from '@/types/domain'
 
 type EditableExercise = {
@@ -485,15 +486,26 @@ export default function SessionEditPage() {
       }
 
       // Sync readiness data
-      if (session.readiness) {
+      if (session.readiness && session.userId) {
+        const score = computeReadinessScore({
+          sleep: session.readiness.sleep_quality,
+          soreness: session.readiness.muscle_soreness,
+          stress: session.readiness.stress_level,
+          motivation: session.readiness.motivation
+        })
+        const level = getReadinessLevel(score)
+
         const { error: readinessError } = await supabase
           .from('session_readiness')
           .upsert({
             session_id: session.id,
+            user_id: session.userId,
             sleep_quality: session.readiness.sleep_quality,
             muscle_soreness: session.readiness.muscle_soreness,
             stress_level: session.readiness.stress_level,
             motivation: session.readiness.motivation,
+            readiness_score: score,
+            readiness_level: level,
             recorded_at: session.startedAt
           }, { onConflict: 'session_id' })
         
@@ -577,25 +589,35 @@ export default function SessionEditPage() {
     }
   }
 
+  const uniqueLibrary = useMemo(() => {
+    const seen = new Set<string>();
+    return EXERCISE_LIBRARY.filter((ex) => {
+      const name = ex.name.toLowerCase();
+      if (seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    });
+  }, []);
+
   const filteredLibrary = useMemo(() => {
-    if (!template) return EXERCISE_LIBRARY;
+    if (!template) return uniqueLibrary;
     
     const { focus, style } = template;
     if (style === 'cardio' || focus === 'cardio') {
-      return EXERCISE_LIBRARY.filter(ex => ex.focus === 'cardio' || ex.primaryMuscle === 'cardio' || ex.metricProfile === 'cardio_session');
+      return uniqueLibrary.filter(ex => ex.focus === 'cardio' || ex.primaryMuscle === 'cardio' || ex.metricProfile === 'cardio_session');
     }
     if (style === 'general_fitness' || focus === 'mobility') {
-      return EXERCISE_LIBRARY.filter(ex => ex.focus === 'mobility' || ex.primaryMuscle === 'yoga' || ex.metricProfile === 'yoga_session' || ex.metricProfile === 'mobility_session');
+      return uniqueLibrary.filter(ex => ex.focus === 'mobility' || ex.primaryMuscle === 'yoga' || ex.metricProfile === 'yoga_session' || ex.metricProfile === 'mobility_session');
     }
     if (focus && focus !== 'full_body') {
-      const muscleRelevant = EXERCISE_LIBRARY.filter(ex => 
+      const muscleRelevant = uniqueLibrary.filter(ex => 
         ex.primaryMuscle?.toLowerCase().includes(focus.toLowerCase()) || 
         ex.focus?.toLowerCase().includes(focus.toLowerCase())
       );
-      return muscleRelevant.length > 0 ? muscleRelevant : EXERCISE_LIBRARY;
+      return muscleRelevant.length > 0 ? muscleRelevant : uniqueLibrary;
     }
-    return EXERCISE_LIBRARY;
-  }, [template]);
+    return uniqueLibrary;
+  }, [template, uniqueLibrary]);
 
   if (loading) {
     return <div className="page-shell p-10 text-center text-muted">Loading session details...</div>

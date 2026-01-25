@@ -51,6 +51,7 @@ type TrainingLoadSummary = {
   loadRatio: number
   status: 'undertraining' | 'balanced' | 'overreaching'
   daysSinceLast: number | null
+  insufficientData: boolean
   weeklyLoadTrend: Array<{ week: string; load: number }>
 }
 
@@ -221,6 +222,7 @@ export const summarizeTrainingLoad = (sessions: TrainingSession[], now = new Dat
     loadRatio: Number(loadRatio.toFixed(2)),
     status,
     daysSinceLast: typeof daysSinceLast === 'number' ? Number(daysSinceLast.toFixed(1)) : null,
+    insufficientData: chronicLoad === 0,
     weeklyLoadTrend
   }
 }

@@ -154,7 +154,10 @@ const formatDuration = (start?: string | null, end?: string | null) => {
   return `${minutes} min`
 }
 
-const getStatusDescription = (status: string, ratio: number) => {
+const getStatusDescription = (status: string, ratio: number, insufficientData?: boolean) => {
+  if (insufficientData) {
+    return "Log more sessions to establish your baseline. We need a few weeks of activity to calculate your systemic training status accurately."
+  }
   const percentage = Math.round(Math.abs(1 - ratio) * 100)
   if (status === 'undertraining') {
     return `Your recent load is ${percentage}% lower than your baseline. This reduces fatigue but may stall progress if maintained.`
