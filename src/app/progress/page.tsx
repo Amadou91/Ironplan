@@ -1306,8 +1306,108 @@ export default function ProgressPage() {
 
         {error && <div className="alert-error p-4 text-sm">{error}</div>}
 
+        {/* 1. Training Status (Full Width Top) */}
+        <Card className={`overflow-hidden border-t-4 ${
+          trainingLoadSummary.status === 'balanced' ? 'border-t-[var(--color-success)]' :
+          trainingLoadSummary.status === 'overreaching' ? 'border-t-[var(--color-danger)]' :
+          'border-t-[var(--color-warning)]'
+        }`}>
+          <div className="p-6 md:p-8">
+            <div className="flex flex-col gap-8">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-subtle">Training Status</h3>
+                    <ChartInfoTooltip 
+                      description="A score comparing your work this week to your average over the last month. Green (Balanced) is the sweet spot for growth."
+                      goal="Stay in the Green (Balanced) zone most of the time to get stronger without getting hurt."
+                    />
+                  </div>
+                  <p className="text-sm text-muted">Comprehensive analysis of your current training load vs baseline.</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border-2 ${
+                    trainingLoadSummary.status === 'balanced' ? 'bg-[var(--color-success-soft)] text-[var(--color-success)] border-[var(--color-success-border)]' :
+                    trainingLoadSummary.status === 'overreaching' ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger)] border-[var(--color-danger-border)]' :
+                    trainingLoadSummary.status === 'undertraining' ? 'bg-[#fef3c7] text-[#92400e] border-[#fde68a] dark:bg-[#92400e]/20 dark:text-[#fcd34d] dark:border-[#92400e]/40' :
+                    'bg-[var(--color-surface-muted)] text-subtle border-[var(--color-border)]'
+                  }`}>
+                    {trainingLoadSummary.status === 'overreaching' ? 'overtraining' : trainingLoadSummary.status.replace('_', ' ')}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-10 lg:grid-cols-4 lg:items-center">
+                <div className="space-y-2">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-5xl font-bold tracking-tighter text-strong">{trainingLoadSummary.loadRatio}</span>
+                    <span className="text-xs font-bold text-subtle uppercase tracking-widest">ACR</span>
+                  </div>
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-subtle/70">Acute:Chronic Ratio</p>
+                </div>
+
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="relative pt-2">
+                    <div className="h-3 w-full bg-[var(--color-surface-muted)] rounded-full overflow-hidden flex shadow-inner">
+                      <div className="h-full bg-[var(--color-warning)] opacity-30" style={{ width: '40%' }} />
+                      <div className="h-full bg-[var(--color-success)] opacity-40" style={{ width: '25%' }} />
+                      <div className="h-full bg-[var(--color-danger)] opacity-30" style={{ width: '35%' }} />
+                    </div>
+                    <div 
+                      className={`absolute top-1.5 h-5 w-1.5 rounded-full transition-all duration-1000 cubic-bezier(0.34, 1.56, 0.64, 1) shadow-lg border border-white dark:border-gray-900 ${
+                        trainingLoadSummary.status === 'balanced' ? 'bg-[var(--color-success)]' :
+                        trainingLoadSummary.status === 'overreaching' ? 'bg-[var(--color-danger)]' :
+                        'bg-[#92400e]'
+                      }`}
+                      style={{ 
+                        left: `${Math.min(100, (trainingLoadSummary.loadRatio / 2.0) * 100)}%`,
+                        transform: 'translateX(-50%)'
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between px-1">
+                    <div className="text-center">
+                      <span className="block text-[9px] font-bold text-subtle/40 uppercase">Low</span>
+                      <span className="text-[10px] font-bold text-subtle">0.0</span>
+                    </div>
+                    <div className="text-center">
+                      <span className="block text-[9px] font-bold text-[var(--color-success)]/60 uppercase">Sweet Spot</span>
+                      <span className="text-[10px] font-bold text-subtle">1.0</span>
+                    </div>
+                    <div className="text-center">
+                      <span className="block text-[9px] font-bold text-[var(--color-danger)]/60 uppercase">High</span>
+                      <span className="text-[10px] font-bold text-subtle">2.0+</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 lg:border-l lg:border-[var(--color-border)] lg:pl-10">
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-subtle uppercase font-bold tracking-widest">Load (7d)</p>
+                    <p className="text-2xl font-bold text-strong tracking-tight">{trainingLoadSummary.acuteLoad.toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-subtle uppercase font-bold tracking-widest">Baseline</p>
+                    <p className="text-2xl font-bold text-strong tracking-tight">{trainingLoadSummary.chronicWeeklyAvg.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="pt-6 border-t border-[var(--color-border)]/50">
+                <p className="text-sm text-muted leading-relaxed">
+                  <span className="font-semibold text-strong">Coach Insight:</span> {
+                    trainingLoadSummary.status === 'undertraining' ? `You're currently performing at ${Math.round(trainingLoadSummary.loadRatio * 100)}% of your established baseline. Increasing volume or intensity gradually will help you reach the optimal growth zone.` :
+                    trainingLoadSummary.status === 'overreaching' ? `Your current load is ${Math.round(trainingLoadSummary.loadRatio * 100)}% higher than your recent average. This indicates overtraining and requires strategic recovery to avoid fatigue accumulation.` :
+                    `Your training is perfectly balanced. This is the 'sweet spot' for long-term physiological adaptation and consistent strength gains without excessive injury risk.`
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+
         <Card className="p-6">
-          <div className="flex flex-col gap-10 lg:flex-row lg:items-start">
+          <div className="flex flex-col gap-10 xl:flex-row xl:items-start">
             <div className="flex-1">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Filters</h2>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1396,197 +1496,121 @@ export default function ProgressPage() {
               </div>
             </div>
 
-            <div className="w-full lg:w-[600px] lg:border-l lg:border-[var(--color-border)] lg:pl-10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Muscle group volume</h3>
-                  <ChartInfoTooltip 
-                    description="Shows how much work each muscle group did. The bigger the slice, the more work that muscle did."
-                    goal="Try to keep things even so you don't over-train one spot and under-train another."
-                  />
-                </div>
-                <div className="flex gap-1 bg-[var(--color-surface-muted)] p-1 rounded-lg">
-                  <button 
-                    onClick={() => setMuscleVizMode('absolute')}
-                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'absolute' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
-                  >
-                    ABS
-                  </button>
-                  <button 
-                    onClick={() => setMuscleVizMode('relative')}
-                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'relative' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
-                  >
-                    %
-                  </button>
-                  {muscleBreakdown.some(m => m.imbalanceIndex !== null) && (
+            <div className="flex flex-col gap-10 lg:flex-row lg:items-start xl:border-l xl:border-[var(--color-border)] xl:pl-10">
+              <div className="w-full lg:w-[500px]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Muscle group volume</h3>
+                    <ChartInfoTooltip 
+                      description="Shows how much work each muscle group did. The bigger the slice, the more work that muscle did."
+                      goal="Try to keep things even so you don't over-train one spot and under-train another."
+                    />
+                  </div>
+                  <div className="flex gap-1 bg-[var(--color-surface-muted)] p-1 rounded-lg">
                     <button 
-                      onClick={() => setMuscleVizMode('index')}
-                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'index' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
+                      onClick={() => setMuscleVizMode('absolute')}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'absolute' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
                     >
-                      INDEX
+                      ABS
                     </button>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row items-center gap-6 mt-4">
-                <div className="h-64 w-full sm:w-1/2">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                    <PieChart>
-                      <Pie 
-                        data={muscleBreakdown.map(m => ({
-                          ...m,
-                          value: muscleVizMode === 'absolute' ? m.volume : muscleVizMode === 'relative' ? m.relativePct : (m.imbalanceIndex ?? 0)
-                        })).filter(m => m.value > 0)} 
-                        dataKey="value" 
-                        nameKey="muscle" 
-                        outerRadius={90}
-                        innerRadius={60}
-                        paddingAngle={2}
-                        stroke="none"
+                    <button 
+                      onClick={() => setMuscleVizMode('relative')}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'relative' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
+                    >
+                      %
+                    </button>
+                    {muscleBreakdown.some(m => m.imbalanceIndex !== null) && (
+                      <button 
+                        onClick={() => setMuscleVizMode('index')}
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${muscleVizMode === 'index' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
                       >
-                        {muscleBreakdown.map((entry, index) => (
-                          <Cell key={entry.muscle} fill={chartColors[index % chartColors.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value: number | undefined) => {
-                          if (typeof value !== 'number') return []
-                          if (muscleVizMode === 'absolute') return [`${value.toLocaleString()} lb`, 'Volume']
-                          if (muscleVizMode === 'relative') return [`${value}%`, 'Relative %']
-                          return [value, 'Imbalance Index']
-                        }}
-                        contentStyle={{ 
-                          background: 'var(--color-surface)', 
-                          border: '1px solid var(--color-border)', 
-                          color: 'var(--color-text)', 
-                          fontSize: '12px',
-                          borderRadius: '8px',
-                          boxShadow: 'var(--shadow-md)'
-                        }} 
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
+                        INDEX
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="w-full sm:w-1/2 space-y-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-subtle border-b border-[var(--color-border)] pb-1.5 mb-3">
-                    {muscleVizMode === 'absolute' ? 'Volume breakdown (lb)' : muscleVizMode === 'relative' ? 'Relative distribution (%)' : 'Imbalance index (100 = target)'}
-                  </p>
-                  {muscleBreakdown.length === 0 ? (
-                    <p className="text-xs text-subtle italic">No data for selected range.</p>
-                  ) : (
-                    muscleBreakdown
-                      .sort((a, b) => {
-                        const valA = muscleVizMode === 'absolute' ? a.volume : muscleVizMode === 'relative' ? a.relativePct : (a.imbalanceIndex ?? 0)
-                        const valB = muscleVizMode === 'absolute' ? b.volume : muscleVizMode === 'relative' ? b.relativePct : (b.imbalanceIndex ?? 0)
-                        return valB - valA
-                      })
-                      // Removed .slice(0, 6) to show all groups
-                      .map((entry, idx) => {
-                        const displayVal = muscleVizMode === 'absolute' 
-                          ? entry.volume.toLocaleString() 
-                          : muscleVizMode === 'relative' 
-                            ? `${entry.relativePct}%` 
-                            : entry.imbalanceIndex !== null ? entry.imbalanceIndex : 'N/A'
-                        
-                        return (
-                          <div key={entry.muscle} className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2.5">
-                              <div 
-                                className="w-2.5 h-2.5 rounded-sm" 
-                                style={{ background: chartColors[idx % chartColors.length] }} 
-                              />
-                              <span className="text-muted font-medium">{entry.muscle}</span>
+                <div className="flex flex-col sm:flex-row items-center gap-6 mt-4">
+                  <div className="h-64 w-full sm:w-1/2">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                      <PieChart>
+                        <Pie 
+                          data={muscleBreakdown.map(m => ({
+                            ...m,
+                            value: muscleVizMode === 'absolute' ? m.volume : muscleVizMode === 'relative' ? m.relativePct : (m.imbalanceIndex ?? 0)
+                          })).filter(m => m.value > 0)} 
+                          dataKey="value" 
+                          nameKey="muscle" 
+                          outerRadius={90}
+                          innerRadius={60}
+                          paddingAngle={2}
+                          stroke="none"
+                        >
+                          {muscleBreakdown.map((entry, index) => (
+                            <Cell key={entry.muscle} fill={chartColors[index % chartColors.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number | undefined) => {
+                            if (typeof value !== 'number') return []
+                            if (muscleVizMode === 'absolute') return [`${value.toLocaleString()} lb`, 'Volume']
+                            if (muscleVizMode === 'relative') return [`${value}%`, 'Relative %']
+                            return [value, 'Imbalance Index']
+                          }}
+                          contentStyle={{ 
+                            background: 'var(--color-surface)', 
+                            border: '1px solid var(--color-border)', 
+                            color: 'var(--color-text)', 
+                            fontSize: '12px',
+                            borderRadius: '8px',
+                            boxShadow: 'var(--shadow-md)'
+                          }} 
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="w-full sm:w-1/2 space-y-2.5">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-subtle border-b border-[var(--color-border)] pb-1.5 mb-3">
+                      {muscleVizMode === 'absolute' ? 'Volume breakdown (lb)' : muscleVizMode === 'relative' ? 'Relative distribution (%)' : 'Imbalance index (100 = target)'}
+                    </p>
+                    {muscleBreakdown.length === 0 ? (
+                      <p className="text-xs text-subtle italic">No data for selected range.</p>
+                    ) : (
+                      muscleBreakdown
+                        .sort((a, b) => {
+                          const valA = muscleVizMode === 'absolute' ? a.volume : muscleVizMode === 'relative' ? a.relativePct : (a.imbalanceIndex ?? 0)
+                          const valB = muscleVizMode === 'absolute' ? b.volume : muscleVizMode === 'relative' ? b.relativePct : (b.imbalanceIndex ?? 0)
+                          return valB - valA
+                        })
+                        .map((entry, idx) => {
+                          const displayVal = muscleVizMode === 'absolute' 
+                            ? entry.volume.toLocaleString() 
+                            : muscleVizMode === 'relative' 
+                              ? `${entry.relativePct}%` 
+                              : entry.imbalanceIndex !== null ? entry.imbalanceIndex : 'N/A'
+                          
+                          return (
+                            <div key={entry.muscle} className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2.5">
+                                <div 
+                                  className="w-2.5 h-2.5 rounded-sm" 
+                                  style={{ background: chartColors[idx % chartColors.length] }} 
+                                />
+                                <span className="text-muted font-medium">{entry.muscle}</span>
+                              </div>
+                              <span className="text-strong font-semibold">{displayVal}</span>
                             </div>
-                            <span className="text-strong font-semibold">{displayVal}</span>
-                          </div>
-                        )
-                      })
-                  )}
-                  {/* Removed "+ more groups" indicator */}
+                          )
+                        })
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </Card>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-          {/* 1. Training Status & ACR */}
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col">
-                <div className="flex items-center">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Training Status</h3>
-                  <ChartInfoTooltip 
-                    description="A score comparing your work this week to your average over the last month. Green (Balanced) is the sweet spot for growth. Red means you need more rest. Yellow means you can push harder."
-                    goal="Stay in the Green (Balanced) zone most of the time to get stronger without getting hurt."
-                  />
-                </div>
-              </div>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                trainingLoadSummary.status === 'balanced' ? 'bg-[var(--color-success-soft)] text-[var(--color-success)] border border-[var(--color-success-border)]' :
-                trainingLoadSummary.status === 'overreaching' ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger)] border border-[var(--color-danger-border)]' :
-                trainingLoadSummary.status === 'undertraining' ? 'bg-[#fef3c7] text-[#92400e] border border-[#fde68a] dark:bg-[#92400e]/20 dark:text-[#fcd34d] dark:border-[#92400e]/40' :
-                'bg-[var(--color-surface-muted)] text-subtle border border-[var(--color-border)]'
-              }`}>
-                {trainingLoadSummary.status.replace('_', ' ')}
-              </span>
-            </div>
-            <div className="mt-4">
-              <div className="flex items-end gap-3">
-                <p className="text-3xl font-semibold text-strong">{trainingLoadSummary.loadRatio}</p>
-                <span className="text-[10px] mb-1 font-bold text-subtle uppercase tracking-wider">
-                  Target: 0.8 – 1.3
-                </span>
-              </div>
-              <p className="text-[10px] uppercase font-bold tracking-widest text-subtle">Acute:Chronic Ratio</p>
-              
-              {/* Visual Sweet Spot Gauge */}
-              <div className="mt-4 group relative">
-                <div className="h-1.5 w-full bg-[var(--color-surface-muted)] rounded-full overflow-hidden flex">
-                  <div className="h-full bg-[var(--color-warning)] opacity-20" style={{ width: '40%' }} />
-                  <div className="h-full bg-[var(--color-success)] opacity-30" style={{ width: '25%' }} />
-                  <div className="h-full bg-[var(--color-danger)] opacity-20" style={{ width: '35%' }} />
-                </div>
-                
-                {/* Needle */}
-                <div 
-                  className={`absolute -top-1 h-3.5 w-1 rounded-full transition-all duration-700 shadow-sm ${
-                    trainingLoadSummary.status === 'balanced' ? 'bg-[var(--color-success)]' :
-                    trainingLoadSummary.status === 'overreaching' ? 'bg-[var(--color-danger)]' :
-                    'bg-[#92400e]'
-                  }`}
-                  style={{ 
-                    left: `${Math.min(100, (trainingLoadSummary.loadRatio / 2.0) * 100)}%`,
-                    transform: 'translateX(-50%)'
-                  }}
-                />
-              </div>
-              <div className="mt-1.5 flex justify-between text-[8px] uppercase font-bold tracking-tighter text-subtle/50">
-                <span>0.0</span>
-                <span>0.8</span>
-                <span className="text-[var(--color-success)] opacity-80">Sweet Spot</span>
-                <span>1.3</span>
-                <span>2.0+</span>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-[var(--color-border)] grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-[10px] text-subtle uppercase font-bold tracking-wider">This Week (7d)</p>
-                <p className="text-lg font-semibold text-strong">{trainingLoadSummary.acuteLoad.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-subtle uppercase font-bold tracking-wider">Weekly Baseline</p>
-                <p className="text-lg font-semibold text-strong">{trainingLoadSummary.chronicWeeklyAvg.toLocaleString()}</p>
-              </div>
-            </div>
-            <p className="mt-3 text-[10px] text-subtle leading-tight">
-              {trainingLoadSummary.status === 'undertraining' ? `You've done ${Math.round(trainingLoadSummary.loadRatio * 100)}% of your normal weekly work. Pick up the pace to reach the sweet spot.` :
-               trainingLoadSummary.status === 'overreaching' ? `You're training ${Math.round(trainingLoadSummary.loadRatio * 100)}% harder than your recent average. Consider a rest day.` :
-               `Your training intensity is perfectly aligned with your recent history.`}
-            </p>
-          </Card>
-
-          {/* 2. Performance Snapshot */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* 1. Performance Snapshot */}
           <Card className="p-6">
             <div className="flex items-center">
               <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Performance PRs</h3>
@@ -1611,7 +1635,7 @@ export default function ProgressPage() {
             </div>
           </Card>
 
-          {/* 3. Workload & Volume */}
+          {/* 2. Workload & Volume */}
           <Card className="p-6">
             <div className="flex items-center">
               <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Workload & Volume</h3>
@@ -1645,7 +1669,7 @@ export default function ProgressPage() {
             </div>
           </Card>
 
-          {/* 4. Activity & Recovery */}
+          {/* 3. Activity & Recovery */}
           <Card className="p-6">
             <div className="flex items-center">
               <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Activity & Recovery</h3>

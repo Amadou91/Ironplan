@@ -1,8 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogIn, LogOut } from 'lucide-react';
+import { LogIn, LogOut, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { authStore, useAuthStore } from '@/store/authStore';
 import { getAuthNavState } from '@/lib/authUi';
@@ -16,6 +17,21 @@ export default function Sidebar() {
   const hydrated = useAuthStore((state) => state.hydrated);
   const clearUser = useAuthStore((state) => state.clearUser);
   const supabase = createClient();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Persistence for sidebar state
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebar-collapsed');
+    if (saved !== null) {
+      setIsCollapsed(saved === 'true');
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    const nextState = !isCollapsed;
+    setIsCollapsed(nextState);
+    localStorage.setItem('sidebar-collapsed', String(nextState));
+  };
 
   const handleSignOut = async () => {
     clearUser();
@@ -32,9 +48,9 @@ export default function Sidebar() {
   const navState = getAuthNavState(user);
 
   return (
-    <aside className="hidden h-screen w-72 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] text-strong lg:flex">
-      <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-6">
-        <div className="flex items-center gap-3">
+    <aside className={`hidden h-screen flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] text-strong transition-all duration-300 lg:flex ${isCollapsed ? 'w-20' : 'w-72'}`}>
+      <div className={`flex items-center border-b border-[var(--color-border)] px-4 py-6 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+        <div className={`flex items-center gap-3 ${isCollapsed ? 'hidden' : 'flex'}`}>
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] shadow-[var(--shadow-sm)]">
             <span className="font-display text-lg font-semibold">IP</span>
           </div>
@@ -43,11 +59,18 @@ export default function Sidebar() {
             <p className="text-xs text-subtle">Coach-led training OS</p>
           </div>
         </div>
-        <ThemeToggle />
+        
+        {isCollapsed && (
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] shadow-[var(--shadow-sm)]">
+            <span className="font-display text-lg font-semibold">IP</span>
+          </div>
+        )}
+
+        {!isCollapsed && <ThemeToggle />}
       </div>
 
-      <div className="flex-1 space-y-6 px-4 py-6">
-        <nav className="space-y-2">
+      <div className="flex-1 space-y-6 overflow-y-auto px-3 py-6 scrollbar-hide">
+        <nav className="space-y-1.5">
           {primaryNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
@@ -55,20 +78,26 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                className={`group relative flex items-center rounded-xl p-3 text-sm font-semibold transition-all duration-200 ${
+                  isCollapsed ? 'justify-center' : 'gap-3 px-4'
+                } ${
                   active
                     ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] shadow-[var(--shadow-sm)]'
                     : 'text-muted hover:bg-[var(--color-surface-muted)] hover:text-strong'
                 }`}
+                title={isCollapsed ? item.label : ''}
               >
-                <Icon className="h-5 w-5" />
-                <span>{item.label}</span>
+                <Icon className={`${isCollapsed ? 'h-6 w-6' : 'h-5 w-5'}`} />
+                {!isCollapsed && <span>{item.label}</span>}
+                {isCollapsed && active && (
+                  <div className="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--color-primary)]" />
+                )}
               </Link>
             );
           })}
         </nav>
 
-        <div className="space-y-2 border-t border-[var(--color-border)] pt-4">
+        <div className="space-y-1.5 border-t border-[var(--color-border)] pt-4">
           {secondaryNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
@@ -76,50 +105,70 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                className={`group relative flex items-center rounded-xl p-3 text-sm font-semibold transition-all duration-200 ${
+                  isCollapsed ? 'justify-center' : 'gap-3 px-4'
+                } ${
                   active
                     ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] shadow-[var(--shadow-sm)]'
                     : 'text-muted hover:bg-[var(--color-surface-muted)] hover:text-strong'
                 }`}
+                title={isCollapsed ? item.label : ''}
               >
-                <Icon className="h-5 w-5" />
-                <span>{item.label}</span>
+                <Icon className={`${isCollapsed ? 'h-6 w-6' : 'h-5 w-5'}`} />
+                {!isCollapsed && <span>{item.label}</span>}
+                {isCollapsed && active && (
+                  <div className="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--color-primary)]" />
+                )}
               </Link>
             );
           })}
         </div>
       </div>
 
-      <div className="border-t border-[var(--color-border)] p-4">
+      <div className="mt-auto border-t border-[var(--color-border)] p-3">
         {!hydrated ? (
-          <div className="px-4 py-3 text-xs text-subtle">Checking session...</div>
+          <div className={`px-4 py-3 text-xs text-subtle ${isCollapsed ? 'hidden' : 'block'}`}>Checking...</div>
         ) : user ? (
-          <div className="space-y-2">
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 py-3 text-xs text-subtle">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-subtle">Signed in</div>
-              <div className="mt-1 text-sm font-semibold text-strong">{user.email ?? 'Member'}</div>
-            </div>
+          <div className="space-y-1.5">
+            {!isCollapsed && (
+              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 py-3 text-xs text-subtle mb-2">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-subtle font-bold">Signed in</div>
+                <div className="mt-1 text-sm font-semibold text-strong truncate">{user.email ?? 'Member'}</div>
+              </div>
+            )}
+            
             <button
               onClick={handleSignOut}
-              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold text-muted transition-colors hover:bg-[var(--color-surface-muted)] hover:text-strong"
+              className={`flex w-full items-center rounded-xl p-3 text-left text-sm font-semibold text-muted transition-colors hover:bg-[var(--color-surface-muted)] hover:text-strong ${isCollapsed ? 'justify-center' : 'gap-3 px-4'}`}
+              title={isCollapsed ? 'Sign out' : ''}
             >
-              <LogOut className="h-4 w-4" />
-              <span>{navState.actionLabel}</span>
+              <LogOut className={`${isCollapsed ? 'h-6 w-6' : 'h-4 w-4'}`} />
+              {!isCollapsed && <span>{navState.actionLabel}</span>}
             </button>
           </div>
         ) : (
           <Link
             href="/auth/login"
-            className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+            className={`flex items-center rounded-xl p-3 text-sm font-semibold transition-colors ${
+              isCollapsed ? 'justify-center' : 'gap-3 px-4'
+            } ${
               isActive('/auth/login')
                 ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
                 : 'text-muted hover:bg-[var(--color-surface-muted)] hover:text-strong'
             }`}
+            title={isCollapsed ? 'Sign in' : ''}
           >
-            <LogIn className="h-4 w-4" />
-            <span>{navState.actionLabel}</span>
+            <LogIn className={`${isCollapsed ? 'h-6 w-6' : 'h-4 w-4'}`} />
+            {!isCollapsed && <span>{navState.actionLabel}</span>}
           </Link>
         )}
+        
+        <button
+          onClick={toggleSidebar}
+          className="mt-2 flex w-full items-center justify-center rounded-xl p-3 text-subtle transition-colors hover:bg-[var(--color-surface-muted)] hover:text-strong"
+        >
+          {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+        </button>
       </div>
     </aside>
   );
