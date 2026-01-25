@@ -52,6 +52,7 @@ type TrainingLoadSummary = {
   status: 'undertraining' | 'balanced' | 'overreaching'
   daysSinceLast: number | null
   insufficientData: boolean
+  isInitialPhase: boolean
   weeklyLoadTrend: Array<{ week: string; load: number }>
 }
 
@@ -174,7 +175,10 @@ export const summarizeTrainingLoad = (sessions: TrainingSession[], now = new Dat
 
   const sessionTimes = sessions.map((session) => new Date(session.startedAt).getTime()).filter(Number.isFinite)
   const lastSessionTime = sessionTimes.length ? Math.max(...sessionTimes) : null
+  const firstSessionTime = sessionTimes.length ? Math.min(...sessionTimes) : null
   const daysSinceLast = lastSessionTime ? Math.max(0, (nowTime - lastSessionTime) / 86400000) : null
+  const historyDays = firstSessionTime ? (nowTime - firstSessionTime) / 86400000 : 0
+  const sessionCount = sessions.length
 
   sessions.forEach((session) => {
     const sessionMetrics = computeSessionMetrics(session)
@@ -204,11 +208,16 @@ export const summarizeTrainingLoad = (sessions: TrainingSession[], now = new Dat
   const chronicWeeklyAverage = chronicLoad ? chronicLoad / 4 : 0
   const loadRatio = chronicWeeklyAverage ? acuteLoad / chronicWeeklyAverage : 0
   
+  // ACR is statistically volatile until we have ~14 days of history and ~4 sessions.
+  const isInitialPhase = historyDays < 14 || sessionCount < 4
+
   let status: 'undertraining' | 'balanced' | 'overreaching' = 'balanced'
-  if (loadRatio >= 1.3) {
-    status = 'overreaching'
-  } else if (loadRatio <= 0.8 && chronicLoad > 0) {
-    status = 'undertraining'
+  if (!isInitialPhase) {
+    if (loadRatio >= 1.3) {
+      status = 'overreaching'
+    } else if (loadRatio <= 0.8 && chronicLoad > 0) {
+      status = 'undertraining'
+    }
   }
 
   const weeklyLoadTrend = Array.from(weeklyLoads.entries())
@@ -223,6 +232,7 @@ export const summarizeTrainingLoad = (sessions: TrainingSession[], now = new Dat
     status,
     daysSinceLast: typeof daysSinceLast === 'number' ? Number(daysSinceLast.toFixed(1)) : null,
     insufficientData: chronicLoad === 0,
+    isInitialPhase,
     weeklyLoadTrend
   }
 }
