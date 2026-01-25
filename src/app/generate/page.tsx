@@ -1,524 +1,46 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { ArrowRight, Loader2, Wand2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { Checkbox } from '@/components/ui/Checkbox'
-import { buildWorkoutTemplate, normalizePlanInput } from '@/lib/generator'
-import { buildWorkoutDisplayName } from '@/lib/workout-naming'
-import {
-  bandLabels,
-  cloneInventory,
-  equipmentPresets,
-  formatWeightList,
-  machineLabels,
-  BARBELL_PLATE_OPTIONS
-} from '@/lib/equipment'
-import { applyPreferencesToPlanInput, normalizePreferences } from '@/lib/preferences'
-import {
-  buildWorkoutHistoryEntry,
-  loadWorkoutHistory,
-  removeWorkoutHistoryEntry,
-  saveWorkoutHistoryEntry,
-  setWorkoutHistoryEntries
-} from '@/lib/workoutHistory'
-import { CARDIO_ACTIVITY_OPTIONS } from '@/lib/cardio-activities'
+import { formatWeightList, bandLabels, machineLabels } from '@/lib/equipment'
 import { getFlowCompletion, isEquipmentValid } from '@/lib/generationFlow'
-import { logEvent } from '@/lib/logger'
-import { useWorkoutStore } from '@/store/useWorkoutStore'
-import type { BandResistance, EquipmentPreset, FocusArea, Goal, MachineType, PlanInput, WorkoutTemplateDraft } from '@/types/domain'
 import { GoalSelector } from '@/components/generate/GoalSelector'
 import { EquipmentSelector, cardioMachineOptions, strengthMachineOptions } from '@/components/generate/EquipmentSelector'
 import { TimeConstraintSelector } from '@/components/generate/TimeConstraintSelector'
 import { MuscleGroupSelector } from '@/components/generate/MuscleGroupSelector'
-
-const buildCardioInventory = (
-  inventory: PlanInput['equipment']['inventory']
-): PlanInput['equipment']['inventory'] => ({
-  bodyweight: inventory.bodyweight,
-  dumbbells: [],
-  kettlebells: [],
-  bands: [],
-  barbell: { available: false, plates: [] },
-  machines: {
-    cable: false,
-    leg_press: false,
-    treadmill: inventory.machines.treadmill,
-    rower: inventory.machines.rower
-  }
-})
-const buildWorkoutTitle = (template: WorkoutTemplateDraft) =>
-  buildWorkoutDisplayName({
-    focus: template.focus,
-    style: template.style,
-    intensity: template.inputs.intensity,
-    fallback: template.title
-  })
+import { TemplateHistory } from '@/components/generate/TemplateHistory'
+import { GenerationSummary } from '@/components/generate/GenerationSummary'
+import { useGenerationFlow } from '@/hooks/useGenerationFlow'
 
 export default function GeneratePage() {
   const router = useRouter()
-  const { user, loading: userLoading } = useUser()
-  const supabase = createClient()
-  const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState<string[]>([])
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [saveSummary, setSaveSummary] = useState<{
-    templateId?: string
-    title?: string
-  } | null>(null)
-  const [lastSavedTemplate, setLastSavedTemplate] = useState<{
-    templateId: string
-    title: string
-    focus: FocusArea
-    style: Goal
-    input: PlanInput
-  } | null>(null)
-  const [historyError, setHistoryError] = useState<string | null>(null)
-  const [historyEntries, setHistoryEntries] = useState<ReturnType<typeof loadWorkoutHistory>>([])
-  const [deletingHistoryIds, setDeletingHistoryIds] = useState<Record<string, boolean>>({})
-  const [startSessionError, setStartSessionError] = useState<string | null>(null)
-  const [startingSessionKey, setStartingSessionKey] = useState<string | null>(null)
-  const [preferencesApplied, setPreferencesApplied] = useState(false)
-  const [hasUserEdits, setHasUserEdits] = useState(false)
-  const activeSession = useWorkoutStore((state) => state.activeSession)
-  const lastStrengthInventoryRef = useRef<PlanInput['equipment']['inventory'] | null>(null)
-  const lastStrengthPresetRef = useRef<PlanInput['equipment']['preset'] | null>(null)
-
-  const [formData, setFormData] = useState<PlanInput>(() =>
-    normalizePlanInput({
-      intent: { mode: 'body_part', style: 'strength', bodyParts: ['chest'] },
-      goals: { primary: 'strength', priority: 'primary' },
-      experienceLevel: 'intermediate',
-      intensity: 'moderate',
-      equipment: { preset: 'full_gym', inventory: cloneInventory(equipmentPresets.full_gym) },
-      time: { minutesPerSession: 45 },
-      schedule: {
-        daysAvailable: [0],
-        minRestDays: 1,
-        weeklyLayout: [
-          { sessionIndex: 0, style: 'strength', focus: 'chest' }
-        ]
-      },
-      preferences: { focusAreas: ['chest'], dislikedActivities: [], cardioActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
-    })
-  )
+  const { loading: userLoading } = useUser()
+  const {
+    formData,
+    loading,
+    errors,
+    saveError,
+    saveSummary,
+    lastSavedTemplate,
+    historyError,
+    historyEntries,
+    deletingHistoryIds,
+    startSessionError,
+    startingSessionKey,
+    updateFormData,
+    handleFocusChange,
+    updatePrimaryStyle,
+    handleHistoryLoad,
+    handleHistoryDelete,
+    handleStartSession,
+    generatePlanHandler
+  } = useGenerationFlow()
 
   const flowState = useMemo(() => getFlowCompletion(formData), [formData])
-
-  const clearFeedback = () => {
-    if (errors.length > 0) setErrors([])
-    if (saveError) setSaveError(null)
-    if (saveSummary) setSaveSummary(null)
-    if (historyError) setHistoryError(null)
-    if (startSessionError) setStartSessionError(null)
-  }
-
-  const updateFormData = (updater: (prev: PlanInput) => PlanInput) => {
-    setFormData(prev => updater(prev))
-    setHasUserEdits(true)
-    clearFeedback()
-  }
-
-  const getSavePlanHint = (error: { code?: string } | null) => {
-    switch (error?.code) {
-      case '42P01':
-        return 'Missing workout_templates table. Run the SQL in supabase/schema.sql or create the table in Supabase.'
-      case '42501':
-        return 'Insert blocked by Row Level Security. Add an insert policy for the workout_templates table.'
-      case '23502':
-        return 'A required column is missing. Confirm workout_templates.user_id, title, focus, style, and template_inputs are provided.'
-      case '23503':
-        return 'Your user record was not found. Sign out and back in to refresh your session.'
-      default:
-        return null
-    }
-  }
-
-  const handleFocusChange = (focus: FocusArea) => {
-    updateFormData((prev) => {
-      let targetStyle: Goal = prev.goals.primary
-      if (focus === 'mobility') targetStyle = 'general_fitness'
-      else if (focus === 'cardio') targetStyle = 'cardio'
-      else if (['cardio', 'general_fitness'].includes(prev.goals.primary)) {
-          targetStyle = 'strength'
-      }
-
-      const isCardio = targetStyle === 'cardio'
-      const isYoga = targetStyle === 'general_fitness'
-      const wasCardio = prev.goals.primary === 'cardio'
-      const wasYoga = prev.goals.primary === 'general_fitness'
-
-      if ((isCardio || isYoga) && !wasCardio && !wasYoga) {
-        lastStrengthInventoryRef.current = cloneInventory(prev.equipment.inventory)
-        lastStrengthPresetRef.current = prev.equipment.preset
-      }
-      
-      const nextInventory = isCardio
-        ? buildCardioInventory(prev.equipment.inventory)
-        : (wasCardio || wasYoga) && !isCardio && !isYoga
-          ? cloneInventory(lastStrengthInventoryRef.current ?? equipmentPresets.full_gym)
-          : prev.equipment.inventory
-      
-      const nextPreset = isCardio
-        ? 'custom'
-        : (wasCardio || wasYoga) && !isCardio && !isYoga
-          ? lastStrengthPresetRef.current ?? 'full_gym'
-          : prev.equipment.preset
-
-      return {
-        ...prev,
-        intent: {
-          ...prev.intent,
-          mode: (isCardio || isYoga) ? 'style' : 'body_part',
-          style: (isCardio || isYoga) ? targetStyle : undefined,
-          bodyParts: [focus]
-        },
-        goals: {
-          ...prev.goals,
-          primary: targetStyle
-        },
-        equipment: {
-          ...prev.equipment,
-          preset: nextPreset,
-          inventory: nextInventory
-        },
-        preferences: {
-          ...prev.preferences,
-          focusAreas: [focus]
-        },
-        schedule: {
-          ...prev.schedule,
-          weeklyLayout: [{ sessionIndex: 0, style: targetStyle, focus }]
-        }
-      }
-    })
-  }
-
-  const updatePrimaryStyle = (style: Goal) => {
-    updateFormData((prev) => {
-      const isCardio = style === 'cardio'
-      const isYoga = style === 'general_fitness'
-      const wasCardio = prev.goals.primary === 'cardio'
-      const wasYoga = prev.goals.primary === 'general_fitness'
-
-      if ((isCardio || isYoga) && !wasCardio && !wasYoga) {
-        lastStrengthInventoryRef.current = cloneInventory(prev.equipment.inventory)
-        lastStrengthPresetRef.current = prev.equipment.preset
-      }
-      
-      const fallbackFocus = prev.intent.bodyParts?.[0] ?? prev.preferences.focusAreas[0] ?? 'chest'
-      const bodyFocus = (fallbackFocus === 'cardio' || fallbackFocus === 'mobility') ? 'chest' : fallbackFocus
-      
-      const nextFocus = isCardio ? 'cardio' : isYoga ? 'mobility' : bodyFocus
-
-      const nextInventory = isCardio
-        ? buildCardioInventory(prev.equipment.inventory)
-        : (wasCardio || wasYoga)
-          ? cloneInventory(lastStrengthInventoryRef.current ?? equipmentPresets.full_gym)
-          : prev.equipment.inventory
-      
-      const nextPreset = isCardio
-        ? 'custom'
-        : (wasCardio || wasYoga)
-          ? lastStrengthPresetRef.current ?? 'full_gym'
-          : prev.equipment.preset
-
-      return {
-        ...prev,
-        intent: {
-          ...prev.intent,
-          mode: (isCardio || isYoga) ? 'style' : 'body_part',
-          style,
-          bodyParts: (isCardio || isYoga) ? prev.intent.bodyParts : [bodyFocus]
-        },
-        goals: {
-          ...prev.goals,
-          primary: style
-        },
-        equipment: {
-          ...prev.equipment,
-          preset: nextPreset,
-          inventory: nextInventory
-        },
-        preferences: {
-          ...prev.preferences,
-          focusAreas: [nextFocus]
-        },
-        schedule: {
-          ...prev.schedule,
-          weeklyLayout: [
-            {
-              sessionIndex: 0,
-              style,
-              focus: nextFocus
-            }
-          ]
-        }
-      }
-    })
-  }
-
-  const handleHistoryLoad = (entry: (typeof historyEntries)[number]) => {
-    updateFormData(() => {
-      const normalized = normalizePlanInput(entry.template.inputs)
-      const storedFocus = normalized.intent.bodyParts?.[0] ?? entry.template.focus ?? 'chest'
-      return {
-        ...normalized,
-        intent: {
-          ...normalized.intent,
-          mode: 'body_part',
-          bodyParts: [storedFocus]
-        },
-        preferences: {
-          ...normalized.preferences,
-          focusAreas: [storedFocus]
-        },
-        schedule: {
-          ...normalized.schedule,
-          daysAvailable: [0],
-          weeklyLayout: [{ sessionIndex: 0, style: normalized.goals.primary, focus: storedFocus }]
-        }
-      }
-    })
-  }
-
-  const handleHistoryDelete = async (entry: (typeof historyEntries)[number]) => {
-    const entryTitle = buildWorkoutDisplayName({
-      focus: entry.template.focus,
-      style: entry.template.style,
-      intensity: entry.template.inputs.intensity,
-      fallback: entry.title
-    })
-    if (!confirm(`Delete "${entryTitle}" from your saved templates? This cannot be undone.`)) return
-    if (!user) return
-    setHistoryError(null)
-    setDeletingHistoryIds(prev => ({ ...prev, [entry.id]: true }))
-
-    try {
-      if (entry.remoteId) {
-        const { error } = await supabase
-          .from('workout_templates')
-          .delete()
-          .eq('id', entry.remoteId)
-          .eq('user_id', user.id)
-
-        if (error) {
-          console.error('Failed to delete workout history entry from server', error)
-          setHistoryError('Removed locally, but unable to delete the saved workout on the server.')
-        }
-      }
-    } catch (error) {
-      console.error('Failed to delete workout history entry', error)
-      setHistoryError('Removed locally, but unable to delete the saved workout on the server.')
-    } finally {
-      if (typeof window !== 'undefined') {
-        removeWorkoutHistoryEntry(entry.id, window.localStorage)
-      }
-      setHistoryEntries((prev) => prev.filter(item => item.id !== entry.id))
-      setDeletingHistoryIds(prev => ({ ...prev, [entry.id]: false }))
-    }
-  }
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      const history = loadWorkoutHistory(window.localStorage)
-      setHistoryEntries(history)
-    } catch (error) {
-      console.error('Failed to load history', error)
-      setHistoryError('Unable to load workout history.')
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!user) return
-    if (typeof window === 'undefined') return
-
-    const syncHistory = async () => {
-      const { data, error } = await supabase
-        .from('workout_templates')
-        .select('id')
-        .eq('user_id', user.id)
-
-      if (error) {
-        console.error('Failed to sync workout history', error)
-        return
-      }
-
-      const existingIds = new Set((data ?? []).map((row) => row.id))
-      setHistoryEntries((prev) => {
-        const next = prev.filter((entry) => !entry.remoteId || existingIds.has(entry.remoteId))
-        if (next.length !== prev.length) {
-          setWorkoutHistoryEntries(next, window.localStorage)
-        }
-        return next
-      })
-    }
-
-    syncHistory()
-  }, [supabase, user])
-
-  useEffect(() => {
-    if (!user || preferencesApplied || hasUserEdits) return
-    let isMounted = true
-    const loadPreferences = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('preferences')
-        .eq('id', user.id)
-        .maybeSingle()
-      if (error) {
-        console.error('Failed to load preferences for generate flow', error)
-        if (isMounted) setPreferencesApplied(true)
-        return
-      }
-      const normalized = normalizePreferences(data?.preferences)
-      if (isMounted) {
-        setFormData((prev) => applyPreferencesToPlanInput(prev, normalized))
-        setPreferencesApplied(true)
-      }
-    }
-    loadPreferences()
-    return () => {
-      isMounted = false
-    }
-  }, [hasUserEdits, preferencesApplied, supabase, user])
-
-  const savePlanToDatabase = async (template: WorkoutTemplateDraft) => {
-    const { data: authData, error: authError } = await supabase.auth.getUser()
-    const authUser = authData?.user
-    if (authError || !authUser) {
-      setSaveError('Your session has expired. Please sign in again.')
-      return null
-    }
-
-    const displayTitle = buildWorkoutTitle(template)
-    const newTemplate = {
-      user_id: authUser.id,
-      title: displayTitle,
-      description: template.description,
-      focus: template.focus,
-      style: template.style,
-      experience_level: template.inputs.experienceLevel,
-      intensity: template.inputs.intensity,
-      equipment: template.inputs.equipment,
-      preferences: template.inputs.preferences,
-      template_inputs: template.inputs
-    }
-
-    const { data, error } = await supabase
-      .from('workout_templates')
-      .insert([newTemplate])
-      .select()
-      .single()
-
-    if (error) {
-      const hint = getSavePlanHint(error)
-      console.error('Failed to save template', { error, hint })
-      setSaveError(`Failed to save template: ${error.message}${hint ? ` ${hint}` : ''}`)
-      return null
-    }
-
-    if (!data) {
-      console.error('Failed to save template', { error: 'No data returned from insert.' })
-      setSaveError('Failed to save template. No data returned from insert.')
-      return null
-    }
-
-    if (typeof window !== 'undefined') {
-      try {
-        const entry = buildWorkoutHistoryEntry(template, data.id)
-        const titledEntry = { ...entry, title: displayTitle }
-        saveWorkoutHistoryEntry(titledEntry, window.localStorage)
-        setHistoryEntries((prev) => [titledEntry, ...prev.filter(item => item.id !== titledEntry.id)])
-      } catch (error) {
-        console.error('Failed to store workout history', error)
-        setHistoryError('Unable to save workout history locally.')
-      }
-    }
-
-    return {
-      templateId: data.id,
-      title: displayTitle,
-      focus: template.focus,
-      style: template.style,
-      input: template.inputs
-    }
-  }
-
-  const handleStartSession = ({
-    templateId,
-    sessionKey
-  }: {
-    templateId: string
-    sessionKey: string
-  }) => {
-    if (!user) return
-    if (activeSession) {
-      setStartSessionError('Finish your current session before starting a new one.')
-      if (activeSession.templateId && activeSession.id) {
-        router.push(`/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=generate`)
-      } else if (activeSession.id) {
-        // Fallback for manual sessions or sessions without a template link
-        router.push(`/workouts/active?sessionId=${activeSession.id}&from=generate`)
-      }
-      return
-    }
-    setStartSessionError(null)
-    setStartingSessionKey(sessionKey)
-    router.push(`/workouts/${templateId}/start`)
-  }
-
-  const generatePlanHandler = async () => {
-    if (!user) return
-    setLoading(true)
-    setSaveError(null)
-
-    const { template, errors: validationErrors } = buildWorkoutTemplate(formData)
-    if (validationErrors.length > 0 || !template) {
-      setErrors(validationErrors)
-      logEvent('warn', 'plan_validation_failed', { errors: validationErrors })
-      setLoading(false)
-      return
-    }
-
-    setErrors([])
-    setSaveSummary(null)
-    logEvent('info', 'plan_generated', {
-      userId: user.id,
-      focus: template.focus,
-      style: template.style,
-      experienceLevel: template.inputs.experienceLevel,
-      intensity: template.inputs.intensity,
-      equipment: template.inputs.equipment
-    })
-
-    try {
-      const saveResult = await savePlanToDatabase(template)
-      if (!saveResult) return
-
-      setSaveSummary({
-        templateId: saveResult.templateId,
-        title: saveResult.title
-      })
-      setLastSavedTemplate({
-        templateId: saveResult.templateId,
-        title: saveResult.title,
-        focus: saveResult.focus,
-        style: saveResult.style,
-        input: saveResult.input
-      })
-    } catch (err) {
-      console.error('Failed to save template', err)
-      setSaveError('Failed to save template. Check console for details.')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const invalidEquipment = !isEquipmentValid(formData.equipment)
   const isCardioStyle = formData.goals.primary === 'cardio'
@@ -526,26 +48,26 @@ export default function GeneratePage() {
   const inventory = formData.equipment.inventory
 
   const equipmentSummary = (
-    (isCardioStyle || isYogaStyle)
+    isCardioStyle || isYogaStyle
       ? [
-        inventory.bodyweight ? 'Bodyweight' : null,
-        ...(isCardioStyle ? cardioMachineOptions : [])
-          .filter((machine) => inventory.machines[machine])
-          .map((machine) => machineLabels[machine])
-      ]
+          inventory.bodyweight ? 'Bodyweight' : null,
+          ...(isCardioStyle ? cardioMachineOptions : [])
+            .filter((machine) => inventory.machines[machine])
+            .map((machine) => machineLabels[machine])
+        ]
       : [
-        inventory.bodyweight ? 'Bodyweight' : null,
-        inventory.dumbbells.length > 0 ? `Dumbbells (${formatWeightList(inventory.dumbbells)} lb)` : null,
-        inventory.kettlebells.length > 0 ? `Kettlebells (${formatWeightList(inventory.kettlebells)} lb)` : null,
-        inventory.bands.length > 0 ? `Bands (${inventory.bands.map(band => bandLabels[band]).join(', ')})` : null,
-        inventory.barbell.available
-          ? `Barbell${inventory.barbell.plates.length ? ` + Plates (${formatWeightList(inventory.barbell.plates)} lb)` : ''}`
-          : null,
-        strengthMachineOptions
-          .filter((machine) => inventory.machines[machine])
-          .map((machine) => machineLabels[machine])
-          .join(', ') || null
-      ]
+          inventory.bodyweight ? 'Bodyweight' : null,
+          inventory.dumbbells.length > 0 ? `Dumbbells (${formatWeightList(inventory.dumbbells)} lb)` : null,
+          inventory.kettlebells.length > 0 ? `Kettlebells (${formatWeightList(inventory.kettlebells)} lb)` : null,
+          inventory.bands.length > 0 ? `Bands (${inventory.bands.map((band) => bandLabels[band]).join(', ')})` : null,
+          inventory.barbell.available
+            ? `Barbell${inventory.barbell.plates.length ? ` + Plates (${formatWeightList(inventory.barbell.plates)} lb)` : ''}`
+            : null,
+          strengthMachineOptions
+            .filter((machine) => inventory.machines[machine])
+            .map((machine) => machineLabels[machine])
+            .join(', ') || null
+        ]
   ).filter(Boolean) as string[]
 
   const statusContent = () => {
@@ -565,11 +87,7 @@ export default function GeneratePage() {
     if (saveSummary) {
       return (
         <div className="space-y-3 text-sm text-muted">
-          {saveSummary.title && (
-            <div className="alert-success px-3 py-2">
-              Saved template: {saveSummary.title}
-            </div>
-          )}
+          {saveSummary.title && <div className="alert-success px-3 py-2">Saved template: {saveSummary.title}</div>}
           {startSessionError && <div className="text-[var(--color-danger)]">{startSessionError}</div>}
         </div>
       )
@@ -620,22 +138,12 @@ export default function GeneratePage() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 1</p>
                 <h2 className="text-xl font-semibold text-strong">Choose your workout focus</h2>
-                <p className="text-sm text-muted">
-                  Pick a muscle group, or select Yoga/Cardio.
-                </p>
+                <p className="text-sm text-muted">Pick a muscle group, or select Yoga/Cardio.</p>
               </div>
 
-              <MuscleGroupSelector
-                selectedFocus={formData.intent.bodyParts?.[0]}
-                onFocusChange={handleFocusChange}
-              />
+              <MuscleGroupSelector selectedFocus={formData.intent.bodyParts?.[0]} onFocusChange={handleFocusChange} />
 
-              {!isCardioStyle && !isYogaStyle && (
-                <GoalSelector
-                  value={formData.goals.primary}
-                  onChange={updatePrimaryStyle}
-                />
-              )}
+              {!isCardioStyle && !isYogaStyle && <GoalSelector value={formData.goals.primary} onChange={updatePrimaryStyle} />}
             </section>
 
             <section className="space-y-6">
@@ -650,17 +158,21 @@ export default function GeneratePage() {
                 cardioActivities={formData.preferences.cardioActivities}
                 isCardioStyle={isCardioStyle}
                 isYogaStyle={isYogaStyle}
-                onUpdateEquipment={(updater) => updateFormData(prev => ({
-                  ...prev,
-                  equipment: updater(prev.equipment)
-                }))}
-                onUpdateCardioActivities={(activities) => updateFormData(prev => ({
-                  ...prev,
-                  preferences: {
-                    ...prev.preferences,
-                    cardioActivities: activities
-                  }
-                }))}
+                onUpdateEquipment={(updater) =>
+                  updateFormData((prev) => ({
+                    ...prev,
+                    equipment: updater(prev.equipment)
+                  }))
+                }
+                onUpdateCardioActivities={(activities) =>
+                  updateFormData((prev) => ({
+                    ...prev,
+                    preferences: {
+                      ...prev.preferences,
+                      cardioActivities: activities
+                    }
+                  }))
+                }
               />
 
               <div className="surface-card-subtle p-5">
@@ -670,17 +182,17 @@ export default function GeneratePage() {
                 <div className="mt-4">
                   <TimeConstraintSelector
                     value={formData.time.minutesPerSession}
-                    onChange={(minutes) => updateFormData(prev => ({
-                      ...prev,
-                      time: { ...prev.time, minutesPerSession: minutes }
-                    }))}
+                    onChange={(minutes) =>
+                      updateFormData((prev) => ({
+                        ...prev,
+                        time: { ...prev.time, minutesPerSession: minutes }
+                      }))
+                    }
                   />
                 </div>
               </div>
 
-              {invalidEquipment && (
-                <p className="text-xs text-[var(--color-danger)]">Choose at least one equipment option.</p>
-              )}
+              {invalidEquipment && <p className="text-xs text-[var(--color-danger)]">Choose at least one equipment option.</p>}
             </section>
 
             <section className="space-y-4">
@@ -690,33 +202,18 @@ export default function GeneratePage() {
                 <p className="text-sm text-muted">Confirm the highlights before we save your template.</p>
               </div>
 
-              <div className="surface-card-subtle p-4">
-                <h3 className="mb-3 text-sm font-semibold text-strong">Selection summary</h3>
-                <dl className="grid gap-3 text-sm md:grid-cols-2">
-                  <div>
-                    <dt className="text-subtle">Muscle focus</dt>
-                    <dd className="text-strong capitalize">
-                      {isYogaStyle ? 'Yoga' : isCardioStyle ? 'Cardio' : formData.intent.bodyParts?.[0]?.replace('_', ' ') ?? 'Not set'}
-                    </dd>
-                  </div>
-                  {!isYogaStyle && !isCardioStyle && (
-                    <div>
-                      <dt className="text-subtle">Training style</dt>
-                      <dd className="text-strong capitalize">{(formData.intent.style ?? formData.goals.primary).replace('_', ' ')}</dd>
-                    </div>
-                  )}
-                  <div>
-                    <dt className="text-subtle">Equipment</dt>
-                    <dd className="text-strong">{equipmentSummary.length ? equipmentSummary.join(', ') : 'Not set'}</dd>
-                  </div>
-                </dl>
-              </div>
+              <GenerationSummary
+                formData={formData}
+                isCardioStyle={isCardioStyle}
+                isYogaStyle={isYogaStyle}
+                equipmentSummary={equipmentSummary}
+              />
 
               <div className="surface-card-subtle p-4" aria-live="polite">
                 {statusContent()}
                 {errors.length > 0 && (
                   <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-[var(--color-danger)]">
-                    {errors.map(error => (
+                    {errors.map((error) => (
                       <li key={error}>{error}</li>
                     ))}
                   </ul>
@@ -746,100 +243,36 @@ export default function GeneratePage() {
           </div>
         </Card>
 
-      <Card className="mt-8 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-strong">Saved Templates</h2>
-            <p className="text-xs text-subtle">Quickly reload a recently saved template.</p>
-          </div>
-        </div>
+        <TemplateHistory
+          historyEntries={historyEntries}
+          onLoadHistory={handleHistoryLoad}
+          onDeleteHistory={handleHistoryDelete}
+          onStartSession={handleStartSession}
+          startingSessionKey={startingSessionKey}
+          historyError={historyError}
+          startSessionError={startSessionError}
+          deletingHistoryIds={deletingHistoryIds}
+        />
 
-        {startSessionError && <p className="mb-3 text-sm text-[var(--color-danger)]">{startSessionError}</p>}
-        {historyError && <p className="mb-3 text-sm text-[var(--color-danger)]">{historyError}</p>}
-
-        {historyEntries.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-[var(--color-border)] p-6 text-sm text-muted">
-            No saved templates yet. Save a template to start building your history.
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs text-subtle">Done here? Head back to your workouts or jump into your latest template.</div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
+              Back to workouts <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!lastSavedTemplate) return
+                handleStartSession({ templateId: lastSavedTemplate.templateId, sessionKey: 'latest-start' })
+              }}
+              disabled={!lastSavedTemplate || startingSessionKey === 'latest-start'}
+            >
+              {startingSessionKey === 'latest-start' ? 'Starting...' : 'Start latest session'}
+            </Button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {historyEntries.map(entry => {
-              const entryTitle = buildWorkoutDisplayName({
-                focus: entry.template.focus,
-                style: entry.template.style,
-                intensity: entry.template.inputs.intensity,
-                fallback: entry.title
-              })
-              return (
-              <div
-                key={entry.id}
-                className="surface-card-muted flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-strong">{entryTitle}</p>
-                  <p className="text-xs text-subtle">Saved {new Date(entry.createdAt).toLocaleString()}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => handleHistoryLoad(entry)}
-                    className="px-3 py-2 text-xs"
-                  >
-                    Reload Setup
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => {
-                      if (!entry.remoteId) return
-                      handleStartSession({
-                        templateId: entry.remoteId,
-                        sessionKey: `${entry.id}-start`
-                      })
-                    }}
-                    className="px-3 py-2 text-xs"
-                    disabled={!entry.remoteId || startingSessionKey === `${entry.id}-start`}
-                  >
-                    {startingSessionKey === `${entry.id}-start` ? 'Starting...' : 'Start Session'}
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => handleHistoryDelete(entry)}
-                    className="px-3 py-2 text-xs border border-[var(--color-danger-border)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
-                    variant="outline"
-                    disabled={Boolean(deletingHistoryIds[entry.id])}
-                  >
-                    {deletingHistoryIds[entry.id] ? 'Deleting...' : 'Delete'}
-                  </Button>
-                </div>
-              </div>
-            )})}
-          </div>
-        )}
-      </Card>
-
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-xs text-subtle">
-          Done here? Head back to your workouts or jump into your latest template.
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
-            Back to workouts <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              if (!lastSavedTemplate) return
-              handleStartSession({ templateId: lastSavedTemplate.templateId, sessionKey: 'latest-start' })
-            }}
-            disabled={!lastSavedTemplate || startingSessionKey === 'latest-start'}
-          >
-            {startingSessionKey === 'latest-start' ? 'Starting...' : 'Start latest session'}
-          </Button>
         </div>
       </div>
-    </div>
     </div>
   )
 }
