@@ -49,7 +49,7 @@ export default function Sidebar() {
 
   return (
     <aside className={`hidden h-screen flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] text-strong transition-all duration-300 lg:flex ${isCollapsed ? 'w-20' : 'w-72'}`}>
-      <div className={`flex items-center border-b border-[var(--color-border)] px-4 py-6 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+      <div className={`flex items-center border-b border-[var(--color-border)] px-4 py-6 ${isCollapsed ? 'flex-col gap-4 justify-center' : 'justify-between'}`}>
         <div className={`flex items-center gap-3 ${isCollapsed ? 'hidden' : 'flex'}`}>
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] shadow-[var(--shadow-sm)]">
             <span className="font-display text-lg font-semibold">IP</span>
@@ -66,7 +66,16 @@ export default function Sidebar() {
           </div>
         )}
 
-        {!isCollapsed && <ThemeToggle />}
+        <div className={`flex items-center ${isCollapsed ? 'flex-col gap-2' : 'gap-1'}`}>
+          {!isCollapsed && <ThemeToggle />}
+          <button
+            onClick={toggleSidebar}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-subtle transition-colors hover:bg-[var(--color-surface-muted)] hover:text-strong"
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 space-y-6 overflow-y-auto px-3 py-6 scrollbar-hide">
@@ -162,13 +171,6 @@ export default function Sidebar() {
             {!isCollapsed && <span>{navState.actionLabel}</span>}
           </Link>
         )}
-        
-        <button
-          onClick={toggleSidebar}
-          className="mt-2 flex w-full items-center justify-center rounded-xl p-3 text-subtle transition-colors hover:bg-[var(--color-surface-muted)] hover:text-strong"
-        >
-          {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-        </button>
       </div>
     </aside>
   );

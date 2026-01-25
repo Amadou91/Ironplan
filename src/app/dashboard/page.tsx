@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Dumbbell, Sparkles } from 'lucide-react'
+import { ArrowRight, Clock, Dumbbell, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
@@ -427,154 +427,389 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-1">
-          <Card className="p-6">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-accent" />
-              <h2 className="text-lg font-semibold text-strong">Recommended session</h2>
-            </div>
-            {recommendedTemplate ? (
-              <div className="mt-4 rounded-xl border border-[var(--color-border)] p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-strong">
-                      {buildWorkoutDisplayName({
-                        focus: recommendedTemplate.focus,
-                        style: recommendedTemplate.style,
-                        intensity: recommendedTemplate.intensity,
-                        fallback: recommendedTemplate.title
-                      })}
-                    </p>
-                    <p className="text-xs text-subtle">
-                      Created {formatDateTime(recommendedTemplate.created_at)}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Link href={`/workouts/${recommendedTemplate.id}/start`}>
-                      <Button size="sm">Start</Button>
-                    </Link>
-                    <Link href={`/workout/${recommendedTemplate.id}`}>
-                      <Button variant="secondary" size="sm">Preview</Button>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-                        ) : (
-                          <div className="mt-4 rounded-xl border border-dashed border-[var(--color-border)] p-5 text-sm text-muted">
-                            Build your first plan to unlock recommendations.
-                          </div>
-                        )}
-                      </Card>
-                    </div>
+                        <div className="grid grid-cols-1 gap-8">
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card className="p-6">
-            <div className="flex items-center gap-2">
-              <Dumbbell className="h-5 w-5 text-accent" />
-              <h2 className="text-lg font-semibold text-strong">Recent sessions</h2>
-            </div>
-            <div className="mt-4 space-y-3">
-              {recentSessions.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[var(--color-border)] p-4 text-sm text-muted">
-                  No sessions logged yet. Start a workout to begin tracking.
-                </div>
-              ) : (
-                recentSessions.map((session) => {
-                  const template = session.template_id ? templateById.get(session.template_id) : null
-                  const sessionTitle = (template && session.name === template.title) 
-                    ? buildWorkoutDisplayName({
-                        focus: template.focus,
-                        style: template.style,
-                        intensity: template.intensity,
-                        minutes: typeof session.minutes_available === 'number' ? session.minutes_available : null,
-                        fallback: session.name,
-                        cardioExerciseName: template.style === 'cardio' && session.session_exercises?.[0]?.exercise_name ? session.session_exercises[0].exercise_name : null
-                      })
-                    : session.name;
-                  return (
-                    <div key={session.id} className="rounded-xl border border-[var(--color-border)] p-4">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          {/* 1. Recommended Session (Primary Action) */}
+
+                          <Card className={`overflow-hidden border-t-4 ${
+
+                            trainingLoadSummary.status === 'balanced' ? 'border-t-[var(--color-success)]' :
+
+                            trainingLoadSummary.status === 'overreaching' ? 'border-t-[var(--color-danger)]' :
+
+                            'border-t-[var(--color-warning)]'
+
+                          }`}>
+
+                            <div className="p-6 md:p-8">
+
+                      <div className="flex items-center gap-3 mb-6">
+
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary)] shadow-sm">
+
+                          <Sparkles className="h-5 w-5" />
+
+                        </div>
+
                         <div>
-                          <p className="text-sm font-semibold text-strong">{sessionTitle}</p>
-                          <p className="text-xs text-subtle">
-                            {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
-                          </p>
-                        </div>
-                        <Link href={`/sessions/${session.id}/edit`}>
-                          <Button size="sm" variant="secondary">Review</Button>
-                        </Link>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <Dumbbell className="h-5 w-5 text-accent" />
-              <div>
-                <h2 className="text-lg font-semibold text-strong">Templates</h2>
-                <p className="text-sm text-muted">Pick a plan, or build a new one.</p>
-              </div>
-            </div>
-            <div className="mt-6 space-y-3">
-              {templates.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[var(--color-border)] p-4 text-sm text-muted">
-                  No templates yet. Generate one to get started.
-                </div>
-              ) : (
-                templates.map((template) => {
-                  const isRecommended = recommendedTemplateId === template.id
-                  const displayTitle = buildWorkoutDisplayName({
-                    focus: template.focus,
-                    style: template.style,
-                    intensity: template.intensity,
-                    fallback: template.title
-                  })
-                  return (
-                    <div key={template.id} className="rounded-xl border border-[var(--color-border)] p-4">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-strong">{displayTitle}</p>
-                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle">
-                            {isRecommended && (
-                              <span className="badge-success whitespace-nowrap">Best for Today</span>
-                            )}
-                            <span>Created {formatDateTime(template.created_at)}</span>
-                          </div>
+                          <h2 className="text-lg font-bold text-strong uppercase tracking-wider">Recommended for you</h2>
+
+                          <p className="text-xs text-muted">Intelligent suggestion based on your training history.</p>
+
                         </div>
-                        <div className="flex flex-wrap gap-2 sm:justify-end">
-                          <Link href={`/workouts/${template.id}/start`}>
-                            <Button size="sm">Start</Button>
-                          </Link>
-                          <Link href={`/workout/${template.id}?from=dashboard`}>
-                            <Button variant="outline" size="sm">Preview</Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-[var(--color-danger)] hover:text-[var(--color-danger)]"
-                            onClick={() => handleDeleteTemplate(template)}
-                            disabled={Boolean(deletingWorkoutIds[template.id])}
-                          >
-                            {deletingWorkoutIds[template.id] ? 'Deleting...' : 'Delete'}
-                          </Button>
-                        </div>
+
                       </div>
+
+        
+
+                      {recommendedTemplate ? (
+
+                        <div className="group relative rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-6 transition-all hover:border-[var(--color-primary-border)] hover:bg-[var(--color-surface)] hover:shadow-md">
+
+                          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+
+                            <div className="space-y-2">
+
+                              <div className="flex items-center gap-2">
+
+                                <span className="badge-success text-[10px]">Best for Today</span>
+
+                                <p className="text-xl font-bold text-strong">
+
+                                  {buildWorkoutDisplayName({
+
+                                    focus: recommendedTemplate.focus,
+
+                                    style: recommendedTemplate.style,
+
+                                    intensity: recommendedTemplate.intensity,
+
+                                    fallback: recommendedTemplate.title
+
+                                  })}
+
+                                </p>
+
+                              </div>
+
+                              <div className="flex items-center gap-4 text-xs text-muted">
+
+                                <span className="flex items-center gap-1.5">
+
+                                  <Clock className="h-3.5 w-3.5" />
+
+                                  {recommendedTemplate.template_inputs?.time?.minutesPerSession ?? 45} min
+
+                                </span>
+
+                                <span className="h-1 w-1 rounded-full bg-[var(--color-border)]" />
+
+                                <span>Created {formatDateTime(recommendedTemplate.created_at)}</span>
+
+                              </div>
+
+                            </div>
+
+                            <div className="flex flex-wrap gap-3">
+
+                              <Link href={`/workout/${recommendedTemplate.id}`}>
+
+                                <Button variant="secondary" className="h-11 px-6">Preview</Button>
+
+                              </Link>
+
+                              <Link href={`/workouts/${recommendedTemplate.id}/start`}>
+
+                                <Button className="h-11 px-8 shadow-lg shadow-[var(--color-primary-soft)]">Start Workout</Button>
+
+                              </Link>
+
+                            </div>
+
+                          </div>
+
+                        </div>
+
+                      ) : (
+
+                        <div className="rounded-2xl border-2 border-dashed border-[var(--color-border)] p-10 text-center">
+
+                          <p className="text-sm text-muted">Build your first plan to unlock daily recommendations.</p>
+
+                          <Link href="/generate" className="mt-4 inline-block">
+
+                            <Button variant="outline" size="sm">Create Plan</Button>
+
+                          </Link>
+
+                        </div>
+
+                      )}
+
                     </div>
-                  )
-                })
-              )}
-            </div>
-            <div className="mt-6 border-t border-[var(--color-border)] pt-4">
-               <Link href="/generate" className="flex items-center gap-2 text-sm font-semibold text-accent">
-                 <Sparkles className="h-4 w-4" /> Build a new plan <ArrowRight className="h-4 w-4" />
-               </Link>
-             </div>
-          </Card>
-        </div>
+
+                  </Card>
+
+        
+
+                  {/* 2. Templates (Inventory) */}
+
+                  <Card className="p-6 md:p-8">
+
+                    <div className="flex items-center justify-between mb-8">
+
+                      <div className="flex items-center gap-3">
+
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-surface-muted)] text-strong">
+
+                          <Dumbbell className="h-5 w-5" />
+
+                        </div>
+
+                        <div>
+
+                          <h2 className="text-lg font-bold text-strong uppercase tracking-wider">Your Templates</h2>
+
+                          <p className="text-xs text-muted">Saved workout structures for quick starts.</p>
+
+                        </div>
+
+                      </div>
+
+                      <Link href="/generate">
+
+                        <Button variant="ghost" size="sm" className="text-accent font-bold">
+
+                          <Plus className="h-4 w-4 mr-1.5" /> New Template
+
+                        </Button>
+
+                      </Link>
+
+                    </div>
+
+        
+
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+                      {templates.length === 0 ? (
+
+                        <div className="col-span-full rounded-xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-muted">
+
+                          No templates found.
+
+                        </div>
+
+                      ) : (
+
+                        templates.map((template) => {
+
+                          const isRecommended = recommendedTemplateId === template.id
+
+                          const displayTitle = buildWorkoutDisplayName({
+
+                            focus: template.focus,
+
+                            style: template.style,
+
+                            intensity: template.intensity,
+
+                            fallback: template.title
+
+                          })
+
+                          return (
+
+                            <div key={template.id} className="flex flex-col rounded-xl border border-[var(--color-border)] p-5 transition-all hover:border-[var(--color-primary-border)] hover:bg-[var(--color-surface-subtle)]">
+
+                              <div className="flex-1">
+
+                                <div className="flex items-start justify-between gap-2">
+
+                                  <p className="font-bold text-strong truncate">{displayTitle}</p>
+
+                                  {isRecommended && (
+
+                                    <span className="flex-shrink-0 rounded bg-[var(--color-success-soft)] px-1.5 py-0.5 text-[9px] font-black uppercase text-[var(--color-success)] border border-[var(--color-success-border)]">Best</span>
+
+                                  )}
+
+                                </div>
+
+                                <p className="mt-1 text-[10px] text-subtle uppercase font-bold tracking-widest">
+
+                                  {template.style.replace('_', ' ')} · {template.focus}
+
+                                </p>
+
+                              </div>
+
+                              
+
+                              <div className="mt-6 flex items-center justify-between pt-4 border-t border-[var(--color-border)]/50">
+
+                                <div className="flex gap-1.5">
+
+                                  <Link href={`/workouts/${template.id}/start`}>
+
+                                    <Button size="sm" className="h-8 px-3 text-[11px] font-bold">Start</Button>
+
+                                  </Link>
+
+                                  <Link href={`/workout/${template.id}?from=dashboard`}>
+
+                                    <Button variant="secondary" size="sm" className="h-8 px-3 text-[11px] font-bold">Preview</Button>
+
+                                  </Link>
+
+                                </div>
+
+                                <Button
+
+                                  variant="ghost"
+
+                                  size="sm"
+
+                                  className="h-8 w-8 p-0 text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
+
+                                  onClick={() => handleDeleteTemplate(template)}
+
+                                  disabled={Boolean(deletingWorkoutIds[template.id])}
+
+                                >
+
+                                  <Trash2 className="h-3.5 w-3.5" />
+
+                                </Button>
+
+                              </div>
+
+                            </div>
+
+                          )
+
+                        })
+
+                      )}
+
+                    </div>
+
+                  </Card>
+
+        
+
+                  {/* 3. Recent History */}
+
+                  <Card className="p-6 md:p-8">
+
+                    <div className="flex items-center gap-3 mb-8">
+
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-surface-muted)] text-strong">
+
+                        <Clock className="h-5 w-5" />
+
+                      </div>
+
+                      <div>
+
+                        <h2 className="text-lg font-bold text-strong uppercase tracking-wider">Recent Activity</h2>
+
+                        <p className="text-xs text-muted">Review your most recent completed sessions.</p>
+
+                      </div>
+
+                    </div>
+
+        
+
+                    <div className="space-y-3">
+
+                      {recentSessions.length === 0 ? (
+
+                        <div className="rounded-xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-muted">
+
+                          No activity history yet.
+
+                        </div>
+
+                      ) : (
+
+                        recentSessions.map((session) => {
+
+                          const template = session.template_id ? templateById.get(session.template_id) : null
+
+                          const sessionTitle = (template && session.name === template.title) 
+
+                            ? buildWorkoutDisplayName({
+
+                                focus: template.focus,
+
+                                style: template.style,
+
+                                intensity: template.intensity,
+
+                                minutes: typeof session.minutes_available === 'number' ? session.minutes_available : null,
+
+                                fallback: session.name,
+
+                                cardioExerciseName: template.style === 'cardio' && session.session_exercises?.[0]?.exercise_name ? session.session_exercises[0].exercise_name : null
+
+                              })
+
+                            : session.name;
+
+                          return (
+
+                            <div key={session.id} className="group flex flex-col gap-4 rounded-xl border border-[var(--color-border)] p-5 transition-all hover:bg-[var(--color-surface-subtle)] md:flex-row md:items-center md:justify-between">
+
+                              <div className="space-y-1">
+
+                                <p className="font-bold text-strong">{sessionTitle}</p>
+
+                                <div className="flex items-center gap-3 text-xs text-subtle">
+
+                                  <span className="font-medium">{formatDateTime(session.started_at)}</span>
+
+                                  <span className="h-1 w-1 rounded-full bg-[var(--color-border)]" />
+
+                                  <span>{formatDuration(session.started_at, session.ended_at)}</span>
+
+                                </div>
+
+                              </div>
+
+                              <Link href={`/sessions/${session.id}/edit`}>
+
+                                <Button size="sm" variant="secondary" className="font-bold group-hover:bg-[var(--color-surface)] group-hover:shadow-sm">Review Logs</Button>
+
+                              </Link>
+
+                            </div>
+
+                          )
+
+                        })
+
+                      )}
+
+                    </div>
+
+                    
+
+                    <div className="mt-8 pt-6 border-t border-[var(--color-border)]">
+
+                      <Link href="/progress" className="text-sm font-bold text-accent hover:underline flex items-center gap-2">
+
+                        View all training history <ArrowRight className="h-4 w-4" />
+
+                      </Link>
+
+                    </div>
+
+                  </Card>
+
+                </div>
       </div>
     </div>
   )
