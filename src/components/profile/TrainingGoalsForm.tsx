@@ -36,8 +36,8 @@ export function TrainingGoalsForm({
         <div>
           <label className="mb-2 block text-sm font-medium text-strong">Primary focus areas</label>
           <MuscleGroupSelector 
-            selected={focusAreas} 
-            onChange={onFocusAreasChange}
+            selectedFocus={focusAreas[0]} 
+            onFocusChange={(focus) => onFocusAreasChange([focus])}
           />
         </div>
       </div>

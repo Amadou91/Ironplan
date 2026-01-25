@@ -1,10 +1,10 @@
 'use client'
 
 import { useRef } from 'react'
-import type { User } from '@supabase/supabase-js'
+import type { AuthUser } from '@/store/authStore'
 
 interface ProfileHeaderProps {
-  user: User | null
+  user: AuthUser | null
   onToggleDevTools: () => void
   devToolsNotice: string | null
 }

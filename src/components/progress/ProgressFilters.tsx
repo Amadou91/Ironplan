@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { MuscleSplitChart } from '@/components/progress/MuscleSplitChart'
+import { MuscleSplitChart, type MuscleBreakdownPoint } from '@/components/progress/MuscleSplitChart'
 import { createPastRange } from '@/hooks/useProgressMetrics'
 import { formatDateForInput } from '@/lib/transformers/chart-data'
 
@@ -54,7 +54,7 @@ interface ProgressFiltersProps {
   selectedExercise: string
   setSelectedExercise: (exercise: string) => void
   exerciseOptions: string[]
-  muscleBreakdown: any[]
+  muscleBreakdown: MuscleBreakdownPoint[]
 }
 
 export function ProgressFilters({

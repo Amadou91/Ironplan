@@ -6,7 +6,7 @@ import { ChartInfoTooltip } from '@/components/ui/ChartInfoTooltip'
 interface TrainingStatusCardProps {
   status: string
   loadRatio: number | string
-  weeklyLoad: number
+  acuteLoad: number
   chronicWeeklyAvg: number | string
   insufficientData?: boolean
   isInitialPhase?: boolean
@@ -32,7 +32,7 @@ const getStatusDescription = (status: string, ratio: number, insufficientData?: 
 export function TrainingStatusCard({
   status,
   loadRatio,
-  weeklyLoad,
+  acuteLoad,
   chronicWeeklyAvg,
   insufficientData,
   isInitialPhase
@@ -125,7 +125,7 @@ export function TrainingStatusCard({
             <div className="grid grid-cols-2 gap-4 lg:border-l lg:border-[var(--color-border)] lg:pl-10">
               <div className="space-y-1">
                 <p className="text-[10px] text-subtle uppercase font-bold tracking-widest">Load (7d)</p>
-                <p className="text-2xl font-bold text-strong tracking-tight">{insufficientData && weeklyLoad === 0 ? '--' : weeklyLoad.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-strong tracking-tight">{insufficientData && acuteLoad === 0 ? '--' : acuteLoad.toLocaleString()}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] text-subtle uppercase font-bold tracking-widest">Baseline</p>

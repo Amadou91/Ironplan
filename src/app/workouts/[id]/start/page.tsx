@@ -107,11 +107,20 @@ export default function WorkoutStartPage() {
         await supabase.from('sessions').update({ status: 'cancelled', ended_at: new Date().toISOString() }).eq('id', activeSession.id)
         endSession()
       }
-      const tunedInputs = { ...normalizePlanInput(template.template_inputs ?? {}), intensity: selectedIntensity.intensity, experienceLevel: shiftExperienceLevel(template.template_inputs?.experienceLevel ?? template.experience_level ?? 'intermediate', selectedIntensity.experienceDelta), preferences: { ...template.template_inputs?.preferences, restPreference: selectedIntensity.restPreference } }
+      const baseInput = normalizePlanInput(template.template_inputs ?? {})
+      const tunedInputs: PlanInput = { 
+        ...baseInput, 
+        intensity: selectedIntensity.intensity, 
+        experienceLevel: shiftExperienceLevel(baseInput.experienceLevel ?? template.experience_level ?? 'intermediate', selectedIntensity.experienceDelta), 
+        preferences: { 
+          ...baseInput.preferences, 
+          restPreference: selectedIntensity.restPreference 
+        } 
+      }
       const history = await fetchTemplateHistory(supabase, template.id)
       const { sessionId, startedAt, sessionName, exercises, impact, timezone, sessionNotes } = await createWorkoutSession({
         supabase, userId: user.id, templateId: template.id, templateTitle: buildWorkoutDisplayName({ focus: template.focus, style: template.style, intensity: template.intensity, fallback: template.title }),
-        focus: template.focus, goal: template.style, input: tunedInputs as any, minutesAvailable, readiness: { survey: readinessSurvey as ReadinessSurvey, score: readinessScore, level: readinessLevel },
+        focus: template.focus, goal: template.style, input: tunedInputs, minutesAvailable, readiness: { survey: readinessSurvey as ReadinessSurvey, score: readinessScore, level: readinessLevel },
         sessionNotes: { sessionIntensity: selectedIntensity.intensity, minutesAvailable, readiness: readinessLevel, readinessScore, readinessSurvey: readinessSurvey as ReadinessSurvey, source: 'workout_start' },
         history, nameSuffix: `${toMuscleLabel(template.focus)} ${template.style.replace('_', ' ')}`
       })

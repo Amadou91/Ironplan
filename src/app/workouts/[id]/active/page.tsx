@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { X } from 'lucide-react'
@@ -22,7 +22,7 @@ type WorkoutTemplate = {
   template_inputs: PlanInput | null
 }
 
-export default function WorkoutActivePage() {
+function WorkoutActiveContent() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -221,6 +221,14 @@ export default function WorkoutActivePage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function WorkoutActivePage() {
+  return (
+    <Suspense fallback={<div className="page-shell p-10 text-center text-muted">Loading session...</div>}>
+      <WorkoutActiveContent />
+    </Suspense>
   )
 }
 

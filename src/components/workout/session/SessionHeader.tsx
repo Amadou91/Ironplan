@@ -19,7 +19,7 @@ interface SessionHeaderProps {
   sessionBodyWeight: string;
   preferredUnit: WeightUnit;
   onBodyWeightUpdate: (value: string) => void;
-  onCancel: () => void;
+  onCancel?: () => void;
   errorMessage?: string | null;
   restTimer?: {
     remaining: number;
@@ -87,13 +87,15 @@ export function SessionHeader({
               <span className="text-xs">Started at {new Date(startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           </div>
-          <button
-            onClick={onCancel}
-            className="p-2 rounded-full hover:bg-[var(--color-surface-muted)] text-subtle transition-colors"
-            title="Cancel Session"
-          >
-            <X size={20} />
-          </button>
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="p-2 rounded-full hover:bg-[var(--color-surface-muted)] text-subtle transition-colors"
+              title="Cancel Session"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
         {(intensityLabel || minutesAvailable) && (

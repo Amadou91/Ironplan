@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { Suspense, useEffect, useMemo, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { computeSetE1rm, computeSetTonnage } from '@/lib/session-metrics'
@@ -9,7 +9,7 @@ import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
 import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
-import type { FocusArea, Goal, Intensity, PlanInput } from '@/types/domain'
+import type { FocusArea, Goal, Intensity, PlanInput, WeightUnit, MetricProfile } from '@/types/domain'
 import { SummaryHeader } from '@/components/workout/SummaryHeader'
 import { SessionHighlights } from '@/components/workout/SessionHighlights'
 import { ExerciseHighlights } from '@/components/workout/ExerciseHighlights'
@@ -35,6 +35,7 @@ type SessionDetail = {
     exercise_name: string
     primary_muscle: string | null
     secondary_muscles: string[] | null
+    metric_profile: MetricProfile | null
     sets: Array<{
       id: string
       reps: number | null
@@ -43,7 +44,8 @@ type SessionDetail = {
       rir: number | null
       completed: boolean | null
       performed_at: string | null
-      weight_unit: string | null
+      weight_unit: WeightUnit | null
+      duration_seconds: number | null
     }>
   }>
   template?: {
@@ -99,7 +101,7 @@ const getSessionIntensity = (notes?: SessionNotes | null): Intensity | null => {
   return 'moderate'
 }
 
-export default function WorkoutSummaryPage() {
+function WorkoutSummaryContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -136,7 +138,7 @@ export default function WorkoutSummaryPage() {
       setLoading(true)
       const { data, error: fetchError } = await supabase
         .from('sessions')
-        .select('id, name, started_at, ended_at, status, session_notes, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit)), template:workout_templates(id, title, focus, style, intensity, template_inputs)')
+        .select('id, name, started_at, ended_at, status, session_notes, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds)), template:workout_templates(id, title, focus, style, intensity, template_inputs)')
         .eq('id', sessionId).single()
       if (fetchError) setError('Unable to load session summary.')
       else setSession(data as unknown as SessionDetail)
@@ -152,10 +154,10 @@ export default function WorkoutSummaryPage() {
     const metricSets = session.session_exercises.flatMap(exercise => {
       const isEligible = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())?.e1rmEligible
       return exercise.sets.filter(set => set.completed !== false).map(set => ({
-        reps: set.reps ?? null, weight: set.weight ?? null, weightUnit: (set.weight_unit as any) ?? null,
+        reps: set.reps ?? null, weight: set.weight ?? null, weightUnit: set.weight_unit ?? null,
         rpe: typeof set.rpe === 'number' ? set.rpe : null, rir: typeof set.rir === 'number' ? set.rir : null,
-        performedAt: set.performed_at ?? null, completed: set.completed, durationSeconds: (set as any).duration_seconds ?? null,
-        metricProfile: (exercise as any).metric_profile, sessionGoal, isEligible
+        performedAt: set.performed_at ?? null, completed: set.completed, durationSeconds: set.duration_seconds ?? null,
+        metricProfile: exercise.metric_profile ?? undefined, sessionGoal, isEligible
       }))
     })
     const metrics = computeSessionMetrics({ startedAt: session.started_at, endedAt: session.ended_at, intensity: getSessionIntensity(parsedNotes), sets: metricSets })
@@ -177,7 +179,7 @@ export default function WorkoutSummaryPage() {
     if (!session) return []
     return session.session_exercises.map(exercise => ({
       name: exercise.exercise_name, muscle: exercise.primary_muscle,
-      volume: Math.round(exercise.sets.reduce((sum, set) => set.completed === false ? sum : sum + computeSetTonnage({ reps: set.reps ?? null, weight: set.weight ?? null, weightUnit: (set.weight_unit as any) ?? null }), 0))
+      volume: Math.round(exercise.sets.reduce((sum, set) => set.completed === false ? sum : sum + computeSetTonnage({ reps: set.reps ?? null, weight: set.weight ?? null, weightUnit: set.weight_unit ?? null }), 0))
     })).sort((a, b) => b.volume - a.volume).slice(0, 3)
   }, [session])
 
@@ -220,5 +222,13 @@ export default function WorkoutSummaryPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function WorkoutSummaryPage() {
+  return (
+    <Suspense fallback={<div className="page-shell p-10 text-center text-muted">Loading summary...</div>}>
+      <WorkoutSummaryContent />
+    </Suspense>
   )
 }

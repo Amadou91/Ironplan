@@ -112,7 +112,7 @@ export const normalizeMuscleGroup = (input: string): { primary: string; secondar
   return { primary: input || 'full_body', secondary: [] };
 };
 
-export const enhanceExerciseData = (ex: Exercise): Exercise => {
+export function enhanceExerciseData<T extends Partial<Exercise>>(ex: T): T {
   const currentPrimary = typeof ex.primaryMuscle === 'string' ? ex.primaryMuscle : '';
   const rawLabel = `${ex.name} ${currentPrimary}`.trim();
   const { primary, secondary } = normalizeMuscleGroup(rawLabel);
@@ -121,7 +121,7 @@ export const enhanceExerciseData = (ex: Exercise): Exercise => {
     primaryMuscle: primary,
     secondaryMuscles: secondary
   };
-};
+}
 
 export const toMuscleSlug = (value: string, fallback: string | null = 'full_body') => {
   const slug = value

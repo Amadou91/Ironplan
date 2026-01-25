@@ -17,12 +17,21 @@ import {
   computeSetE1rm 
 } from '@/lib/session-metrics'
 import type { SessionRow } from '@/lib/transformers/progress-data'
-import type { Goal } from '@/types/domain'
+import type { Goal, Exercise, FocusArea, PlanInput } from '@/types/domain'
+
+export type TemplateRow = {
+  id: string
+  title: string
+  focus: FocusArea
+  style: PlanInput['goals']['primary']
+  intensity: PlanInput['intensity']
+  template_inputs: PlanInput | null
+}
 
 interface SessionHistoryListProps {
   sessions: SessionRow[]
-  templateById: Map<string, any>
-  exerciseLibraryByName: Map<string, any>
+  templateById: Map<string, TemplateRow>
+  exerciseLibraryByName: Map<string, Exercise>
   getSessionTitle: (session: SessionRow) => string
   hasMore: boolean
   onLoadMore: () => void
@@ -90,7 +99,7 @@ export function SessionHistoryList({
         const reps = set.reps ?? 0
         totals.reps += reps
         const tonnage = computeSetTonnage({
-          metricProfile: exercise.metric_profile,
+          metricProfile: exercise.metric_profile ?? undefined,
           reps: set.reps ?? null,
           weight: set.weight ?? null,
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
@@ -98,7 +107,7 @@ export function SessionHistoryList({
         totals.volume += tonnage
         totals.hardSets += aggregateHardSets([
           {
-            metricProfile: exercise.metric_profile,
+            metricProfile: exercise.metric_profile ?? undefined,
             reps: set.reps ?? null,
             weight: set.weight ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
@@ -107,7 +116,7 @@ export function SessionHistoryList({
           }
         ])
         totals.workload += computeSetLoad({
-          metricProfile: exercise.metric_profile,
+          metricProfile: exercise.metric_profile ?? undefined,
           reps: set.reps ?? null,
           weight: set.weight ?? null,
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
@@ -200,7 +209,7 @@ export function SessionHistoryList({
                         <div key={exercise.id} className="surface-card-muted p-4 text-xs text-muted">
                           <p className="text-sm font-semibold text-strong">{exercise.exercise_name}</p>
                           <p className="text-subtle">Primary: {exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'N/A'}</p>
-                          <p className="text-subtle">Secondary: {exercise.secondary_muscles?.length ? exercise.secondary_muscles.map((muscle: any) => toMuscleLabel(muscle)).join(', ') : 'N/A'}</p>
+                          <p className="text-subtle">Secondary: {exercise.secondary_muscles?.length ? exercise.secondary_muscles.map((muscle: string) => toMuscleLabel(muscle)).join(', ') : 'N/A'}</p>
                           <div className="mt-3 space-y-2">
                             {(exercise.sets ?? []).map((set) => (
                               <div key={set.id} className="rounded border border-[var(--color-border)] px-2 py-2">

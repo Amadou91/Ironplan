@@ -1,4 +1,4 @@
-import type { PlanInput, FocusArea } from '@/types/domain'
+import type { PlanInput, FocusArea, FocusConstraint } from '@/types/domain'
 import { equipmentPresets } from '@/lib/equipment'
 import type { ExerciseTemplate } from './types'
 
@@ -655,7 +655,7 @@ export const EXERCISE_LIBRARY: ExerciseTemplate[] = [
 
 export const focusMuscleMap: Record<
   FocusArea,
-  { primaryMuscles?: string[]; baseFocus?: FocusArea }
+  { primaryMuscles?: string[]; baseFocus?: FocusArea; constraint?: FocusConstraint }
 > = {
   arms: {
     primaryMuscles: ['biceps', 'triceps', 'forearms', 'shoulders'],

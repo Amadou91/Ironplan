@@ -18,16 +18,40 @@ import {
 } from 'recharts'
 import { Card } from '@/components/ui/Card'
 import { WeeklyVolumeChart } from '@/components/progress/WeeklyVolumeChart'
+import type { 
+  VolumeTrendPoint, 
+  EffortTrendPoint, 
+  ExerciseTrendPoint, 
+  BodyWeightTrendPoint, 
+  ReadinessTrendPoint 
+} from '@/lib/transformers/chart-data'
+
+export interface ReadinessComponentPoint {
+  metric: string
+  value: number
+  ideal: number
+}
+
+export interface ReadinessCorrelationPoint {
+  readiness: number
+  effort: number
+  workload: number
+}
+
+export interface ReadinessTrendLinePoint {
+  readiness: number
+  effort: number
+}
 
 interface ProgressChartsProps {
-  volumeTrend: any[]
-  effortTrend: any[]
-  exerciseTrend: any[]
-  bodyWeightData: any[]
-  readinessSeries: any[]
-  readinessComponents: any[]
-  readinessCorrelation: any[]
-  readinessTrendLine: any[]
+  volumeTrend: VolumeTrendPoint[]
+  effortTrend: EffortTrendPoint[]
+  exerciseTrend: ExerciseTrendPoint[]
+  bodyWeightData: BodyWeightTrendPoint[]
+  readinessSeries: ReadinessTrendPoint[]
+  readinessComponents: ReadinessComponentPoint[]
+  readinessCorrelation: ReadinessCorrelationPoint[]
+  readinessTrendLine: ReadinessTrendLinePoint[]
 }
 
 export function ProgressCharts({
@@ -133,7 +157,7 @@ export function ProgressCharts({
               <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" />
               <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px' }} />
               <Bar dataKey="value">
-                {readinessComponents.map((entry: any) => {
+                {readinessComponents.map((entry: ReadinessComponentPoint) => {
                   let color = '#0ea5e9'
                   if (entry.metric === 'Sleep' || entry.metric === 'Motivation') {
                     if (entry.value >= 4) color = '#1f9d55'

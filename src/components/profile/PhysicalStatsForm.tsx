@@ -22,7 +22,12 @@ type ProfileRow = {
   birthdate: string | null
   sex: string | null
   updated_at: string | null
-  preferences?: any
+  preferences?: {
+    trainingGoals?: {
+      goal?: Goal
+      focusAreas?: FocusArea[]
+    }
+  } | null
 }
 
 type ProfileDraft = {

@@ -12,7 +12,7 @@ import { ChartInfoTooltip } from '@/components/ui/ChartInfoTooltip'
 
 const chartColors = ['#f05a28', '#1f9d55', '#0ea5e9', '#f59e0b', '#ec4899']
 
-interface MuscleBreakdownPoint {
+export interface MuscleBreakdownPoint {
   muscle: string
   volume: number
   relativePct: number

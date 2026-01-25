@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { equipmentPresets } from '@/lib/equipment'
-import type { WeightUnit, WorkoutSet, EquipmentInventory, FocusArea, Goal } from '@/types/domain'
+import type { WeightUnit, WorkoutSet, EquipmentInventory, FocusArea, Goal, MetricProfile } from '@/types/domain'
 
 export type EditableExercise = {
   id: string
   name: string
   primaryMuscle: string | null
   secondaryMuscles: string[]
-  metricProfile?: string | null
+  metricProfile?: MetricProfile | null
   orderIndex: number | null
   sets: WorkoutSet[]
 }
@@ -54,7 +54,7 @@ type ExerciseRow = {
   exercise_name: string
   primary_muscle: string | null
   secondary_muscles: string[]
-  metric_profile: string | null
+  metric_profile: MetricProfile | null
   order_index: number | null
   sets: SetRow[]
 }

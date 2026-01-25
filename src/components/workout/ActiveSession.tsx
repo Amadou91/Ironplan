@@ -200,7 +200,7 @@ export default function ActiveSession({
 
       <div className="space-y-6">
         {activeSession.exercises.map((exercise, exIdx) => (
-          <div key={exIdx} ref={el => (exerciseRefs.current[exIdx] = el)} className="surface-card-muted p-4 md:p-6 scroll-mt-[220px]">
+          <div key={exIdx} ref={el => { exerciseRefs.current[exIdx] = el; }} className="surface-card-muted p-4 md:p-6 scroll-mt-[220px]">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-strong">{exercise.name}</h3>

@@ -10,7 +10,7 @@ import { useSessionEditor } from '@/hooks/useSessionEditor'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
 import { enhanceExerciseData, isTimeBasedExercise, toMuscleSlug } from '@/lib/muscle-utils'
 import { buildWeightOptions } from '@/lib/equipment'
-import type { WorkoutSet } from '@/types/domain'
+import type { WorkoutSet, Exercise } from '@/types/domain'
 
 const formatDateTime = (value: string) => {
   const date = new Date(value)
@@ -57,14 +57,14 @@ export default function SessionEditPage() {
   const handleAddExercise = () => {
     if (!newExerciseName.trim() || !session) return
     const match = exerciseLibraryByName.get(newExerciseName.toLowerCase())
-    const base = match ?? enhanceExerciseData({ name: newExerciseName, focus: 'full_body' } as any)
+    const base = match ?? enhanceExerciseData({ name: newExerciseName, focus: 'full_body' } as Partial<Exercise>)
     setSession({
       ...session,
       exercises: [...session.exercises, {
         id: `temp-exercise-${Date.now()}`,
-        name: base.name,
+        name: base.name ?? newExerciseName,
         primaryMuscle: toMuscleSlug(base.primaryMuscle ?? 'full_body'),
-        secondaryMuscles: base.secondaryMuscles?.map(m => toMuscleSlug(m)) ?? [],
+        secondaryMuscles: (base.secondaryMuscles?.map(m => toMuscleSlug(m)).filter(Boolean) as string[]) ?? [],
         orderIndex: session.exercises.length,
         sets: []
       }]
@@ -135,7 +135,7 @@ export default function SessionEditPage() {
                       if (!set.id.startsWith('temp-')) setDeletedSetIds(prev => [...prev, set.id])
                     }}
                     onToggleComplete={() => setSession({...session, exercises: session.exercises.map(e => e.id === exercise.id ? {...e, sets: e.sets.map(s => s.id === set.id ? {...s, completed: !s.completed} : s)} : e)})}
-                    metricProfile={exercise.metricProfile as any}
+                    metricProfile={exercise.metricProfile ?? undefined}
                     isTimeBased={isTimeBasedExercise(exercise.name, exerciseLibraryByName.get(exercise.name.toLowerCase())?.reps)}
                   />
                 ))}

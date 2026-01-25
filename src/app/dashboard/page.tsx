@@ -116,7 +116,7 @@ export default function DashboardPage() {
           <TrainingStatusCard
             status={trainingLoadSummary.status}
             loadRatio={trainingLoadSummary.loadRatio}
-            weeklyLoad={trainingLoadSummary.acuteLoad}
+            acuteLoad={trainingLoadSummary.acuteLoad}
             chronicWeeklyAvg={trainingLoadSummary.chronicWeeklyAvg}
             insufficientData={trainingLoadSummary.insufficientData}
             isInitialPhase={trainingLoadSummary.isInitialPhase}

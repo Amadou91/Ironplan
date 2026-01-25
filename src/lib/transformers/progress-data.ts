@@ -20,7 +20,7 @@ export type SessionRow = {
     exercise_name: string
     primary_muscle: string | null
     secondary_muscles: string[] | null
-    metric_profile?: string | null
+    metric_profile?: MetricProfile | null
     order_index: number | null
     sets: Array<{
       id: string

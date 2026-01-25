@@ -52,6 +52,7 @@ export function useStrengthMetrics(options: {
   const [templates, setTemplates] = useState<TemplateRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sessionPage, setSessionPage] = useState(0)
   const [hasMoreSessions, setHasMoreSessions] = useState(true)
 
   const templateById = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates])
@@ -91,7 +92,6 @@ export function useStrengthMetrics(options: {
     if (userLoading || !user) return
 
     const loadSessions = async () => {
-      setSessionsLoaded(false)
       const session = await ensureSession()
       if (!session) return
       setLoading(true)
@@ -112,7 +112,9 @@ export function useStrengthMetrics(options: {
           query = query.gte('started_at', chronicStart.toISOString())
         }
       } else {
-        query = query.limit(SESSION_PAGE_SIZE)
+        const from = sessionPage * SESSION_PAGE_SIZE
+        const to = from + SESSION_PAGE_SIZE - 1
+        query = query.range(from, to)
       }
 
       const [{ data: sessionData, error: fetchError }, { data: templateData }] =
@@ -128,7 +130,11 @@ export function useStrengthMetrics(options: {
         setError('Unable to load sessions. Please try again.')
       } else {
         const nextSessions = (sessionData as SessionRow[]) ?? []
-        setSessions(nextSessions)
+        if (sessionPage > 0) {
+          setSessions(prev => [...prev, ...nextSessions])
+        } else {
+          setSessions(nextSessions)
+        }
         setHasMoreSessions(!startDate && nextSessions.length === SESSION_PAGE_SIZE)
       }
       if (templateData) {
@@ -138,7 +144,7 @@ export function useStrengthMetrics(options: {
     }
 
     loadSessions()
-  }, [ensureSession, supabase, user, userLoading, startDate])
+  }, [ensureSession, supabase, user, userLoading, startDate, sessionPage])
 
   const filteredSessions = useMemo(() => {
     const seenIds = new Set<string>()
@@ -201,12 +207,15 @@ export function useStrengthMetrics(options: {
     })
 
     const workload = Math.round(metricSets.reduce((sum, set) => sum + (set.reps || 0) * (set.weight || 0), 0))
+    const avgWorkload = effortTotals.count ? Math.round(workload / effortTotals.count) : 0
+
     return {
       tonnage: Math.round(aggregateTonnage(metricSets)),
       hardSets: aggregateHardSets(metricSets),
       bestE1rm: Math.round(bestE1rmValue),
       bestE1rmExercise,
       workload,
+      avgWorkload,
       avgEffort: effortTotals.count ? Number((effortTotals.total / effortTotals.count).toFixed(1)) : null
     }
   }, [allSets, sessions, templateById, exerciseLibraryByName])
@@ -244,8 +253,10 @@ export function useStrengthMetrics(options: {
   }, [sessions])
 
   return {
-    loading, error, sessions, filteredSessions, aggregateMetrics, prMetrics,
+    user, userLoading,
+    loading, error, setError, sessions, setSessions, filteredSessions, aggregateMetrics, prMetrics,
     trainingLoadSummary, sessionsPerWeek, templateById, exerciseOptions,
+    sessionPage, setSessionPage, getSessionTitle, ensureSession, exerciseLibraryByName,
     volumeTrend: useMemo(() => processWeeklyData(allSets, filteredSessions, { startDate, endDate }), [allSets, filteredSessions, startDate, endDate]),
     effortTrend: useMemo(() => transformSessionsToEffortTrend(allSets), [allSets]),
     exerciseTrend: useMemo(() => transformSessionsToExerciseTrend(allSets, sessions, templateById, exerciseLibraryByName, selectedExercise), [allSets, selectedExercise, sessions, templateById, exerciseLibraryByName]),

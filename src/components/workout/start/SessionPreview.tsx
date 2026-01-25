@@ -4,13 +4,13 @@ import React, { useMemo } from 'react'
 import { Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
-import type { FocusArea, Goal } from '@/types/domain'
+import type { FocusArea, Goal, EquipmentInventory } from '@/types/domain'
 
 interface SessionPreviewProps {
   focus: FocusArea
   style: Goal
   intensityLabel: string
-  equipmentInventory?: any
+  equipmentInventory?: EquipmentInventory
 }
 
 export function SessionPreview({

@@ -5,7 +5,7 @@ import { CheckCircle2, ListFilter, Search } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 interface SessionControlsProps {
-  onFinish: () => void;
+  onFinish?: () => void;
   onAddExercise: () => void;
   onReorder?: () => void;
   isFinishing?: boolean;
@@ -20,15 +20,17 @@ export function SessionControls({
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Button
-          variant="secondary"
-          onClick={onFinish}
-          disabled={isFinishing}
-          className="flex items-center justify-center gap-2 py-4 h-auto text-base font-bold shadow-lg shadow-accent/10"
-        >
-          <CheckCircle2 size={20} />
-          {isFinishing ? 'Finishing...' : 'Finish Workout'}
-        </Button>
+        {onFinish && (
+          <Button
+            variant="secondary"
+            onClick={onFinish}
+            disabled={isFinishing}
+            className="flex items-center justify-center gap-2 py-4 h-auto text-base font-bold shadow-lg shadow-accent/10"
+          >
+            <CheckCircle2 size={20} />
+            {isFinishing ? 'Finishing...' : 'Finish Workout'}
+          </Button>
+        )}
         
         <Button
           variant="outline"
