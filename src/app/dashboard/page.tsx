@@ -69,39 +69,39 @@ export default function DashboardPage() {
 
   return (
     <div className="page-shell">
-      <div className="w-full space-y-8 px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="w-full space-y-10 py-4">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-subtle">Today</p>
-            <h1 className="font-display text-3xl font-semibold text-strong">Welcome back, {greetingName}</h1>
-            <p className="mt-2 text-sm text-muted">Ready to train? We have a smart session queued up.</p>
+            <p className="text-sm uppercase tracking-[0.4em] text-subtle font-bold">Today</p>
+            <h1 className="font-display text-4xl lg:text-5xl font-extrabold text-strong mt-2">Welcome back, {greetingName}</h1>
+            <p className="mt-3 text-lg text-muted max-w-2xl">Ready to train? We have a smart session queued up for your recovery profile.</p>
           </div>
           <Link href="/generate">
-            <Button variant="secondary" size="sm">
-              <Sparkles className="h-4 w-4 mr-2" /> New Plan
+            <Button size="md" className="shadow-lg shadow-[var(--color-primary-soft)]">
+              <Sparkles className="h-5 w-5 mr-2" /> Create New Plan
             </Button>
           </Link>
         </div>
 
-        {error && <div className="alert-error p-4 text-sm">{error}</div>}
+        {error && <div className="alert-error p-6 text-base font-medium">{error}</div>}
 
         {latestActiveSession && (
-          <Card className="p-6 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Card className="p-8 border-2 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]/50 backdrop-blur-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-semibold text-[var(--color-primary-strong)]">Session in progress</p>
-                <p className="text-xs text-subtle">Finish your active session before starting another.</p>
+                <p className="text-lg font-bold text-[var(--color-primary-strong)]">Session in progress</p>
+                <p className="text-sm text-subtle font-medium">Finish your active session before starting another.</p>
               </div>
               <Link href={resumeLink}>
-                <Button variant="secondary" size="sm">
-                  Resume session
+                <Button variant="primary" size="md">
+                  Resume active session
                 </Button>
               </Link>
             </div>
           </Card>
         )}
 
-        <div className="grid grid-cols-1 gap-8">
+        <div className="grid grid-cols-1 gap-12">
           <TrainingStatusCard
             status={trainingLoadSummary.status}
             loadRatio={trainingLoadSummary.loadRatio}

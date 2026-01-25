@@ -37,7 +37,11 @@ export default function AppShell({ children }: AppShellProps) {
           </div>
           <ThemeToggle />
         </header>
-        <main className="min-h-screen pb-28 lg:pb-10">{children}</main>
+        <main className="min-h-screen pb-28 lg:pb-10">
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+            {children}
+          </div>
+        </main>
         <MobileNav />
       </div>
     </div>

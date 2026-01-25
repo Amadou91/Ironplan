@@ -15,20 +15,20 @@ interface RecentActivityProps {
 
 export function RecentActivity({ recentSessions, templateById }: RecentActivityProps) {
   return (
-    <Card className="p-6 md:p-8">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-surface-muted)] text-strong">
-          <Clock className="h-5 w-5" />
+    <Card className="p-8 md:p-10 lg:p-12">
+      <div className="flex items-center gap-4 mb-10">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-surface-muted)] text-strong shadow-sm">
+          <Clock className="h-6 w-6" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-strong uppercase tracking-wider">Recent Activity</h2>
-          <p className="text-xs text-muted">Review your most recent completed sessions.</p>
+          <h2 className="text-xl font-bold text-strong uppercase tracking-wider">Recent Activity</h2>
+          <p className="text-sm text-muted">Review your most recent completed sessions.</p>
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {recentSessions.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-muted">
+          <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-12 text-center text-base text-muted">
             No activity history yet.
           </div>
         ) : (
@@ -52,11 +52,11 @@ export function RecentActivity({ recentSessions, templateById }: RecentActivityP
             return (
               <div
                 key={session.id}
-                className="group flex flex-col gap-4 rounded-xl border border-[var(--color-border)] p-5 transition-all hover:bg-[var(--color-surface-subtle)] md:flex-row md:items-center md:justify-between"
+                className="group flex flex-col gap-6 rounded-2xl border border-[var(--color-border)] p-6 transition-all hover:bg-[var(--color-surface-subtle)] hover:shadow-md md:flex-row md:items-center md:justify-between"
               >
-                <div className="space-y-1">
-                  <p className="font-bold text-strong">{sessionTitle}</p>
-                  <div className="flex items-center gap-3 text-xs text-subtle">
+                <div className="space-y-1.5">
+                  <p className="text-lg font-bold text-strong">{sessionTitle}</p>
+                  <div className="flex items-center gap-4 text-sm text-subtle">
                     <span className="font-medium">{formatDateTime(session.started_at)}</span>
                     <span className="h-1 w-1 rounded-full bg-[var(--color-border)]" />
                     <span>{formatDuration(session.started_at, session.ended_at)}</span>
@@ -64,7 +64,7 @@ export function RecentActivity({ recentSessions, templateById }: RecentActivityP
                 </div>
                 <Link href={`/sessions/${session.id}/edit`}>
                   <Button
-                    size="sm"
+                    size="md"
                     variant="secondary"
                     className="font-bold group-hover:bg-[var(--color-surface)] group-hover:shadow-sm"
                   >
@@ -77,9 +77,9 @@ export function RecentActivity({ recentSessions, templateById }: RecentActivityP
         )}
       </div>
 
-      <div className="mt-8 pt-6 border-t border-[var(--color-border)]">
-        <Link href="/progress" className="text-sm font-bold text-accent hover:underline flex items-center gap-2">
-          View all training history <ArrowRight className="h-4 w-4" />
+      <div className="mt-10 pt-8 border-t border-[var(--color-border)]">
+        <Link href="/progress" className="text-base font-bold text-accent hover:underline flex items-center gap-2">
+          View all training history <ArrowRight className="h-5 w-5" />
         </Link>
       </div>
     </Card>

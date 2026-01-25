@@ -16,24 +16,24 @@ interface RecommendedSessionProps {
 export function RecommendedSession({ recommendedTemplate, trainingLoadStatus }: RecommendedSessionProps) {
   return (
     <Card className="overflow-hidden">
-      <div className="p-6 md:p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary)] shadow-sm">
-            <Sparkles className="h-5 w-5" />
+      <div className="p-8 md:p-12">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-primary-soft)] text-[var(--color-primary)] shadow-sm">
+            <Sparkles className="h-6 w-6" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-strong uppercase tracking-wider">Recommended for you</h2>
-            <p className="text-xs text-muted">Intelligent suggestion based on your training history.</p>
+            <h2 className="text-xl font-bold text-strong uppercase tracking-wider">Recommended for you</h2>
+            <p className="text-sm text-muted">Intelligent suggestion based on your training history.</p>
           </div>
         </div>
 
         {recommendedTemplate ? (
-          <div className="group relative rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-6 transition-all hover:border-[var(--color-primary-border)] hover:bg-[var(--color-surface)] hover:shadow-md">
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="badge-success text-[10px]">Best for Today</span>
-                  <p className="text-xl font-bold text-strong">
+          <div className="group relative rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-8 transition-all hover:border-[var(--color-primary-border)] hover:bg-[var(--color-surface)] hover:shadow-md">
+            <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <span className="badge-success text-[11px]">Best for Today</span>
+                  <p className="text-2xl font-bold text-strong">
                     {buildWorkoutDisplayName({
                       focus: recommendedTemplate.focus,
                       style: recommendedTemplate.style,
@@ -42,13 +42,11 @@ export function RecommendedSession({ recommendedTemplate, trainingLoadStatus }: 
                     })}
                   </p>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-muted">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-4 text-sm text-muted">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Clock className="h-4 w-4" />
                     {recommendedTemplate.template_inputs?.time?.minutesPerSession ?? 45} min
                   </span>
-                  <span className="h-1 w-1 rounded-full bg-[var(--color-border)]" />
-                  <span>Created {formatDateTime(recommendedTemplate.created_at)}</span>
                 </div>
               </div>
               <div className="flex flex-wrap gap-3">
