@@ -29,11 +29,11 @@ type SetSeed = {
   reps: number | null
   weight: number | null
   weightUnit: 'lb' | 'kg'
-  rpe?: number
-  rir?: number
-  durationSeconds?: number
-  extraMetrics?: Record<string, any>
-  extras?: Record<string, any>
+  rpe?: number | null
+  rir?: number | null
+  durationSeconds?: number | null
+  extraMetrics?: Record<string, unknown>
+  extras?: Record<string, unknown>
 }
 
 type ExerciseSeed = {
@@ -57,8 +57,9 @@ type SessionSeed = {
   exercises: ExerciseSeed[]
 }
 
-const isMissingTableError = (error: any) => {
-  return error?.code === '42P01' || error?.message?.includes('does not exist')
+const isMissingTableError = (error: unknown) => {
+  const e = error as { code?: string; message?: string }
+  return e?.code === '42P01' || e?.message?.includes('does not exist')
 }
 
 export async function seedDevData(supabase: SupabaseClient, userId: string): Promise<SeedResult> {
@@ -307,7 +308,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     const exercises = baseExercises.map((ex) => ({
       ...ex,
       sets: ex.sets.map((s) => {
-        const setUpdate: any = {
+        const setUpdate: SetSeed = {
           ...s,
           weight: typeof s.weight === 'number' && s.weight > 0 ? Math.max(1, Math.round((s.weight * progressFactor) / 5) * 5) : s.weight,
           reps: typeof s.reps === 'number' ? s.reps + (Math.random() > 0.7 ? 1 : 0) : s.reps,
@@ -452,7 +453,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         rpe: set.rpe ?? null,
         rir: set.rir ?? null,
         duration_seconds: set.durationSeconds ?? null,
-        extras: set.extras ?? {},
+        extras: (set.extras as Record<string, string | null>) ?? {},
         extra_metrics: set.extraMetrics ?? {},
         completed: true,
         performed_at: performedAt,

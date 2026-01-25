@@ -1,6 +1,6 @@
 import { computeSetLoad, computeSetTonnage, getWeekKey, getEffortScore, computeSetE1rm } from '@/lib/session-metrics'
 import { toMuscleSlug, toMuscleLabel, PRESET_MAPPINGS } from '@/lib/muscle-utils'
-import type { Goal } from '@/types/domain'
+import type { Goal, MetricProfile } from '@/types/domain'
 
 export interface VolumeTrendPoint {
   label: string
@@ -45,6 +45,24 @@ export interface ReadinessTrendPoint {
   soreness: number
   stress: number
   motivation: number
+}
+
+export type AnalyzedSet = {
+  sessionId?: string
+  startedAt?: string
+  performed_at?: string | null
+  performedAt?: string | null
+  metricProfile?: string | null
+  reps?: number | null
+  weight?: number | null
+  weight_unit?: string | null
+  weightUnit?: string | null
+  rpe?: number | null
+  rir?: number | null
+  duration_seconds?: number | null
+  exerciseName?: string
+  primaryMuscle?: string | null
+  secondaryMuscles?: string[] | null
 }
 
 export const formatDate = (value: string) => {
@@ -111,7 +129,7 @@ interface TransformOptions {
 }
 
 export function transformSessionsToVolumeTrend(
-  allSets: any[],
+  allSets: AnalyzedSet[],
   filteredSessions: { started_at: string }[],
   options: TransformOptions = {}
 ): VolumeTrendPoint[] {
@@ -142,19 +160,20 @@ export function transformSessionsToVolumeTrend(
 
   allSets.forEach((set) => {
     const date = set.performed_at ?? set.startedAt
+    if (!date) return
     const key = useDaily ? formatDate(date) : getWeekKey(date)
     
     const tonnage = computeSetTonnage({
-      metricProfile: set.metricProfile,
+      metricProfile: set.metricProfile as MetricProfile,
       reps: set.reps ?? null,
       weight: set.weight ?? null,
-      weightUnit: set.weight_unit as 'lb' | 'kg' | null
+      weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null
     })
     const load = computeSetLoad({
-      metricProfile: set.metricProfile,
+      metricProfile: set.metricProfile as MetricProfile,
       reps: set.reps ?? null,
       weight: set.weight ?? null,
-      weightUnit: set.weight_unit as 'lb' | 'kg' | null,
+      weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null,
       rpe: typeof set.rpe === 'number' ? set.rpe : null,
       rir: typeof set.rir === 'number' ? set.rir : null,
       durationSeconds: set.duration_seconds ?? null
@@ -179,7 +198,7 @@ export function transformSessionsToVolumeTrend(
     }))
 }
 
-export function transformSessionsToEffortTrend(allSets: any[]): EffortTrendPoint[] {
+export function transformSessionsToEffortTrend(allSets: AnalyzedSet[]): EffortTrendPoint[] {
   const daily = new Map<string, { total: number; count: number }>()
   allSets.forEach((set) => {
     const raw = getEffortScore({
@@ -187,7 +206,9 @@ export function transformSessionsToEffortTrend(allSets: any[]): EffortTrendPoint
       rir: typeof set.rir === 'number' ? set.rir : null
     })
     if (raw === null) return
-    const key = formatDateForInput(new Date(set.performed_at ?? set.startedAt))
+    const date = set.performed_at ?? set.startedAt
+    if (!date) return
+    const key = formatDateForInput(new Date(date))
     const current = daily.get(key) ?? { total: 0, count: 0 }
     daily.set(key, { total: current.total + raw, count: current.count + 1 })
   })
@@ -200,24 +221,31 @@ export function transformSessionsToEffortTrend(allSets: any[]): EffortTrendPoint
 }
 
 export function transformSessionsToExerciseTrend(
-  allSets: any[],
+  allSets: AnalyzedSet[],
   sessions: { id: string; template_id: string | null }[],
-  templateById: Map<string, { style: any }>,
+  templateById: Map<string, { style: Goal }>,
   exerciseLibraryByName: Map<string, { e1rmEligible?: boolean }>,
   selectedExercise: string
 ): ExerciseTrendPoint[] {
   const daily = new Map<string, number>()
   allSets.forEach((set) => {
     if (selectedExercise !== 'all' && set.exerciseName !== selectedExercise) return
+    if (!set.exerciseName) return
 
     const session = sessions.find((s) => s.id === set.sessionId)
     const template = session?.template_id ? templateById.get(session.template_id) : null
-    const sessionGoal = template?.style as Goal | undefined
+    const sessionGoal = template?.style
     const isEligible = exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible
 
-    const e1rm = computeSetE1rm(set, sessionGoal, isEligible)
+    const e1rm = computeSetE1rm({
+      ...set,
+      metricProfile: set.metricProfile as MetricProfile,
+      weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null
+    }, sessionGoal, isEligible)
     if (!e1rm) return
-    const key = formatDateForInput(new Date(set.performed_at ?? set.startedAt))
+    const date = set.performed_at ?? set.startedAt
+    if (!date) return
+    const key = formatDateForInput(new Date(date))
     const current = daily.get(key)
     daily.set(key, Math.max(current ?? 0, e1rm))
   })
@@ -246,16 +274,16 @@ export function transformSessionsToExerciseTrend(
 }
 
 export function transformSetsToMuscleBreakdown(
-  allSets: any[],
+  allSets: AnalyzedSet[],
   selectedMuscle: string
 ): MuscleBreakdownItem[] {
   const totals = new Map<string, number>()
   allSets.forEach((set) => {
     const tonnage = computeSetTonnage({
-      metricProfile: set.metricProfile,
+      metricProfile: set.metricProfile as MetricProfile,
       reps: set.reps ?? null,
       weight: set.weight ?? null,
-      weightUnit: set.weight_unit as 'lb' | 'kg' | null
+      weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null
     })
     if (!tonnage) return
     

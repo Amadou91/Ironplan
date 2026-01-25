@@ -6,7 +6,7 @@ import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { summarizeTrainingLoad } from '@/lib/training-metrics'
-import type { FocusArea, PlanInput } from '@/types/domain'
+import type { FocusArea, PlanInput, MetricProfile } from '@/types/domain'
 
 export type SessionRow = {
   id: string
@@ -32,6 +32,7 @@ export type SessionRow = {
       completed: boolean | null
       performed_at: string | null
       weight_unit: string | null
+      duration_seconds?: number | null
     }>
   }>
 }
@@ -89,7 +90,7 @@ export function useDashboardData() {
           supabase
             .from('sessions')
             .select(
-              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit))'
+              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds))'
             )
             .eq('user_id', user.id)
             .order('started_at', { ascending: false })
@@ -154,14 +155,14 @@ export function useDashboardData() {
         exercise.sets
           .filter((set) => set.completed !== false)
           .map((set) => ({
-            metricProfile: (exercise as any).metric_profile,
+            metricProfile: (exercise.metric_profile as MetricProfile) ?? undefined,
             reps: set.reps ?? null,
             weight: set.weight ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
             rpe: typeof set.rpe === 'number' ? set.rpe : null,
             rir: typeof set.rir === 'number' ? set.rir : null,
             performedAt: set.performed_at ?? null,
-            durationSeconds: (set as any).duration_seconds ?? null
+            durationSeconds: set.duration_seconds ?? null
           }))
       )
     }))

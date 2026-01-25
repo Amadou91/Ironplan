@@ -1,5 +1,3 @@
-'use client'
-
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
@@ -27,7 +25,7 @@ import {
   getWeekKey,
   toWeightInPounds
 } from '@/lib/session-metrics'
-import type { FocusArea, Goal, PlanInput } from '@/types/domain'
+import type { FocusArea, Goal, PlanInput, WeightUnit, MetricProfile } from '@/types/domain'
 
 const SESSION_PAGE_SIZE = 50
 
@@ -177,7 +175,7 @@ export function useStrengthMetrics(options: {
             exerciseName: exercise.exercise_name,
             primaryMuscle: libEntry?.primaryMuscle || exercise.primary_muscle,
             secondaryMuscles: libEntry?.secondaryMuscles || exercise.secondary_muscles || [],
-            metricProfile: exercise.metric_profile,
+            metricProfile: exercise.metric_profile ? (exercise.metric_profile as MetricProfile) : undefined,
             ...set
           }]
         )
@@ -190,7 +188,7 @@ export function useStrengthMetrics(options: {
     const metricSets = allSets.map(set => ({
       reps: set.reps ?? null,
       weight: set.weight ?? null,
-      weightUnit: (set.weight_unit as any) ?? null,
+      weightUnit: (set.weight_unit as WeightUnit) ?? null,
       rpe: typeof set.rpe === 'number' ? set.rpe : null,
       rir: typeof set.rir === 'number' ? set.rir : null
     }))
@@ -203,7 +201,7 @@ export function useStrengthMetrics(options: {
     let bestE1rmValue = 0, bestE1rmExercise = ''
     allSets.forEach(set => {
       const template = sessions.find(s => s.id === set.sessionId)?.template_id ? templateById.get(sessions.find(s => s.id === set.sessionId)!.template_id!) : null
-      const e1rm = computeSetE1rm(set, template?.style as any, exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible)
+      const e1rm = computeSetE1rm(set, template?.style, exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible)
       if (e1rm && e1rm > bestE1rmValue) { bestE1rmValue = e1rm; bestE1rmExercise = set.exerciseName }
     })
 
@@ -223,7 +221,7 @@ export function useStrengthMetrics(options: {
     allSets.forEach(set => {
       const reps = set.reps ?? 0, weight = set.weight ?? 0
       if (!reps || !weight) return
-      const normalizedWeight = toWeightInPounds(weight, (set.weight_unit as any) ?? null)
+      const normalizedWeight = toWeightInPounds(weight, (set.weight_unit as WeightUnit) ?? null)
       maxWeight = Math.max(maxWeight, normalizedWeight)
       bestReps = Math.max(bestReps, reps)
       const e1rm = computeSetE1rm(set, undefined, exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible)

@@ -15,8 +15,36 @@ import type {
   WorkoutSet, 
   EquipmentInventory, 
   Exercise, 
-  SessionExercise 
+  SessionExercise,
+  MetricProfile
 } from '@/types/domain';
+
+type SetPayload = {
+  id: string;
+  set_number: number | null;
+  reps: number | null;
+  weight: number | null;
+  rpe: number | null;
+  rir: number | null;
+  completed: boolean | null;
+  performed_at: string | null;
+  weight_unit: string | null;
+  duration_seconds: number | null;
+  distance: number | null;
+  distance_unit: string | null;
+  extras: Record<string, any> | null;
+  extra_metrics: Record<string, any> | null;
+}
+
+type SessionExercisePayload = {
+  id: string;
+  exercise_name: string;
+  primary_muscle: string | null;
+  secondary_muscles: string[] | null;
+  metric_profile: string | null;
+  order_index: number | null;
+  sets: SetPayload[];
+}
 
 type SessionPayload = {
   id: string;
@@ -28,7 +56,7 @@ type SessionPayload = {
   status: string | null;
   body_weight_lb?: number | null;
   session_notes?: string | null;
-  session_exercises: Array<any>;
+  session_exercises: SessionExercisePayload[];
 };
 
 type GeneratedExerciseTarget = {
@@ -97,12 +125,12 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
           sessionId: payload.id,
           name: exercise.exercise_name,
           primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
-          secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle: any) => toMuscleLabel(muscle)),
-          metricProfile: exercise.metric_profile ?? undefined,
+          secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
+          metricProfile: (exercise.metric_profile as MetricProfile) ?? undefined,
           orderIndex: exercise.order_index ?? idx,
           sets: (exercise.sets ?? [])
             .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
-            .map((set: any, setIdx: number) => ({
+            .map((set, setIdx) => ({
               id: set.id,
               setNumber: set.set_number ?? setIdx + 1,
               reps: set.reps ?? '',
@@ -111,7 +139,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
               rir: set.rir ?? '',
               performedAt: set.performed_at ?? undefined,
               completed: set.completed ?? false,
-              weightUnit: set.weight_unit === 'kg' ? 'kg' : 'lb',
+              weightUnit: (set.weight_unit as WeightUnit) ?? 'lb',
               durationSeconds: set.duration_seconds ?? undefined,
               distance: set.distance ?? undefined,
               distanceUnit: set.distance_unit ?? undefined,
@@ -222,7 +250,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     }
   }, [supabase, updateSet]);
 
-  const handleSetUpdate = async (exIdx: number, setIdx: number, field: keyof WorkoutSet, value: any) => {
+  const handleSetUpdate = async (exIdx: number, setIdx: number, field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => {
     if (!activeSession) return;
     const exercise = activeSession.exercises[exIdx];
     const currentSet = exercise.sets[setIdx];

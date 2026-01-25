@@ -60,6 +60,16 @@ export type ExerciseHistoryPoint = {
   exerciseName: string
 }
 
+type ExerciseHistoryRow = {
+  weight: number | null
+  weight_unit: string
+  reps: number | null
+  performed_at: string
+  session_exercise: {
+    exercise_name: string
+  }
+}
+
 export const fetchExerciseHistory = async (
   supabase: SupabaseClient,
   userId: string
@@ -89,7 +99,7 @@ export const fetchExerciseHistory = async (
     return []
   }
 
-  return (data as any[]).map((row) => ({
+  return (data as unknown as ExerciseHistoryRow[]).map((row) => ({
     weight: Number(row.weight),
     weightUnit: row.weight_unit,
     reps: Number(row.reps),

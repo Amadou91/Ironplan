@@ -10,6 +10,7 @@ import {
 } from '@/lib/transformers/chart-data'
 import { type SessionRow } from '@/lib/transformers/progress-data'
 import { computeSessionMetrics } from '@/lib/training-metrics'
+import type { WeightUnit } from '@/types/domain'
 
 export type ReadinessRow = {
   id: string
@@ -116,7 +117,7 @@ export function useRecoveryMetrics(options: {
     return readinessSessions.map(({ session, entry }) => {
       const metricSets = session.session_exercises.flatMap(e => e.sets.filter(s => s.completed !== false).map(s => ({
         reps: s.reps ?? null, weight: s.weight ?? null,
-        weightUnit: (s.weight_unit as any) ?? null,
+        weightUnit: (s.weight_unit as WeightUnit) ?? null,
         rpe: typeof s.rpe === 'number' ? s.rpe : null,
         rir: typeof s.rir === 'number' ? s.rir : null,
         performedAt: s.performed_at ?? null

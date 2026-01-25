@@ -7,13 +7,13 @@ import { EXERCISE_LIBRARY } from '@/lib/generator'
 import { normalizePreferences } from '@/lib/preferences'
 import { equipmentPresets } from '@/lib/equipment'
 import { computeReadinessScore, getReadinessLevel } from '@/lib/training-metrics'
-import type { WeightUnit, WorkoutSet, EquipmentInventory, FocusArea, Goal } from '@/types/domain'
+import type { WeightUnit, WorkoutSet, EquipmentInventory, FocusArea, Goal, MetricProfile } from '@/types/domain'
 
 export type EditableExercise = {
   id: string
   name: string
   primaryMuscle: string | null
-  secondaryMuscles: string[] | null
+  secondaryMuscles: string[]
   metricProfile?: string | null
   orderIndex: number | null
   sets: WorkoutSet[]
@@ -39,6 +39,56 @@ export type EditableSession = {
   exercises: EditableExercise[]
 }
 
+type SetRow = {
+  id: string
+  set_number: number | null
+  reps: number | null
+  weight: number | null
+  rpe: number | null
+  rir: number | null
+  completed: boolean | null
+  performed_at: string | null
+  weight_unit: string | null
+  duration_seconds: number | null
+  distance: number | null
+}
+
+type ExerciseRow = {
+  id: string
+  exercise_name: string
+  primary_muscle: string | null
+  secondary_muscles: string[]
+  metric_profile: string | null
+  order_index: number | null
+  sets: SetRow[]
+}
+
+type ReadinessRow = {
+  sleep_quality: number
+  muscle_soreness: number
+  stress_level: number
+  motivation: number
+}
+
+type TemplateRow = {
+  focus: FocusArea
+  style: Goal
+}
+
+type SessionQueryResult = {
+  id: string
+  user_id: string | null
+  template_id: string | null
+  name: string
+  started_at: string
+  ended_at: string | null
+  timezone: string | null
+  body_weight_lb: number | null
+  session_readiness: ReadinessRow[]
+  session_exercises: ExerciseRow[]
+  template: TemplateRow | null
+}
+
 const normalizeNumber = (value: number | '' | null | undefined) => (typeof value === 'number' && Number.isFinite(value) ? value : null)
 
 export function useSessionEditor(sessionId?: string) {
@@ -56,7 +106,7 @@ export function useSessionEditor(sessionId?: string) {
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null)
   const [resolvedInventory, setResolvedInventory] = useState<EquipmentInventory>(equipmentPresets.full_gym)
 
-  const mapSession = useCallback((payload: any): EditableSession => {
+  const mapSession = useCallback((payload: SessionQueryResult): EditableSession => {
     return {
       id: payload.id,
       name: payload.name,
@@ -73,8 +123,8 @@ export function useSessionEditor(sessionId?: string) {
         motivation: payload.session_readiness[0].motivation
       } : null,
       exercises: payload.session_exercises
-        .sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0))
-        .map((exercise: any, index: number) => ({
+        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+        .map((exercise, index) => ({
           id: exercise.id,
           name: exercise.exercise_name,
           primaryMuscle: exercise.primary_muscle,
@@ -82,8 +132,8 @@ export function useSessionEditor(sessionId?: string) {
           metricProfile: exercise.metric_profile,
           orderIndex: exercise.order_index ?? index,
           sets: (exercise.sets ?? [])
-            .sort((a: any, b: any) => (a.set_number ?? 0) - (b.set_number ?? 0))
-            .map((set: any, idx: number) => ({
+            .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
+            .map((set, idx) => ({
               id: set.id,
               setNumber: set.set_number ?? idx + 1,
               reps: set.reps ?? '',
@@ -112,9 +162,12 @@ export function useSessionEditor(sessionId?: string) {
     if (error) {
       setErrorMessage('Unable to load session details.')
     } else if (data) {
-      const mapped = mapSession(data)
+      // Cast data to SessionQueryResult because the 'template' alias might not be inferred correctly
+      // and nested joins are tricky for automatic inference without generated types.
+      const typedData = data as unknown as SessionQueryResult
+      const mapped = mapSession(typedData)
       setSession(mapped)
-      if ((data as any).template) setTemplate((data as any).template)
+      if (typedData.template) setTemplate(typedData.template)
       setInitialSnapshot(JSON.stringify(mapped))
     }
     setLoading(false)

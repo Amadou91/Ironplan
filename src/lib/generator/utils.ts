@@ -8,7 +8,8 @@ import type {
   MovementPattern,
   EquipmentInventory,
   EquipmentOption,
-  PlanInput
+  PlanInput,
+  ExerciseLoad
 } from '@/types/domain'
 import { computeExerciseMetrics } from '@/lib/workout-metrics'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
@@ -169,7 +170,7 @@ export const buildLoad = (
   option: Exercise['equipment'][number] | undefined,
   target: number | undefined,
   inventory: EquipmentInventory
-) => {
+): ExerciseLoad | undefined => {
   if (!option || !target) return undefined
 
   const adjustedTarget = option.kind === 'dumbbell' && target > 80 ? Math.round(target / 3) : target
@@ -341,7 +342,7 @@ export const calculateExerciseImpact = (exercises: Exercise[]): WorkoutImpact =>
         rpe: exercise.rpe,
         restSeconds: exercise.restSeconds,
         load: exercise.load // might be undefined, fine
-      } as any, // Cast because ExercisePrescription expects numbers/specifics, this is approximate
+      },
       undefined, // equipment option
       exercise.goal
     )

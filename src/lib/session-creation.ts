@@ -2,7 +2,7 @@ import { generateSessionExercises, calculateExerciseImpact } from '@/lib/generat
 import { toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { FocusArea, Goal, MovementPattern, PlanInput, SessionExercise, WorkoutImpact } from '@/types/domain'
+import type { FocusArea, Goal, MovementPattern, PlanInput, SessionExercise, WorkoutImpact, MetricProfile } from '@/types/domain'
 import type { ReadinessLevel, ReadinessSurvey } from '@/lib/training-metrics'
 
 type SessionExerciseSeed = {
@@ -174,7 +174,7 @@ export const createWorkoutSession = async ({
       name: exercise.exercise_name,
       primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
       secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
-      metricProfile: (exercise.metric_profile as any) ?? 'strength',
+      metricProfile: (exercise.metric_profile as MetricProfile) ?? 'strength',
       sets: [],
       orderIndex: exercise.order_index ?? idx
     }))

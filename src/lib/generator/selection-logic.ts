@@ -7,7 +7,8 @@ import type {
   ExerciseSource,
   SessionHistory,
   FocusConstraint,
-  PlannedExercise
+  PlannedExercise,
+  PlanInput
 } from '@/types/domain'
 import { matchesCardioSelection } from '@/lib/cardio-activities'
 import {
@@ -56,7 +57,7 @@ export const filterExercises = (
 export const scoreExercise = (
   exercise: Exercise,
   source: ExerciseSource,
-  input: { experienceLevel: string; intensity: string },
+  input: Pick<PlanInput, 'experienceLevel' | 'intensity'>,
   history: {
     recentNames: Set<string>
     recentPatterns: Set<string>
@@ -74,8 +75,8 @@ export const scoreExercise = (
   const family = getMovementFamily(exercise)
   if (family && history.recentFamilies.has(family)) score -= 1
   if (family && !history.recentFamilies.has(family)) score += 0.5
-  score += getExperienceScore(exercise, input.experienceLevel as any)
-  score += getIntensityScore(exercise, input.intensity as any)
+  score += getExperienceScore(exercise, input.experienceLevel)
+  score += getIntensityScore(exercise, input.intensity)
   if (source === 'primary') score += 1
   return score
 }
@@ -83,7 +84,7 @@ export const scoreExercise = (
 export const orderPool = (
   pool: Exercise[],
   source: ExerciseSource,
-  input: { experienceLevel: string; intensity: string },
+  input: Pick<PlanInput, 'experienceLevel' | 'intensity'>,
   history: {
     recentNames: Set<string>
     recentPatterns: Set<string>
@@ -103,7 +104,7 @@ export const orderPool = (
 export const reorderForVariety = (
   picks: PlannedExercise[],
   rng: () => number,
-  input: { experienceLevel: string; intensity: string },
+  input: Pick<PlanInput, 'experienceLevel' | 'intensity'>,
   history: {
     recentNames: Set<string>
     recentPatterns: Set<string>

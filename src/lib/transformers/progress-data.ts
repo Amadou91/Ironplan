@@ -1,7 +1,9 @@
 import { summarizeTrainingLoad } from '@/lib/training-metrics'
 import { 
-  transformSessionsToVolumeTrend
+  transformSessionsToVolumeTrend,
+  type AnalyzedSet
 } from '@/lib/transformers/chart-data'
+import type { MetricProfile } from '@/types/domain'
 
 export type SessionRow = {
   id: string
@@ -43,7 +45,7 @@ export function calculateTrainingStatus(sessions: SessionRow[]) {
       return (exercise.sets ?? [])
         .filter((set) => set.completed !== false)
         .map((set) => ({
-          metricProfile: exercise.metric_profile ?? null,
+          metricProfile: (exercise.metric_profile as MetricProfile) ?? null,
           reps: set.reps ?? null,
           weight: set.weight ?? null,
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
@@ -65,10 +67,9 @@ export function calculateTrainingStatus(sessions: SessionRow[]) {
 }
 
 export function processWeeklyData(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  allSets: any[], 
+  allSets: AnalyzedSet[], 
   filteredSessions: SessionRow[], 
-  dateRange: { startDate: string; endDate: string }
+  dateRange: { startDate?: string; endDate?: string }
 ) {
   return transformSessionsToVolumeTrend(allSets, filteredSessions, dateRange)
 }

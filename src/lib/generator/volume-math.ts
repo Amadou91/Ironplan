@@ -4,7 +4,8 @@ import type {
   PlanInput,
   ExercisePrescription,
   PlannedExercise,
-  ExerciseSource
+  ExerciseSource,
+  EquipmentInventory
 } from '@/types/domain'
 import {
   clamp,
@@ -68,7 +69,7 @@ export const adjustSessionVolume = (
   picks: PlannedExercise[],
   targetMinutes: number,
   goal: Goal,
-  inventory: any,
+  inventory: EquipmentInventory,
   direction: 'increase' | 'decrease'
 ) => {
   const recalcTotals = () => picks.reduce((sum, item) => sum + item.estimatedMinutes, 0)
