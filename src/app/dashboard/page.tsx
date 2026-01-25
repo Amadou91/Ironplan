@@ -11,8 +11,8 @@ import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
-import { aggregateHardSets, computeSetLoad, computeSetTonnage } from '@/lib/session-metrics'
-import { getLoadBasedReadiness, summarizeTrainingLoad } from '@/lib/training-metrics'
+import { formatDateTime, formatDuration } from '@/lib/transformers/chart-data'
+import { summarizeTrainingLoad } from '@/lib/training-metrics'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import type { FocusArea, PlanInput } from '@/types/domain'
 
@@ -53,23 +53,6 @@ type TemplateRow = {
   intensity: PlanInput['intensity']
   created_at: string
   template_inputs: PlanInput | null
-}
-
-const formatDateTime = (value: string) => {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-const formatDuration = (start?: string | null, end?: string | null) => {
-  if (!start || !end) return 'N/A'
-  const startDate = new Date(start)
-  const endDate = new Date(end)
-  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return 'N/A'
-  const diff = Math.max(0, endDate.getTime() - startDate.getTime())
-  const minutes = Math.round(diff / 60000)
-  return `${minutes} min`
 }
 
 export default function DashboardPage() {
@@ -232,8 +215,6 @@ export default function DashboardPage() {
     return summarizeTrainingLoad(mappedSessions)
   }, [sessions])
 
-  const loadReadiness = useMemo(() => getLoadBasedReadiness(trainingLoadSummary), [trainingLoadSummary])
-
   const recommendedTemplateId = useMemo(() => {
     if (!templates.length) return null
     const now = Date.now()
@@ -304,12 +285,6 @@ export default function DashboardPage() {
     }
   }
 
-  const activeSessionLink = activeSession?.templateId
-    ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=dashboard`
-    : activeSession?.id 
-      ? `/workouts/active?sessionId=${activeSession.id}&from=dashboard`
-      : '/dashboard'
-      
   const latestActiveSession = useMemo(() => {
      if (activeSession) return activeSession;
      const found = sessions.find(s => s.status === 'in_progress');
@@ -333,75 +308,6 @@ export default function DashboardPage() {
   const greetingName = user?.email?.split('@')[0] || 'there'
   const recentSessions = sessions.slice(0, 3)
   const recommendedTemplate = templates.find((template) => template.id === recommendedTemplateId) ?? templates[0]
-
-  const weeklyVolume = useMemo(() => {
-    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000
-    let tonnage = 0
-    let hardSets = 0
-    let workload = 0
-    sessions.forEach((session) => {
-      const completedAt = session.ended_at ?? session.started_at
-      const completedTime = completedAt ? new Date(completedAt).getTime() : 0
-      if (!completedTime || completedTime < cutoff) return
-      session.session_exercises.forEach((exercise) => {
-        exercise.sets.forEach((set) => {
-          if (set.completed === false) return
-          const metricProfile = (exercise as any).metric_profile
-          tonnage += computeSetTonnage({
-            metricProfile,
-            reps: set.reps ?? null,
-            weight: set.weight ?? null,
-            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
-          })
-          workload += computeSetLoad({
-            metricProfile,
-            reps: set.reps ?? null,
-            weight: set.weight ?? null,
-            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
-            rpe: typeof set.rpe === 'number' ? set.rpe : null,
-            rir: typeof set.rir === 'number' ? set.rir : null
-          })
-          hardSets += aggregateHardSets([
-            {
-              metricProfile,
-              reps: set.reps ?? null,
-              weight: set.weight ?? null,
-              weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
-              rpe: typeof set.rpe === 'number' ? set.rpe : null,
-              rir: typeof set.rir === 'number' ? set.rir : null
-            }
-          ])
-        })
-      })
-    })
-    return {
-      tonnage: Math.round(tonnage),
-      hardSets,
-      workload: Math.round(workload)
-    }
-  }, [sessions])
-
-  const coachInsight = useMemo(() => {
-    if (!sessions.length) {
-      return 'Start your first session to unlock personalized coaching insights.'
-    }
-    if (trainingLoadSummary.status === 'overreaching') {
-      return 'Training load is trending high. Prioritize a lighter session or extra recovery.'
-    }
-    if (trainingLoadSummary.status === 'undertraining') {
-      return 'Load is lighter than usual. Consider a stronger session to drive progress.'
-    }
-    if (weeklyVolume.hardSets === 0) {
-      return 'Log at least one working set this week to keep momentum.'
-    }
-    if (weeklyVolume.hardSets < 8) {
-      return `You are at ${weeklyVolume.hardSets} hard sets. Aim for 10-14 to drive progress.`
-    }
-    if (weeklyVolume.hardSets > 20) {
-      return 'High training load this week. Consider a lighter recovery session next.'
-    }
-    return 'Strong week so far. Keep your next session focused and controlled.'
-  }, [sessions.length, trainingLoadSummary.status, weeklyVolume.hardSets])
 
   if (userLoading || loading) {
     return <div className="page-shell p-10 text-center text-muted">Loading today...</div>
