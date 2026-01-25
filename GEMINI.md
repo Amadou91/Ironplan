@@ -1,42 +1,53 @@
-# Ironplan Project Context & Coding Standards
+Ironplan Project Context
 
-## Project Overview
-Ironplan is a fitness tracking application built with Next.js (App Router) and Supabase. It focuses on training metrics, workout logging, and progressive overload tracking.
+Core Tech Stack
 
-## Tech Stack
-- **Framework:** Next.js 15+ (App Router)
-- **Language:** TypeScript (Strict mode)
-- **Database/Auth:** Supabase (PostgreSQL)
-- **Styling:** Tailwind CSS (Mobile-first)
-- **UI Components:** Radix UI primitives, Recharts for data visualization
-- **State Management:** Zustand (useWorkoutStore) + React Context (AuthProvider)
+Framework: Next.js 15+ (App Router)
 
-## Coding Guidelines
+Language: TypeScript (Strict Mode)
 
-### 1. General Style
-- Use **functional components** with named exports.
-- Use **TypeScript** for all source files (.ts, .tsx).
-- Use **Absolute Imports** with @/ alias (e.g., import { Button } from '@/components/ui/Button').
-- **File Naming:** kebab-case for files (session-metrics.ts), PascalCase for components (ProgressPage.tsx).
+Database: Supabase (PostgreSQL)
 
-### 2. Next.js & App Router
-- Use src/app/ directory structure.
-- Client components must start with 'use client'.
-- Separate complex logic into hooks (src/hooks/) or utilities (src/lib/).
+State: Zustand (useWorkoutStore) + React Context (AuthProvider)
 
-### 3. Supabase Integration
-- **Client:** Always import createClient from @/lib/supabase/client.
-- **Data Fetching:** Prefer fetching data in server components where possible.
+UI: Tailwind CSS (Mobile-first), Radix UI, Recharts
 
-### 4. Data Visualization (Recharts)
-- Always wrap charts in <ResponsiveContainer width='100%' height='100%'>.
-- Use the standard chart colors defined in globals or progress/page.tsx.
+Coding Standards (Mandatory)
 
-### 5. Testing
-- Test files are located in tests/.
-- Refer to tests/generator.test.js as the canonical example for testing patterns.
+1. File Structure & Naming
 
-## Common Tasks
-- **New Page:** Create under src/app/[route]/page.tsx.
-- **New Component:** Create under src/components/[category]/.
-- **Lint:** Run npm run lint to check for issues.
+Routes: src/app/[route]/page.tsx
+
+Components: src/components/[category]/PascalCase.tsx
+
+Utilities: src/lib/kebab-case.ts
+
+Hooks: src/hooks/useHookName.ts
+
+Tests: tests/*.test.js (Refer to generator.test.js as the pattern)
+
+2. Component Architecture
+
+Imports: ALWAYS use absolute imports (@/components/..., @/lib/...).
+
+Exports: Use Named Exports only (e.g., export function MyComponent...).
+
+Directives: Explicitly add 'use client' at the top of components using hooks or interactivity. Default to Server Components otherwise.
+
+3. Supabase Data Fetching
+
+Client: Import createClient from @/lib/supabase/client.
+
+Pattern: Prefer fetching data in Server Components and passing it down as props.
+
+4. UI & Visualization
+
+Charts: All Recharts instances must be wrapped in <ResponsiveContainer width="100%" height="100%">.
+
+Styling: Use standard Tailwind utility classes.
+
+5. Operational Constraints
+
+Linting: Do not run or suggest linting commands. The user manages linting and formatting manually.
+
+Focus: Prioritize code correctness and adhering to the existing directory structure.

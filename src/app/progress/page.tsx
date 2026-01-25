@@ -10,8 +10,6 @@ import {
   ComposedChart,
   Line,
   LineChart,
-  Pie,
-  PieChart,
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
@@ -28,8 +26,8 @@ import { Card } from '@/components/ui/Card'
 import { ChartInfoTooltip } from '@/components/ui/ChartInfoTooltip'
 import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
 import { WeeklyVolumeChart } from '@/components/progress/WeeklyVolumeChart'
+import { MuscleSplitChart } from '@/components/progress/MuscleSplitChart'
 import { 
-  transformSessionsToVolumeTrend,
   transformSessionsToEffortTrend,
   transformSessionsToExerciseTrend,
   transformSetsToMuscleBreakdown,
@@ -39,6 +37,11 @@ import {
   formatDuration,
   formatDateForInput
 } from '@/lib/transformers/chart-data'
+import { 
+  calculateTrainingStatus, 
+  processWeeklyData,
+  type SessionRow 
+} from '@/lib/transformers/progress-data'
 import { toMuscleLabel, isMuscleMatch } from '@/lib/muscle-utils'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
@@ -52,10 +55,9 @@ import {
   getWeekKey,
   toWeightInPounds
 } from '@/lib/session-metrics'
-import { computeSessionMetrics, summarizeTrainingLoad } from '@/lib/training-metrics'
+import { computeSessionMetrics } from '@/lib/training-metrics'
 import type { FocusArea, Goal, PlanInput } from '@/types/domain'
 
-const chartColors = ['#f05a28', '#1f9d55', '#0ea5e9', '#f59e0b', '#ec4899']
 const SESSION_PAGE_SIZE = 50
 
 const startOfDay = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate())
@@ -111,38 +113,6 @@ const MUSCLE_PRESETS = [
   { label: 'Core', value: 'core' }
 ]
 
-type SessionRow = {
-  id: string
-  name: string
-  template_id: string | null
-  started_at: string
-  ended_at: string | null
-  status: string | null
-  minutes_available?: number | null
-  body_weight_lb?: number | null
-  timezone?: string | null
-  session_exercises: Array<{
-    id: string
-    exercise_name: string
-    primary_muscle: string | null
-    secondary_muscles: string[] | null
-    metric_profile?: string | null
-    order_index: number | null
-    sets: Array<{
-      id: string
-      set_number: number | null
-      reps: number | null
-      weight: number | null
-      rpe: number | null
-      rir: number | null
-      completed: boolean | null
-      performed_at: string | null
-      weight_unit: string | null
-      duration_seconds?: number | null
-    }>
-  }>
-}
-
 type TemplateRow = {
   id: string
   title: string
@@ -178,7 +148,6 @@ export default function ProgressPage() {
   const [endDate, setEndDate] = useState('')
   const [selectedMuscle, setSelectedMuscle] = useState('all')
   const [selectedExercise, setSelectedExercise] = useState('all')
-  const [muscleVizMode, setMuscleVizMode] = useState<'absolute' | 'relative' | 'index'>('absolute')
   const [activeDatePreset, setActiveDatePreset] = useState<string | null>(null)
   const [deletingSessionIds, setDeletingSessionIds] = useState<Record<string, boolean>>({})
   const [expandedSessions, setExpandedSessions] = useState<Record<string, boolean>>({})
@@ -624,7 +593,7 @@ export default function ProgressPage() {
                   exerciseName: exercise.exercise_name,
                   primaryMuscle: primary,
                   secondaryMuscles: secondary,
-                  metricProfile: (exercise as any).metric_profile,
+                                    metricProfile: exercise.metric_profile,
                   ...set
                 }
               ]
@@ -638,7 +607,7 @@ export default function ProgressPage() {
   }, [filteredSessions, getSessionTitle, selectedMuscle, exerciseLibraryByName])
 
   const volumeTrend = useMemo(() => {
-    return transformSessionsToVolumeTrend(allSets, filteredSessions, { startDate, endDate })
+    return processWeeklyData(allSets, filteredSessions, { startDate, endDate })
   }, [allSets, startDate, endDate, filteredSessions])
 
   const effortTrend = useMemo(() => {
@@ -736,35 +705,7 @@ export default function ProgressPage() {
   }, [bodyWeightHistory, filteredSessions, startDate, endDate])
 
   const trainingLoadSummary = useMemo(() => {
-    // ACR represents "Systemic Load" (total body stress).
-    // We always calculate this relative to TODAY so the dashboard shows your current recovery state,
-    // regardless of which historical range you are currently reviewing in the charts below.
-    const mappedSessions = sessions.map((session) => ({
-      startedAt: session.started_at,
-      endedAt: session.ended_at,
-      sets: session.session_exercises.flatMap((exercise) => {
-        return (exercise.sets ?? [])
-          .filter((set) => set.completed !== false)
-          .map((set) => ({
-            metricProfile: (exercise as any).metric_profile,
-            reps: set.reps ?? null,
-            weight: set.weight ?? null,
-            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
-            rpe: typeof set.rpe === 'number' ? set.rpe : null,
-            rir: typeof set.rir === 'number' ? set.rir : null,
-            performedAt: set.performed_at ?? null,
-            durationSeconds: set.duration_seconds ?? null
-          }))
-      })
-    }))
-    
-    const calculationDate = new Date()
-    const summary = summarizeTrainingLoad(mappedSessions, calculationDate)
-    
-    return {
-      ...summary,
-      calculationDate
-    }
+    return calculateTrainingStatus(sessions)
   }, [sessions])
 
   const sessionsPerWeek = useMemo(() => {
@@ -797,7 +738,7 @@ export default function ProgressPage() {
         const reps = set.reps ?? 0
         totals.reps += reps
         const tonnage = computeSetTonnage({
-          metricProfile: (exercise as any).metric_profile,
+                            metricProfile: exercise.metric_profile,
           reps: set.reps ?? null,
           weight: set.weight ?? null,
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
@@ -805,7 +746,7 @@ export default function ProgressPage() {
         totals.volume += tonnage
         totals.hardSets += aggregateHardSets([
           {
-            metricProfile: (exercise as any).metric_profile,
+                              metricProfile: exercise.metric_profile,
             reps: set.reps ?? null,
             weight: set.weight ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
@@ -814,7 +755,7 @@ export default function ProgressPage() {
           }
         ])
         totals.workload += computeSetLoad({
-          metricProfile: (exercise as any).metric_profile,
+                            metricProfile: exercise.metric_profile,
           reps: set.reps ?? null,
           weight: set.weight ?? null,
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
@@ -1082,114 +1023,7 @@ export default function ProgressPage() {
 
                 {/* Analysis Perspective Column */}
                 <div className="lg:col-span-7 lg:border-l lg:border-[var(--color-border)] lg:pl-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-strong">Muscle group volume</h3>
-                      <ChartInfoTooltip 
-                        description="Shows how much work each muscle group did. The bigger the slice, the more work that muscle did."
-                        goal="Try to keep things even so you don't over-train one spot and under-train another."
-                      />
-                    </div>
-                    <div className="flex gap-1 bg-[var(--color-surface-muted)] p-1 rounded-lg">
-                      <button 
-                        onClick={() => setMuscleVizMode('absolute')}
-                        className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${muscleVizMode === 'absolute' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
-                      >
-                        ABS
-                      </button>
-                      <button 
-                        onClick={() => setMuscleVizMode('relative')}
-                        className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${muscleVizMode === 'relative' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
-                      >
-                        %
-                      </button>
-                      {muscleBreakdown.some(m => m.imbalanceIndex !== null) && (
-                        <button 
-                          onClick={() => setMuscleVizMode('index')}
-                          className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${muscleVizMode === 'index' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-muted'}`}
-                        >
-                          INDEX
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col xl:flex-row items-center gap-8">
-                    <div className="h-[280px] w-full xl:w-1/2">
-                      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                        <PieChart>
-                          <Pie 
-                            data={muscleBreakdown.map(m => ({
-                              ...m,
-                              value: muscleVizMode === 'absolute' ? m.volume : muscleVizMode === 'relative' ? m.relativePct : (m.imbalanceIndex ?? 0)
-                            })).filter(m => m.value > 0)} 
-                            dataKey="value" 
-                            nameKey="muscle" 
-                            outerRadius={100}
-                            innerRadius={70}
-                            paddingAngle={2}
-                            stroke="none"
-                          >
-                            {muscleBreakdown.map((entry, index) => (
-                              <Cell key={entry.muscle} fill={chartColors[index % chartColors.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            formatter={(value: number | undefined) => {
-                              if (typeof value !== 'number') return []
-                              if (muscleVizMode === 'absolute') return [`${value.toLocaleString()} lb`, 'Volume']
-                              if (muscleVizMode === 'relative') return [`${value}%`, 'Relative %']
-                              return [value, 'Imbalance Index']
-                            }}
-                            contentStyle={{ 
-                              background: 'var(--color-surface)', 
-                              border: '1px solid var(--color-border)', 
-                              color: 'var(--color-text)', 
-                              fontSize: '12px',
-                              borderRadius: '8px',
-                              boxShadow: 'var(--shadow-md)'
-                            }} 
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    
-                    <div className="w-full xl:w-1/2 space-y-2 pr-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-subtle border-b border-[var(--color-border)] pb-2 mb-3">
-                        {muscleVizMode === 'absolute' ? 'Volume (lb)' : muscleVizMode === 'relative' ? 'Distribution (%)' : 'Target Index (100=target)'}
-                      </p>
-                      {muscleBreakdown.length === 0 ? (
-                        <p className="text-xs text-subtle italic">No data available.</p>
-                      ) : (
-                        muscleBreakdown
-                          .sort((a, b) => {
-                            const valA = muscleVizMode === 'absolute' ? a.volume : muscleVizMode === 'relative' ? a.relativePct : (a.imbalanceIndex ?? 0)
-                            const valB = muscleVizMode === 'absolute' ? b.volume : muscleVizMode === 'relative' ? b.relativePct : (b.imbalanceIndex ?? 0)
-                            return valB - valA
-                          })
-                          .map((entry, idx) => {
-                            const displayVal = muscleVizMode === 'absolute' 
-                              ? `${entry.volume.toLocaleString()} lb`
-                              : muscleVizMode === 'relative' 
-                                ? `${entry.relativePct}%` 
-                                : entry.imbalanceIndex !== null ? entry.imbalanceIndex : 'N/A'
-                            
-                            return (
-                              <div key={entry.muscle} className="flex items-center justify-between text-xs py-1.5 border-b border-[var(--color-border)]/30 last:border-0">
-                                <div className="flex items-center gap-3">
-                                  <div 
-                                    className="w-2.5 h-2.5 rounded-full" 
-                                    style={{ background: chartColors[idx % chartColors.length] }} 
-                                  />
-                                  <span className="text-muted font-bold uppercase text-[10px] tracking-tight">{entry.muscle}</span>
-                                </div>
-                                <span className="text-strong font-black tabular-nums text-[11px]">{displayVal}</span>
-                              </div>
-                            )
-                          })
-                      )}
-                    </div>
-                  </div>
+                  <MuscleSplitChart data={muscleBreakdown} />
                 </div>
               </div>
             </div>
