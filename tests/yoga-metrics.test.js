@@ -1,50 +1,93 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+import ts from 'typescript'
 
-import { computeSetLoad, computeSetTonnage } from '../src/lib/session-metrics';
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const requireShim = createRequire(import.meta.url)
+
+const transpile = (path) => {
+  const source = readFileSync(path, 'utf8')
+  return ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
+  }).outputText
+}
+
+// Load units.ts
+const unitsPath = join(__dirname, '../src/lib/units.ts')
+const unitsCode = transpile(unitsPath)
+const unitsModule = { exports: {} }
+new Function('module', 'exports', 'require', unitsCode)(unitsModule, unitsModule.exports, requireShim)
+
+// Load session-metrics.ts
+const sessionMetricsPath = join(__dirname, '../src/lib/session-metrics.ts')
+const sessionMetricsCode = transpile(sessionMetricsPath)
+const sessionMetricsModule = { exports: {} }
+const requireForSessionMetrics = (id) => {
+  if (id === '@/lib/units') return unitsModule.exports
+  return requireShim(id)
+}
+new Function('module', 'exports', 'require', sessionMetricsCode)(sessionMetricsModule, sessionMetricsModule.exports, requireForSessionMetrics)
+
+const { computeSetLoad, computeSetTonnage } = sessionMetricsModule.exports
 
 const mockYogaSet = {
+  metricProfile: 'yoga_session',
   reps: null,
   weight: null,
   weightUnit: null,
-  rpe: 7, // Intensity 7
+  rpe: 5, // Intensity: Moderate (0.285)
   rir: null,
   performedAt: new Date().toISOString(),
-  durationSeconds: 1800, // 30 minutes
+  durationSeconds: 3600, // 60 minutes
   completed: true
-};
+}
 
 const mockStrengthSet = {
+  metricProfile: 'strength',
   reps: 10,
-  weight: 100,
+  weight: 135,
   weightUnit: 'lb',
-  rpe: 8,
+  rpe: 7, // Intensity: Moderate (0.57)
   rir: null,
   performedAt: new Date().toISOString(),
   completed: true
-};
+}
 
-describe('Yoga Metrics', () => {
-  test('computeSetTonnage returns 0 for Yoga set', () => {
-    const tonnage = computeSetTonnage(mockYogaSet);
-    expect(tonnage).toBe(0);
-  });
+test('Yoga Metrics: computeSetTonnage returns 0 for Yoga set', () => {
+  const tonnage = computeSetTonnage(mockYogaSet)
+  assert.equal(tonnage, 0)
+})
 
-  test('computeSetLoad returns duration * intensity for Yoga set', () => {
-    // 30 min * 7 intensity = 210
-    const load = computeSetLoad(mockYogaSet);
-    expect(load).toBe(210);
-  });
+test('Yoga Metrics: computeSetLoad returns normalized workload', () => {
+  // 60 min * 0.285 (RPE 5) * 450 (Factor) ≈ 7700
+  const load = computeSetLoad(mockYogaSet)
+  console.log('Yoga Load:', load)
+  assert.ok(load > 7000)
+  assert.ok(load < 8500)
+})
 
-  test('computeSetLoad handles missing intensity (defaults to 0)', () => {
-    const noIntensitySet = { ...mockYogaSet, rpe: null };
-    const load = computeSetLoad(noIntensitySet);
-    expect(load).toBe(0);
-  });
+test('Yoga Metrics: computeSetLoad handles missing intensity (defaults to moderate)', () => {
+  const noIntensitySet = { ...mockYogaSet, rpe: null }
+  const load = computeSetLoad(noIntensitySet)
+  // RPE null -> 0.5 intensity (default in units.ts)
+  // 60 * 0.5 * 450 = 13500
+  console.log('Yoga Load (No RPE):', load)
+  assert.equal(load, 60 * 0.5 * 450)
+})
 
-  test('computeSetLoad prioritizes tonnage for Strength set', () => {
-    // 100lb * 10 reps = 1000 tonnage
-    // Effort factor for RPE 8 is roughly ~0.8? (need to check implementation detail, but it shouldn't be 0)
-    const load = computeSetLoad(mockStrengthSet);
-    expect(load).toBeGreaterThan(0);
-    // It should NOT use duration logic even if duration was present (though Strength set here has none)
-  });
-});
+test('Yoga Metrics: Strength set uses Tonnage based calculation', () => {
+  // 135lb * 10 reps = 1350 tonnage
+  // RPE 7 -> (7-3)/7 = 0.5714
+  // Load = 1350 * 0.5714 ≈ 771
+  const load = computeSetLoad(mockStrengthSet)
+  console.log('Strength Load:', load)
+  assert.ok(load > 700)
+  assert.ok(load < 800)
+  // Note: Strength set (1 set) is much lower than 60 min Yoga session (which is expected).
+  // A full session would have 10-20 sets.
+})

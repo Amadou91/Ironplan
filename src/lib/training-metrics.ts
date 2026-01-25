@@ -100,11 +100,20 @@ export const computeSessionMetrics = ({
   const hardSets = sets.reduce((sum, set) => sum + (isHardSet(set) ? 1 : 0), 0)
   const workload = sets.reduce((sum, set) => sum + computeSetLoad(set), 0)
   const tonnageWeights = sets.map((set) => computeSetTonnage(set))
-  const avgEffort = weightedAverage(sets.map(getEffortScore), tonnageWeights)
+  const durationWeights = sets.map((set) => set.durationSeconds ?? 0)
+  
+  const totalTonnageWeight = tonnageWeights.reduce((a, b) => a + b, 0)
+  const totalDurationWeight = durationWeights.reduce((a, b) => a + b, 0)
+  
+  const activeWeights = totalTonnageWeight > 0 
+    ? tonnageWeights 
+    : (totalDurationWeight > 0 ? durationWeights : sets.map(() => 1))
+
+  const avgEffort = weightedAverage(sets.map(getEffortScore), activeWeights)
   const avgIntensity = weightedAverage(sets.map(computeSetIntensity), tonnageWeights)
   const avgRestSeconds = weightedAverage(
     sets.map((set) => (typeof set.restSecondsActual === 'number' ? set.restSecondsActual : null)),
-    tonnageWeights
+    activeWeights
   )
 
   const performedMinutes = getPerformedAtWindowMinutes(sets)

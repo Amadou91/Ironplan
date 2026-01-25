@@ -139,32 +139,34 @@ export const computeSetIntensity = (set: MetricsSet) => {
  * Formula: Volume Load (kg) * Normalized Intensity Factor
  */
 export const computeSetLoad = (set: MetricsSet): number => {
+  const profile = set.metricProfile || 'strength'
+  const effort = getEffortScore(set)
+  const intensityFactor = normalizeIntensity(effort)
+  
   // Strategy 1: Strength/Hypertrophy (Load-based)
+  // Used for 'strength' and 'timed_strength' if weight is present
   const tonnage = computeSetTonnage(set)
-  if (tonnage > 0) {
-    const effort = getEffortScore(set)
-    const intensityFactor = normalizeIntensity(effort)
-    // Tonnage (kg) * IntensityFactor.
-    // Example: 100kg * 10 reps = 1000kg volume. RPE 8 = ~0.7 factor. Load = 700.
+  if (tonnage > 0 && profile !== 'yoga_session' && profile !== 'cardio_session' && profile !== 'mobility_session') {
+    // Tonnage (lbs) * IntensityFactor.
     return tonnage * intensityFactor
   }
 
-  // Strategy 2: Duration-based (Cardio/Yoga)
-  // We need to normalize minutes to be comparable to Tonnage.
-  // 1 minute of moderate cardio ~ 50 units of load?
-  // Let's align with TRIMP concepts implicitly.
+  // Strategy 2: Duration-based (Cardio/Yoga/Mobility/Timed Bodyweight)
+  // Normalize minutes to be comparable to Tonnage.
+  // CONSTANT: 450 scales ~60min moderate Cardio to ~7700 Load, 
+  // comparable to a moderate lifting session (~9000-10000 Load).
+  const TIME_LOAD_FACTOR = 450
+
   if (typeof set.durationSeconds === 'number' && set.durationSeconds > 0) {
     const minutes = set.durationSeconds / 60
-    const effort = getEffortScore(set)
-    const intensityFactor = normalizeIntensity(effort)
-    
-    // Base scaling: 1 minute @ RPE 10 = 100 Load Units?
-    // 30 min @ RPE 5 (0.3) = 30 * 0.3 * Scale
-    // Let's use a constant to align with typical Tonnage numbers (which are often in thousands).
-    // A decent workout might be 5000-10000 volume load units.
-    // 60 min cardio should be comparable.
-    const DURATION_SCALAR = 50 
-    return minutes * intensityFactor * DURATION_SCALAR
+    return minutes * intensityFactor * TIME_LOAD_FACTOR
+  }
+
+  // Fallback: If no duration but reps provided for non-weighted (e.g. bodyweight reps)
+  // Estimate duration: 3 seconds per rep?
+  if (typeof set.reps === 'number' && set.reps > 0) {
+     const estimatedMinutes = (set.reps * 3) / 60
+     return estimatedMinutes * intensityFactor * TIME_LOAD_FACTOR
   }
 
   return 0
