@@ -69,7 +69,7 @@ export const useWorkoutStore = create<WorkoutState>()(
           rir: '',
           performedAt: new Date().toISOString(),
           completed: false,
-          weightUnit: weightUnit ?? 'lb'
+          weightUnit: weightUnit ?? state.activeSession.weightUnit ?? 'lb'
         };
         createdSet = newSet;
 

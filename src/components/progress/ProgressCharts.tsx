@@ -18,6 +18,8 @@ import {
 } from 'recharts'
 import { Card } from '@/components/ui/Card'
 import { WeeklyVolumeChart } from '@/components/progress/WeeklyVolumeChart'
+import { useUIStore } from '@/store/uiStore'
+import { LBS_PER_KG, KG_PER_LB } from '@/lib/units'
 import type { 
   VolumeTrendPoint, 
   EffortTrendPoint, 
@@ -64,6 +66,31 @@ export function ProgressCharts({
   readinessCorrelation,
   readinessTrendLine
 }: ProgressChartsProps) {
+  const { displayUnit } = useUIStore()
+  const isKg = displayUnit === 'kg'
+
+  const convertedExerciseTrend = React.useMemo(() => {
+    if (!isKg) {
+      return exerciseTrend.map(p => ({
+        ...p,
+        e1rm: Math.round(p.e1rm * LBS_PER_KG),
+        trend: p.trend ? Math.round(p.trend * LBS_PER_KG) : null
+      }))
+    }
+    return exerciseTrend
+  }, [exerciseTrend, isKg])
+
+  const convertedBodyWeightData = React.useMemo(() => {
+    if (isKg) {
+      return bodyWeightData.map(p => ({
+        ...p,
+        weight: Math.round(p.weight * KG_PER_LB * 10) / 10,
+        trend: p.trend ? Math.round(p.trend * KG_PER_LB * 10) / 10 : null
+      }))
+    }
+    return bodyWeightData
+  }, [bodyWeightData, isKg])
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Card className="p-10 min-w-0">
@@ -93,11 +120,11 @@ export function ProgressCharts({
       {exerciseTrend.length > 0 && (
         <Card className="p-10 min-w-0">
           <div className="mb-6 flex items-center">
-            <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">e1RM trend</h3>
+            <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">e1RM trend ({displayUnit})</h3>
           </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={exerciseTrend}>
+              <LineChart data={convertedExerciseTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis dataKey="day" stroke="var(--color-text-subtle)" fontSize={12} />
                 <YAxis stroke="var(--color-text-subtle)" fontSize={12} />
@@ -112,11 +139,11 @@ export function ProgressCharts({
 
       <Card className="p-10 min-w-0">
         <div className="mb-6 flex items-center">
-          <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">Bodyweight trend</h3>
+          <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">Bodyweight trend ({displayUnit})</h3>
         </div>
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={bodyWeightData}>
+            <LineChart data={convertedBodyWeightData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="day" stroke="var(--color-text-subtle)" fontSize={12} />
               <YAxis domain={['auto', 'auto']} stroke="var(--color-text-subtle)" fontSize={12} />

@@ -73,6 +73,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     removeSet, 
     updateSet, 
     startSession, 
+    updateSession,
     replaceSessionExercise, 
     removeSessionExercise, 
     addSessionExercise 
@@ -80,7 +81,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null);
-  const [preferredUnit, setPreferredUnit] = useState<WeightUnit>('lb');
+  const preferredUnit = activeSession?.weightUnit ?? 'lb';
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistoryPoint[]>([]);
   const [exerciseTargets] = useState<Record<string, GeneratedExerciseTarget>>({});
   const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; label: string } | null>(null);
@@ -179,8 +180,10 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
         .eq('id', activeSession.userId)
         .maybeSingle();
       setProfileWeightLb(data?.weight_lb ?? null);
-      const normalized = normalizePreferences(data?.preferences);
-      setPreferredUnit(normalized.settings?.units ?? 'lb');
+      if (!activeSession.weightUnit) {
+        const normalized = normalizePreferences(data?.preferences);
+        updateSession({ weightUnit: normalized.settings?.units ?? 'lb' });
+      }
     };
     loadProfile();
   }, [activeSession?.userId, supabase]);
@@ -264,6 +267,19 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     await persistSet(exercise, nextSet, exIdx);
   };
 
+  const togglePreferredUnit = useCallback(() => {
+    const nextUnit = preferredUnit === 'lb' ? 'kg' : 'lb';
+    updateSession({ weightUnit: nextUnit });
+
+    if (sessionBodyWeight) {
+      const val = parseFloat(sessionBodyWeight);
+      if (!isNaN(val)) {
+        const converted = roundWeight(convertWeight(val, preferredUnit, nextUnit));
+        setSessionBodyWeight(String(converted));
+      }
+    }
+  }, [preferredUnit, sessionBodyWeight, updateSession]);
+
   return {
     activeSession,
     errorMessage,
@@ -271,6 +287,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     sessionBodyWeight,
     setSessionBodyWeight,
     preferredUnit,
+    togglePreferredUnit,
     profileWeightLb,
     exerciseHistory,
     exerciseTargets,

@@ -19,6 +19,7 @@ interface SessionHeaderProps {
   sessionBodyWeight: string;
   preferredUnit: WeightUnit;
   onBodyWeightUpdate: (value: string) => void;
+  onToggleUnit?: () => void;
   onCancel?: () => void;
   errorMessage?: string | null;
   restTimer?: {
@@ -39,6 +40,7 @@ export function SessionHeader({
   sessionBodyWeight,
   preferredUnit,
   onBodyWeightUpdate,
+  onToggleUnit,
   onCancel,
   errorMessage,
   restTimer,
@@ -133,7 +135,14 @@ export function SessionHeader({
                   onChange={(e) => onBodyWeightUpdate(e.target.value)}
                   className="w-16 rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-center font-semibold text-strong outline-none transition-all focus:bg-[var(--color-surface)] focus:ring-1 focus:ring-[var(--color-primary)]"
                 />
-                <span className="text-[10px] uppercase font-bold text-subtle">{preferredUnit}</span>
+                <button
+                  type="button"
+                  onClick={onToggleUnit}
+                  className="text-[10px] uppercase font-bold text-accent hover:text-accent-strong transition-colors"
+                  title={`Switch to ${preferredUnit === 'lb' ? 'kg' : 'lb'}`}
+                >
+                  {preferredUnit}
+                </button>
               </div>
             </div>
           </div>

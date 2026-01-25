@@ -55,6 +55,7 @@ export default function ActiveSession({
     sessionBodyWeight,
     setSessionBodyWeight,
     preferredUnit,
+    togglePreferredUnit,
     profileWeightLb,
     exerciseTargets,
     restTimer,
@@ -190,6 +191,7 @@ export default function ActiveSession({
         sessionBodyWeight={sessionBodyWeight}
         preferredUnit={preferredUnit}
         onBodyWeightUpdate={handleBodyWeightUpdate}
+        onToggleUnit={togglePreferredUnit}
         onCancel={onCancel}
         errorMessage={errorMessage}
         restTimer={restTimer}

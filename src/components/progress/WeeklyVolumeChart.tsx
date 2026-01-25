@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import {
   CartesianGrid,
   Legend,
@@ -10,6 +11,8 @@ import {
   XAxis,
   YAxis
 } from 'recharts'
+import { useUIStore } from '@/store/uiStore'
+import { KG_PER_LB } from '@/lib/units'
 
 interface VolumeTrendPoint {
   label: string
@@ -23,10 +26,24 @@ interface WeeklyVolumeChartProps {
 }
 
 export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
+  const { displayUnit } = useUIStore()
+  const isKg = displayUnit === 'kg'
+
+  const convertedData = React.useMemo(() => {
+    if (isKg) {
+      return data.map(p => ({
+        ...p,
+        volume: Math.round(p.volume * KG_PER_LB),
+        load: Math.round(p.load * KG_PER_LB)
+      }))
+    }
+    return data
+  }, [data, isKg])
+
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
-        <LineChart data={data}>
+        <LineChart data={convertedData}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
           <XAxis dataKey="label" stroke="var(--color-text-subtle)" fontSize={12} font-weight={500} />
           <YAxis stroke="var(--color-text-subtle)" fontSize={12} font-weight={500} />
@@ -42,9 +59,9 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
             itemStyle={{ color: 'var(--color-text)', fontWeight: 600 }}
             labelStyle={{ color: 'var(--color-text)', fontWeight: 700, marginBottom: '4px' }}
           />
-          <Legend />
-          <Line type="monotone" dataKey="volume" stroke="var(--color-primary)" strokeWidth={2} />
-          <Line type="monotone" dataKey="load" stroke="var(--color-warning)" strokeWidth={2} />
+          <Legend formatter={(value) => `${value} (${displayUnit})`} />
+          <Line type="monotone" dataKey="volume" name="Volume" stroke="var(--color-primary)" strokeWidth={2} />
+          <Line type="monotone" dataKey="load" name="Load" stroke="var(--color-warning)" strokeWidth={2} />
         </LineChart>
       </ResponsiveContainer>
     </div>

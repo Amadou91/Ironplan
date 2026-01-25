@@ -253,6 +253,7 @@ export interface WorkoutSession {
   impact?: WorkoutImpact
   timezone?: string | null
   sessionNotes?: string | null
+  weightUnit?: WeightUnit
   exercises: SessionExercise[]
 }
 

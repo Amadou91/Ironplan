@@ -9,6 +9,7 @@ import { authStore, useAuthStore } from '@/store/authStore';
 import { getAuthNavState } from '@/lib/authUi';
 import { primaryNavItems, secondaryNavItems } from '@/components/layout/navigation';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { UnitToggle } from '@/components/layout/UnitToggle';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -67,13 +68,21 @@ export default function Sidebar() {
           </Link>
         )}
 
-        <button
-          onClick={toggleSidebar}
-          className={`flex h-8 w-8 items-center justify-center rounded-lg text-subtle transition-all hover:bg-[var(--color-surface-muted)] hover:text-strong ${isCollapsed ? 'absolute -right-4 top-6 z-50 bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm opacity-0 group-hover:opacity-100 hover:scale-110' : ''}`}
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </button>
+        <div className="flex items-center gap-1">
+          {!isCollapsed && (
+            <>
+              <UnitToggle />
+              <ThemeToggle />
+            </>
+          )}
+          <button
+            onClick={toggleSidebar}
+            className={`flex h-8 w-8 items-center justify-center rounded-lg text-subtle transition-all hover:bg-[var(--color-surface-muted)] hover:text-strong ${isCollapsed ? 'absolute -right-4 top-6 z-50 bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm opacity-0 group-hover:opacity-100 hover:scale-110' : ''}`}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
       {/* Main Navigation */}
@@ -168,7 +177,6 @@ export default function Sidebar() {
             )}
             
             <div className={`flex items-center gap-2 ${isCollapsed ? 'flex-col' : 'justify-between'}`}>
-              <ThemeToggle />
               <button
                 onClick={handleSignOut}
                 className={`flex items-center justify-center rounded-xl p-2 text-muted transition-all hover:bg-red-500/10 hover:text-red-600 ${isCollapsed ? 'w-10 h-10' : 'flex-1 gap-2 text-xs font-bold uppercase tracking-widest'}`}
@@ -191,7 +199,6 @@ export default function Sidebar() {
               <LogIn className="h-5 w-5" />
               {!isCollapsed && <span>Sign In</span>}
             </Link>
-            {!isCollapsed && <ThemeToggle />}
           </div>
         )}
       </div>
