@@ -28,6 +28,8 @@ import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ChartInfoTooltip } from '@/components/ui/ChartInfoTooltip'
+import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
+import { WeeklyVolumeChart } from '@/components/progress/WeeklyVolumeChart'
 import { toMuscleLabel, PRESET_MAPPINGS, isMuscleMatch, toMuscleSlug } from '@/lib/muscle-utils'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
@@ -1373,6 +1375,15 @@ export default function ProgressPage() {
 
         {error && <div className="alert-error p-4 text-sm">{error}</div>}
 
+        <TrainingStatusCard 
+          status={trainingLoadSummary.status}
+          loadRatio={trainingLoadSummary.loadRatio}
+          weeklyLoad={trainingLoadSummary.acuteLoad}
+          chronicWeeklyAvg={trainingLoadSummary.chronicWeeklyAvg}
+          insufficientData={trainingLoadSummary.insufficientData}
+          isInitialPhase={trainingLoadSummary.isInitialPhase}
+        />
+
                 {/* 1. Training Status (Full Width Top) */}
                 <Card className={`relative z-10 border-t-4 ${
                   trainingLoadSummary.insufficientData || trainingLoadSummary.isInitialPhase ? 'border-t-[var(--color-border)]' :
@@ -1828,29 +1839,7 @@ export default function ProgressPage() {
                 goal="Look for a slow and steady crawl upward over time. This is how you get stronger!"
               />
             </div>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
-                <LineChart data={volumeTrend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                  <XAxis dataKey="label" stroke="var(--color-text-subtle)" fontSize={10} />
-                  <YAxis stroke="var(--color-text-subtle)" fontSize={10} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      background: 'var(--color-surface)', 
-                      border: '1px solid var(--color-border)', 
-                      color: 'var(--color-text)',
-                      borderRadius: '8px',
-                      fontSize: '12px'
-                    }} 
-                    itemStyle={{ color: 'var(--color-text)' }}
-                    labelStyle={{ color: 'var(--color-text)' }}
-                  />
-                  <Legend />
-                  <Line type="monotone" dataKey="volume" stroke="var(--color-primary)" strokeWidth={2} />
-                  <Line type="monotone" dataKey="load" stroke="var(--color-warning)" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <WeeklyVolumeChart data={volumeTrend} />
             <p className="mt-3 text-xs text-subtle">
               Latest load: {trainingLoadSummary.weeklyLoadTrend.at(-1)?.load ?? 'N/A'}
             </p>

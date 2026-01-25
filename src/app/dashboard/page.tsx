@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
 import { aggregateHardSets, computeSetLoad, computeSetTonnage } from '@/lib/session-metrics'
 import { getLoadBasedReadiness, summarizeTrainingLoad } from '@/lib/training-metrics'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
@@ -828,6 +829,16 @@ export default function DashboardPage() {
                     </div>
 
                   </Card>
+
+                  <TrainingStatusCard 
+                    status={trainingLoadSummary.status}
+                    loadRatio={trainingLoadSummary.loadRatio}
+                    weeklyLoad={trainingLoadSummary.acuteLoad}
+                    chronicWeeklyAvg={trainingLoadSummary.chronicWeeklyAvg}
+                    insufficientData={trainingLoadSummary.insufficientData}
+                    isInitialPhase={trainingLoadSummary.isInitialPhase}
+                  />
+
 
                 </div>
       </div>
