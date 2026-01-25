@@ -37,6 +37,18 @@ const formatDateTime = (value: string) => {
     : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+const formatDate = (value: string) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  // If it's a date-only string (YYYY-MM-DD) or UTC midnight, avoid UTC shift
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value) || value.endsWith('T00:00:00.000Z') || value.endsWith('T00:00:00Z')) {
+    const [year, month, day] = value.split('T')[0].split('-').map(Number)
+    const localDate = new Date(year, month - 1, day)
+    return localDate.toLocaleDateString([], { dateStyle: 'medium' })
+  }
+  return date.toLocaleDateString([], { dateStyle: 'medium' })
+}
+
 const formatDateForInput = (value: Date) => {
   const year = value.getFullYear()
   const month = String(value.getMonth() + 1).padStart(2, '0')
@@ -246,7 +258,7 @@ export default function ProfilePage() {
     
     setManualSaving(true)
     try {
-      const recordedAt = new Date(manualDate).toISOString()
+      const recordedAt = manualDate // Use YYYY-MM-DD string directly
       
       if (editingWeightId) {
         const { data, error } = await supabase
@@ -264,20 +276,43 @@ export default function ProfilePage() {
           setProfileSuccess('Weight entry updated.')
         }
       } else {
-        const { data, error } = await supabase
+        // Check if an entry already exists for this day to enforce one-per-day
+        const { data: existing } = await supabase
           .from('body_measurements')
-          .insert({
-            user_id: user.id,
-            weight_lb: weight,
-            recorded_at: recordedAt,
-            source: 'user'
-          })
-          .select('id, weight_lb, recorded_at')
-          .single()
-        
-        if (!error && data) {
-          setManualHistory(prev => [data, ...prev].sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()).slice(0, 20))
-          setProfileSuccess('Weight logged.')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('recorded_at', recordedAt)
+          .eq('source', 'user')
+          .maybeSingle()
+
+        if (existing) {
+          const { data, error } = await supabase
+            .from('body_measurements')
+            .update({ weight_lb: weight })
+            .eq('id', existing.id)
+            .select('id, weight_lb, recorded_at')
+            .single()
+          
+          if (!error && data) {
+            setManualHistory(prev => prev.map(item => item.id === existing.id ? data : item))
+            setProfileSuccess('Weight entry updated for this day.')
+          }
+        } else {
+          const { data, error } = await supabase
+            .from('body_measurements')
+            .insert({
+              user_id: user.id,
+              weight_lb: weight,
+              recorded_at: recordedAt,
+              source: 'user'
+            })
+            .select('id, weight_lb, recorded_at')
+            .single()
+          
+          if (!error && data) {
+            setManualHistory(prev => [data, ...prev].sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()).slice(0, 20))
+            setProfileSuccess('Weight logged.')
+          }
         }
       }
 
@@ -848,7 +883,7 @@ export default function ProfilePage() {
                     <div key={entry.id} className="flex items-center justify-between rounded-lg border border-[var(--color-border)] p-3 text-xs">
                       <div className="flex items-center gap-4">
                         <span className="font-semibold text-strong text-sm">{entry.weight_lb} lb</span>
-                        <span className="text-subtle">{formatDateTime(entry.recorded_at)}</span>
+                        <span className="text-subtle">{formatDate(entry.recorded_at)}</span>
                       </div>
                       <div className="flex gap-2">
                         <Button

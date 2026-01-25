@@ -1,0 +1,23 @@
+
+> ironplan@0.1.0 build
+> next build
+
+▲ Next.js 16.1.1 (Turbopack)
+- Environments: .env.local, .env
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 7.3s
+  Running TypeScript ...
+Failed to compile.
+
+./src/lib/dev-seed.ts:429:21
+Type error: Property 'extras' does not exist on type 'SetSeed'.
+
+[0m [90m 427 |[39m         rir[33m:[39m [36mset[39m[33m.[39mrir [33m?[39m[33m?[39m [36mnull[39m[33m,[39m
+ [90m 428 |[39m         duration_seconds[33m:[39m [36mset[39m[33m.[39mdurationSeconds [33m?[39m[33m?[39m [36mnull[39m[33m,[39m
+[31m[1m>[22m[39m[90m 429 |[39m         extras[33m:[39m [36mset[39m[33m.[39mextras [33m?[39m[33m?[39m {}[33m,[39m
+ [90m     |[39m                     [31m[1m^[22m[39m
+ [90m 430 |[39m         extra_metrics[33m:[39m [36mset[39m[33m.[39mextraMetrics [33m?[39m[33m?[39m {}[33m,[39m
+ [90m 431 |[39m         completed[33m:[39m [36mtrue[39m[33m,[39m
+ [90m 432 |[39m         performed_at[33m:[39m performedAt[33m,[39m[0m
+Next.js build worker exited with code: 1 and signal: null

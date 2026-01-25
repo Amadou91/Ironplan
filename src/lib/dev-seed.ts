@@ -1,37 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizePlanInput } from '@/lib/generator'
 import { getReadinessLevel } from '@/lib/training-metrics'
-import type { FocusArea, Goal } from '@/types/domain'
+import type { FocusArea, Goal, BandResistance, EquipmentInventory } from '@/types/domain'
 
 export const DEV_SEED_MARKER = 'IRONPLAN_DEV_SEED'
 export const DEV_SEED_TAG = 'dev_seed'
 export const DEV_TEMPLATE_PREFIX = 'DEV SEED - '
 export const DEV_SESSION_PREFIX = 'DEV SEED:'
-
-type ExerciseSeed = {
-  name: string
-  primaryMuscle: string
-  secondaryMuscles?: string[]
-  metricProfile?: string
-  sets: Array<{
-    reps: number | null
-    weight: number | null
-    weightUnit: 'lb' | 'kg'
-    rpe?: number
-    rir?: number
-    durationSeconds?: number
-    extras?: Record<string, string | null>
-    extraMetrics?: Record<string, unknown>
-  }>
-}
-
-type SessionSeed = {
-  name: string
-  templateIndex: number
-  daysAgo: number
-  minutesAvailable: number
-  exercises: ExerciseSeed[]
-}
 
 export type SeedResult = {
   templates: number
@@ -39,14 +14,38 @@ export type SeedResult = {
   exercises: number
   sets: number
   readiness: number
-  measurements?: number
 }
 
-export type ClearResult = SeedResult
+type SetSeed = {
+  reps: number | null
+  weight: number | null
+  weightUnit: 'lb' | 'kg'
+  rpe?: number
+  rir?: number
+  durationSeconds?: number
+  extraMetrics?: Record<string, any>
+  extras?: Record<string, any>
+}
 
-const isMissingTableError = (error: { message?: string; code?: string }) => {
-  const message = error?.message?.toLowerCase() ?? ''
-  return error?.code === '42P01' || message.includes('does not exist')
+type ExerciseSeed = {
+  name: string
+  primaryMuscle: string
+  secondaryMuscles?: string[]
+  metricProfile: string
+  sets: SetSeed[]
+}
+
+type SessionSeed = {
+  template_id?: string
+  user_id?: string
+  name: string
+  started_at?: string
+  ended_at?: string
+  status?: string
+  templateIndex: number
+  daysAgo: number
+  minutesAvailable: number
+  exercises: ExerciseSeed[]
 }
 
 export async function seedDevData(supabase: SupabaseClient, userId: string): Promise<SeedResult> {
@@ -55,7 +54,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     return { templates: 0, sessions: 0, exercises: 0, sets: 0, readiness: 0 }
   }
 
-  const fullGymInventory = {
+  const fullGymInventory: EquipmentInventory = {
     bodyweight: true,
     dumbbells: [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
     kettlebells: [18, 26, 35, 44, 53],

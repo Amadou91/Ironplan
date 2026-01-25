@@ -10,7 +10,7 @@ import { enhanceExerciseData, isTimeBasedExercise, toMuscleLabel, toMuscleSlug }
 import { EXERCISE_LIBRARY } from '@/lib/generator'
 import { normalizePreferences } from '@/lib/preferences'
 import { buildWeightOptions, equipmentPresets } from '@/lib/equipment'
-import type { WeightUnit, WorkoutSet, EquipmentInventory } from '@/types/domain'
+import type { WeightUnit, WorkoutSet, EquipmentInventory, FocusArea, Goal } from '@/types/domain'
 
 type EditableExercise = {
   id: string
@@ -474,7 +474,11 @@ export default function SessionEditPage() {
       if (session.bodyWeightLb && session.userId) {
         await Promise.all([
           supabase.from('profiles').update({ weight_lb: session.bodyWeightLb }).eq('id', session.userId),
-          supabase.from('body_measurements').insert({ user_id: session.userId, weight_lb: session.bodyWeightLb })
+          supabase.from('body_measurements').insert({ 
+            user_id: session.userId, 
+            weight_lb: session.bodyWeightLb,
+            recorded_at: session.startedAt
+          })
         ])
       }
 

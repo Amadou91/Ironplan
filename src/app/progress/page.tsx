@@ -123,14 +123,25 @@ const MUSCLE_PRESETS = [
 
 const formatDate = (value: string) => {
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
+  if (Number.isNaN(date.getTime())) return value
+  // If it's a date-only string (YYYY-MM-DD) or UTC midnight, avoid UTC shift
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value) || value.endsWith('T00:00:00.000Z') || value.endsWith('T00:00:00Z')) {
+    const [year, month, day] = value.split('T')[0].split('-').map(Number)
+    const localDate = new Date(year, month - 1, day)
+    return localDate.toLocaleDateString()
+  }
+  return date.toLocaleDateString()
 }
 
 const formatDateTime = (value: string) => {
   const date = new Date(value)
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+  if (Number.isNaN(date.getTime())) return value
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value) || value.endsWith('T00:00:00.000Z') || value.endsWith('T00:00:00Z')) {
+    const [year, month, day] = value.split('T')[0].split('-').map(Number)
+    const localDate = new Date(year, month - 1, day)
+    return localDate.toLocaleDateString([], { dateStyle: 'medium' })
+  }
+  return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 const formatDuration = (start?: string | null, end?: string | null) => {
@@ -219,7 +230,7 @@ export default function ProgressPage() {
   const [hasMoreSessions, setHasMoreSessions] = useState(true)
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null)
   const [creatingManualSession, setCreatingManualSession] = useState(false)
-  const [bodyWeightHistory, setBodyWeightHistory] = useState<Array<{ recorded_at: string; weight_lb: number }>>([])
+  const [bodyWeightHistory, setBodyWeightHistory] = useState<Array<{ recorded_at: string; weight_lb: number; source: string }>>([])
 
   const templateById = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates])
   const exerciseLibraryByName = useMemo(
@@ -472,7 +483,7 @@ export default function ProgressPage() {
         const loadBodyWeightHistory = async () => {
           let query = supabase
             .from('body_measurements')
-            .select('recorded_at, weight_lb')
+            .select('recorded_at, weight_lb, source')
             .eq('user_id', user.id)
             .order('recorded_at', { ascending: true })
           
@@ -514,16 +525,16 @@ export default function ProgressPage() {
   }, [sessions])
 
   const filteredSessions = useMemo(() => {
+    const seenIds = new Set<string>()
     return sessions.filter((session) => {
+      if (seenIds.has(session.id)) return false
+      seenIds.add(session.id)
+
       const date = new Date(session.started_at)
-      if (startDate) {
-        const start = new Date(startDate)
-        if (!Number.isNaN(start.getTime()) && date < start) return false
-      }
-      if (endDate) {
-        const end = new Date(endDate)
-        if (!Number.isNaN(end.getTime()) && date > new Date(end.getTime() + 86400000)) return false
-      }
+      const localDay = formatDateForInput(date)
+
+      if (startDate && localDay < startDate) return false
+      if (endDate && localDay > endDate) return false
       if (selectedExercise !== 'all') {
         const hasExercise = session.session_exercises.some((exercise) => exercise.exercise_name === selectedExercise)
         if (!hasExercise) return false
@@ -967,76 +978,103 @@ export default function ProgressPage() {
   }, [aggregateMetrics, prMetrics, profileWeightLb])
 
   const bodyWeightData = useMemo(() => {
-    const points: Array<{ day: string; timestamp: number; weight: number; source: 'session' | 'history' }> = []
+    const rawPoints: Array<{ dayKey: string; timestamp: number; weight: number; source: string }> = []
     
+    // 1. Collect points from sessions
     filteredSessions.forEach(session => {
       if (session.body_weight_lb) {
-        points.push({
-          day: formatDate(session.started_at),
-          timestamp: new Date(session.started_at).getTime(),
+        const date = new Date(session.started_at)
+        rawPoints.push({
+          dayKey: formatDateForInput(date),
+          timestamp: date.getTime(),
           weight: Number(session.body_weight_lb),
           source: 'session'
         })
       }
     })
 
+    // 2. Collect points from history (including user and dev_seed)
     bodyWeightHistory.forEach(entry => {
       const date = new Date(entry.recorded_at)
-      if (startDate) {
-        const start = new Date(startDate)
-        if (!Number.isNaN(start.getTime()) && date < start) return
-      }
-      if (endDate) {
-        const end = new Date(endDate)
-        if (!Number.isNaN(end.getTime()) && date > new Date(end.getTime() + 86400000)) return
-      }
+      // Fix UTC shift for literal YYYY-MM-DD strings or UTC midnight entries
+      const dayKey = /^\d{4}-\d{2}-\d{2}$/.test(entry.recorded_at) 
+        ? entry.recorded_at
+        : (entry.recorded_at.endsWith('T00:00:00.000Z') || entry.recorded_at.endsWith('T00:00:00Z'))
+          ? entry.recorded_at.split('T')[0]
+          : formatDateForInput(date)
 
-      points.push({
-        day: formatDate(entry.recorded_at),
+      rawPoints.push({
+        dayKey,
         timestamp: date.getTime(),
         weight: Number(entry.weight_lb),
-        source: 'history'
+        source: entry.source || 'history'
       })
     })
 
-    if (points.length === 0) return []
+    if (rawPoints.length === 0) return []
 
-    const sortedUniquePoints = points
-      .sort((a, b) => {
-        if (a.day === b.day) {
-          // Prioritize session source over history if on same day
-          if (a.source === 'session' && b.source !== 'session') return -1
-          if (b.source === 'session' && a.source !== 'session') return 1
-        }
-        return a.timestamp - b.timestamp
+    // 3. Consolidate by dayKey to prevent duplicates on the same day
+    const consolidated = new Map<string, typeof rawPoints[0]>()
+    rawPoints.sort((a, b) => a.timestamp - b.timestamp).forEach(p => {
+      const existing = consolidated.get(p.dayKey)
+      
+      // Consolidation Priority:
+      // 1. 'user' (manual log) - Top priority
+      // 2. 'session' (workout entry)
+      // 3. 'dev_seed' or others - Bottom priority
+      
+      const getPriority = (source: string) => {
+        if (source === 'user') return 10
+        if (source === 'session') return 5
+        return 1
+      }
+
+      if (!existing || getPriority(p.source) > getPriority(existing.source) || (p.source === existing.source && p.timestamp >= existing.timestamp)) {
+        consolidated.set(p.dayKey, p)
+      }
+    })
+
+    const sortedUniqueMeasurements = Array.from(consolidated.values()).sort((a, b) => a.timestamp - b.timestamp)
+
+    // 4. Fill in gaps for sessions without weight using last known weight
+    const allPointsByDay = new Map<string, { day: string; dayKey: string; timestamp: number; weight: number }>()
+    
+    // Add consolidated measurements first
+    sortedUniqueMeasurements.forEach(p => {
+      if (startDate && p.dayKey < startDate) return
+      if (endDate && p.dayKey > endDate) return
+
+      const [year, month, day] = p.dayKey.split('-').map(Number)
+      const d = new Date(year, month - 1, day)
+      allPointsByDay.set(p.dayKey, {
+        day: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        dayKey: p.dayKey,
+        timestamp: p.timestamp,
+        weight: p.weight
       })
-      .filter((point, index, self) => 
-        index === self.findIndex((p) => p.day === point.day)
-      )
+    })
 
-    // Fill in sessions that don't have weight by using the last known weight
-    const sessionTrend = [...filteredSessions]
-      .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
-      .map(session => {
-        const sessionTime = new Date(session.started_at).getTime()
-        // Find the weight at or before this session
-        const lastWeight = [...sortedUniquePoints]
-          .reverse()
-          .find(p => p.timestamp <= sessionTime)
-        
-        return {
-          day: formatDate(session.started_at),
-          timestamp: sessionTime,
-          weight: lastWeight ? lastWeight.weight : (sortedUniquePoints[0]?.weight ?? 0)
-        }
-      })
+    // Fill in sessions without recorded weight
+    filteredSessions.forEach(session => {
+      const date = new Date(session.started_at)
+      const dayKey = formatDateForInput(date)
+      if (allPointsByDay.has(dayKey)) return
+      if (startDate && dayKey < startDate) return
+      if (endDate && dayKey > endDate) return
 
-    // Combine history and session points, again unique by day
-    const combined = [...sortedUniquePoints, ...sessionTrend]
+      const last = sortedUniqueMeasurements.filter(p => p.timestamp <= date.getTime()).pop()
+      if (last) {
+        allPointsByDay.set(dayKey, {
+          day: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          dayKey: dayKey,
+          timestamp: date.getTime(),
+          weight: last.weight
+        })
+      }
+    })
+
+    const combined = Array.from(allPointsByDay.values())
       .sort((a, b) => a.timestamp - b.timestamp)
-      .filter((point, index, self) => 
-        index === self.findIndex((p) => p.day === point.day)
-      )
       .map(p => ({ ...p, trend: null as number | null }))
 
     if (combined.length >= 2) {
@@ -1050,11 +1088,9 @@ export default function ProgressPage() {
       if (denominator !== 0) {
         const slope = (n * sumXY - sumX * sumY) / denominator
         const intercept = (sumY - slope * sumX) / n
-        
-        return combined.map(p => ({
-          ...p,
-          trend: slope * p.timestamp + intercept
-        }))
+        combined.forEach(p => {
+          p.trend = slope * p.timestamp + intercept
+        })
       }
     }
 
