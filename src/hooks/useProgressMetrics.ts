@@ -16,6 +16,7 @@ export function useProgressMetrics() {
   return {
     ...strength,
     ...recovery,
+    exerciseLibraryByName: strength.exerciseLibraryByName,
     startDate,
     setStartDate,
     endDate,

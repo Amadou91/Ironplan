@@ -126,10 +126,31 @@ export function useRecoveryMetrics(options: {
     }).filter((p): p is { readiness: number; effort: number; workload: number } => typeof p.readiness === 'number' && typeof p.effort === 'number')
   }, [readinessSessions])
 
+  const readinessTrendLine = useMemo(() => {
+    if (readinessCorrelation.length < 2) return []
+    const n = readinessCorrelation.length
+    const sumX = readinessCorrelation.reduce((acc, p) => acc + p.readiness, 0)
+    const sumY = readinessCorrelation.reduce((acc, p) => acc + p.effort, 0)
+    const sumXY = readinessCorrelation.reduce((acc, p) => acc + p.readiness * p.effort, 0)
+    const sumXX = readinessCorrelation.reduce((acc, p) => acc + p.readiness * p.readiness, 0)
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
+    const intercept = (sumY - slope * sumX) / n
+
+    const minX = Math.min(...readinessCorrelation.map((p) => p.readiness))
+    const maxX = Math.max(...readinessCorrelation.map((p) => p.readiness))
+
+    return [
+      { readiness: minX, effort: slope * minX + intercept },
+      { readiness: maxX, effort: slope * maxX + intercept }
+    ]
+  }, [readinessCorrelation])
+
   return {
     readinessAverages,
     readinessSeries: useMemo(() => transformSessionsToReadinessTrend(readinessSessions), [readinessSessions]),
     readinessCorrelation,
+    readinessTrendLine,
     bodyWeightData: useMemo(() => transformSessionsToBodyWeightTrend(sessions, bodyWeightHistory, { startDate, endDate }), [bodyWeightHistory, sessions, startDate, endDate]),
     readinessComponents: useMemo(() => {
       if (!readinessAverages) return []
