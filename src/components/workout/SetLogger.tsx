@@ -19,6 +19,35 @@ interface SetLoggerProps {
   repsLabel?: string;
 }
 
+const NumericInput = ({ 
+  value, 
+  onChange, 
+  placeholder, 
+  hasError,
+  mode = "decimal" as const,
+  inputClassName,
+  isEditing
+}: { 
+  value: string | number; 
+  onChange: (val: string) => void; 
+  placeholder: string;
+  hasError?: boolean;
+  mode?: "decimal" | "numeric";
+  inputClassName: string;
+  isEditing: boolean;
+}) => (
+  <input
+    type="text"
+    inputMode={mode}
+    placeholder={placeholder}
+    value={value ?? ''}
+    onChange={(e) => onChange(e.target.value)}
+    className={inputClassName}
+    disabled={!isEditing}
+    readOnly={!isEditing}
+  />
+);
+
 export const SetLogger: React.FC<SetLoggerProps> = ({
   set,
   weightOptions,
@@ -76,31 +105,6 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
       if (field === 'reps') setRepsError(true);
     }
   };
-
-  const NumericInput = ({ 
-    value, 
-    onChange, 
-    placeholder, 
-    hasError,
-    mode = "decimal" as const
-  }: { 
-    value: string | number; 
-    onChange: (val: string) => void; 
-    placeholder: string;
-    hasError?: boolean;
-    mode?: "decimal" | "numeric";
-  }) => (
-    <input
-      type="text"
-      inputMode={mode}
-      placeholder={placeholder}
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      className={inputClassName(hasError)}
-      disabled={!isEditing}
-      readOnly={!isEditing}
-    />
-  );
 
   // Helpers
   const updateExtra = (key: string, value: unknown) => {
@@ -293,6 +297,8 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
                    const num = val === '' ? null : Number(val);
                    if (!isNaN(num as number)) updateExtra('distance_km', num);
                 }}
+                inputClassName={inputClassName()}
+                isEditing={isEditing}
               />
           </div>
         </div>
@@ -397,6 +403,8 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
                     value={set.weight ?? ''}
                     onChange={(val) => validateAndUpdate('weight', val)}
                     hasError={weightError}
+                    inputClassName={inputClassName(weightError)}
+                    isEditing={isEditing}
                   />
                 )}
                <div className="mt-1 text-center text-[10px] text-subtle">
@@ -488,6 +496,8 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
               value={set.weight ?? ''}
               onChange={(val) => validateAndUpdate('weight', val)}
               hasError={weightError}
+              inputClassName={inputClassName(weightError)}
+              isEditing={isEditing}
             />
           )}
           <div className="mt-1 text-[10px] text-subtle">
@@ -503,6 +513,8 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
             onChange={(val) => validateAndUpdate('reps', val)}
             hasError={repsError}
             mode={repsLabel === 'Reps' ? 'numeric' : 'decimal'}
+            inputClassName={inputClassName(repsError)}
+            isEditing={isEditing}
           />
         </div>
 

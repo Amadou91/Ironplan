@@ -354,11 +354,21 @@ export default function ActiveSession({ sessionId, equipmentInventory, onBodyWei
       const rpeValue = typeof set.rpe === 'number' ? set.rpe : null;
       const rirValue = typeof set.rir === 'number' ? set.rir : null;
       const sanitizedRir = rpeValue !== null && rirValue !== null ? null : rirValue;
+      
+      const safeNumber = (val: string | number | null | undefined): number | null => {
+        if (typeof val === 'number') return val;
+        if (typeof val === 'string' && val.trim() !== '') {
+           const num = Number(val);
+           return isNaN(num) ? null : num;
+        }
+        return null;
+      };
+
       const payload = {
         session_exercise_id: exercise.id,
         set_number: set.setNumber,
-        reps: typeof set.reps === 'number' ? set.reps : null,
-        weight: typeof set.weight === 'number' ? set.weight : null,
+        reps: safeNumber(set.reps),
+        weight: safeNumber(set.weight),
         rpe: rpeValue,
         rir: sanitizedRir,
         completed: set.completed,

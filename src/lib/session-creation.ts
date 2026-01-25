@@ -99,7 +99,7 @@ export const createWorkoutSession = async ({
       template_id: templateId,
       name: sessionName,
       started_at: startedAt,
-      status: 'in_progress',
+      status: 'initializing',
       minutes_available: minutesAvailable,
       timezone,
       session_notes: serializedNotes,
@@ -194,7 +194,8 @@ export const createWorkoutSession = async ({
       .from('sessions')
       .update({
         impact: impact ?? null,
-        generated_exercises: generatedPayload
+        generated_exercises: generatedPayload,
+        status: 'in_progress'
       })
       .eq('id', sessionData.id)
     if (updateError) throw updateError

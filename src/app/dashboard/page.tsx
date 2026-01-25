@@ -308,6 +308,26 @@ export default function DashboardPage() {
     : activeSession?.id 
       ? `/workouts/active?sessionId=${activeSession.id}&from=dashboard`
       : '/dashboard'
+      
+  const latestActiveSession = useMemo(() => {
+     if (activeSession) return activeSession;
+     const found = sessions.find(s => s.status === 'in_progress');
+     if (found) {
+        return {
+           id: found.id,
+           name: found.name,
+           templateId: found.template_id,
+           startedAt: found.started_at
+        };
+     }
+     return null;
+  }, [activeSession, sessions]);
+
+  const resumeLink = latestActiveSession?.templateId
+    ? `/workouts/${latestActiveSession.templateId}/active?sessionId=${latestActiveSession.id}&from=dashboard`
+    : latestActiveSession?.id
+      ? `/workouts/active?sessionId=${latestActiveSession.id}&from=dashboard`
+      : '/dashboard';
 
   const greetingName = user?.email?.split('@')[0] || 'there'
   const recentSessions = sessions.slice(0, 3)
@@ -413,14 +433,14 @@ export default function DashboardPage() {
 
         {error && <div className="alert-error p-4 text-sm">{error}</div>}
 
-        {activeSession && (
+        {latestActiveSession && (
           <Card className="p-6 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-[var(--color-primary-strong)]">Session in progress</p>
                 <p className="text-xs text-subtle">Finish your active session before starting another.</p>
               </div>
-              <Link href={activeSessionLink}>
+              <Link href={resumeLink}>
                 <Button variant="secondary" size="sm">Resume session</Button>
               </Link>
             </div>
