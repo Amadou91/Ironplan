@@ -16,6 +16,15 @@ export type SeedResult = {
   readiness: number
 }
 
+export type ClearResult = {
+  templates: number
+  sessions: number
+  exercises: number
+  sets: number
+  readiness: number
+  measurements?: number
+}
+
 type SetSeed = {
   reps: number | null
   weight: number | null
@@ -48,11 +57,19 @@ type SessionSeed = {
   exercises: ExerciseSeed[]
 }
 
+const isMissingTableError = (error: any) => {
+  return error?.code === '42P01' || error?.message?.includes('does not exist')
+}
+
 export async function seedDevData(supabase: SupabaseClient, userId: string): Promise<SeedResult> {
   if (process.env.NODE_ENV === 'production') {
     console.warn('Dev seed operations are disabled in production.')
     return { templates: 0, sessions: 0, exercises: 0, sets: 0, readiness: 0 }
   }
+
+  // Saturday Jan 24, 2026 is "Today"
+  const todayStart = new Date('2026-01-24T00:00:00Z').getTime()
+  const dayMs = 24 * 60 * 60 * 1000
 
   const fullGymInventory: EquipmentInventory = {
     bodyweight: true,
@@ -61,15 +78,6 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     bands: ['light', 'medium', 'heavy'],
     barbell: { available: true, plates: [45, 35, 25, 10, 5, 2.5] },
     machines: { cable: true, leg_press: true, treadmill: true, rower: true }
-  }
-
-  const homeMinimalInventory: EquipmentInventory = {
-    bodyweight: true,
-    dumbbells: [5, 10, 15, 20],
-    kettlebells: [18, 26],
-    bands: ['light', 'medium'],
-    barbell: { available: false, plates: [] },
-    machines: { cable: false, leg_press: false, treadmill: false, rower: false }
   }
 
   const mobilityInventory: EquipmentInventory = {
@@ -291,7 +299,8 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
   const totalSessions = 40
   for (let i = 0; i < totalSessions; i++) {
     const templateIndex = i % 5
-    const daysAgo = Math.floor((totalSessions - i) * 2 + Math.random())
+    // Most recent session is 1 day ago (Friday Jan 23), others spread back
+    const daysAgo = Math.max(1, Math.floor((totalSessions - 1 - i) * 1.8) + 1)
     const baseExercises = exerciseTemplates[templateIndex]
 
     const progressFactor = 0.85 + (1 - daysAgo / 72) * 0.25 // More progression range
@@ -309,7 +318,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
 
         if (isYogaOrCardio) {
           // Yoga/Cardio effort is 1-10, stored in RPE
-          setUpdate.rpe = Math.min(10, Math.max(1, Math.round((s.rir || s.rpe || 6) + (Math.random() * 4 - 2))));
+          setUpdate.rpe = Math.min(10, Math.max(1, Math.round((s.rpe || 6) + (Math.random() * 4 - 2))));
           setUpdate.rir = null;
         } else if (typeof s.rir === 'number') {
           setUpdate.rir = Math.min(10, Math.max(1, Math.round(s.rir + (Math.random() * 2 - 1))));
@@ -332,8 +341,6 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     })
   }
 
-  const now = Date.now()
-  const dayMs = 24 * 60 * 60 * 1000
   const weightStartPoint = 184.2
   
   // Helper to get weight for a specific time
@@ -343,8 +350,8 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
   }
 
   const sessionRows = sessionSeeds.map((seed) => {
-    const startedAt = new Date(now - seed.daysAgo * dayMs - 45 * 60 * 1000)
-    const endedAt = new Date(now - seed.daysAgo * dayMs - 15 * 60 * 1000)
+    const startedAt = new Date(todayStart - seed.daysAgo * dayMs - 45 * 60 * 1000)
+    const endedAt = new Date(todayStart - seed.daysAgo * dayMs - 15 * 60 * 1000)
     const sessionWeight = getWeightAtTime(seed.daysAgo)
     
     return {
@@ -467,9 +474,8 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
   let readinessCount = 0
   if (sessions?.length) {
     const readinessRows = sessions.map((session, index) => {
-      // Simulate varied readiness data across the entire 0-100 spectrum
-      // We'll use a sine wave + random to create some "cycles" of fatigue/recovery
-      const cycle = Math.sin(index / 3) * 30 // -30 to +30
+      // Simulate varied readiness data
+      const cycle = Math.sin(index / 3) * 30
       const base = 50 + cycle
       const score = Math.min(100, Math.max(0, Math.round(base + Math.random() * 20 - 10)))
       
@@ -508,8 +514,9 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
   // Seed Body Measurements (Daily History for last 30 days)
   const dailyMeasurementRows = []
   for (let i = 0; i < 30; i++) {
-    const daysAgo = 29 - i
-    const dayDate = new Date(now - daysAgo * dayMs)
+    // End history 1 day ago (Jan 23)
+    const daysAgo = 30 - i 
+    const dayDate = new Date(todayStart - daysAgo * dayMs)
     const currentWeight = getWeightAtTime(daysAgo)
     dailyMeasurementRows.push({
       user_id: userId,
@@ -553,7 +560,8 @@ export async function clearDevData(supabase: SupabaseClient, userId: string): Pr
     sessions: 0,
     exercises: 0,
     sets: 0,
-    readiness: 0
+    readiness: 0,
+    measurements: 0
   }
 
   try {
@@ -602,12 +610,13 @@ export async function clearDevData(supabase: SupabaseClient, userId: string): Pr
       .update({ body_weight_lb: null })
       .eq('user_id', userId)
 
-    // 6. Delete seeded body measurements
+    // 6. Delete seeded body measurements 
+    // We'll also delete all measurements for this user since they specifically 
+    // requested to ensure no hidden entries remain and confirmed they have no manual entries.
     const { data: measurementRows, error: measurementDeleteError } = await supabase
       .from('body_measurements')
       .delete()
       .eq('user_id', userId)
-      .eq('source', DEV_SEED_TAG)
       .select('id')
     
     if (!measurementDeleteError) {
@@ -635,7 +644,6 @@ export async function clearDevData(supabase: SupabaseClient, userId: string): Pr
     }
   } catch (error) {
     console.error('Error during clearDevData:', error)
-    // We still return whatever we managed to clear
   }
 
   return result

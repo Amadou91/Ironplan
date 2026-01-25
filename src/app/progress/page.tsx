@@ -1045,13 +1045,15 @@ export default function ProgressPage() {
 
     // 2. Collect points from history (including user and dev_seed)
     bodyWeightHistory.forEach(entry => {
-      const date = new Date(entry.recorded_at)
       // Fix UTC shift for literal YYYY-MM-DD strings or UTC midnight entries
       const dayKey = /^\d{4}-\d{2}-\d{2}$/.test(entry.recorded_at) 
-        ? entry.recorded_at
+        ? entry.recorded_at.split('T')[0]
         : (entry.recorded_at.endsWith('T00:00:00.000Z') || entry.recorded_at.endsWith('T00:00:00Z'))
           ? entry.recorded_at.split('T')[0]
-          : formatDateForInput(date)
+          : formatDateForInput(new Date(entry.recorded_at))
+
+      const [year, month, day] = dayKey.split('-').map(Number)
+      const date = new Date(year, month - 1, day)
 
       rawPoints.push({
         dayKey,
@@ -1449,113 +1451,122 @@ export default function ProgressPage() {
                 <div className="h-px flex-1 bg-[var(--color-border)] opacity-50" />
               </div>
               
-              <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
-                {/* Date Selection Column */}
-                <div className="space-y-6">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-strong mb-3">Time Horizon</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex flex-col">
-                        <label className="text-[9px] uppercase font-bold text-subtle mb-1 ml-1">From</label>
-                        <input
-                          type="date"
-                          value={startDate}
-                          onChange={(event) => {
-                            setStartDate(event.target.value)
-                            setActiveDatePreset(null)
-                          }}
-                          className="input-base text-sm"
-                        />
+              <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-start">
+                {/* Left Controls Stack */}
+                <div className="lg:col-span-5 space-y-10">
+                  {/* Date Selection */}
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-strong mb-3">Time Horizon</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col">
+                          <label className="text-[9px] uppercase font-bold text-subtle mb-1 ml-1">From</label>
+                          <input
+                            type="date"
+                            value={startDate}
+                            onChange={(event) => {
+                              setStartDate(event.target.value)
+                              setActiveDatePreset(null)
+                            }}
+                            className="input-base text-sm"
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="text-[9px] uppercase font-bold text-subtle mb-1 ml-1">To</label>
+                          <input
+                            type="date"
+                            value={endDate}
+                            onChange={(event) => {
+                              setEndDate(event.target.value)
+                              setActiveDatePreset(null)
+                            }}
+                            className="input-base text-sm"
+                          />
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <label className="text-[9px] uppercase font-bold text-subtle mb-1 ml-1">To</label>
-                        <input
-                          type="date"
-                          value={endDate}
-                          onChange={(event) => {
-                            setEndDate(event.target.value)
-                            setActiveDatePreset(null)
-                          }}
-                          className="input-base text-sm"
-                        />
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] uppercase font-bold text-subtle mb-2.5 ml-1">Quick Ranges</p>
+                      <div className="flex flex-wrap gap-2">
+                        {DATE_RANGE_PRESETS.map((preset) => (
+                          <Button
+                            key={preset.label}
+                            variant={activeDatePreset === preset.label ? 'primary' : 'outline'}
+                            size="sm"
+                            type="button"
+                            onClick={() => handlePresetClick(preset)}
+                            className={`h-8 px-3 text-[11px] font-bold transition-all ${activeDatePreset === preset.label ? 'shadow-md' : 'bg-transparent text-muted border-[var(--color-border)] hover:border-strong'}`}
+                          >
+                            {preset.label}
+                          </Button>
+                        ))}
                       </div>
                     </div>
                   </div>
 
-                  <div>
-                    <p className="text-[9px] uppercase font-bold text-subtle mb-2.5 ml-1">Quick Ranges</p>
-                    <div className="flex flex-wrap gap-2">
-                      {DATE_RANGE_PRESETS.map((preset) => (
+                  {/* Focus Selection */}
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-strong mb-3">Muscle Group Focus</p>
+                      <div className="flex flex-wrap gap-2">
+                        {MUSCLE_PRESETS.map((preset) => (
+                          <Button
+                            key={preset.value}
+                            variant={selectedMuscle === preset.value ? 'primary' : 'outline'}
+                            size="sm"
+                            type="button"
+                            onClick={() => {
+                              if (selectedMuscle === preset.value) {
+                                setSelectedMuscle('all')
+                              } else {
+                                setSelectedMuscle(preset.value)
+                              }
+                            }}
+                            className={`h-8 px-4 text-[11px] font-bold transition-all ${selectedMuscle === preset.value ? 'shadow-md scale-105' : 'bg-transparent text-muted border-[var(--color-border)] hover:border-strong'}`}
+                          >
+                            {preset.label}
+                          </Button>
+                        ))}
                         <Button
-                          key={preset.label}
-                          variant={activeDatePreset === preset.label ? 'primary' : 'outline'}
+                          variant={selectedMuscle === 'all' ? 'primary' : 'outline'}
                           size="sm"
-                          type="button"
-                          onClick={() => handlePresetClick(preset)}
-                          className={`h-8 px-3 text-[11px] font-bold transition-all ${activeDatePreset === preset.label ? 'shadow-md' : 'bg-transparent text-muted border-[var(--color-border)] hover:border-strong'}`}
+                          onClick={() => setSelectedMuscle('all')}
+                          className={`h-8 px-4 text-[11px] font-bold transition-all ${selectedMuscle === 'all' ? 'shadow-md' : 'bg-transparent text-muted border-[var(--color-border)] hover:border-strong'}`}
                         >
-                          {preset.label}
+                          All Groups
                         </Button>
-                      ))}
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Focus Selection Column */}
-                <div className="space-y-6">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-strong mb-3">Muscle Group Focus</p>
-                    <div className="flex flex-wrap gap-2">
-                      {MUSCLE_PRESETS.map((preset) => (
-                        <Button
-                          key={preset.value}
-                          variant={selectedMuscle === preset.value ? 'primary' : 'outline'}
-                          size="sm"
-                          type="button"
-                          onClick={() => {
-                            if (selectedMuscle === preset.value) {
-                              setSelectedMuscle('all')
-                            } else {
-                              setSelectedMuscle(preset.value)
-                            }
-                          }}
-                          className={`h-8 px-4 text-[11px] font-bold transition-all ${selectedMuscle === preset.value ? 'shadow-md scale-105' : 'bg-transparent text-muted border-[var(--color-border)] hover:border-strong'}`}
-                        >
-                          {preset.label}
-                        </Button>
-                      ))}
-                      <Button
-                        variant={selectedMuscle === 'all' ? 'primary' : 'outline'}
-                        size="sm"
-                        onClick={() => setSelectedMuscle('all')}
-                        className={`h-8 px-4 text-[11px] font-bold transition-all ${selectedMuscle === 'all' ? 'shadow-md' : 'bg-transparent text-muted border-[var(--color-border)] hover:border-strong'}`}
+                    <div className="flex flex-col">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-strong mb-3">Specific Movement</label>
+                      <select
+                        value={selectedExercise}
+                        onChange={(event) => setSelectedExercise(event.target.value)}
+                        className="input-base text-sm font-semibold"
                       >
-                        All Groups
-                      </Button>
+                        <option value="all">All Exercises</option>
+                        {exerciseOptions.map((exercise) => (
+                          <option key={exercise} value={exercise}>
+                            {exercise}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  </div>
-
-                  <div className="flex flex-col">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-strong mb-3">Specific Movement</label>
-                    <select
-                      value={selectedExercise}
-                      onChange={(event) => setSelectedExercise(event.target.value)}
-                      className="input-base text-sm font-semibold"
-                    >
-                      <option value="all">All Exercises</option>
-                      {exerciseOptions.map((exercise) => (
-                        <option key={exercise} value={exercise}>
-                          {exercise}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </div>
 
                 {/* Analysis Perspective Column */}
-                <div className="lg:border-l lg:border-[var(--color-border)] lg:pl-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-strong">Muscle Distribution</h3>
+                <div className="lg:col-span-7 lg:border-l lg:border-[var(--color-border)] lg:pl-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-strong">Muscle group volume</h3>
+                      <ChartInfoTooltip 
+                        description="Shows how much work each muscle group did. The bigger the slice, the more work that muscle did."
+                        goal="Try to keep things even so you don't over-train one spot and under-train another."
+                      />
+                    </div>
                     <div className="flex gap-1 bg-[var(--color-surface-muted)] p-1 rounded-lg">
                       <button 
                         onClick={() => setMuscleVizMode('absolute')}
@@ -1579,38 +1590,82 @@ export default function ProgressPage() {
                       )}
                     </div>
                   </div>
-                  
-                  <div className="space-y-2 max-h-[180px] overflow-y-auto pr-2 scrollbar-hide">
-                    {muscleBreakdown.length === 0 ? (
-                      <p className="text-xs text-subtle italic">Select a wider range to see breakdown.</p>
-                    ) : (
-                      muscleBreakdown
-                        .sort((a, b) => {
-                          const valA = muscleVizMode === 'absolute' ? a.volume : muscleVizMode === 'relative' ? a.relativePct : (a.imbalanceIndex ?? 0)
-                          const valB = muscleVizMode === 'absolute' ? b.volume : muscleVizMode === 'relative' ? b.relativePct : (b.imbalanceIndex ?? 0)
-                          return valB - valA
-                        })
-                        .map((entry, idx) => {
-                          const displayVal = muscleVizMode === 'absolute' 
-                            ? `${entry.volume.toLocaleString()} lb`
-                            : muscleVizMode === 'relative' 
-                              ? `${entry.relativePct}%` 
-                              : entry.imbalanceIndex !== null ? entry.imbalanceIndex : 'N/A'
-                          
-                          return (
-                            <div key={entry.muscle} className="flex items-center justify-between text-xs py-1 border-b border-[var(--color-border)]/30 last:border-0">
-                              <div className="flex items-center gap-2.5">
-                                <div 
-                                  className="w-2 h-2 rounded-full" 
-                                  style={{ background: chartColors[idx % chartColors.length] }} 
-                                />
-                                <span className="text-muted font-bold uppercase text-[10px] tracking-tight">{entry.muscle}</span>
+
+                  <div className="flex flex-col xl:flex-row items-center gap-8">
+                    <div className="h-[280px] w-full xl:w-1/2">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                        <PieChart>
+                          <Pie 
+                            data={muscleBreakdown.map(m => ({
+                              ...m,
+                              value: muscleVizMode === 'absolute' ? m.volume : muscleVizMode === 'relative' ? m.relativePct : (m.imbalanceIndex ?? 0)
+                            })).filter(m => m.value > 0)} 
+                            dataKey="value" 
+                            nameKey="muscle" 
+                            outerRadius={100}
+                            innerRadius={70}
+                            paddingAngle={2}
+                            stroke="none"
+                          >
+                            {muscleBreakdown.map((entry, index) => (
+                              <Cell key={entry.muscle} fill={chartColors[index % chartColors.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value: number | undefined) => {
+                              if (typeof value !== 'number') return []
+                              if (muscleVizMode === 'absolute') return [`${value.toLocaleString()} lb`, 'Volume']
+                              if (muscleVizMode === 'relative') return [`${value}%`, 'Relative %']
+                              return [value, 'Imbalance Index']
+                            }}
+                            contentStyle={{ 
+                              background: 'var(--color-surface)', 
+                              border: '1px solid var(--color-border)', 
+                              color: 'var(--color-text)', 
+                              fontSize: '12px',
+                              borderRadius: '8px',
+                              boxShadow: 'var(--shadow-md)'
+                            }} 
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    
+                    <div className="w-full xl:w-1/2 space-y-2 pr-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-subtle border-b border-[var(--color-border)] pb-2 mb-3">
+                        {muscleVizMode === 'absolute' ? 'Volume (lb)' : muscleVizMode === 'relative' ? 'Distribution (%)' : 'Target Index (100=target)'}
+                      </p>
+                      {muscleBreakdown.length === 0 ? (
+                        <p className="text-xs text-subtle italic">No data available.</p>
+                      ) : (
+                        muscleBreakdown
+                          .sort((a, b) => {
+                            const valA = muscleVizMode === 'absolute' ? a.volume : muscleVizMode === 'relative' ? a.relativePct : (a.imbalanceIndex ?? 0)
+                            const valB = muscleVizMode === 'absolute' ? b.volume : muscleVizMode === 'relative' ? b.relativePct : (b.imbalanceIndex ?? 0)
+                            return valB - valA
+                          })
+                          .map((entry, idx) => {
+                            const displayVal = muscleVizMode === 'absolute' 
+                              ? `${entry.volume.toLocaleString()} lb`
+                              : muscleVizMode === 'relative' 
+                                ? `${entry.relativePct}%` 
+                                : entry.imbalanceIndex !== null ? entry.imbalanceIndex : 'N/A'
+                            
+                            return (
+                              <div key={entry.muscle} className="flex items-center justify-between text-xs py-1.5 border-b border-[var(--color-border)]/30 last:border-0">
+                                <div className="flex items-center gap-3">
+                                  <div 
+                                    className="w-2.5 h-2.5 rounded-full" 
+                                    style={{ background: chartColors[idx % chartColors.length] }} 
+                                  />
+                                  <span className="text-muted font-bold uppercase text-[10px] tracking-tight">{entry.muscle}</span>
+                                </div>
+                                <span className="text-strong font-black tabular-nums text-[11px]">{displayVal}</span>
                               </div>
-                              <span className="text-strong font-black tabular-nums text-[11px]">{displayVal}</span>
-                            </div>
-                          )
-                        })
-                    )}
+                            )
+                          })
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1742,7 +1797,17 @@ export default function ProgressPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="label" stroke="var(--color-text-subtle)" fontSize={10} />
                   <YAxis stroke="var(--color-text-subtle)" fontSize={10} />
-                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'var(--color-surface)', 
+                      border: '1px solid var(--color-border)', 
+                      color: 'var(--color-text)',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }} 
+                    itemStyle={{ color: 'var(--color-text)' }}
+                    labelStyle={{ color: 'var(--color-text)' }}
+                  />
                   <Legend />
                   <Line type="monotone" dataKey="volume" stroke="var(--color-primary)" strokeWidth={2} />
                   <Line type="monotone" dataKey="load" stroke="var(--color-warning)" strokeWidth={2} />
@@ -1768,7 +1833,17 @@ export default function ProgressPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
                   <YAxis stroke="var(--color-text-subtle)" />
-                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'var(--color-surface)', 
+                      border: '1px solid var(--color-border)', 
+                      color: 'var(--color-text)',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }} 
+                    itemStyle={{ color: 'var(--color-text)' }}
+                    labelStyle={{ color: 'var(--color-text)' }}
+                  />
                   <Line type="monotone" dataKey="effort" stroke="var(--color-success)" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
@@ -1790,7 +1865,17 @@ export default function ProgressPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                     <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
                     <YAxis stroke="var(--color-text-subtle)" />
-                    <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                    <Tooltip 
+                    contentStyle={{ 
+                      background: 'var(--color-surface)', 
+                      border: '1px solid var(--color-border)', 
+                      color: 'var(--color-text)',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }} 
+                    itemStyle={{ color: 'var(--color-text)' }}
+                    labelStyle={{ color: 'var(--color-text)' }}
+                  />
                     <Line 
                       type="monotone" 
                       dataKey="e1rm" 
@@ -1831,7 +1916,17 @@ export default function ProgressPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
                   <YAxis domain={['auto', 'auto']} stroke="var(--color-text-subtle)" />
-                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'var(--color-surface)', 
+                      border: '1px solid var(--color-border)', 
+                      color: 'var(--color-text)',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }} 
+                    itemStyle={{ color: 'var(--color-text)' }}
+                    labelStyle={{ color: 'var(--color-text)' }}
+                  />
                   <Line 
                     type="monotone" 
                     dataKey="weight" 
@@ -1868,7 +1963,17 @@ export default function ProgressPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="day" stroke="var(--color-text-subtle)" />
                   <YAxis domain={[0, 100]} stroke="var(--color-text-subtle)" />
-                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'var(--color-surface)', 
+                      border: '1px solid var(--color-border)', 
+                      color: 'var(--color-text)',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }} 
+                    itemStyle={{ color: 'var(--color-text)' }}
+                    labelStyle={{ color: 'var(--color-text)' }}
+                  />
                   <Line type="monotone" dataKey="score" stroke="var(--color-primary)" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
@@ -1892,7 +1997,17 @@ export default function ProgressPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="metric" stroke="var(--color-text-subtle)" />
                   <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" />
-                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'var(--color-surface)', 
+                      border: '1px solid var(--color-border)', 
+                      color: 'var(--color-text)',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }} 
+                    itemStyle={{ color: 'var(--color-text)' }}
+                    labelStyle={{ color: 'var(--color-text)' }}
+                  />
                   <Bar dataKey="value">
                     {readinessComponents.map((entry) => {
                       let color = '#0ea5e9' // Default blue
@@ -1951,7 +2066,15 @@ export default function ProgressPage() {
                   <YAxis dataKey="effort" type="number" name="Avg effort" domain={[0, 10]} stroke="var(--color-text-subtle)" fontSize={10} />
                   <Tooltip
                     cursor={{ strokeDasharray: '3 3' }}
-                    contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                    contentStyle={{ 
+                      background: 'var(--color-surface)', 
+                      border: '1px solid var(--color-border)', 
+                      color: 'var(--color-text)',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }} 
+                    itemStyle={{ color: 'var(--color-text)' }}
+                    labelStyle={{ color: 'var(--color-text)' }}
                   />
                   
                   {/* Quadrants */}

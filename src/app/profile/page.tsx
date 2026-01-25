@@ -40,13 +40,13 @@ const formatDateTime = (value: string) => {
 const formatDate = (value: string) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  // If it's a date-only string (YYYY-MM-DD) or UTC midnight, avoid UTC shift
+  // If it's a date-only string (YYYY-MM-DD) or UTC midnight, avoid UTC shift by parsing as local components
   if (/^\d{4}-\d{2}-\d{2}$/.test(value) || value.endsWith('T00:00:00.000Z') || value.endsWith('T00:00:00Z')) {
     const [year, month, day] = value.split('T')[0].split('-').map(Number)
     const localDate = new Date(year, month - 1, day)
-    return localDate.toLocaleDateString([], { dateStyle: 'medium' })
+    return localDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
   }
-  return date.toLocaleDateString([], { dateStyle: 'medium' })
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 const formatDateForInput = (value: Date) => {
@@ -258,7 +258,7 @@ export default function ProfilePage() {
     
     setManualSaving(true)
     try {
-      const recordedAt = manualDate // Use YYYY-MM-DD string directly
+      const recordedAt = manualDate // Use YYYY-MM-DD string directly from input
       
       if (editingWeightId) {
         const { data, error } = await supabase
@@ -272,46 +272,67 @@ export default function ProfilePage() {
           .single()
         
         if (!error && data) {
-          setManualHistory(prev => prev.map(item => item.id === editingWeightId ? data : item).sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()))
+          // Keep recorded_at as the literal date string returned from the DB
+          setManualHistory(prev => prev.map(item => item.id === editingWeightId ? data : item).sort((a, b) => b.recorded_at.localeCompare(a.recorded_at)))
           setProfileSuccess('Weight entry updated.')
         }
       } else {
-        // Check if an entry already exists for this day to enforce one-per-day
-        const { data: existing } = await supabase
+        // Upsert by literal date string to enforce one-per-day correctly in local time
+        const { data, error } = await supabase
           .from('body_measurements')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('recorded_at', recordedAt)
-          .eq('source', 'user')
-          .maybeSingle()
+          .upsert({
+            user_id: user.id,
+            weight_lb: weight,
+            recorded_at: recordedAt,
+            source: 'user'
+          }, { onConflict: 'user_id,recorded_at,source' }) // Match the unique constraint if available, or just insert
+          .select('id, weight_lb, recorded_at')
+          .single()
+        
+        if (!error && data) {
+          setManualHistory(prev => {
+            const filtered = prev.filter(item => item.recorded_at !== recordedAt)
+            return [data, ...filtered].sort((a, b) => b.recorded_at.localeCompare(a.recorded_at)).slice(0, 20)
+          })
+          setProfileSuccess('Weight logged.')
+        } else if (error) {
+          // If upsert fails due to policy or missing constraint, try manual one-per-day enforcement
+          const { data: existing } = await supabase
+            .from('body_measurements')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('recorded_at', recordedAt)
+            .eq('source', 'user')
+            .maybeSingle()
 
-        if (existing) {
-          const { data, error } = await supabase
-            .from('body_measurements')
-            .update({ weight_lb: weight })
-            .eq('id', existing.id)
-            .select('id, weight_lb, recorded_at')
-            .single()
-          
-          if (!error && data) {
-            setManualHistory(prev => prev.map(item => item.id === existing.id ? data : item))
-            setProfileSuccess('Weight entry updated for this day.')
-          }
-        } else {
-          const { data, error } = await supabase
-            .from('body_measurements')
-            .insert({
-              user_id: user.id,
-              weight_lb: weight,
-              recorded_at: recordedAt,
-              source: 'user'
-            })
-            .select('id, weight_lb, recorded_at')
-            .single()
-          
-          if (!error && data) {
-            setManualHistory(prev => [data, ...prev].sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()).slice(0, 20))
-            setProfileSuccess('Weight logged.')
+          if (existing) {
+            const { data: updated, error: upError } = await supabase
+              .from('body_measurements')
+              .update({ weight_lb: weight })
+              .eq('id', existing.id)
+              .select('id, weight_lb, recorded_at')
+              .single()
+            
+            if (!upError && updated) {
+              setManualHistory(prev => prev.map(item => item.id === existing.id ? updated : item))
+              setProfileSuccess('Weight entry updated for this day.')
+            }
+          } else {
+            const { data: inserted, error: inError } = await supabase
+              .from('body_measurements')
+              .insert({
+                user_id: user.id,
+                weight_lb: weight,
+                recorded_at: recordedAt,
+                source: 'user'
+              })
+              .select('id, weight_lb, recorded_at')
+              .single()
+            
+            if (!inError && inserted) {
+              setManualHistory(prev => [inserted, ...prev].sort((a, b) => b.recorded_at.localeCompare(a.recorded_at)).slice(0, 20))
+              setProfileSuccess('Weight logged.')
+            }
           }
         }
       }
