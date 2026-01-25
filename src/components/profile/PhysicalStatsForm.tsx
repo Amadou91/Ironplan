@@ -254,7 +254,7 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
       setManualWeight('')
       setManualDate(formatDateForInput(new Date()))
       setIsWeightModalOpen(false)
-    } catch (err) {
+    } catch {
       onError?.('Failed to save weight entry.')
     } finally {
       setManualSaving(false)

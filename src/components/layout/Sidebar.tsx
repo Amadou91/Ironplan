@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogIn, LogOut, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
+import { LogIn, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { authStore, useAuthStore } from '@/store/authStore';
 import { getAuthNavState } from '@/lib/authUi';

@@ -5,7 +5,6 @@ import {
   bandLabels,
   cloneInventory,
   equipmentPresets,
-  formatWeightList,
   machineLabels,
   BARBELL_PLATE_OPTIONS
 } from '@/lib/equipment'

@@ -1,12 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { 
   transformSessionsToBodyWeightTrend,
-  transformSessionsToReadinessTrend,
-  formatDateForInput
+  transformSessionsToReadinessTrend
 } from '@/lib/transformers/chart-data'
 import { type SessionRow } from '@/lib/transformers/progress-data'
 import { computeSessionMetrics } from '@/lib/training-metrics'
@@ -35,13 +34,11 @@ export function useRecoveryMetrics(options: {
   
   const [readinessEntries, setReadinessEntries] = useState<ReadinessRow[]>([])
   const [bodyWeightHistory, setBodyWeightHistory] = useState<Array<{ recorded_at: string; weight_lb: number; source: string }>>([])
-  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (userLoading || !user || !sessions.length) return
 
     const loadReadiness = async () => {
-      setLoading(true)
       const sessionIds = sessions.map(s => s.id)
       const { data, error } = await supabase
         .from('session_readiness')
@@ -52,7 +49,6 @@ export function useRecoveryMetrics(options: {
       if (!error && data) {
         setReadinessEntries(data as ReadinessRow[])
       }
-      setLoading(false)
     }
 
     loadReadiness()

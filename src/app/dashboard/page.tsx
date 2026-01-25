@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'

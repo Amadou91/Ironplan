@@ -13,7 +13,6 @@ import type {
 } from '@/types/domain'
 import { computeExerciseMetrics } from '@/lib/workout-metrics'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
-import { matchesCardioSelection } from '@/lib/cardio-activities'
 import type { ExercisePrescription, FocusConstraint } from './types'
 import { focusMuscleMap, focusAccessoryMap, bandLoadMap } from './constants'
 

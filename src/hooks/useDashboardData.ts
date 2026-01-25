@@ -85,7 +85,7 @@ export function useDashboardData() {
         return
       }
 
-      const [{ data: sessionRows, error: sessionError }, { data: templateRows, error: templateError }] =
+      const [{ data: sessionRows, error: sessionError }, { data: templateRows }] =
         await Promise.all([
           supabase
             .from('sessions')
@@ -248,7 +248,7 @@ export function useDashboardData() {
         .eq('user_id', user.id)
       if (deleteError) throw deleteError
       setTemplates((prev) => prev.filter((item) => item.id !== template.id))
-    } catch (deleteError) {
+    } catch {
       setError('Unable to delete this template. Please try again.')
     } finally {
       setDeletingWorkoutIds((prev) => ({ ...prev, [template.id]: false }))

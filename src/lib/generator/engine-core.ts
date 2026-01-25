@@ -22,7 +22,6 @@ import {
   getMovementFamilyFromName,
   getMovementFamily,
   matchesPrimaryMuscle,
-  getFocusConstraint,
   selectEquipmentOption,
   estimateExerciseMinutes,
   buildSessionName,

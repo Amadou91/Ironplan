@@ -20,12 +20,11 @@ import {
   aggregateHardSets,
   aggregateTonnage,
   computeSetE1rm,
-  computeSetLoad,
   getEffortScore,
   getWeekKey,
   toWeightInPounds
 } from '@/lib/session-metrics'
-import type { FocusArea, Goal, PlanInput, WeightUnit, MetricProfile } from '@/types/domain'
+import type { FocusArea, PlanInput, WeightUnit, MetricProfile } from '@/types/domain'
 
 const SESSION_PAGE_SIZE = 50
 
@@ -53,8 +52,6 @@ export function useStrengthMetrics(options: {
   const [templates, setTemplates] = useState<TemplateRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [sessionsLoaded, setSessionsLoaded] = useState(false)
-  const [sessionPage, setSessionPage] = useState(0)
   const [hasMoreSessions, setHasMoreSessions] = useState(true)
 
   const templateById = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates])
@@ -118,7 +115,7 @@ export function useStrengthMetrics(options: {
         query = query.limit(SESSION_PAGE_SIZE)
       }
 
-      const [{ data: sessionData, error: fetchError }, { data: templateData, error: templateError }] =
+      const [{ data: sessionData, error: fetchError }, { data: templateData }] =
         await Promise.all([
           query,
           supabase
@@ -133,8 +130,6 @@ export function useStrengthMetrics(options: {
         const nextSessions = (sessionData as SessionRow[]) ?? []
         setSessions(nextSessions)
         setHasMoreSessions(!startDate && nextSessions.length === SESSION_PAGE_SIZE)
-        setSessionsLoaded(true)
-        setSessionPage(0)
       }
       if (templateData) {
         setTemplates((templateData as TemplateRow[]) ?? [])
@@ -255,6 +250,6 @@ export function useStrengthMetrics(options: {
     effortTrend: useMemo(() => transformSessionsToEffortTrend(allSets), [allSets]),
     exerciseTrend: useMemo(() => transformSessionsToExerciseTrend(allSets, sessions, templateById, exerciseLibraryByName, selectedExercise), [allSets, selectedExercise, sessions, templateById, exerciseLibraryByName]),
     muscleBreakdown: useMemo(() => transformSetsToMuscleBreakdown(allSets, selectedMuscle), [allSets, selectedMuscle]),
-    setSessionPage, hasMoreSessions
+    hasMoreSessions
   }
 }

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizePlanInput } from '@/lib/generator'
 import { getReadinessLevel } from '@/lib/training-metrics'
-import type { FocusArea, Goal, BandResistance, EquipmentInventory } from '@/types/domain'
+import type { FocusArea, Goal, EquipmentInventory } from '@/types/domain'
 
 export const DEV_SEED_MARKER = 'IRONPLAN_DEV_SEED'
 export const DEV_SEED_TAG = 'dev_seed'

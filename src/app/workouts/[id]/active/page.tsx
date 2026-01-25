@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { CheckCircle2, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import ActiveSession from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -34,7 +34,6 @@ export default function WorkoutActivePage() {
   const [finishError, setFinishError] = useState<string | null>(null)
   const [finishingSession, setFinishingSession] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
-  const [cancelingSession, setCancelingSession] = useState(false)
   const bodyWeightRef = useRef<number | null>(null)
 
   const sessionId = searchParams.get('sessionId')
@@ -128,7 +127,6 @@ export default function WorkoutActivePage() {
     if (!currentSessionId) return
     if (!confirm('Cancel this session and discard any logged sets?')) return
     setCancelError(null)
-    setCancelingSession(true)
     try {
       const { error } = await supabase
         .from('sessions')
@@ -144,8 +142,6 @@ export default function WorkoutActivePage() {
     } catch (error) {
       console.error('Failed to cancel workout:', error)
       setCancelError('Failed to cancel workout. Please try again.')
-    } finally {
-      setCancelingSession(false)
     }
   }
 

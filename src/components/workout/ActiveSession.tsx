@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, RefreshCcw } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Trash2, RefreshCcw } from 'lucide-react';
 import { SetLogger } from './SetLogger';
 import { SessionHeader } from './session/SessionHeader';
 import { SessionControls } from './session/SessionControls';
@@ -15,7 +15,6 @@ import { convertWeight } from '@/lib/units';
 import type { 
   EquipmentInventory, 
   SessionExercise, 
-  WorkoutSet, 
   Exercise, 
   FocusArea, 
   Goal 
@@ -129,7 +128,7 @@ export default function ActiveSession({
         orderIndex: activeSession.exercises.length
       });
       setIsAddingExercise(false);
-    } catch (e) {
+    } catch {
       setErrorMessage('Unable to add exercise.');
     }
   };
@@ -153,7 +152,7 @@ export default function ActiveSession({
         metricProfile: metricProfile
       });
       setSwappingExIdx(null);
-    } catch (e) {
+    } catch {
       setErrorMessage('Unable to swap exercise.');
     }
   };

@@ -16,10 +16,7 @@ import {
 import {
   adjustRpe,
   adjustSets,
-  adjustSetsForIntensity,
-  deriveReps,
-  getIntensityRestModifier,
-  getRestModifier
+  adjustSetsForIntensity
 } from './scoring'
 
 export const createPlannedExercise = (

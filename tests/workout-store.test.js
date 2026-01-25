@@ -69,7 +69,7 @@ function loadTsModule(modulePath) {
        const resolvedIndex = join(resolvedCandidate, 'index.ts')
        if (existsSync(resolvedIndex)) return loadTsModule(resolvedIndex)
        
-       try { return requireShim(moduleId) } catch (e) { throw new Error(`Cannot resolve module '${moduleId}' from '${modulePath}'`) }
+       try { return requireShim(moduleId) } catch { throw new Error(`Cannot resolve module '${moduleId}' from '${modulePath}'`) }
     }
 
     return requireShim(moduleId)

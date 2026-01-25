@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { WorkoutSet, MetricProfile } from '@/types/domain';
 import { Trash2, Check } from 'lucide-react';
 import { INTENSITY_RECOMMENDATION, RIR_HELPER_TEXT, RIR_OPTIONS, RPE_OPTIONS } from '@/constants/intensityOptions';
@@ -23,7 +23,6 @@ const NumericInput = ({
   value, 
   onChange, 
   placeholder, 
-  hasError,
   mode = "decimal" as const,
   inputClassName,
   isEditing

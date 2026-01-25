@@ -40,7 +40,7 @@ export default function ProgressPage() {
       }).select('id').single()
       if (insertError || !data) throw insertError ?? new Error('Failed to create manual session.')
       router.push(`/sessions/${data.id}/edit`)
-    } catch (e) { setError('Unable to create a manual session.') } finally { setCreatingManualSession(false) }
+    } catch { setError('Unable to create a manual session.') } finally { setCreatingManualSession(false) }
   }, [ensureSession, router, supabase, setError])
 
   if (userLoading || loading) return (

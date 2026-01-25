@@ -1,13 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { enhanceExerciseData, toMuscleSlug } from '@/lib/muscle-utils'
-import { EXERCISE_LIBRARY } from '@/lib/generator'
-import { normalizePreferences } from '@/lib/preferences'
 import { equipmentPresets } from '@/lib/equipment'
-import { computeReadinessScore, getReadinessLevel } from '@/lib/training-metrics'
-import type { WeightUnit, WorkoutSet, EquipmentInventory, FocusArea, Goal, MetricProfile } from '@/types/domain'
+import type { WeightUnit, WorkoutSet, EquipmentInventory, FocusArea, Goal } from '@/types/domain'
 
 export type EditableExercise = {
   id: string
@@ -89,8 +85,6 @@ type SessionQueryResult = {
   template: TemplateRow | null
 }
 
-const normalizeNumber = (value: number | '' | null | undefined) => (typeof value === 'number' && Number.isFinite(value) ? value : null)
-
 export function useSessionEditor(sessionId?: string) {
   const supabase = createClient()
   const [session, setSession] = useState<EditableSession | null>(null)
@@ -102,9 +96,9 @@ export function useSessionEditor(sessionId?: string) {
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [preferredUnit, setPreferredUnit] = useState<WeightUnit>('lb')
-  const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null)
-  const [resolvedInventory, setResolvedInventory] = useState<EquipmentInventory>(equipmentPresets.full_gym)
+  const [preferredUnit] = useState<WeightUnit>('lb')
+  const [profileWeightLb] = useState<number | null>(null)
+  const [resolvedInventory] = useState<EquipmentInventory>(equipmentPresets.full_gym)
 
   const mapSession = useCallback((payload: SessionQueryResult): EditableSession => {
     return {
@@ -202,7 +196,7 @@ export function useSessionEditor(sessionId?: string) {
       if (error) throw error
       setSuccessMessage('Changes saved.')
       await fetchSession()
-    } catch (e) {
+    } catch {
       setErrorMessage('Failed to save changes.')
     } finally {
       setSaving(false)

@@ -5,8 +5,6 @@ import type {
   CardioActivity,
   EquipmentInventory,
   ExerciseSource,
-  SessionHistory,
-  FocusConstraint,
   PlannedExercise,
   PlanInput
 } from '@/types/domain'
@@ -17,7 +15,6 @@ import {
 import {
   normalizeExerciseKey,
   getPrimaryMuscleKey,
-  getMovementFamilyFromName,
   getMovementFamily,
   matchesFocusArea,
   selectEquipmentOption

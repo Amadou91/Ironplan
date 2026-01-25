@@ -56,7 +56,7 @@ function loadTsModule(modulePath) {
        // Try generic node resolution for non-ts files?
        try {
          return requireShim(moduleId)
-       } catch (e) {
+       } catch {
          // If requireShim fails, throw original error or similar
          throw new Error(`Cannot resolve module '${moduleId}' from '${modulePath}'`)
        }
@@ -242,8 +242,6 @@ test('intensity and experience change prescriptions', () => {
     baseInput.goals.primary,
     { seed: 'seed-experience' }
   )
-  const beginnerSets = beginner.reduce((sum, ex) => sum + ex.sets, 0)
-  const advancedSets = advanced.reduce((sum, ex) => sum + ex.sets, 0)
   assert.notEqual(beginner[0].sets, advanced[0].sets)
 })
 

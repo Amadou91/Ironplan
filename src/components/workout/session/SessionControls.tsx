@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle2, Plus, ListFilter, Search } from 'lucide-react';
+import { CheckCircle2, ListFilter, Search } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 interface SessionControlsProps {

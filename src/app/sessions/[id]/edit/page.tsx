@@ -8,7 +8,7 @@ import { SetLogger } from '@/components/workout/SetLogger'
 import { ReadinessSurvey } from '@/components/workout/ReadinessSurvey'
 import { useSessionEditor } from '@/hooks/useSessionEditor'
 import { EXERCISE_LIBRARY } from '@/lib/generator'
-import { enhanceExerciseData, isTimeBasedExercise, toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
+import { enhanceExerciseData, isTimeBasedExercise, toMuscleSlug } from '@/lib/muscle-utils'
 import { buildWeightOptions } from '@/lib/equipment'
 import type { WorkoutSet } from '@/types/domain'
 
@@ -31,11 +31,9 @@ export default function SessionEditPage() {
   const {
     session,
     setSession,
-    template,
     loading,
     saving,
     errorMessage,
-    setErrorMessage,
     successMessage,
     preferredUnit,
     profileWeightLb,

@@ -1,7 +1,6 @@
 import type { FocusArea, PlanDay, WorkoutSession, MetricProfile } from '@/types/domain'
 import { computeSetLoad, type MetricsSet } from '@/lib/session-metrics'
 import { computeSessionMetrics } from '@/lib/training-metrics'
-import { toKg } from '@/lib/units'
 
 type ExerciseMetricsInput = {
   sets?: number

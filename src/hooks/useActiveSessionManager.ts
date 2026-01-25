@@ -8,13 +8,12 @@ import { normalizePreferences } from '@/lib/preferences';
 import { convertWeight, roundWeight } from '@/lib/units';
 import { fetchExerciseHistory, type ExerciseHistoryPoint } from '@/lib/session-history';
 import { EXERCISE_LIBRARY } from '@/lib/generator';
-import { enhanceExerciseData, toMuscleLabel, getMetricProfile } from '@/lib/muscle-utils';
+import { enhanceExerciseData, toMuscleLabel } from '@/lib/muscle-utils';
 import type { 
   WeightUnit, 
   WorkoutSession, 
   WorkoutSet, 
   EquipmentInventory, 
-  Exercise, 
   SessionExercise,
   MetricProfile
 } from '@/types/domain';
@@ -83,12 +82,11 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null);
   const [preferredUnit, setPreferredUnit] = useState<WeightUnit>('lb');
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistoryPoint[]>([]);
-  const [exerciseTargets, setExerciseTargets] = useState<Record<string, GeneratedExerciseTarget>>({});
+  const [exerciseTargets] = useState<Record<string, GeneratedExerciseTarget>>({});
   const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; label: string } | null>(null);
   const [sessionBodyWeight, setSessionBodyWeight] = useState<string>('');
   
   const restIntervalRef = useRef<number | null>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const supabase = createClient();
 
   const exerciseLibrary = useMemo(() => EXERCISE_LIBRARY.map((exercise) => enhanceExerciseData(exercise)), []);

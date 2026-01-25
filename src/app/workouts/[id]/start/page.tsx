@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { Clock, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -118,7 +117,7 @@ export default function WorkoutStartPage() {
       })
       startSession({ id: sessionId, userId: user.id, templateId: template.id, name: sessionName, startedAt, status: 'in_progress', impact, exercises, timezone, sessionNotes })
       router.push(`/workouts/${template.id}/active?sessionId=${sessionId}&from=start`)
-    } catch (e) { setStartError('Unable to start the session.') } finally { setStartingSession(false) }
+    } catch { setStartError('Unable to start the session.') } finally { setStartingSession(false) }
   }
 
   if (loading) return <div className="page-shell p-10 text-center text-muted">Loading session setup...</div>

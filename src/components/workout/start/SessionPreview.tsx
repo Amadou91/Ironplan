@@ -4,7 +4,7 @@ import React, { useMemo } from 'react'
 import { Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
-import type { FocusArea, Goal, PlanInput } from '@/types/domain'
+import type { FocusArea, Goal } from '@/types/domain'
 
 interface SessionPreviewProps {
   focus: FocusArea
