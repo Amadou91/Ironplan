@@ -63,6 +63,24 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     machines: { cable: true, leg_press: true, treadmill: true, rower: true }
   }
 
+  const homeMinimalInventory: EquipmentInventory = {
+    bodyweight: true,
+    dumbbells: [5, 10, 15, 20],
+    kettlebells: [18, 26],
+    bands: ['light', 'medium'],
+    barbell: { available: false, plates: [] },
+    machines: { cable: false, leg_press: false, treadmill: false, rower: false }
+  }
+
+  const mobilityInventory: EquipmentInventory = {
+    bodyweight: true,
+    dumbbells: [],
+    kettlebells: [],
+    bands: [],
+    barbell: { available: false, plates: [] },
+    machines: { cable: false, leg_press: false, treadmill: false, rower: false }
+  }
+
   const templateSeeds = [
     {
       title: `${DEV_TEMPLATE_PREFIX}Upper Strength`,
@@ -118,13 +136,13 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       style: 'general_fitness' as Goal,
       experience_level: 'beginner',
       intensity: 'low',
-      equipment: { preset: 'home_minimal', inventory: { ...fullGymInventory, machines: { cable: false, leg_press: false, treadmill: false, rower: false } } },
+      equipment: { preset: 'home_minimal', inventory: mobilityInventory },
       template_inputs: normalizePlanInput({
         intent: { mode: 'style', style: 'general_fitness' },
         goals: { primary: 'general_fitness', priority: 'primary' },
         experienceLevel: 'beginner',
         intensity: 'low',
-        equipment: { preset: 'home_minimal', inventory: { ...fullGymInventory, machines: { cable: false, leg_press: false, treadmill: false, rower: false } } },
+        equipment: { preset: 'home_minimal', inventory: mobilityInventory },
         time: { minutesPerSession: 30 }
       })
     },

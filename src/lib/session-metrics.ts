@@ -145,12 +145,18 @@ export const computeSetLoad = (set: MetricsSet) => {
   }
 
   // Fallback for duration-based activities (Yoga, Cardio)
-  // volume_proxy = duration_minutes * intensity
+  // volume_proxy = duration_minutes * intensity_factor
   if (typeof set.durationSeconds === 'number' && set.durationSeconds > 0) {
     const minutes = set.durationSeconds / 60
     const effort = getEffortScore(set)
-    // Fallback to 3.0 (moderate-low) if no effort logged, so session is not ignored in ACWR
-    return minutes * (typeof effort === 'number' ? effort : 3.0)
+    const effortValue = typeof effort === 'number' ? effort : 3.0
+    
+    // Use a non-linear multiplier for effort to reflect systemic stress
+    // e.g. 5/10 effort is moderate, but 9/10 effort is significantly more taxing
+    // Multiplier = (effort^1.5) / 10
+    const intensityFactor = Math.pow(effortValue, 1.5) / 10
+    
+    return minutes * intensityFactor * 10 // scale to be roughly comparable to tonnage loads
   }
 
   return 0

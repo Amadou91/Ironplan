@@ -171,6 +171,8 @@ export default function SessionEditPage() {
               weight: set.weight ?? '',
               rpe: set.rpe ?? '',
               rir: set.rir ?? '',
+              durationSeconds: (set as any).duration_seconds ?? '',
+              distance: (set as any).distance ?? '',
               completed: set.completed ?? false,
               performedAt: set.performed_at,
               weightUnit: (set.weight_unit as WeightUnit) ?? 'lb'
@@ -186,7 +188,7 @@ export default function SessionEditPage() {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-        'id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_readiness(sleep_quality, muscle_soreness, stress_level, motivation), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit)), template:workout_templates(focus, style)'
+        'id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_readiness(sleep_quality, muscle_soreness, stress_level, motivation), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance)), template:workout_templates(focus, style)'
         )
         .eq('id', params.id)
         .single()
@@ -548,6 +550,8 @@ export default function SessionEditPage() {
             weight: normalizeNumber(set.weight),
             rpe: normalizeNumber(set.rpe),
             rir: normalizeNumber(set.rir),
+            duration_seconds: normalizeNumber(set.durationSeconds),
+            distance: normalizeNumber(set.distance),
             completed: set.completed,
             performed_at: set.performedAt ?? new Date().toISOString(),
             weight_unit: set.weightUnit ?? 'lb'

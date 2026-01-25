@@ -459,38 +459,13 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-            ) : (
-              <div className="mt-4 rounded-xl border border-dashed border-[var(--color-border)] p-5 text-sm text-muted">
-                Build your first plan to unlock recommendations.
-              </div>
-            )}
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
-              <div className="rounded-xl border border-[var(--color-border)] p-4">
-                <p className="text-xs text-subtle">Weekly volume</p>
-                <p className="mt-2 text-2xl font-semibold text-strong">{weeklyVolume.tonnage}</p>
-                <p className="text-xs text-subtle">{weeklyVolume.hardSets} hard sets · {weeklyVolume.workload} workload</p>
-              </div>
-              <div className="rounded-xl border border-[var(--color-border)] p-4">
-                <p className="text-xs text-subtle">Recent sessions</p>
-                <p className="mt-2 text-2xl font-semibold text-strong">{sessions.length}</p>
-                <p className="text-xs text-subtle">sessions logged recently</p>
-              </div>
-              <div className="rounded-xl border border-[var(--color-border)] p-4">
-                <p className="text-xs text-subtle">Training load</p>
-                <p className="mt-2 text-2xl font-semibold text-strong">{trainingLoadSummary.acuteLoad}</p>
-                <p className="text-xs text-subtle">
-                  ACR {trainingLoadSummary.loadRatio} · {trainingLoadSummary.status.replace('_', ' ')}
-                </p>
-                <p className="text-xs text-subtle">Readiness: {loadReadiness}</p>
-              </div>
-            </div>
-            <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 text-sm text-muted">
-              <p className="text-xs uppercase tracking-[0.2em] text-subtle">Coach insight</p>
-              <p className="mt-2 text-sm text-strong">{coachInsight}</p>
-            </div>
-          </Card>
-
-        </div>
+                        ) : (
+                          <div className="mt-4 rounded-xl border border-dashed border-[var(--color-border)] p-5 text-sm text-muted">
+                            Build your first plan to unlock recommendations.
+                          </div>
+                        )}
+                      </Card>
+                    </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card className="p-6">
