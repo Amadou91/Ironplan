@@ -1301,7 +1301,44 @@ export default function ProgressPage() {
   }
 
   if (userLoading || loading) {
-    return <div className="page-shell p-10 text-center text-muted">Loading progress...</div>
+    return (
+      <div className="page-shell">
+        <div className="w-full space-y-8 px-4 py-10 sm:px-6 lg:px-10 2xl:px-16 animate-pulse">
+          {/* Header Skeleton */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-3">
+              <div className="h-3 w-20 rounded bg-[var(--color-surface-muted)]" />
+              <div className="h-8 w-48 rounded bg-[var(--color-surface-muted)]" />
+              <div className="h-4 w-64 rounded bg-[var(--color-surface-muted)]" />
+            </div>
+            <div className="flex gap-2">
+              <div className="h-9 w-32 rounded-lg bg-[var(--color-surface-muted)]" />
+              <div className="h-9 w-24 rounded-lg bg-[var(--color-surface-muted)]" />
+            </div>
+          </div>
+
+          {/* Training Status Card Skeleton */}
+          <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 md:p-8 h-[300px]" />
+
+          {/* Controls Card Skeleton */}
+          <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 md:p-8 h-[250px]" />
+
+          {/* Key Metrics Grid Skeleton */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-40 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)]" />
+            ))}
+          </div>
+
+          {/* Charts Grid Skeleton */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-80 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)]" />
+            ))}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (!user) {
