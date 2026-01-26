@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Exercise, FocusArea, Goal, Difficulty, MetricProfile, MuscleGroup, EquipmentOption } from '@/types/domain';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -45,43 +45,23 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
     ...initialData,
   });
 
+  const [prevInitialData, setPrevInitialData] = useState(initialData);
+  if (initialData !== prevInitialData) {
+    setPrevInitialData(initialData);
+    setFormData((prev) => ({ ...prev, ...initialData }));
+  }
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (initialData) {
-      setFormData((prev) => ({ ...prev, ...initialData }));
-    }
-  }, [initialData]);
-
-  const handleChange = (field: keyof Exercise, value: any) => {
+  const handleChange = <K extends keyof Exercise>(field: K, value: Exercise[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
+    if (errors[field as string]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
-        delete newErrors[field];
+        delete newErrors[field as string];
         return newErrors;
       });
     }
-  };
-
-  const handleEquipmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const kind = e.target.value;
-      if (!kind) return;
-      
-      // Simple toggle for now: if exists, remove, else add
-      // Actually, Exercise expects EquipmentOption[]
-      // We'll just append to the list for this prototype
-      const newOption: EquipmentOption = { kind: kind as any };
-      const current = formData.equipment || [];
-      const exists = current.find(eq => eq.kind === kind);
-      
-      let nextEquipment;
-      if (exists) {
-          nextEquipment = current.filter(eq => eq.kind !== kind);
-      } else {
-          nextEquipment = [...current, newOption];
-      }
-      handleChange('equipment', nextEquipment);
   };
 
   const validate = (): boolean => {

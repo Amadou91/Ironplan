@@ -5,15 +5,13 @@ import { Clock, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
-import { formatDateTime } from '@/lib/transformers/chart-data'
 import type { TemplateRow } from '@/hooks/useDashboardData'
 
 interface RecommendedSessionProps {
   recommendedTemplate: TemplateRow | undefined
-  trainingLoadStatus: string
 }
 
-export function RecommendedSession({ recommendedTemplate, trainingLoadStatus }: RecommendedSessionProps) {
+export function RecommendedSession({ recommendedTemplate }: RecommendedSessionProps) {
   return (
     <Card className="overflow-hidden">
       <div className="p-8 md:p-12">

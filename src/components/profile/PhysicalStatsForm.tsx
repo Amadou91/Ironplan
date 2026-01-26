@@ -12,7 +12,7 @@ import {
 import { BodyMetricsForm } from './BodyMetricsForm'
 import { WeightHistorySection } from './WeightHistorySection'
 import { useUIStore } from '@/store/uiStore'
-import { KG_PER_LB, LBS_PER_KG, convertWeight } from '@/lib/units'
+import { KG_PER_LB, LBS_PER_KG } from '@/lib/units'
 
 type ProfileRow = {
   id: string
@@ -22,7 +22,7 @@ type ProfileRow = {
   birthdate: string | null
   sex: string | null
   updated_at: string | null
-  preferences?: any | null
+  preferences?: Record<string, unknown> | null
 }
 
 type ProfileDraft = {
@@ -117,7 +117,7 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
       setProfileSnapshot(JSON.stringify(nextDraft))
     }
     setProfileLoading(false)
-  }, [user, supabase, onError])
+  }, [user, supabase, onError, isKg])
 
   const loadManualHistory = useCallback(async () => {
     if (!user) return

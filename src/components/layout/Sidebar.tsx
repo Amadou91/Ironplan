@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogIn, LogOut, ChevronLeft, ChevronRight, UserRound } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { authStore, useAuthStore } from '@/store/authStore';
-import { getAuthNavState } from '@/lib/authUi';
 import { primaryNavItems, secondaryNavItems } from '@/components/layout/navigation';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { UnitToggle } from '@/components/layout/UnitToggle';
@@ -19,14 +18,12 @@ export default function Sidebar() {
   const clearUser = useAuthStore((state) => state.clearUser);
   const supabase = createClient();
   
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('sidebar-collapsed');
-    if (saved === 'true') {
-      setIsCollapsed(true);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sidebar-collapsed') === 'true';
     }
-  }, []);
+    return false;
+  });
 
   const toggleSidebar = () => {
     const nextState = !isCollapsed;
@@ -46,7 +43,6 @@ export default function Sidebar() {
     pathname === path ||
     (path !== '/' && pathname.startsWith(`${path}/`)) ||
     (path === '/workouts' && pathname.startsWith('/workout/'));
-  const navState = getAuthNavState(user);
 
   return (
     <aside className={`group hidden sticky top-0 h-screen flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] text-strong transition-all duration-300 ease-in-out lg:flex z-40 ${isCollapsed ? 'w-20' : 'w-72'}`}>

@@ -186,7 +186,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
       }
     };
     loadProfile();
-  }, [activeSession?.userId, supabase]);
+  }, [activeSession?.userId, activeSession.weightUnit, updateSession, supabase]);
 
   useEffect(() => {
     if (!activeSession?.userId) return;
