@@ -383,6 +383,7 @@ export function ProgressCharts({
               />
               <Tooltip content={<CustomTooltip />} />
               <Line type="monotone" dataKey="score" name="Score" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} animationDuration={300} />
+              <Line type="monotone" dataKey="trend" name="Trend" stroke="var(--color-primary-soft)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
               {readinessZoom.refAreaLeft && readinessZoom.refAreaRight && (
                 <ReferenceArea x1={readinessZoom.refAreaLeft} x2={readinessZoom.refAreaRight} stroke="none" fill="var(--color-primary)" fillOpacity={0.1} />
               )}

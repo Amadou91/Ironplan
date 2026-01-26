@@ -103,6 +103,7 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               tickFormatter={(val) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val}
               width={Y_AXIS_WIDTH}
               tickCount={4}
+              domain={[0, 'auto']}
             />
             <YAxis 
               yAxisId="right"
@@ -114,6 +115,7 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               axisLine={false}
               width={Y_AXIS_WIDTH}
               tickCount={4}
+              domain={[0, 'auto']}
             />
             <Tooltip content={<CustomTooltip unit={displayUnit} type="volume" />} />
             
