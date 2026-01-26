@@ -83,6 +83,13 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
     onSubmit(formData as Exercise);
   };
 
+  const filteredMetricProfiles = METRIC_PROFILES.filter(p => {
+    if (formData.category === 'Strength') return ['reps_weight', 'reps_only'].includes(p.value);
+    if (formData.category === 'Cardio') return ['distance_duration', 'duration'].includes(p.value);
+    if (formData.category === 'Yoga') return ['duration'].includes(p.value);
+    return true;
+  });
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8 bg-white p-8 rounded-xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
       
@@ -107,7 +114,22 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
             <Select
               id="category"
               value={formData.category}
-              onChange={(e) => handleChange('category', e.target.value as ExerciseCategory)}
+              onChange={(e) => {
+                const newCat = e.target.value as ExerciseCategory;
+                // Set sensible defaults when category changes
+                const updates: Partial<Exercise> = { category: newCat };
+                if (newCat === 'Strength') {
+                  updates.metricProfile = 'reps_weight';
+                  updates.eligibleGoals = ['strength', 'hypertrophy'];
+                } else if (newCat === 'Cardio') {
+                  updates.metricProfile = 'distance_duration';
+                  updates.eligibleGoals = ['endurance'];
+                } else {
+                  updates.metricProfile = 'duration';
+                  updates.eligibleGoals = [];
+                }
+                setFormData(prev => ({ ...prev, ...updates }));
+              }}
             >
               {CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
@@ -123,7 +145,7 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
               value={formData.metricProfile}
               onChange={(e) => handleChange('metricProfile', e.target.value as MetricProfile)}
             >
-              {METRIC_PROFILES.map((p) => (
+              {filteredMetricProfiles.map((p) => (
                 <option key={p.value} value={p.value}>
                   {p.label}
                 </option>
@@ -131,21 +153,6 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
             </Select>
             <p className="text-xs text-slate-500">Determines how volume and intensity are tracked.</p>
           </div>
-          
-           {formData.category === 'Strength' && (
-            <div className="space-y-2">
-              <Label htmlFor="primaryMuscle">Target Muscle</Label>
-              <Select
-                id="primaryMuscle"
-                value={formData.primaryMuscle as string}
-                onChange={(e) => handleChange('primaryMuscle', e.target.value)}
-              >
-                {MUSCLE_GROUPS.map((m) => (
-                  <option key={m} value={m}>{m.replace('_', ' ').toUpperCase()}</option>
-                ))}
-              </Select>
-            </div>
-           )}
         </div>
       </section>
 
@@ -170,21 +177,37 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
               ))}
             </Select>
           </div>
-          
-          <div className="col-span-3 space-y-2">
-             <Label className="block mb-2">Eligible Styles</Label>
-             <div className="flex gap-4">
-               {GOALS.map(goal => (
-                 <Checkbox
-                   key={goal}
-                   label={goal.charAt(0).toUpperCase() + goal.slice(1)}
-                   checked={formData.eligibleGoals?.includes(goal)}
-                   onCheckedChange={() => handleGoalToggle(goal)}
-                 />
-               ))}
-             </div>
-             <p className="text-xs text-slate-500">Uncheck styles only if this exercise is strictly incompatible (e.g., exclude box jumps from hypertrophy).</p>
-          </div>
+
+          {formData.category === 'Strength' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="primaryMuscle">Target Muscle</Label>
+                <Select
+                  id="primaryMuscle"
+                  value={formData.primaryMuscle as string}
+                  onChange={(e) => handleChange('primaryMuscle', e.target.value)}
+                >
+                  {MUSCLE_GROUPS.map((m) => (
+                    <option key={m} value={m}>{m.replace('_', ' ').toUpperCase()}</option>
+                  ))}
+                </Select>
+              </div>
+              
+              <div className="col-span-2 space-y-2">
+                <Label className="block mb-2">Eligible Styles</Label>
+                <div className="flex gap-4">
+                  {GOALS.map(goal => (
+                    <Checkbox
+                      key={goal}
+                      label={goal.charAt(0).toUpperCase() + goal.slice(1)}
+                      checked={formData.eligibleGoals?.includes(goal)}
+                      onCheckedChange={() => handleGoalToggle(goal)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
           
           {/* Equipment Selection merged into Logic Filters */}
           <div className="col-span-full mt-4">
