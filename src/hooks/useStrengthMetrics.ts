@@ -20,6 +20,7 @@ import {
   aggregateHardSets,
   aggregateTonnage,
   computeSetE1rm,
+  computeSetLoad,
   getEffortScore,
   getWeekKey,
   toWeightInPounds
