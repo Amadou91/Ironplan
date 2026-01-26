@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Exercise, Difficulty } from '@/types/domain';
 import { Input } from '@/components/ui/Input';
