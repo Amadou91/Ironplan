@@ -47,31 +47,92 @@ export default function ProgressPage() {
   const isInitialLoad = userLoading || (loading && sessions.length === 0)
 
   if (isInitialLoad) return (
-    <div className="page-shell"><div className="w-full space-y-8 px-4 py-10 sm:px-6 lg:px-10 2xl:px-16 animate-pulse">
-      <div className="h-20 w-full rounded bg-[var(--color-surface-muted)]" />
-      <div className="h-[300px] w-full rounded bg-[var(--color-surface-muted)]" />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">{[1, 2, 3].map((i) => <div key={i} className="h-40 rounded bg-[var(--color-surface-muted)]" />)}</div>
-    </div></div>
+    <div className="page-shell">
+      <div className="w-full space-y-10 py-4 animate-pulse">
+        <div className="h-32 w-full rounded-xl bg-[var(--color-surface-muted)]" />
+        <div className="grid grid-cols-1 gap-12">
+          <div className="h-48 w-full rounded-xl bg-[var(--color-surface-muted)]" />
+          <div className="h-16 w-full rounded-xl bg-[var(--color-surface-muted)]" />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => <div key={i} className="h-44 rounded-xl bg-[var(--color-surface-muted)]" />)}
+          </div>
+          <div className="h-96 w-full rounded-xl bg-[var(--color-surface-muted)]" />
+        </div>
+      </div>
+    </div>
   )
 
   if (!user) return <div className="page-shell p-10 text-center text-muted"><p className="mb-4">Sign in to view your progress.</p><Button onClick={() => router.push('/auth/login')}>Sign in</Button></div>
 
   return (
     <div className="page-shell">
-      <div className="w-full space-y-8 px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div><p className="text-xs uppercase tracking-[0.3em] text-subtle">Progress</p><h1 className="font-display text-3xl font-semibold text-strong">Progress and insights</h1></div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" type="button" onClick={handleCreateManualSession} disabled={creatingManualSession}>{creatingManualSession ? 'Creating...' : 'Log past workout'}</Button>
-            <Button variant="secondary" size="sm" type="button" onClick={() => { setStartDate(''); setEndDate(''); setSelectedMuscle('all'); setSelectedExercise('all'); }}>Reset filters</Button>
+      <div className="w-full space-y-10 py-4">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.4em] text-subtle font-bold">Progress</p>
+            <h1 className="font-display text-4xl lg:text-5xl font-extrabold text-strong mt-2">Progress and insights</h1>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" size="md" type="button" onClick={handleCreateManualSession} disabled={creatingManualSession}>
+              {creatingManualSession ? 'Creating...' : 'Log past workout'}
+            </Button>
+            <Button variant="secondary" size="md" type="button" onClick={() => { setStartDate(''); setEndDate(''); setSelectedMuscle('all'); setSelectedExercise('all'); }}>
+              Reset filters
+            </Button>
           </div>
         </div>
-        {error && <div className="alert-error p-4 text-sm">{error}</div>}
-        <TrainingStatusCard {...trainingLoadSummary} />
-        <ProgressFilters startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} selectedMuscle={selectedMuscle} setSelectedMuscle={setSelectedMuscle} selectedExercise={selectedExercise} setSelectedExercise={setSelectedExercise} exerciseOptions={exerciseOptions} muscleBreakdown={muscleBreakdown} />
-        <MetricCards prMetrics={prMetrics} aggregateMetrics={aggregateMetrics} readinessAverages={readinessAverages} sessionCount={filteredSessions.length} sessionsPerWeek={sessionsPerWeek} />
-        <ProgressCharts volumeTrend={volumeTrend} effortTrend={effortTrend} exerciseTrend={exerciseTrend} bodyWeightData={bodyWeightData} readinessSeries={readinessSeries} readinessComponents={readinessComponents} readinessCorrelation={readinessCorrelation} readinessTrendLine={readinessTrendLine} />
-        <SessionHistoryList sessions={filteredSessions} templateById={templateById} exerciseLibraryByName={exerciseLibraryByName} getSessionTitle={getSessionTitle} hasMore={hasMoreSessions} onLoadMore={() => setSessionPage(p => p + 1)} onDeleteSuccess={(id) => setSessions(prev => prev.filter(s => s.id !== id))} onError={setError} loading={loading} />
+        
+        {error && <div className="alert-error p-6 text-base font-medium">{error}</div>}
+        
+        <div className="grid grid-cols-1 gap-12">
+          <TrainingStatusCard {...trainingLoadSummary} />
+
+          <div className="sticky top-6 z-40 transition-all duration-300">
+            <ProgressFilters 
+              startDate={startDate} 
+              setStartDate={setStartDate} 
+              endDate={endDate} 
+              setEndDate={setEndDate} 
+              selectedMuscle={selectedMuscle} 
+              setSelectedMuscle={setSelectedMuscle} 
+              selectedExercise={selectedExercise} 
+              setSelectedExercise={setSelectedExercise} 
+              exerciseOptions={exerciseOptions} 
+            />
+          </div>
+          
+          <MetricCards 
+            prMetrics={prMetrics} 
+            aggregateMetrics={aggregateMetrics} 
+            readinessAverages={readinessAverages} 
+            sessionCount={filteredSessions.length} 
+            sessionsPerWeek={sessionsPerWeek}
+            muscleBreakdown={muscleBreakdown}
+          />
+
+          <ProgressCharts 
+            volumeTrend={volumeTrend} 
+            effortTrend={effortTrend} 
+            exerciseTrend={exerciseTrend} 
+            bodyWeightData={bodyWeightData} 
+            readinessSeries={readinessSeries} 
+            readinessComponents={readinessComponents} 
+            readinessCorrelation={readinessCorrelation} 
+            readinessTrendLine={readinessTrendLine} 
+          />
+
+          <SessionHistoryList 
+            sessions={filteredSessions} 
+            templateById={templateById} 
+            exerciseLibraryByName={exerciseLibraryByName} 
+            getSessionTitle={getSessionTitle} 
+            hasMore={hasMoreSessions} 
+            onLoadMore={() => setSessionPage(p => p + 1)} 
+            onDeleteSuccess={(id) => setSessions(prev => prev.filter(s => s.id !== id))} 
+            onError={setError} 
+            loading={loading} 
+          />
+        </div>
       </div>
     </div>
   )

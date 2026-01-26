@@ -402,17 +402,18 @@ export function ProgressCharts({
               <XAxis dataKey="metric" stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} dy={10} />
               <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} width={Y_AXIS_WIDTH} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="value" name="Score">
+              <Bar dataKey="value" name="Score" radius={[4, 4, 0, 0]}>
                 {readinessComponents.map((entry: ReadinessComponentPoint) => {
-                  let color = '#0ea5e9'
+                  let color = 'var(--color-primary)'
                   if (entry.metric === 'Sleep' || entry.metric === 'Motivation') {
-                    if (entry.value >= 4) color = '#1f9d55'
-                    else if (entry.value >= 3) color = '#f59e0b'
-                    else color = '#f05a28'
+                    if (entry.value >= 4) color = 'var(--color-success)'
+                    else if (entry.value >= 3) color = 'var(--color-warning)'
+                    else color = 'var(--color-danger)'
                   } else {
-                    if (entry.value <= 2) color = '#1f9d55'
-                    else if (entry.value <= 3) color = '#f59e0b'
-                    else color = '#f05a28'
+                    // Lower is better for Soreness and Stress
+                    if (entry.value <= 2) color = 'var(--color-success)'
+                    else if (entry.value <= 3) color = 'var(--color-warning)'
+                    else color = 'var(--color-danger)'
                   }
                   return <Cell key={entry.metric} fill={color} />
                 })}
