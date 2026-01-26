@@ -206,11 +206,17 @@ export function useStrengthMetrics(options: {
       if (e1rm && e1rm > bestE1rmValue) { bestE1rmValue = e1rm; bestE1rmExercise = set.exerciseName }
     })
 
-    const workload = Math.round(metricSets.reduce((sum, set) => sum + (set.reps || 0) * (set.weight || 0), 0))
+    const tonnage = Math.round(aggregateTonnage(metricSets))
+    const workload = Math.round(metricSets.reduce((sum, set) => {
+      return sum + computeSetLoad({
+        ...set,
+        metricProfile: undefined // We don't have it easily here, computeSetLoad defaults to strength
+      })
+    }, 0))
     const avgWorkload = effortTotals.count ? Math.round(workload / effortTotals.count) : 0
 
     return {
-      tonnage: Math.round(aggregateTonnage(metricSets)),
+      tonnage,
       hardSets: aggregateHardSets(metricSets),
       bestE1rm: Math.round(bestE1rmValue),
       bestE1rmExercise,

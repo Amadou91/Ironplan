@@ -11,6 +11,8 @@ import {
 } from '@/lib/body-metrics'
 import { BodyMetricsForm } from './BodyMetricsForm'
 import { WeightHistorySection } from './WeightHistorySection'
+import { useUIStore } from '@/store/uiStore'
+import { KG_PER_LB, LBS_PER_KG, convertWeight } from '@/lib/units'
 
 type ProfileRow = {
   id: string
@@ -54,6 +56,8 @@ interface PhysicalStatsFormProps {
 export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps) {
   const supabase = createClient()
   const { user } = useUser()
+  const { displayUnit } = useUIStore()
+  const isKg = displayUnit === 'kg'
   
   // Profile State
   const [profile, setProfile] = useState<ProfileRow | null>(null)
@@ -95,8 +99,13 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
       const heightIn = typeof data?.height_in === 'number' ? Math.round(data.height_in) : null
       const heightFeet = typeof heightIn === 'number' ? Math.floor(heightIn / 12) : null
       const heightInches = typeof heightIn === 'number' ? heightIn - (heightFeet ?? 0) * 12 : null
+      
+      const displayWeight = typeof data?.weight_lb === 'number' 
+        ? isKg ? Math.round(data.weight_lb * KG_PER_LB * 10) / 10 : data.weight_lb
+        : ''
+
       const nextDraft = {
-        weightLb: typeof data?.weight_lb === 'number' ? String(data.weight_lb) : '',
+        weightLb: String(displayWeight),
         heightFeet: typeof heightFeet === 'number' ? String(heightFeet) : '',
         heightInches: typeof heightInches === 'number' ? String(heightInches) : '',
         bodyFatPercent: typeof data?.body_fat_percent === 'number' ? String(data.body_fat_percent) : '',
@@ -140,7 +149,11 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
   }, [profileDraft, profileSnapshot])
 
   const profileMetrics = useMemo(() => {
-    const weightLb = parseNumberInput(profileDraft.weightLb)
+    const rawWeight = parseNumberInput(profileDraft.weightLb)
+    const weightLb = typeof rawWeight === 'number'
+      ? isKg ? rawWeight * LBS_PER_KG : rawWeight
+      : null
+
     const heightFeet = parseNumberInput(profileDraft.heightFeet)
     const heightInches = parseNumberInput(profileDraft.heightInches)
     const heightIn = typeof heightFeet === 'number' || typeof heightInches === 'number'
@@ -163,7 +176,7 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
       leanMass,
       bmr
     }
-  }, [profileDraft])
+  }, [profileDraft, isKg])
 
   const handleProfileChange = (field: string, value: string) => {
     setProfileDraft((prev) => ({ ...prev, [field]: value }))
@@ -209,17 +222,18 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
   const handleSaveManualWeight = async () => {
     if (!user || !manualWeight) return
-    const weight = parseFloat(manualWeight)
-    if (isNaN(weight) || weight <= 0) return
+    const rawWeight = parseFloat(manualWeight)
+    if (isNaN(rawWeight) || rawWeight <= 0) return
     
     setManualSaving(true)
     try {
+      const weightLb = isKg ? rawWeight * LBS_PER_KG : rawWeight
       const recordedAt = manualDate 
       const { data, error } = await supabase
         .from('body_measurements')
         .upsert({
           user_id: user.id,
-          weight_lb: weight,
+          weight_lb: weightLb,
           recorded_at: recordedAt,
           source: 'user'
         }, { onConflict: 'user_id,recorded_at,source' })
@@ -273,7 +287,13 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
         loading={manualLoading}
         deletingId={manualDeletingId}
         onLogNew={() => { setEditingWeightId(null); setManualWeight(''); setManualDate(formatDateForInput(new Date())); setIsWeightModalOpen(true); }}
-        onEdit={(entry) => { setEditingWeightId(entry.id); setManualWeight(String(entry.weight_lb)); setManualDate(formatDateForInput(new Date(entry.recorded_at))); setIsWeightModalOpen(true); }}
+        onEdit={(entry) => { 
+          setEditingWeightId(entry.id); 
+          const displayVal = isKg ? Math.round(entry.weight_lb * KG_PER_LB * 10) / 10 : entry.weight_lb;
+          setManualWeight(String(displayVal)); 
+          setManualDate(formatDateForInput(new Date(entry.recorded_at))); 
+          setIsWeightModalOpen(true); 
+        }}
         onDelete={handleDeleteManualWeight}
       />
 
@@ -286,7 +306,7 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
             </div>
             <div className="space-y-3">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase font-bold text-subtle">Weight (lb)</label>
+                <label className="text-[10px] uppercase font-bold text-subtle">Weight ({displayUnit})</label>
                 <input type="text" inputMode="decimal" placeholder="0.0" value={manualWeight} onChange={(e) => { const val = e.target.value; if (val === '' || /^\d*\.?\d*$/.test(val)) setManualWeight(val); }} className="input-base" disabled={manualSaving} autoFocus />
               </div>
               <div className="flex flex-col gap-1">

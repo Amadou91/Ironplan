@@ -4,6 +4,8 @@ import React from 'react'
 import { Ruler } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { useUIStore } from '@/store/uiStore'
+import { KG_PER_LB } from '@/lib/units'
 
 interface WeightEntry {
   id: string
@@ -34,6 +36,9 @@ export function WeightHistorySection({
   onEdit,
   onDelete
 }: WeightHistorySectionProps) {
+  const { displayUnit } = useUIStore()
+  const isKg = displayUnit === 'kg'
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between">
@@ -56,28 +61,31 @@ export function WeightHistorySection({
           ) : history.length === 0 ? (
             <p className="text-xs text-muted">No manual entries yet.</p>
           ) : (
-            history.map((entry) => (
-              <div key={entry.id} className="flex items-center justify-between rounded-lg border border-[var(--color-border)] p-3 text-xs">
-                <div className="flex items-center gap-4">
-                  <span className="font-semibold text-strong text-sm">{entry.weight_lb} lb</span>
-                  <span className="text-subtle">{formatDate(entry.recorded_at)}</span>
+            history.map((entry) => {
+              const displayVal = isKg ? Math.round(entry.weight_lb * KG_PER_LB * 10) / 10 : entry.weight_lb
+              return (
+                <div key={entry.id} className="flex items-center justify-between rounded-lg border border-[var(--color-border)] p-3 text-xs">
+                  <div className="flex items-center gap-4">
+                    <span className="font-semibold text-strong text-sm">{displayVal} {displayUnit}</span>
+                    <span className="text-subtle">{formatDate(entry.recorded_at)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" className="h-7 px-3" onClick={() => onEdit(entry)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-3 text-[var(--color-danger)] hover:text-[var(--color-danger)]"
+                      onClick={() => onDelete(entry.id)}
+                      disabled={deletingId === entry.id}
+                    >
+                      {deletingId === entry.id ? '...' : 'Delete'}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="h-7 px-3" onClick={() => onEdit(entry)}>
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-3 text-[var(--color-danger)] hover:text-[var(--color-danger)]"
-                    onClick={() => onDelete(entry.id)}
-                    disabled={deletingId === entry.id}
-                  >
-                    {deletingId === entry.id ? '...' : 'Delete'}
-                  </Button>
-                </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>

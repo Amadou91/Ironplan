@@ -9,6 +9,8 @@ import {
   Tooltip
 } from 'recharts'
 import { ChartInfoTooltip } from '@/components/ui/ChartInfoTooltip'
+import { useUIStore } from '@/store/uiStore'
+import { KG_PER_LB } from '@/lib/units'
 
 const chartColors = ['#f05a28', '#1f9d55', '#0ea5e9', '#f59e0b', '#ec4899']
 
@@ -25,6 +27,18 @@ interface MuscleSplitChartProps {
 
 export function MuscleSplitChart({ data }: MuscleSplitChartProps) {
   const [muscleVizMode, setMuscleVizMode] = useState<'absolute' | 'relative' | 'index'>('absolute')
+  const { displayUnit } = useUIStore()
+  const isKg = displayUnit === 'kg'
+
+  const convertedData = React.useMemo(() => {
+    if (isKg) {
+      return data.map(m => ({
+        ...m,
+        volume: Math.round(m.volume * KG_PER_LB)
+      }))
+    }
+    return data
+  }, [data, isKg])
 
   return (
     <div className="space-y-6">
@@ -68,7 +82,7 @@ export function MuscleSplitChart({ data }: MuscleSplitChartProps) {
           <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <PieChart>
               <Pie 
-                data={data.map(m => ({
+                data={convertedData.map(m => ({
                   ...m,
                   value: muscleVizMode === 'absolute' ? m.volume : muscleVizMode === 'relative' ? m.relativePct : (m.imbalanceIndex ?? 0)
                 })).filter(m => m.value > 0)} 
@@ -86,7 +100,7 @@ export function MuscleSplitChart({ data }: MuscleSplitChartProps) {
               <Tooltip 
                 formatter={(value: number | undefined) => {
                   if (typeof value !== 'number') return []
-                  if (muscleVizMode === 'absolute') return [`${value.toLocaleString()} lb`, 'Volume']
+                  if (muscleVizMode === 'absolute') return [`${value.toLocaleString()} ${displayUnit}`, 'Volume']
                   if (muscleVizMode === 'relative') return [`${value}%`, 'Relative %']
                   return [value, 'Imbalance Index']
                 }}
@@ -105,12 +119,12 @@ export function MuscleSplitChart({ data }: MuscleSplitChartProps) {
         
         <div className="w-full xl:w-1/2 space-y-2 pr-2">
           <p className="text-[10px] font-black uppercase tracking-widest text-subtle border-b border-[var(--color-border)] pb-2 mb-3">
-            {muscleVizMode === 'absolute' ? 'Volume (lb)' : muscleVizMode === 'relative' ? 'Distribution (%)' : 'Target Index (100=target)'}
+            {muscleVizMode === 'absolute' ? `Volume (${displayUnit})` : muscleVizMode === 'relative' ? 'Distribution (%)' : 'Target Index (100=target)'}
           </p>
           {data.length === 0 ? (
             <p className="text-xs text-subtle italic">No data available.</p>
           ) : (
-            data
+            convertedData
               .sort((a, b) => {
                 const valA = muscleVizMode === 'absolute' ? a.volume : muscleVizMode === 'relative' ? a.relativePct : (a.imbalanceIndex ?? 0)
                 const valB = muscleVizMode === 'absolute' ? b.volume : muscleVizMode === 'relative' ? b.relativePct : (b.imbalanceIndex ?? 0)
@@ -118,7 +132,7 @@ export function MuscleSplitChart({ data }: MuscleSplitChartProps) {
               })
               .map((entry, idx) => {
                 const displayVal = muscleVizMode === 'absolute' 
-                  ? `${entry.volume.toLocaleString()} lb`
+                  ? `${entry.volume.toLocaleString()} ${displayUnit}`
                   : muscleVizMode === 'relative' 
                     ? `${entry.relativePct}%` 
                     : entry.imbalanceIndex !== null ? entry.imbalanceIndex : 'N/A'

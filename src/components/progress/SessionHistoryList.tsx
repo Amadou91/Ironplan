@@ -16,8 +16,10 @@ import {
   computeSetLoad, 
   computeSetE1rm 
 } from '@/lib/session-metrics'
+import { useUIStore } from '@/store/uiStore'
+import { KG_PER_LB, LBS_PER_KG, convertWeight } from '@/lib/units'
 import type { SessionRow } from '@/lib/transformers/progress-data'
-import type { Goal, Exercise, FocusArea, PlanInput } from '@/types/domain'
+import type { Goal, Exercise, FocusArea, PlanInput, WeightUnit } from '@/types/domain'
 
 export type TemplateRow = {
   id: string
@@ -52,6 +54,8 @@ export function SessionHistoryList({
   loading
 }: SessionHistoryListProps) {
   const supabase = createClient()
+  const { displayUnit } = useUIStore()
+  const isKg = displayUnit === 'kg'
   const [deletingSessionIds, setDeletingSessionIds] = useState<Record<string, boolean>>({})
   const [expandedSessions, setExpandedSessions] = useState<Record<string, boolean>>({})
 
@@ -167,17 +171,17 @@ export function SessionHistoryList({
                     <p className="text-xs text-subtle">
                       {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
                       {session.timezone ? ` · ${session.timezone}` : ''}
-                      {session.body_weight_lb ? ` · ${session.body_weight_lb} lb` : ''}
+                      {session.body_weight_lb ? ` · ${isKg ? Math.round(session.body_weight_lb * KG_PER_LB * 10) / 10 : session.body_weight_lb} ${displayUnit}` : ''}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                     <span className="badge-neutral px-3 py-1">{totals.exercises} exercises</span>
                     <span className="badge-neutral px-3 py-1">{totals.sets} sets</span>
                     <span className="badge-neutral px-3 py-1">{totals.reps} reps</span>
-                    <span className="badge-neutral px-3 py-1">{Math.round(totals.volume)} tonnage</span>
-                    <span className="badge-neutral px-3 py-1">{Math.round(totals.workload)} workload</span>
+                    <span className="badge-neutral px-3 py-1">{Math.round(isKg ? totals.volume * KG_PER_LB : totals.volume)} {displayUnit} vol</span>
+                    <span className="badge-neutral px-3 py-1">{Math.round(isKg ? totals.workload * KG_PER_LB : totals.workload)} load</span>
                     <span className="badge-neutral px-3 py-1">{totals.hardSets} hard sets</span>
-                    <span className="badge-neutral px-3 py-1">{Math.round(totals.bestE1rm)} e1RM</span>
+                    <span className="badge-neutral px-3 py-1">{Math.round(isKg ? totals.bestE1rm : totals.bestE1rm * LBS_PER_KG)} {displayUnit} e1RM</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Link href={`/sessions/${session.id}/edit`}>
@@ -211,21 +215,27 @@ export function SessionHistoryList({
                           <p className="text-subtle">Primary: {exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'N/A'}</p>
                           <p className="text-subtle">Secondary: {exercise.secondary_muscles?.length ? exercise.secondary_muscles.map((muscle: string) => toMuscleLabel(muscle)).join(', ') : 'N/A'}</p>
                           <div className="mt-3 space-y-2">
-                            {(exercise.sets ?? []).map((set) => (
-                              <div key={set.id} className="rounded border border-[var(--color-border)] px-2 py-2">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <span>Set {set.set_number ?? 'N/A'}</span>
-                                  <span>
-                                    {set.weight ?? 'N/A'} {set.weight_unit ?? 'lb'} × {set.reps ?? 'N/A'} reps
-                                    {typeof set.rpe === 'number' ? ` · RPE ${set.rpe}` : ''}
-                                    {typeof set.rir === 'number' ? ` · RIR ${set.rir}` : ''}
-                                  </span>
+                            {(exercise.sets ?? []).map((set) => {
+                              const weightVal = set.weight ?? 0;
+                              const fromUnit = (set.weight_unit as WeightUnit) || 'lb';
+                              const displayWeight = Math.round(convertWeight(weightVal, fromUnit, displayUnit) * 10) / 10;
+                              
+                              return (
+                                <div key={set.id} className="rounded border border-[var(--color-border)] px-2 py-2">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span>Set {set.set_number ?? 'N/A'}</span>
+                                    <span>
+                                      {set.weight ? `${displayWeight} ${displayUnit}` : 'N/A'} × {set.reps ?? 'N/A'} reps
+                                      {typeof set.rpe === 'number' ? ` · RPE ${set.rpe}` : ''}
+                                      {typeof set.rir === 'number' ? ` · RIR ${set.rir}` : ''}
+                                    </span>
+                                  </div>
+                                  <div className="mt-2 grid gap-2 text-[10px] text-subtle sm:grid-cols-2">
+                                    <span>Completed: {set.completed ? 'Yes' : 'No'}</span>
+                                  </div>
                                 </div>
-                                <div className="mt-2 grid gap-2 text-[10px] text-subtle sm:grid-cols-2">
-                                  <span>Completed: {set.completed ? 'Yes' : 'No'}</span>
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       ))}

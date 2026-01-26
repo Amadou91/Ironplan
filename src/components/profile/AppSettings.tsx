@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
 import { defaultPreferences, normalizePreferences, type SettingsPreferences } from '@/lib/preferences'
 import { seedDevData, clearDevData } from '@/lib/dev-seed'
+import { useUIStore } from '@/store/uiStore'
 
 interface AppSettingsProps {
   devToolsEnabled: boolean
@@ -19,6 +20,7 @@ interface AppSettingsProps {
 export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettingsProps) {
   const supabase = createClient()
   const { user } = useUser()
+  const setDisplayUnit = useUIStore((state) => state.setDisplayUnit)
   
   const [settings, setSettings] = useState<SettingsPreferences>(() => ({
     ...defaultPreferences.settings!
@@ -86,6 +88,9 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
   const updateSettings = (updater: (prev: SettingsPreferences) => SettingsPreferences) => {
     setSettings((prev) => {
       const next = updater(prev)
+      if (next.units !== prev.units) {
+        setDisplayUnit(next.units)
+      }
       if (!loadingPrefs) {
         void persistSettings(next)
       }

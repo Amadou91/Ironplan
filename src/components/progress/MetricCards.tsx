@@ -3,6 +3,8 @@
 import React from 'react'
 import { Card } from '@/components/ui/Card'
 import { ChartInfoTooltip } from '@/components/ui/ChartInfoTooltip'
+import { useUIStore } from '@/store/uiStore'
+import { LBS_PER_KG, KG_PER_LB } from '@/lib/units'
 
 interface MetricCardsProps {
   prMetrics: {
@@ -31,6 +33,34 @@ export function MetricCards({
   sessionCount,
   sessionsPerWeek
 }: MetricCardsProps) {
+  const { displayUnit } = useUIStore()
+  const isKg = displayUnit === 'kg'
+
+  // Performance metrics (usually internal standard is KG for e1RM)
+  // But wait, prMetrics.maxWeight and aggregateMetrics.bestE1rm - where do they come from?
+  // Checking aggregateMetrics.bestE1rm usually it's KG.
+  // prMetrics.maxWeight?
+  
+  const displayE1rm = isKg 
+    ? Math.round(aggregateMetrics.bestE1rm || prMetrics.maxWeight * KG_PER_LB || 0)
+    : Math.round((aggregateMetrics.bestE1rm || 0) * LBS_PER_KG || prMetrics.maxWeight || 0)
+    
+  const displayMaxWeight = isKg
+    ? Math.round(prMetrics.maxWeight * KG_PER_LB)
+    : prMetrics.maxWeight
+
+  const displayTonnage = isKg
+    ? Math.round(aggregateMetrics.tonnage * KG_PER_LB)
+    : Math.round(aggregateMetrics.tonnage)
+
+  const displayWorkload = isKg
+    ? Math.round(aggregateMetrics.workload * KG_PER_LB)
+    : Math.round(aggregateMetrics.workload)
+
+  const displayAvgWorkload = isKg
+    ? Math.round(aggregateMetrics.avgWorkload * KG_PER_LB)
+    : Math.round(aggregateMetrics.avgWorkload)
+
   return (
     <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
       <Card className="p-10">
@@ -42,8 +72,8 @@ export function MetricCards({
           />
         </div>
         <div className="mt-4">
-          <p className="text-4xl font-extrabold text-strong">{aggregateMetrics.bestE1rm || prMetrics.maxWeight || 0}</p>
-          <p className="text-xs uppercase font-bold tracking-widest text-subtle mt-1.5">Peak e1RM / Max (lb)</p>
+          <p className="text-4xl font-extrabold text-strong">{displayE1rm}</p>
+          <p className="text-xs uppercase font-bold tracking-widest text-subtle mt-1.5">Peak e1RM / Max ({displayUnit})</p>
         </div>
         <div className="mt-8 pt-6 border-t border-[var(--color-border)] space-y-3">
           <div className="flex justify-between text-sm">
@@ -52,7 +82,7 @@ export function MetricCards({
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-subtle font-medium">Max weight</span>
-            <span className="text-strong font-bold">{prMetrics.maxWeight} lb</span>
+            <span className="text-strong font-bold">{displayMaxWeight} {displayUnit}</span>
           </div>
         </div>
       </Card>
@@ -66,19 +96,19 @@ export function MetricCards({
           />
         </div>
         <div className="mt-4">
-          <p className="text-4xl font-extrabold text-strong">{aggregateMetrics.tonnage.toLocaleString()}</p>
-          <p className="text-xs uppercase font-bold tracking-widest text-subtle mt-1.5">Total Tonnage (lb)</p>
+          <p className="text-4xl font-extrabold text-strong">{displayTonnage.toLocaleString()}</p>
+          <p className="text-xs uppercase font-bold tracking-widest text-subtle mt-1.5">Total Tonnage ({displayUnit})</p>
         </div>
         <div className="mt-8 pt-6 border-t border-[var(--color-border)]">
           <div className="flex justify-between items-center text-sm">
             <div className="flex flex-col">
               <span className="text-[10px] uppercase font-bold text-subtle tracking-tight mb-1">Workload</span>
-              <span className="text-strong font-bold">{aggregateMetrics.workload.toLocaleString()}</span>
+              <span className="text-strong font-bold">{displayWorkload.toLocaleString()}</span>
             </div>
             <div className="h-10 w-px bg-[var(--color-border)] mx-3" />
             <div className="flex flex-col">
               <span className="text-[10px] uppercase font-bold text-subtle tracking-tight mb-1">Avg Load</span>
-              <span className="text-strong font-bold">{aggregateMetrics.avgWorkload.toLocaleString()}</span>
+              <span className="text-strong font-bold">{displayAvgWorkload.toLocaleString()}</span>
             </div>
             <div className="h-10 w-px bg-[var(--color-border)] mx-3" />
             <div className="flex flex-col text-right">

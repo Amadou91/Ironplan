@@ -2,6 +2,8 @@
 
 import { Card } from '@/components/ui/Card'
 import { ChartInfoTooltip } from '@/components/ui/ChartInfoTooltip'
+import { useUIStore } from '@/store/uiStore'
+import { KG_PER_LB } from '@/lib/units'
 
 interface TrainingStatusCardProps {
   status: string
@@ -37,7 +39,12 @@ export function TrainingStatusCard({
   insufficientData,
   isInitialPhase
 }: TrainingStatusCardProps) {
+  const { displayUnit } = useUIStore()
+  const isKg = displayUnit === 'kg'
   const numericRatio = typeof loadRatio === 'number' ? loadRatio : parseFloat(loadRatio) || 0
+
+  const displayAcuteLoad = isKg ? Math.round(acuteLoad * KG_PER_LB) : acuteLoad
+  const displayChronicLoad = isKg ? Math.round(Number(chronicWeeklyAvg) * KG_PER_LB) : chronicWeeklyAvg
 
   return (
     <Card className={`relative z-10 border-t-4 ${
@@ -125,12 +132,12 @@ export function TrainingStatusCard({
             <div className="grid grid-cols-2 gap-4 lg:border-l lg:border-[var(--color-border)] lg:pl-10">
               <div className="space-y-1">
                 <p className="text-[10px] text-subtle uppercase font-bold tracking-widest">Load (7d)</p>
-                <p className="text-2xl font-bold text-strong tracking-tight">{insufficientData && acuteLoad === 0 ? '--' : acuteLoad.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-strong tracking-tight">{insufficientData && acuteLoad === 0 ? '--' : displayAcuteLoad.toLocaleString()}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] text-subtle uppercase font-bold tracking-widest">Baseline</p>
                 <p className="text-2xl font-bold text-strong tracking-tight">
-                  {insufficientData || isInitialPhase ? '--' : chronicWeeklyAvg.toLocaleString()}
+                  {insufficientData || isInitialPhase ? '--' : displayChronicLoad.toLocaleString()}
                 </p>
               </div>
             </div>

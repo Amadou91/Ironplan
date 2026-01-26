@@ -4,6 +4,8 @@ import React from 'react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { formatHeightFromInches } from '@/lib/body-metrics'
+import { useUIStore } from '@/store/uiStore'
+import { KG_PER_LB } from '@/lib/units'
 
 interface BodyMetricsFormProps {
   draft: {
@@ -46,6 +48,17 @@ export function BodyMetricsForm({
   onChange,
   onSave
 }: BodyMetricsFormProps) {
+  const { displayUnit } = useUIStore()
+  const isKg = displayUnit === 'kg'
+
+  const displayWeight = metrics.weightLb 
+    ? isKg ? Math.round(metrics.weightLb * KG_PER_LB * 10) / 10 : metrics.weightLb
+    : null
+    
+  const displayLeanMass = metrics.leanMass
+    ? isKg ? Math.round(metrics.leanMass * KG_PER_LB) : Math.round(metrics.leanMass)
+    : null
+
   return (
     <Card className="p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -65,7 +78,7 @@ export function BodyMetricsForm({
       <div className="mt-4 grid gap-6 lg:grid-cols-3">
         <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2">
           <div className="flex flex-col">
-            <label className="text-xs text-subtle">Weight (lb)</label>
+            <label className="text-xs text-subtle">Weight ({displayUnit})</label>
             <input
               type="text"
               inputMode="decimal"
@@ -156,11 +169,11 @@ export function BodyMetricsForm({
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-sm text-muted">
           <p className="text-[10px] uppercase tracking-wider text-subtle">Profile insights</p>
           <div className="mt-3 space-y-2">
-            <p>Weight: <span className="text-strong">{metrics.weightLb ? `${metrics.weightLb} lb` : 'Add weight'}</span></p>
+            <p>Weight: <span className="text-strong">{displayWeight ? `${displayWeight} ${displayUnit}` : 'Add weight'}</span></p>
             <p>Height: <span className="text-strong">{metrics.heightIn ? formatHeightFromInches(metrics.heightIn) : 'Add height'}</span></p>
             <p>Age: <span className="text-strong">{typeof metrics.age === 'number' ? `${metrics.age}` : 'Add birthdate'}</span></p>
             <p>BMI: <span className="text-strong">{metrics.bmi ? metrics.bmi.toFixed(1) : 'Add weight + height'}</span></p>
-            <p>Lean mass: <span className="text-strong">{metrics.leanMass ? `${Math.round(metrics.leanMass)} lb` : 'Add body fat %'}</span></p>
+            <p>Lean mass: <span className="text-strong">{displayLeanMass ? `${displayLeanMass} ${displayUnit}` : 'Add body fat %'}</span></p>
             <p>Estimated BMR: <span className="text-strong">{metrics.bmr ? `${Math.round(metrics.bmr)} kcal` : 'Add age + sex'}</span></p>
           </div>
         </div>
