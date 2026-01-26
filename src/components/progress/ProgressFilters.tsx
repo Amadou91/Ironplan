@@ -22,15 +22,59 @@ const DATE_RANGE_PRESETS: DateRangePreset[] = [
     }
   },
   { label: 'Last 7 days', getRange: () => createPastRange(7) },
+  {
+    label: 'This Month',
+    getRange: () => {
+      const today = new Date()
+      today.setHours(23, 59, 59, 999)
+      const start = new Date(today.getFullYear(), today.getMonth(), 1)
+      start.setHours(0, 0, 0, 0)
+      return { start, end: today }
+    }
+  },
   { label: 'Last 30 days', getRange: () => createPastRange(30) },
   { label: 'Last 90 days', getRange: () => createPastRange(90) },
   {
-    label: 'This month',
+    label: 'Last 6 months',
     getRange: () => {
       const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const start = new Date(today.getFullYear(), today.getMonth(), 1)
+      today.setHours(23, 59, 59, 999)
+      const start = new Date()
+      start.setMonth(today.getMonth() - 6)
+      start.setHours(0, 0, 0, 0)
       return { start, end: today }
+    }
+  },
+  {
+    label: 'Last 12 months',
+    getRange: () => {
+      const today = new Date()
+      today.setHours(23, 59, 59, 999)
+      const start = new Date()
+      start.setFullYear(today.getFullYear() - 1)
+      start.setHours(0, 0, 0, 0)
+      return { start, end: today }
+    }
+  },
+  {
+    label: 'This Year',
+    getRange: () => {
+      const today = new Date()
+      today.setHours(23, 59, 59, 999)
+      const start = new Date(today.getFullYear(), 0, 1)
+      start.setHours(0, 0, 0, 0)
+      return { start, end: today }
+    }
+  },
+  {
+    label: 'Previous Year',
+    getRange: () => {
+      const lastYear = new Date().getFullYear() - 1
+      const start = new Date(lastYear, 0, 1)
+      start.setHours(0, 0, 0, 0)
+      const end = new Date(lastYear, 11, 31)
+      end.setHours(23, 59, 59, 999)
+      return { start, end }
     }
   }
 ]

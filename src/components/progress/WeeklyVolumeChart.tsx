@@ -83,9 +83,11 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
       </div>
 
       <div 
-        className="h-64 w-full"
+        className="h-64 w-full outline-none"
         onMouseDown={(e) => e.stopPropagation()}
         onMouseMove={(e) => e.stopPropagation()}
+        tabIndex={-1}
+        draggable="false"
       >
         <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
           <LineChart 
@@ -148,7 +150,7 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
             />
 
             {refAreaLeft && refAreaRight ? (
-              <ReferenceArea yAxisId="left" x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} fill="var(--color-primary)" fillOpacity={0.1} />
+              <ReferenceArea yAxisId="left" x1={refAreaLeft} x2={refAreaRight} stroke="none" strokeWidth={0} fill="var(--color-primary)" fillOpacity={0.1} />
             ) : null}
           </LineChart>
         </ResponsiveContainer>

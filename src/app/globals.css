@@ -123,15 +123,32 @@ textarea::placeholder {
 }
 
 /* Recharts Overrides */
-.recharts-wrapper {
+.recharts-wrapper,
+.recharts-surface,
+.recharts-layer,
+.recharts-wrapper *,
+svg {
   outline: none !important;
   user-select: none !important;
   -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
 }
-.recharts-surface {
+
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-layer:focus,
+svg:focus {
   outline: none !important;
+}
+
+/* Remove default selection border on images and other objects */
+.select-none,
+.select-none * {
+  -webkit-user-drag: none !important;
   user-select: none !important;
-  -webkit-user-select: none !important;
 }
 
 @layer components {

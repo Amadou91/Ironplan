@@ -119,6 +119,7 @@ export function ProgressCharts({
   const exerciseZoom = useChartZoom({ data: convertedExerciseTrend, dataKey: 'day' })
   const weightZoom = useChartZoom({ data: convertedBodyWeightData, dataKey: 'day' })
   const readinessZoom = useChartZoom({ data: readinessSeries, dataKey: 'day' })
+  const correlationZoom = useChartZoom({ data: readinessCorrelation, dataKey: 'readiness' })
 
   // Zoomed data subsets for Y-axis scaling
   const zoomedEffortTrend = React.useMemo(() => {
@@ -153,6 +154,18 @@ export function ProgressCharts({
     return readinessSeries.slice(start, end + 1)
   }, [readinessSeries, readinessZoom.left, readinessZoom.right])
 
+  const zoomedCorrelation = React.useMemo(() => {
+    if (!correlationZoom.left || !correlationZoom.right) return readinessCorrelation
+    const [min, max] = [correlationZoom.left, correlationZoom.right]
+    return readinessCorrelation.filter(i => i.readiness >= (min as number) && i.readiness <= (max as number))
+  }, [readinessCorrelation, correlationZoom.left, correlationZoom.right])
+
+  const zoomedCorrelationTrend = React.useMemo(() => {
+    if (!correlationZoom.left || !correlationZoom.right) return readinessTrendLine
+    const [min, max] = [correlationZoom.left, correlationZoom.right]
+    return readinessTrendLine.filter(i => i.readiness >= (min as number) && i.readiness <= (max as number))
+  }, [readinessTrendLine, correlationZoom.left, correlationZoom.right])
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Card className="p-10 min-w-0 select-none">
@@ -163,9 +176,11 @@ export function ProgressCharts({
       <Card className="p-10 min-w-0 select-none">
         <ChartHeader title="Effort trend" isZoomed={effortZoom.isZoomed} onReset={effortZoom.zoomOut} />
         <div 
-          className="h-64 w-full"
+          className="h-64 w-full outline-none"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
+          tabIndex={-1}
+          draggable="false"
         >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
@@ -195,7 +210,7 @@ export function ProgressCharts({
               <Tooltip content={<CustomTooltip />} />
               <Line type="monotone" dataKey="effort" name="Effort" stroke="var(--color-success)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} animationDuration={300} />
               {effortZoom.refAreaLeft && effortZoom.refAreaRight && (
-                <ReferenceArea x1={effortZoom.refAreaLeft} x2={effortZoom.refAreaRight} strokeOpacity={0.3} fill="var(--color-success)" fillOpacity={0.1} />
+                <ReferenceArea x1={effortZoom.refAreaLeft} x2={effortZoom.refAreaRight} stroke="none" fill="var(--color-success)" fillOpacity={0.1} />
               )}
             </LineChart>
           </ResponsiveContainer>
@@ -206,9 +221,10 @@ export function ProgressCharts({
         <Card className="p-10 min-w-0 select-none">
           <ChartHeader title={`e1RM trend (${displayUnit})`} isZoomed={exerciseZoom.isZoomed} onReset={exerciseZoom.zoomOut} />
           <div 
-            className="h-64 w-full"
+            className="h-64 w-full outline-none"
             onMouseDown={(e) => e.stopPropagation()}
             onMouseMove={(e) => e.stopPropagation()}
+            tabIndex={-1}
           >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart 
@@ -239,7 +255,7 @@ export function ProgressCharts({
                 <Line type="monotone" dataKey="e1rm" name="e1RM" stroke="var(--color-warning)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} animationDuration={300} />
                 <Line type="monotone" dataKey="trend" name="Trend" stroke="var(--color-text-subtle)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                 {exerciseZoom.refAreaLeft && exerciseZoom.refAreaRight && (
-                  <ReferenceArea x1={exerciseZoom.refAreaLeft} x2={exerciseZoom.refAreaRight} strokeOpacity={0.3} fill="var(--color-warning)" fillOpacity={0.1} />
+                  <ReferenceArea x1={exerciseZoom.refAreaLeft} x2={exerciseZoom.refAreaRight} stroke="none" fill="var(--color-warning)" fillOpacity={0.1} />
                 )}
               </LineChart>
             </ResponsiveContainer>
@@ -250,9 +266,11 @@ export function ProgressCharts({
       <Card className="p-10 min-w-0 select-none">
         <ChartHeader title={`Bodyweight trend (${displayUnit})`} isZoomed={weightZoom.isZoomed} onReset={weightZoom.zoomOut} />
         <div 
-          className="h-64 w-full"
+          className="h-64 w-full outline-none"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
+          tabIndex={-1}
+          draggable="false"
         >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
@@ -283,7 +301,7 @@ export function ProgressCharts({
               <Line type="monotone" dataKey="weight" name="Weight" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} animationDuration={300} />
               <Line type="monotone" dataKey="trend" name="Trend" stroke="var(--color-text-subtle)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
               {weightZoom.refAreaLeft && weightZoom.refAreaRight && (
-                <ReferenceArea x1={weightZoom.refAreaLeft} x2={weightZoom.refAreaRight} strokeOpacity={0.3} fill="var(--color-primary)" fillOpacity={0.1} />
+                <ReferenceArea x1={weightZoom.refAreaLeft} x2={weightZoom.refAreaRight} stroke="none" fill="var(--color-primary)" fillOpacity={0.1} />
               )}
             </LineChart>
           </ResponsiveContainer>
@@ -293,9 +311,11 @@ export function ProgressCharts({
       <Card className="p-10 min-w-0 select-none">
         <ChartHeader title="Readiness score trend" isZoomed={readinessZoom.isZoomed} onReset={readinessZoom.zoomOut} />
         <div 
-          className="h-64 w-full"
+          className="h-64 w-full outline-none"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
+          tabIndex={-1}
+          draggable="false"
         >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
@@ -325,7 +345,7 @@ export function ProgressCharts({
               <Tooltip content={<CustomTooltip />} />
               <Line type="monotone" dataKey="score" name="Score" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} animationDuration={300} />
               {readinessZoom.refAreaLeft && readinessZoom.refAreaRight && (
-                <ReferenceArea x1={readinessZoom.refAreaLeft} x2={readinessZoom.refAreaRight} strokeOpacity={0.3} fill="var(--color-primary)" fillOpacity={0.1} />
+                <ReferenceArea x1={readinessZoom.refAreaLeft} x2={readinessZoom.refAreaRight} stroke="none" fill="var(--color-primary)" fillOpacity={0.1} />
               )}
             </LineChart>
           </ResponsiveContainer>
@@ -335,9 +355,11 @@ export function ProgressCharts({
       <Card className="p-10 min-w-0 select-none">
         <ChartHeader title="Readiness components" />
         <div 
-          className="h-64 w-full"
+          className="h-64 w-full outline-none"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
+          tabIndex={-1}
+          draggable="false"
         >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={readinessComponents} style={{ outline: 'none' }}>
@@ -367,30 +389,67 @@ export function ProgressCharts({
       </Card>
 
       <Card className={`p-10 min-w-0 select-none ${exerciseTrend.length > 0 ? 'lg:col-span-2' : ''}`}>
-        <ChartHeader title="Readiness vs session effort" />
+        <ChartHeader 
+          title="Readiness vs session effort" 
+          isZoomed={correlationZoom.isZoomed} 
+          onReset={correlationZoom.zoomOut} 
+        />
         <div 
-          className="h-64 w-full"
+          className="h-64 w-full outline-none"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
+          tabIndex={-1}
+          draggable="false"
         >
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart style={{ outline: 'none' }}>
+            <ComposedChart 
+              data={zoomedCorrelation}
+              onMouseDown={(e) => { if (e?.activeLabel) correlationZoom.setRefAreaLeft(e.activeLabel) }}
+              onMouseMove={(e) => { if (correlationZoom.refAreaLeft && e?.activeLabel) correlationZoom.setRefAreaRight(e.activeLabel) }}
+              style={{ outline: 'none' }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="readiness" type="number" name="Readiness" domain={[0, 100]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} />
-              <YAxis dataKey="effort" type="number" name="Effort" domain={[0, 10]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} />
+              <XAxis 
+                dataKey="readiness" 
+                type="number" 
+                name="Readiness" 
+                domain={[correlationZoom.left || 0, correlationZoom.right || 100]} 
+                stroke="var(--color-text-subtle)" 
+                fontSize={10} 
+                fontWeight={700} 
+                tickLine={false} 
+                axisLine={false} 
+                allowDataOverflow
+              />
+              <YAxis 
+                dataKey="effort" 
+                type="number" 
+                name="Effort" 
+                domain={correlationZoom.isZoomed ? ['auto', 'auto'] : [0, 10]} 
+                stroke="var(--color-text-subtle)" 
+                fontSize={10} 
+                fontWeight={700} 
+                tickLine={false} 
+                axisLine={false} 
+              />
               <Tooltip content={<CustomTooltip type="readiness" />} cursor={{ strokeDasharray: '3 3' }} />
               {/* Overreaching: Low Readiness, High Effort */}
-              <ReferenceArea x1={0} x2={50} y1={5} y2={10} fill="var(--color-danger)" fillOpacity={0.1} />
+              <ReferenceArea x1={0} x2={50} y1={5} y2={10} fill="var(--color-danger)" fillOpacity={0.1} stroke="none" strokeWidth={0} ifOverflow="extend" />
               {/* Optimal: High Readiness, High Effort */}
-              <ReferenceArea x1={50} x2={100} y1={5} y2={10} fill="var(--color-success)" fillOpacity={0.1} />
+              <ReferenceArea x1={50} x2={100} y1={5} y2={10} fill="var(--color-success)" fillOpacity={0.1} stroke="none" strokeWidth={0} ifOverflow="extend" />
               {/* Recovery: Low Readiness, Low Effort */}
-              <ReferenceArea x1={0} x2={50} y1={0} y2={5} fill="var(--color-success)" fillOpacity={0.1} />
+              <ReferenceArea x1={0} x2={50} y1={0} y2={5} fill="var(--color-success)" fillOpacity={0.1} stroke="none" strokeWidth={0} ifOverflow="extend" />
               {/* Undertraining: High Readiness, Low Effort */}
-              <ReferenceArea x1={50} x2={100} y1={0} y2={5} fill="var(--color-warning)" fillOpacity={0.1} />
+              <ReferenceArea x1={50} x2={100} y1={0} y2={5} fill="var(--color-warning)" fillOpacity={0.1} stroke="none" strokeWidth={0} ifOverflow="extend" />
               <ReferenceLine x={50} stroke="var(--color-border)" strokeDasharray="3 3" />
               <ReferenceLine y={5} stroke="var(--color-border)" strokeDasharray="3 3" />
-              <Scatter data={readinessCorrelation} name="Session" fill="var(--color-primary)" />
-              <Line data={readinessTrendLine} dataKey="effort" name="Trend" stroke="var(--color-text-subtle)" strokeDasharray="5 5" dot={false} strokeWidth={2} />
+              <Scatter data={zoomedCorrelation} name="Session" fill="var(--color-primary)" />
+              {!correlationZoom.isZoomed && (
+                <Line data={zoomedCorrelationTrend} dataKey="effort" name="Trend" stroke="var(--color-text-subtle)" strokeDasharray="5 5" dot={false} strokeWidth={2} />
+              )}
+              {correlationZoom.refAreaLeft && correlationZoom.refAreaRight && (
+                <ReferenceArea x1={correlationZoom.refAreaLeft} x2={correlationZoom.refAreaRight} stroke="none" strokeWidth={0} fill="var(--color-primary)" fillOpacity={0.1} />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
