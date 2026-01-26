@@ -125,9 +125,13 @@ textarea::placeholder {
 /* Recharts Overrides */
 .recharts-wrapper {
   outline: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
 }
 .recharts-surface {
   outline: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
 }
 
 @layer components {

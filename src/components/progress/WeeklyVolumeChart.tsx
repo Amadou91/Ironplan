@@ -48,6 +48,14 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
     setRefAreaLeft, setRefAreaRight, zoom, zoomOut, isZoomed
   } = useChartZoom({ data: convertedData, dataKey: 'label' })
 
+  const zoomedData = React.useMemo(() => {
+    if (!left || !right) return convertedData
+    const leftIndex = convertedData.findIndex(i => i.label === left)
+    const rightIndex = convertedData.findIndex(i => i.label === right)
+    const [start, end] = leftIndex < rightIndex ? [leftIndex, rightIndex] : [rightIndex, leftIndex]
+    return convertedData.slice(start, end + 1)
+  }, [convertedData, left, right])
+
   return (
     <div className="relative">
       <div className="flex justify-between items-center mb-4">
@@ -74,10 +82,14 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
         )}
       </div>
 
-      <div className="h-64 w-full select-none">
+      <div 
+        className="h-64 w-full"
+        onMouseDown={(e) => e.stopPropagation()}
+        onMouseMove={(e) => e.stopPropagation()}
+      >
         <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
           <LineChart 
-            data={convertedData}
+            data={zoomedData}
             onMouseDown={(e) => { if (e?.activeLabel) setRefAreaLeft(e.activeLabel) }}
             onMouseMove={(e) => { if (refAreaLeft && e?.activeLabel) setRefAreaRight(e.activeLabel) }}
             style={{ outline: 'none' }}
@@ -90,7 +102,6 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
               fontWeight={700}
               tickLine={false}
               axisLine={false}
-              domain={[left || 'auto', right || 'auto']}
               allowDataOverflow
             />
             <YAxis 

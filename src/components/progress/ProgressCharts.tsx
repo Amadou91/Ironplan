@@ -120,19 +120,56 @@ export function ProgressCharts({
   const weightZoom = useChartZoom({ data: convertedBodyWeightData, dataKey: 'day' })
   const readinessZoom = useChartZoom({ data: readinessSeries, dataKey: 'day' })
 
+  // Zoomed data subsets for Y-axis scaling
+  const zoomedEffortTrend = React.useMemo(() => {
+    if (!effortZoom.left || !effortZoom.right) return effortTrend
+    const leftIndex = effortTrend.findIndex(i => i.day === effortZoom.left)
+    const rightIndex = effortTrend.findIndex(i => i.day === effortZoom.right)
+    const [start, end] = leftIndex < rightIndex ? [leftIndex, rightIndex] : [rightIndex, leftIndex]
+    return effortTrend.slice(start, end + 1)
+  }, [effortTrend, effortZoom.left, effortZoom.right])
+
+  const zoomedExerciseTrend = React.useMemo(() => {
+    if (!exerciseZoom.left || !exerciseZoom.right) return convertedExerciseTrend
+    const leftIndex = convertedExerciseTrend.findIndex(i => i.day === exerciseZoom.left)
+    const rightIndex = convertedExerciseTrend.findIndex(i => i.day === exerciseZoom.right)
+    const [start, end] = leftIndex < rightIndex ? [leftIndex, rightIndex] : [rightIndex, leftIndex]
+    return convertedExerciseTrend.slice(start, end + 1)
+  }, [convertedExerciseTrend, exerciseZoom.left, exerciseZoom.right])
+
+  const zoomedWeightData = React.useMemo(() => {
+    if (!weightZoom.left || !weightZoom.right) return convertedBodyWeightData
+    const leftIndex = convertedBodyWeightData.findIndex(i => i.day === weightZoom.left)
+    const rightIndex = convertedBodyWeightData.findIndex(i => i.day === weightZoom.right)
+    const [start, end] = leftIndex < rightIndex ? [leftIndex, rightIndex] : [rightIndex, leftIndex]
+    return convertedBodyWeightData.slice(start, end + 1)
+  }, [convertedBodyWeightData, weightZoom.left, weightZoom.right])
+
+  const zoomedReadinessSeries = React.useMemo(() => {
+    if (!readinessZoom.left || !readinessZoom.right) return readinessSeries
+    const leftIndex = readinessSeries.findIndex(i => i.day === readinessZoom.left)
+    const rightIndex = readinessSeries.findIndex(i => i.day === readinessZoom.right)
+    const [start, end] = leftIndex < rightIndex ? [leftIndex, rightIndex] : [rightIndex, leftIndex]
+    return readinessSeries.slice(start, end + 1)
+  }, [readinessSeries, readinessZoom.left, readinessZoom.right])
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <Card className="p-10 min-w-0">
+      <Card className="p-10 min-w-0 select-none">
         <ChartHeader title="Volume & load" />
         <WeeklyVolumeChart data={volumeTrend} />
       </Card>
 
-      <Card className="p-10 min-w-0">
+      <Card className="p-10 min-w-0 select-none">
         <ChartHeader title="Effort trend" isZoomed={effortZoom.isZoomed} onReset={effortZoom.zoomOut} />
-        <div className="h-64 w-full select-none">
+        <div 
+          className="h-64 w-full"
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseMove={(e) => e.stopPropagation()}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
-              data={effortTrend}
+              data={zoomedEffortTrend}
               onMouseDown={(e) => { if (e?.activeLabel) effortZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (effortZoom.refAreaLeft && e?.activeLabel) effortZoom.setRefAreaRight(e.activeLabel) }}
               style={{ outline: 'none' }}
@@ -145,7 +182,6 @@ export function ProgressCharts({
                 fontWeight={700}
                 tickLine={false}
                 axisLine={false}
-                domain={[effortZoom.left || 'auto', effortZoom.right || 'auto']}
                 allowDataOverflow
               />
               <YAxis 
@@ -167,12 +203,16 @@ export function ProgressCharts({
       </Card>
 
       {exerciseTrend.length > 0 && (
-        <Card className="p-10 min-w-0">
+        <Card className="p-10 min-w-0 select-none">
           <ChartHeader title={`e1RM trend (${displayUnit})`} isZoomed={exerciseZoom.isZoomed} onReset={exerciseZoom.zoomOut} />
-          <div className="h-64 w-full select-none">
+          <div 
+            className="h-64 w-full"
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseMove={(e) => e.stopPropagation()}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart 
-                data={convertedExerciseTrend}
+                data={zoomedExerciseTrend}
                 onMouseDown={(e) => { if (e?.activeLabel) exerciseZoom.setRefAreaLeft(e.activeLabel) }}
                 onMouseMove={(e) => { if (exerciseZoom.refAreaLeft && e?.activeLabel) exerciseZoom.setRefAreaRight(e.activeLabel) }}
                 style={{ outline: 'none' }}
@@ -185,7 +225,6 @@ export function ProgressCharts({
                   fontWeight={700}
                   tickLine={false}
                   axisLine={false}
-                  domain={[exerciseZoom.left || 'auto', exerciseZoom.right || 'auto']}
                   allowDataOverflow
                 />
                 <YAxis 
@@ -208,12 +247,16 @@ export function ProgressCharts({
         </Card>
       )}
 
-      <Card className="p-10 min-w-0">
+      <Card className="p-10 min-w-0 select-none">
         <ChartHeader title={`Bodyweight trend (${displayUnit})`} isZoomed={weightZoom.isZoomed} onReset={weightZoom.zoomOut} />
-        <div className="h-64 w-full select-none">
+        <div 
+          className="h-64 w-full"
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseMove={(e) => e.stopPropagation()}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
-              data={convertedBodyWeightData}
+              data={zoomedWeightData}
               onMouseDown={(e) => { if (e?.activeLabel) weightZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (weightZoom.refAreaLeft && e?.activeLabel) weightZoom.setRefAreaRight(e.activeLabel) }}
               style={{ outline: 'none' }}
@@ -226,7 +269,6 @@ export function ProgressCharts({
                 fontWeight={700}
                 tickLine={false}
                 axisLine={false}
-                domain={[weightZoom.left || 'auto', weightZoom.right || 'auto']}
                 allowDataOverflow
               />
               <YAxis 
@@ -248,12 +290,16 @@ export function ProgressCharts({
         </div>
       </Card>
 
-      <Card className="p-10 min-w-0">
+      <Card className="p-10 min-w-0 select-none">
         <ChartHeader title="Readiness score trend" isZoomed={readinessZoom.isZoomed} onReset={readinessZoom.zoomOut} />
-        <div className="h-64 w-full select-none">
+        <div 
+          className="h-64 w-full"
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseMove={(e) => e.stopPropagation()}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
-              data={readinessSeries}
+              data={zoomedReadinessSeries}
               onMouseDown={(e) => { if (e?.activeLabel) readinessZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (readinessZoom.refAreaLeft && e?.activeLabel) readinessZoom.setRefAreaRight(e.activeLabel) }}
               style={{ outline: 'none' }}
@@ -266,7 +312,6 @@ export function ProgressCharts({
                 fontWeight={700}
                 tickLine={false}
                 axisLine={false}
-                domain={[readinessZoom.left || 'auto', readinessZoom.right || 'auto']}
                 allowDataOverflow
               />
               <YAxis 
@@ -287,9 +332,13 @@ export function ProgressCharts({
         </div>
       </Card>
 
-      <Card className="p-10 min-w-0">
+      <Card className="p-10 min-w-0 select-none">
         <ChartHeader title="Readiness components" />
-        <div className="h-64 w-full">
+        <div 
+          className="h-64 w-full"
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseMove={(e) => e.stopPropagation()}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={readinessComponents} style={{ outline: 'none' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -317,9 +366,13 @@ export function ProgressCharts({
         </div>
       </Card>
 
-      <Card className={`p-10 min-w-0 ${exerciseTrend.length > 0 ? 'lg:col-span-2' : ''}`}>
+      <Card className={`p-10 min-w-0 select-none ${exerciseTrend.length > 0 ? 'lg:col-span-2' : ''}`}>
         <ChartHeader title="Readiness vs session effort" />
-        <div className="h-64 w-full">
+        <div 
+          className="h-64 w-full"
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseMove={(e) => e.stopPropagation()}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart style={{ outline: 'none' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />

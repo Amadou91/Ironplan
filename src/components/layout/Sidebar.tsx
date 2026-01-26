@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogIn, LogOut, ChevronLeft, ChevronRight, UserRound } from 'lucide-react';
@@ -18,12 +18,16 @@ export default function Sidebar() {
   const clearUser = useAuthStore((state) => state.clearUser);
   const supabase = createClient();
   
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('sidebar-collapsed') === 'true';
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebar-collapsed');
+    if (saved === 'true') {
+      setIsCollapsed(true);
     }
-    return false;
-  });
+    setHasMounted(true);
+  }, []);
 
   const toggleSidebar = () => {
     const nextState = !isCollapsed;
@@ -43,6 +47,12 @@ export default function Sidebar() {
     pathname === path ||
     (path !== '/' && pathname.startsWith(`${path}/`)) ||
     (path === '/workouts' && pathname.startsWith('/workout/'));
+
+  if (!hasMounted) {
+    return (
+      <aside className="group hidden sticky top-0 h-screen w-72 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] lg:flex z-40" />
+    );
+  }
 
   return (
     <aside className={`group hidden sticky top-0 h-screen flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] text-strong transition-all duration-300 ease-in-out lg:flex z-40 ${isCollapsed ? 'w-20' : 'w-72'}`}>
