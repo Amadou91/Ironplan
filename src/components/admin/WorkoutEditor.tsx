@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Label } from '@/components/ui/Label';
 import { Button } from '@/components/ui/Button';
-import { Checkbox } from '@/components/ui/Checkbox';
 import { RPE_OPTIONS } from '@/constants/intensityOptions';
+import { Info } from 'lucide-react';
 
 interface WorkoutEditorProps {
   initialData?: Partial<Exercise>;
@@ -15,24 +15,45 @@ interface WorkoutEditorProps {
   isLoading?: boolean;
 }
 
-const CATEGORIES: ExerciseCategory[] = ['Strength', 'Cardio', 'Yoga'];
-const GOALS: Goal[] = ['strength', 'hypertrophy', 'endurance'];
-const DIFFICULTIES: Difficulty[] = ['beginner', 'intermediate', 'advanced'];
-const METRIC_PROFILES: { value: MetricProfile; label: string }[] = [
-  { value: 'reps_weight', label: 'Reps & Weight' },
-  { value: 'duration', label: 'Duration (Time)' },
-  { value: 'distance_duration', label: 'Distance & Time' },
-  { value: 'reps_only', label: 'Reps Only (Bodyweight)' },
+const CATEGORIES: { value: ExerciseCategory; label: string }[] = [
+  { value: 'Strength', label: 'Strength' },
+  { value: 'Cardio', label: 'Cardio' },
+  { value: 'Yoga', label: 'Yoga' },
 ];
 
-// Anatomic muscles only
+const DIFFICULTIES: { value: Difficulty; label: string }[] = [
+  { value: 'beginner', label: 'Beginner' },
+  { value: 'intermediate', label: 'Intermediate' },
+  { value: 'advanced', label: 'Advanced' },
+];
+
+const METRIC_PROFILES: { value: MetricProfile; label: string }[] = [
+  { value: 'reps_weight', label: 'Reps & Weight' },
+  { value: 'duration', label: 'Duration' },
+  { value: 'distance_duration', label: 'Distance & Duration' },
+  { value: 'reps_only', label: 'Reps Only' },
+];
+
 const MUSCLE_GROUPS: MuscleGroup[] = [
   'chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'core', 
   'glutes', 'quads', 'hamstrings', 'calves', 'hip_flexors', 'adductors', 'abductors', 
   'full_body', 'upper_body', 'lower_body'
 ];
 
-const EQUIPMENT_KINDS = ['bodyweight', 'dumbbell', 'kettlebell', 'band', 'barbell', 'machine'];
+const EQUIPMENT_KINDS = [
+  { value: 'bodyweight', label: 'Bodyweight' },
+  { value: 'dumbbell', label: 'Dumbbell' },
+  { value: 'kettlebell', label: 'Kettlebell' },
+  { value: 'band', label: 'Band' },
+  { value: 'barbell', label: 'Barbell' },
+  { value: 'machine', label: 'Machine' },
+];
+
+const GOALS: { value: Goal; label: string }[] = [
+  { value: 'strength', label: 'Strength' },
+  { value: 'hypertrophy', label: 'Hypertrophy' },
+  { value: 'endurance', label: 'Endurance' },
+];
 
 const DEFAULT_EXERCISE: Partial<Exercise> = {
   name: '',
@@ -51,6 +72,80 @@ const DEFAULT_EXERCISE: Partial<Exercise> = {
   videoUrl: '',
 };
 
+// --- Helper Components ---
+
+function SegmentedControl<T extends string>({ 
+  options, 
+  value, 
+  onChange 
+}: { 
+  options: { value: T; label: string }[]; 
+  value: T; 
+  onChange: (value: T) => void; 
+}) {
+  return (
+    <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+      {options.map((option) => {
+        const isSelected = value === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={`flex-1 py-1.5 px-3 text-sm font-medium rounded-md transition-all ${
+              isSelected
+                ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-slate-500'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MultiSelectChips<T extends string>({
+  options,
+  selected,
+  onChange
+}: {
+  options: { value: T; label: string }[];
+  selected: T[];
+  onChange: (value: T[]) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((option) => {
+        const isSelected = selected.includes(option.value);
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => {
+              if (isSelected) {
+                onChange(selected.filter((v) => v !== option.value));
+              } else {
+                onChange([...selected, option.value]);
+              }
+            }}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+              isSelected
+                ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800 dark:hover:bg-slate-800'
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// --- Main Component ---
+
 export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: WorkoutEditorProps) {
   const [formData, setFormData] = useState<Partial<Exercise>>({
     ...DEFAULT_EXERCISE,
@@ -61,21 +156,8 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleGoalToggle = (goal: Goal) => {
-    const current = formData.eligibleGoals || [];
-    const exists = current.includes(goal);
-    let next: Goal[];
-    if (exists) {
-      next = current.filter(g => g !== goal);
-    } else {
-      next = [...current, goal];
-    }
-    handleChange('eligibleGoals', next);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Basic validation
     if (!formData.name || !formData.category || !formData.metricProfile) {
       alert('Please fill in Name, Category, and Metric Profile.');
       return;
@@ -91,96 +173,79 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
   });
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 bg-white p-8 rounded-xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
+    <form onSubmit={handleSubmit} className="relative flex flex-col gap-8 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
       
-      {/* Section 1: Core Identity */}
-      <section>
-        <div className="mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Core Identity</h3>
-          <p className="text-sm text-slate-500">Essential details defining the exercise.</p>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="name">Exercise Name</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => handleChange('name', e.target.value)}
-              placeholder="e.g. Barbell Squat"
-            />
+      <div className="p-8 space-y-8 pb-24"> {/* Added padding bottom to account for sticky footer */}
+        
+        {/* Section 1: Identity */}
+        <section className="space-y-6">
+          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Identity</h3>
           </div>
-           <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Select
-              id="category"
-              value={formData.category}
-              onChange={(e) => {
-                const newCat = e.target.value as ExerciseCategory;
-                // Set sensible defaults when category changes
-                const updates: Partial<Exercise> = { category: newCat };
-                if (newCat === 'Strength') {
-                  updates.metricProfile = 'reps_weight';
-                  updates.eligibleGoals = ['strength', 'hypertrophy'];
-                } else if (newCat === 'Cardio') {
-                  updates.metricProfile = 'distance_duration';
-                  updates.eligibleGoals = ['endurance'];
-                } else {
-                  updates.metricProfile = 'duration';
-                  updates.eligibleGoals = [];
-                }
-                setFormData(prev => ({ ...prev, ...updates }));
-              }}
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="metricProfile">Tracking Type (Metric Profile)</Label>
-            <Select
-              id="metricProfile"
-              value={formData.metricProfile}
-              onChange={(e) => handleChange('metricProfile', e.target.value as MetricProfile)}
-            >
-              {filteredMetricProfiles.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </Select>
-            <p className="text-xs text-slate-500">Determines how volume and intensity are tracked.</p>
-          </div>
-        </div>
-      </section>
+          
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="col-span-2 space-y-1.5">
+              <Label htmlFor="name">Exercise Name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => handleChange('name', e.target.value)}
+                placeholder="e.g. Barbell Squat"
+                className="text-lg font-semibold"
+              />
+            </div>
+            
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <SegmentedControl
+                options={CATEGORIES}
+                value={formData.category || 'Strength'}
+                onChange={(cat) => {
+                  const updates: Partial<Exercise> = { category: cat };
+                  if (cat === 'Strength') {
+                    updates.metricProfile = 'reps_weight';
+                    updates.eligibleGoals = ['strength', 'hypertrophy'];
+                  } else if (cat === 'Cardio') {
+                    updates.metricProfile = 'distance_duration';
+                    updates.eligibleGoals = ['endurance'];
+                                  } else {
+                                    updates.metricProfile = 'duration';
+                                    updates.eligibleGoals = [];
+                                    updates.primaryMuscle = 'full_body';
+                                  }                  setFormData(prev => ({ ...prev, ...updates }));
+                }}
+              />
+            </div>
 
-      {/* Section 2: Logic Filters */}
-      <section>
-        <div className="mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Logic Filters</h3>
-          <p className="text-sm text-slate-500">
-            Parameters controlling availability and selection logic.
-          </p>
-        </div>
-        <div className="grid gap-6 md:grid-cols-4">
-          <div className="space-y-2">
-            <Label htmlFor="difficulty">Difficulty</Label>
-            <Select
-              id="difficulty"
-              value={formData.difficulty}
-              onChange={(e) => handleChange('difficulty', e.target.value)}
-            >
-              {DIFFICULTIES.map((d) => (
-                <option key={d} value={d}>{d.toUpperCase()}</option>
-              ))}
-            </Select>
+            <div className="space-y-1.5">
+              <Label>Tracking Type</Label>
+              <SegmentedControl
+                options={filteredMetricProfiles}
+                value={formData.metricProfile || 'reps_weight'}
+                onChange={(mp) => handleChange('metricProfile', mp)}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Section 2: Tracking and Filters */}
+        <section className="space-y-6">
+           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Filters & Requirements</h3>
           </div>
 
-          {formData.category === 'Strength' && (
-            <>
-              <div className="space-y-2">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Difficulty</Label>
+              <SegmentedControl
+                options={DIFFICULTIES}
+                value={formData.difficulty || 'beginner'}
+                onChange={(d) => handleChange('difficulty', d)}
+              />
+            </div>
+
+            {formData.category === 'Strength' && (
+              <div className="space-y-1.5">
                 <Label htmlFor="primaryMuscle">Target Muscle</Label>
                 <Select
                   id="primaryMuscle"
@@ -192,111 +257,97 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
                   ))}
                 </Select>
               </div>
-              
+            )}
+
+            {formData.category === 'Strength' && (
               <div className="col-span-2 space-y-2">
-                <Label className="block mb-2">Eligible Styles</Label>
-                <div className="flex gap-4">
-                  {GOALS.map(goal => (
-                    <Checkbox
-                      key={goal}
-                      label={goal.charAt(0).toUpperCase() + goal.slice(1)}
-                      checked={formData.eligibleGoals?.includes(goal)}
-                      onCheckedChange={() => handleGoalToggle(goal)}
-                    />
-                  ))}
-                </div>
+                <Label className="flex items-center gap-2">
+                  Eligible Styles
+                  <div className="group relative">
+                    <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" />
+                    <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-xs text-white bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                      Uncheck only if strictly incompatible
+                    </span>
+                  </div>
+                </Label>
+                <MultiSelectChips
+                  options={GOALS}
+                  selected={formData.eligibleGoals || []}
+                  onChange={(goals) => handleChange('eligibleGoals', goals)}
+                />
               </div>
-            </>
-          )}
-          
-          {/* Equipment Selection merged into Logic Filters */}
-          <div className="col-span-full mt-4">
-            <Label className="mb-2 block">Required Equipment</Label>
-            <div className="flex flex-wrap gap-2">
-              {EQUIPMENT_KINDS.map((kind) => {
-                const isSelected = formData.equipment?.some((eq) => eq.kind === kind);
-                return (
-                  <button
-                    key={kind}
-                    type="button"
-                    onClick={() => {
-                      const current = formData.equipment || [];
-                      let next;
-                      if (isSelected) {
-                        next = current.filter((eq) => eq.kind !== kind);
-                      } else {
-                        next = [...current, { kind } as EquipmentOption];
-                      }
-                      handleChange('equipment', next);
-                    }}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                      isSelected
-                        ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
-                    }`}
-                  >
-                    {kind}
-                  </button>
-                );
-              })}
+            )}
+
+            <div className="col-span-2 space-y-2">
+              <Label>Required Equipment</Label>
+              <MultiSelectChips
+                options={EQUIPMENT_KINDS}
+                selected={formData.equipment?.map(e => e.kind) || []}
+                onChange={(kinds) => {
+                  const newEquipment = kinds.map(k => ({ kind: k } as EquipmentOption));
+                  handleChange('equipment', newEquipment);
+                }}
+              />
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Section 3: Prescription */}
-      <section>
-        <div className="mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Prescription</h3>
-          <p className="text-sm text-slate-500">Baseline programming values.</p>
-        </div>
-        <div className="grid gap-6 md:grid-cols-4">
-          <div className="space-y-2">
-            <Label htmlFor="sets">Sets</Label>
-            <Input
-              id="sets"
-              type="number"
-              value={formData.sets}
-              onChange={(e) => handleChange('sets', parseInt(e.target.value) || 0)}
-            />
+        {/* Section 3: Default Prescription */}
+        <section className="space-y-6">
+           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Default Prescription</h3>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="reps">Reps / Duration</Label>
-            <Input
-              id="reps"
-              value={formData.reps}
-              onChange={(e) => handleChange('reps', e.target.value)}
-              placeholder="e.g. 8-12 or 30 sec"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="rpe">Target RPE</Label>
-            <Select
-              id="rpe"
-              value={formData.rpe}
-              onChange={(e) => handleChange('rpe', parseFloat(e.target.value))}
-            >
-              {RPE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="restSeconds">Rest (Seconds)</Label>
-            <Input
-              id="restSeconds"
-              type="number"
-              value={formData.restSeconds}
-              onChange={(e) => handleChange('restSeconds', parseInt(e.target.value) || 0)}
-            />
-          </div>
-        </div>
-      </section>
 
-      <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
-        <Button type="button" variant="outline" onClick={() => window.history.back()}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="sets">Sets</Label>
+              <Input
+                id="sets"
+                type="number"
+                value={formData.sets}
+                onChange={(e) => handleChange('sets', parseInt(e.target.value) || 0)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="reps">Reps / Duration</Label>
+              <Input
+                id="reps"
+                value={formData.reps}
+                onChange={(e) => handleChange('reps', e.target.value)}
+                placeholder="e.g. 8-12"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rpe">Target RPE</Label>
+              <Select
+                id="rpe"
+                value={formData.rpe}
+                onChange={(e) => handleChange('rpe', parseFloat(e.target.value))}
+              >
+                {RPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="restSeconds">Rest (Sec)</Label>
+              <Input
+                id="restSeconds"
+                type="number"
+                value={formData.restSeconds}
+                onChange={(e) => handleChange('restSeconds', parseInt(e.target.value) || 0)}
+              />
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      {/* Sticky Footer */}
+      <div className="sticky bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 flex justify-between items-center z-20">
+        <Button type="button" variant="ghost" onClick={() => window.history.back()}>
           Cancel
         </Button>
         <Button type="submit" disabled={isLoading}>

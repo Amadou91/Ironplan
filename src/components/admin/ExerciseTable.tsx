@@ -29,8 +29,14 @@ const FocusBadge = ({ category }: { category: string }) => {
 const METRIC_LABELS: Record<string, string> = {
   reps_weight: 'Reps & Weight',
   duration: 'Duration',
-  distance_duration: 'Dist & Time',
-  reps_only: 'Reps Only'
+  distance_duration: 'Dist & Duration',
+  reps_only: 'Reps Only',
+  // Legacy mappings for backward compatibility
+  yoga_session: 'Duration',
+  mobility_session: 'Duration',
+  timed_strength: 'Duration',
+  cardio_session: 'Dist & Duration',
+  strength: 'Reps & Weight'
 };
 
 export function ExerciseTable({ exercises }: ExerciseTableProps) {
@@ -80,16 +86,24 @@ export function ExerciseTable({ exercises }: ExerciseTableProps) {
                     <div className="flex flex-col gap-1">
                       <span className="text-sm font-bold text-[var(--color-text)]">{exercise.name}</span>
                       <span className="text-xs text-[var(--color-text-muted)] uppercase tracking-wide">{exercise.primaryMuscle?.replace(/_/g, ' ')}</span>
-                      <span className="inline-flex w-fit items-center px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--color-surface-muted)] text-[var(--color-text-subtle)] border border-[var(--color-border)]">
-                        {METRIC_LABELS[exercise.metricProfile || ''] || exercise.metricProfile?.replace(/_/g, ' ')}
-                      </span>
+                      {exercise.metricProfile && METRIC_LABELS[exercise.metricProfile] && (
+                        <span className="inline-flex w-fit items-center px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--color-surface-muted)] text-[var(--color-text-subtle)] border border-[var(--color-border)]">
+                          {METRIC_LABELS[exercise.metricProfile]}
+                        </span>
+                      )}
                     </div>
                   </td>
 
                   {/* Logic: Category, Goal, Difficulty */}
                   <td className="px-6 py-4 align-top">
                     <div className="flex flex-col gap-2 items-start">
-                      <FocusBadge category={exercise.category || (exercise.focus === 'cardio' ? 'Cardio' : 'Strength')} />
+                      <FocusBadge 
+                        category={
+                          exercise.category || 
+                          (exercise.focus === 'cardio' ? 'Cardio' : 
+                          (exercise.focus === 'mobility' || exercise.primaryMuscle === 'yoga' ? 'Yoga' : 'Strength'))
+                        } 
+                      />
                       <div className="text-xs text-[var(--color-text-muted)] flex flex-col gap-0.5">
                         <span className="capitalize">
                           Goal: <strong className="font-medium text-[var(--color-text)]">
