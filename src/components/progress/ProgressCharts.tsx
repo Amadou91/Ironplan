@@ -232,6 +232,7 @@ export function ProgressCharts({
                 axisLine={false}
                 domain={[0, 10]}
                 width={Y_AXIS_WIDTH}
+                tickCount={4}
               />
               <Tooltip content={<CustomTooltip />} />
               <Line type="monotone" dataKey="effort" name="Effort" stroke="var(--color-success)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} animationDuration={300} />
@@ -279,6 +280,7 @@ export function ProgressCharts({
                   axisLine={false}
                   domain={['auto', 'auto']}
                   width={Y_AXIS_WIDTH}
+                  tickCount={4}
                 />
                 <Tooltip content={<CustomTooltip unit={displayUnit} />} />
                 <Line type="monotone" dataKey="e1rm" name="e1RM" stroke="var(--color-warning)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} animationDuration={300} />
@@ -328,6 +330,7 @@ export function ProgressCharts({
                 tickLine={false}
                 axisLine={false}
                 width={Y_AXIS_WIDTH}
+                tickCount={4}
               />
               <Tooltip content={<CustomTooltip unit={displayUnit} type="bodyweight" />} />
               <Line type="monotone" dataKey="weight" name="Weight" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} animationDuration={300} />
@@ -376,6 +379,7 @@ export function ProgressCharts({
                 tickLine={false}
                 axisLine={false}
                 width={Y_AXIS_WIDTH}
+                tickCount={4}
               />
               <Tooltip content={<CustomTooltip />} />
               <Line type="monotone" dataKey="score" name="Score" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} animationDuration={300} />
@@ -400,7 +404,7 @@ export function ProgressCharts({
             <ComposedChart data={readinessComponents} margin={CHART_MARGIN} style={{ outline: 'none' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
               <XAxis dataKey="metric" stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} dy={10} />
-              <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} width={Y_AXIS_WIDTH} />
+              <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} width={Y_AXIS_WIDTH} tickCount={4} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="value" name="Score" radius={[4, 4, 0, 0]}>
                 {readinessComponents.map((entry: ReadinessComponentPoint) => {
@@ -470,6 +474,7 @@ export function ProgressCharts({
                 tickLine={false} 
                 axisLine={false} 
                 width={Y_AXIS_WIDTH}
+                tickCount={4}
               />
               <Tooltip content={<CustomTooltip type="readiness" />} cursor={{ strokeDasharray: '3 3' }} />
               {/* Overreaching: Low Readiness, High Effort */}

@@ -6,12 +6,17 @@ export interface VolumeTrendPoint {
   label: string
   volume: number
   load: number
+  volumeTrend: number | null
+  loadTrend: number | null
   isDaily: boolean
+  timestamp: number
 }
 
 export interface EffortTrendPoint {
   day: string
   effort: number
+  timestamp: number
+  trend: number | null
 }
 
 export interface ExerciseTrendPoint {
@@ -41,6 +46,7 @@ export interface ReadinessTrendPoint {
   day: string
   timestamp: number
   score: number | null
+  trend: number | null
   sleep: number
   soreness: number
   stress: number
@@ -63,6 +69,27 @@ export type AnalyzedSet = {
   exerciseName?: string
   primaryMuscle?: string | null
   secondaryMuscles?: string[] | null
+}
+
+/**
+ * Calculates a linear regression best fit for a set of points.
+ */
+function calculateLinearRegression(points: { x: number; y: number }[]) {
+  const n = points.length
+  if (n < 2) return null
+
+  const sumX = points.reduce((acc, p) => acc + p.x, 0)
+  const sumY = points.reduce((acc, p) => acc + p.y, 0)
+  const sumXY = points.reduce((acc, p) => acc + p.x * p.y, 0)
+  const sumXX = points.reduce((acc, p) => acc + p.x * p.x, 0)
+
+  const denominator = n * sumXX - sumX * sumX
+  if (denominator === 0) return null
+
+  const slope = (n * sumXY - sumX * sumY) / denominator
+  const intercept = (sumY - slope * sumX) / n
+
+  return { slope, intercept }
 }
 
 export const formatDate = (value: string) => {
@@ -185,17 +212,34 @@ export function transformSessionsToVolumeTrend(
     totals.set(key, entry)
   })
 
-  return Array.from(totals.entries())
+  const results = Array.from(totals.entries())
     .sort(([a], [b]) => {
       if (useDaily) return new Date(a).getTime() - new Date(b).getTime()
       return a.localeCompare(b)
     })
-    .map(([label, values]) => ({ 
+    .map(([label, values], index) => ({ 
       label: useDaily ? formatChartDate(label) : label, 
       volume: Math.round(values.volume), 
       load: Math.round(values.load),
-      isDaily: useDaily
+      volumeTrend: null as number | null,
+      loadTrend: null as number | null,
+      isDaily: useDaily,
+      timestamp: index // Use index for regression to avoid issues with date gaps
     }))
+
+  if (results.length >= 2) {
+    const volFit = calculateLinearRegression(results.map(r => ({ x: r.timestamp, y: r.volume })))
+    const loadFit = calculateLinearRegression(results.map(r => ({ x: r.timestamp, y: r.load })))
+    
+    if (volFit) {
+      results.forEach(r => r.volumeTrend = Math.round(volFit.slope * r.timestamp + volFit.intercept))
+    }
+    if (loadFit) {
+      results.forEach(r => r.loadTrend = Math.round(loadFit.slope * r.timestamp + loadFit.intercept))
+    }
+  }
+
+  return results
 }
 
 export function transformSessionsToEffortTrend(allSets: AnalyzedSet[]): EffortTrendPoint[] {
@@ -212,12 +256,24 @@ export function transformSessionsToEffortTrend(allSets: AnalyzedSet[]): EffortTr
     const current = daily.get(key) ?? { total: 0, count: 0 }
     daily.set(key, { total: current.total + raw, count: current.count + 1 })
   })
-  return Array.from(daily.entries())
+
+  const sortedDaily = Array.from(daily.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, value]) => ({
+    .map(([day, value], index) => ({
       day: formatChartDate(day),
-      effort: Number((value.total / value.count).toFixed(1))
+      effort: Number((value.total / value.count).toFixed(1)),
+      timestamp: index,
+      trend: null as number | null
     }))
+
+  if (sortedDaily.length >= 2) {
+    const fit = calculateLinearRegression(sortedDaily.map(d => ({ x: d.timestamp, y: d.effort })))
+    if (fit) {
+      sortedDaily.forEach(d => d.trend = Number((fit.slope * d.timestamp + fit.intercept).toFixed(1)))
+    }
+  }
+
+  return sortedDaily
 }
 
 export function transformSessionsToExerciseTrend(
@@ -251,23 +307,19 @@ export function transformSessionsToExerciseTrend(
   })
 
   const sortedDaily = Array.from(daily.entries())
-    .map(([day, e1rm]) => ({ 
+    .map(([day, e1rm], index) => ({ 
       day: formatChartDate(day), 
       e1rm: Math.round(e1rm), 
-      timestamp: new Date(day).getTime(), 
+      timestamp: index, 
       trend: null as number | null 
     }))
     .sort((a, b) => a.timestamp - b.timestamp)
 
-  if (sortedDaily.length >= 3) {
-    sortedDaily.forEach((point) => {
-      const windowSize = 7 * 86400000 
-      const window = sortedDaily.filter(p => p.timestamp <= point.timestamp && p.timestamp > point.timestamp - windowSize)
-      if (window.length > 0) {
-        const sum = window.reduce((acc, p) => acc + p.e1rm, 0)
-        point.trend = Math.round(sum / window.length)
-      }
-    })
+  if (sortedDaily.length >= 2) {
+    const fit = calculateLinearRegression(sortedDaily.map(d => ({ x: d.timestamp, y: d.e1rm })))
+    if (fit) {
+      sortedDaily.forEach(d => d.trend = Math.round(fit.slope * d.timestamp + fit.intercept))
+    }
   }
 
   return sortedDaily
@@ -426,45 +478,48 @@ export function transformSessionsToBodyWeightTrend(
 
   const combined = Array.from(allPointsByDay.values())
     .sort((a, b) => a.timestamp - b.timestamp)
-    .map(p => ({ ...p, trend: null as number | null }))
+    .map((p, index) => ({ ...p, trend: null as number | null, index }))
 
   if (combined.length >= 2) {
-    const n = combined.length
-    const sumX = combined.reduce((acc, p) => acc + p.timestamp, 0)
-    const sumY = combined.reduce((acc, p) => acc + p.weight, 0)
-    const sumXY = combined.reduce((acc, p) => acc + p.timestamp * p.weight, 0)
-    const sumXX = combined.reduce((acc, p) => acc + p.timestamp * p.timestamp, 0)
-
-    const denominator = (n * sumXX - sumX * sumX)
-    if (denominator !== 0) {
-      const slope = (n * sumXY - sumX * sumY) / denominator
-      const intercept = (sumY - slope * sumX) / n
-      combined.forEach(p => {
-        p.trend = slope * p.timestamp + intercept
-      })
+    const fit = calculateLinearRegression(combined.map(p => ({ x: p.index, y: p.weight })))
+    if (fit) {
+      combined.forEach(p => p.trend = fit.slope * p.index + fit.intercept)
     }
   }
 
-  return combined
+  return combined.map(({ index, ...p }) => p)
 }
 
 export function transformSessionsToReadinessTrend(
   readinessSessions: { session: { started_at: string }; entry: { recorded_at: string; readiness_score: number | null; sleep_quality: number; muscle_soreness: number; stress_level: number; motivation: number } }[]
 ): ReadinessTrendPoint[] {
-  return readinessSessions
-    .map(({ session, entry }) => {
+  const points = readinessSessions
+    .map(({ session, entry }, index) => {
       const timestamp = new Date(entry.recorded_at || session.started_at).getTime()
       const dayKey = formatDateForInput(new Date(session.started_at))
       return {
         day: formatChartDate(dayKey),
         timestamp,
         score: entry.readiness_score,
+        trend: null as number | null,
         sleep: entry.sleep_quality,
         soreness: entry.muscle_soreness,
         stress: entry.stress_level,
-        motivation: entry.motivation
+        motivation: entry.motivation,
+        index
       }
     })
     .sort((a, b) => a.timestamp - b.timestamp)
-}
 
+  if (points.length >= 2) {
+    const validPoints = points.filter(p => typeof p.score === 'number') as (typeof points[0] & { score: number })[]
+    if (validPoints.length >= 2) {
+      const fit = calculateLinearRegression(validPoints.map(p => ({ x: p.index, y: p.score })))
+      if (fit) {
+        points.forEach(p => p.trend = Math.round(fit.slope * p.index + fit.intercept))
+      }
+    }
+  }
+
+  return points.map(({ index, ...p }) => p)
+}
