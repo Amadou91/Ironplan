@@ -20,6 +20,10 @@ import { Card } from '@/components/ui/Card'
 import { WeeklyVolumeChart } from '@/components/progress/WeeklyVolumeChart'
 import { useUIStore } from '@/store/uiStore'
 import { LBS_PER_KG, KG_PER_LB } from '@/lib/units'
+import { useChartZoom } from '@/hooks/useChartZoom'
+import { CustomTooltip } from '@/components/progress/CustomTooltip'
+import { Button } from '@/components/ui/Button'
+import { RotateCcw } from 'lucide-react'
 import type { 
   VolumeTrendPoint, 
   EffortTrendPoint, 
@@ -54,6 +58,25 @@ interface ProgressChartsProps {
   readinessComponents: ReadinessComponentPoint[]
   readinessCorrelation: ReadinessCorrelationPoint[]
   readinessTrendLine: ReadinessTrendLinePoint[]
+}
+
+function ChartHeader({ title, isZoomed, onReset }: { title: string; isZoomed?: boolean; onReset?: () => void }) {
+  return (
+    <div className="mb-6 flex items-center justify-between">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-subtle">{title}</h3>
+      {isZoomed && (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={onReset}
+          className="h-7 px-2 text-[10px] font-black uppercase tracking-widest gap-1.5"
+        >
+          <RotateCcw className="h-3 w-3" />
+          Reset Zoom
+        </Button>
+      )}
+    </div>
+  )
 }
 
 export function ProgressCharts({
@@ -91,27 +114,54 @@ export function ProgressCharts({
     return bodyWeightData
   }, [bodyWeightData, isKg])
 
+  // Zoom states
+  const effortZoom = useChartZoom({ data: effortTrend, dataKey: 'day' })
+  const exerciseZoom = useChartZoom({ data: convertedExerciseTrend, dataKey: 'day' })
+  const weightZoom = useChartZoom({ data: convertedBodyWeightData, dataKey: 'day' })
+  const readinessZoom = useChartZoom({ data: readinessSeries, dataKey: 'day' })
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Card className="p-10 min-w-0">
-        <div className="mb-6 flex items-center">
-          <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">Volume & load</h3>
-        </div>
+        <ChartHeader title="Volume & load" />
         <WeeklyVolumeChart data={volumeTrend} />
       </Card>
 
       <Card className="p-10 min-w-0">
-        <div className="mb-6 flex items-center">
-          <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">Effort trend</h3>
-        </div>
-        <div className="h-64 w-full">
+        <ChartHeader title="Effort trend" isZoomed={effortZoom.isZoomed} onReset={effortZoom.zoomOut} />
+        <div className="h-64 w-full select-none">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={effortTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="day" stroke="var(--color-text-subtle)" fontSize={12} />
-              <YAxis stroke="var(--color-text-subtle)" fontSize={12} />
-              <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', fontSize: '14px', boxShadow: 'var(--shadow-md)' }} />
-              <Line type="monotone" dataKey="effort" stroke="var(--color-success)" strokeWidth={2} />
+            <LineChart 
+              data={effortTrend}
+              onMouseDown={(e) => e && effortZoom.setRefAreaLeft(e.activeLabel || null)}
+              onMouseMove={(e) => e && effortZoom.refAreaLeft && effortZoom.setRefAreaRight(e.activeLabel || null)}
+              onMouseUp={effortZoom.zoom}
+              style={{ outline: 'none' }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis 
+                dataKey="day" 
+                stroke="var(--color-text-subtle)" 
+                fontSize={10} 
+                fontWeight={700}
+                tickLine={false}
+                axisLine={false}
+                domain={[effortZoom.left || 'auto', effortZoom.right || 'auto']}
+                allowDataOverflow
+              />
+              <YAxis 
+                stroke="var(--color-text-subtle)" 
+                fontSize={10} 
+                fontWeight={700}
+                tickLine={false}
+                axisLine={false}
+                domain={[0, 10]}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Line type="monotone" dataKey="effort" name="Effort" stroke="var(--color-success)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} animationDuration={300} />
+              {effortZoom.refAreaLeft && effortZoom.refAreaRight && (
+                <ReferenceArea x1={effortZoom.refAreaLeft} x2={effortZoom.refAreaRight} strokeOpacity={0.3} fill="var(--color-success)" fillOpacity={0.1} />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -119,18 +169,41 @@ export function ProgressCharts({
 
       {exerciseTrend.length > 0 && (
         <Card className="p-10 min-w-0">
-          <div className="mb-6 flex items-center">
-            <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">e1RM trend ({displayUnit})</h3>
-          </div>
-          <div className="h-64 w-full">
+          <ChartHeader title={`e1RM trend (${displayUnit})`} isZoomed={exerciseZoom.isZoomed} onReset={exerciseZoom.zoomOut} />
+          <div className="h-64 w-full select-none">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={convertedExerciseTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis dataKey="day" stroke="var(--color-text-subtle)" fontSize={12} />
-                <YAxis stroke="var(--color-text-subtle)" fontSize={12} />
-                <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', fontSize: '14px', boxShadow: 'var(--shadow-md)' }} />
-                <Line type="monotone" dataKey="e1rm" stroke="var(--color-warning)" strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="trend" stroke="var(--color-text-subtle)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+              <LineChart 
+                data={convertedExerciseTrend}
+                onMouseDown={(e) => e && exerciseZoom.setRefAreaLeft(e.activeLabel || null)}
+                onMouseMove={(e) => e && exerciseZoom.refAreaLeft && exerciseZoom.setRefAreaRight(e.activeLabel || null)}
+                onMouseUp={exerciseZoom.zoom}
+                style={{ outline: 'none' }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis 
+                  dataKey="day" 
+                  stroke="var(--color-text-subtle)" 
+                  fontSize={10} 
+                  fontWeight={700}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={[exerciseZoom.left || 'auto', exerciseZoom.right || 'auto']}
+                  allowDataOverflow
+                />
+                <YAxis 
+                  stroke="var(--color-text-subtle)" 
+                  fontSize={10} 
+                  fontWeight={700}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={['auto', 'auto']}
+                />
+                <Tooltip content={<CustomTooltip unit={displayUnit} />} />
+                <Line type="monotone" dataKey="e1rm" name="e1RM" stroke="var(--color-warning)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} animationDuration={300} />
+                <Line type="monotone" dataKey="trend" name="Trend" stroke="var(--color-text-subtle)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                {exerciseZoom.refAreaLeft && exerciseZoom.refAreaRight && (
+                  <ReferenceArea x1={exerciseZoom.refAreaLeft} x2={exerciseZoom.refAreaRight} strokeOpacity={0.3} fill="var(--color-warning)" fillOpacity={0.1} />
+                )}
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -138,52 +211,96 @@ export function ProgressCharts({
       )}
 
       <Card className="p-10 min-w-0">
-        <div className="mb-6 flex items-center">
-          <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">Bodyweight trend ({displayUnit})</h3>
-        </div>
-        <div className="h-64 w-full">
+        <ChartHeader title={`Bodyweight trend (${displayUnit})`} isZoomed={weightZoom.isZoomed} onReset={weightZoom.zoomOut} />
+        <div className="h-64 w-full select-none">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={convertedBodyWeightData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="day" stroke="var(--color-text-subtle)" fontSize={12} />
-              <YAxis domain={['auto', 'auto']} stroke="var(--color-text-subtle)" fontSize={12} />
-              <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', fontSize: '14px', boxShadow: 'var(--shadow-md)' }} />
-              <Line type="monotone" dataKey="weight" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 4 }} />
-              <Line type="monotone" dataKey="trend" stroke="var(--color-text-subtle)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+            <LineChart 
+              data={convertedBodyWeightData}
+              onMouseDown={(e) => e && weightZoom.setRefAreaLeft(e.activeLabel || null)}
+              onMouseMove={(e) => e && weightZoom.refAreaLeft && weightZoom.setRefAreaRight(e.activeLabel || null)}
+              onMouseUp={weightZoom.zoom}
+              style={{ outline: 'none' }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis 
+                dataKey="day" 
+                stroke="var(--color-text-subtle)" 
+                fontSize={10} 
+                fontWeight={700}
+                tickLine={false}
+                axisLine={false}
+                domain={[weightZoom.left || 'auto', weightZoom.right || 'auto']}
+                allowDataOverflow
+              />
+              <YAxis 
+                domain={['auto', 'auto']} 
+                stroke="var(--color-text-subtle)" 
+                fontSize={10} 
+                fontWeight={700}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip content={<CustomTooltip unit={displayUnit} type="bodyweight" />} />
+              <Line type="monotone" dataKey="weight" name="Weight" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} animationDuration={300} />
+              <Line type="monotone" dataKey="trend" name="Trend" stroke="var(--color-text-subtle)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+              {weightZoom.refAreaLeft && weightZoom.refAreaRight && (
+                <ReferenceArea x1={weightZoom.refAreaLeft} x2={weightZoom.refAreaRight} strokeOpacity={0.3} fill="var(--color-primary)" fillOpacity={0.1} />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
       <Card className="p-10 min-w-0">
-        <div className="mb-6 flex items-center">
-          <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">Readiness score trend</h3>
-        </div>
-        <div className="h-64 w-full">
+        <ChartHeader title="Readiness score trend" isZoomed={readinessZoom.isZoomed} onReset={readinessZoom.zoomOut} />
+        <div className="h-64 w-full select-none">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={readinessSeries}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="day" stroke="var(--color-text-subtle)" fontSize={12} />
-              <YAxis domain={[0, 100]} stroke="var(--color-text-subtle)" fontSize={12} />
-              <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', fontSize: '14px', boxShadow: 'var(--shadow-md)' }} />
-              <Line type="monotone" dataKey="score" stroke="var(--color-primary)" strokeWidth={2} />
+            <LineChart 
+              data={readinessSeries}
+              onMouseDown={(e) => e && readinessZoom.setRefAreaLeft(e.activeLabel || null)}
+              onMouseMove={(e) => e && readinessZoom.refAreaLeft && readinessZoom.setRefAreaRight(e.activeLabel || null)}
+              onMouseUp={readinessZoom.zoom}
+              style={{ outline: 'none' }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis 
+                dataKey="day" 
+                stroke="var(--color-text-subtle)" 
+                fontSize={10} 
+                fontWeight={700}
+                tickLine={false}
+                axisLine={false}
+                domain={[readinessZoom.left || 'auto', readinessZoom.right || 'auto']}
+                allowDataOverflow
+              />
+              <YAxis 
+                domain={[0, 100]} 
+                stroke="var(--color-text-subtle)" 
+                fontSize={10} 
+                fontWeight={700}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Line type="monotone" dataKey="score" name="Score" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} animationDuration={300} />
+              {readinessZoom.refAreaLeft && readinessZoom.refAreaRight && (
+                <ReferenceArea x1={readinessZoom.refAreaLeft} x2={readinessZoom.refAreaRight} strokeOpacity={0.3} fill="var(--color-primary)" fillOpacity={0.1} />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
       <Card className="p-10 min-w-0">
-        <div className="mb-6 flex items-center">
-          <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">Readiness components</h3>
-        </div>
+        <ChartHeader title="Readiness components" />
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={readinessComponents}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="metric" stroke="var(--color-text-subtle)" fontSize={12} />
-              <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" fontSize={12} />
-              <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', fontSize: '14px', boxShadow: 'var(--shadow-md)' }} />
-              <Bar dataKey="value">
+            <ComposedChart data={readinessComponents} style={{ outline: 'none' }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="metric" stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} />
+              <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="value" name="Score">
                 {readinessComponents.map((entry: ReadinessComponentPoint) => {
                   let color = '#0ea5e9'
                   if (entry.metric === 'Sleep' || entry.metric === 'Motivation') {
@@ -198,29 +315,27 @@ export function ProgressCharts({
                   return <Cell key={entry.metric} fill={color} />
                 })}
               </Bar>
-              <Scatter dataKey="ideal" />
+              <Scatter dataKey="ideal" name="Ideal" />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
       <Card className={`p-10 min-w-0 ${exerciseTrend.length > 0 ? 'lg:col-span-2' : ''}`}>
-        <div className="mb-6 flex items-center">
-          <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">Readiness vs session effort</h3>
-        </div>
+        <ChartHeader title="Readiness vs session effort" />
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart>
+            <ComposedChart style={{ outline: 'none' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="readiness" type="number" domain={[0, 100]} stroke="var(--color-text-subtle)" fontSize={12} />
-              <YAxis dataKey="effort" type="number" domain={[0, 10]} stroke="var(--color-text-subtle)" fontSize={12} />
-              <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-              <ReferenceArea x1={0} x2={50} y1={5} y2={10} fill="var(--color-danger)" fillOpacity={0.15} />
-              <ReferenceArea x1={50} x2={100} y1={5} y2={10} fill="var(--color-success)" fillOpacity={0.15} />
+              <XAxis dataKey="readiness" type="number" name="Readiness" domain={[0, 100]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} />
+              <YAxis dataKey="effort" type="number" name="Effort" domain={[0, 10]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} />
+              <Tooltip content={<CustomTooltip type="readiness" />} cursor={{ strokeDasharray: '3 3' }} />
+              <ReferenceArea x1={0} x2={50} y1={5} y2={10} fill="var(--color-danger)" fillOpacity={0.1} />
+              <ReferenceArea x1={50} x2={100} y1={0} y2={5} fill="var(--color-success)" fillOpacity={0.1} />
               <ReferenceLine x={50} stroke="var(--color-border)" strokeDasharray="3 3" />
               <ReferenceLine y={5} stroke="var(--color-border)" strokeDasharray="3 3" />
-              <Scatter data={readinessCorrelation} fill="var(--color-primary)" />
-              <Line data={readinessTrendLine} dataKey="effort" stroke="var(--color-text-subtle)" strokeDasharray="5 5" dot={false} />
+              <Scatter data={readinessCorrelation} name="Session" fill="var(--color-primary)" />
+              <Line data={readinessTrendLine} dataKey="effort" name="Trend" stroke="var(--color-text-subtle)" strokeDasharray="5 5" dot={false} strokeWidth={2} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

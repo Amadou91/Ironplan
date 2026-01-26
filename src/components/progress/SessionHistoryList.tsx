@@ -164,24 +164,30 @@ export function SessionHistoryList({
             const totals = getSessionTotals(session)
             const isExpanded = Boolean(expandedSessions[session.id])
             return (
-              <div key={session.id} className="space-y-4 p-6">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-strong">{getSessionTitle(session)}</p>
-                    <p className="text-xs text-subtle">
-                      {formatDateTime(session.started_at)} · {formatDuration(session.started_at, session.ended_at)}
-                      {session.timezone ? ` · ${session.timezone}` : ''}
-                      {session.body_weight_lb ? ` · ${isKg ? Math.round(session.body_weight_lb * KG_PER_LB * 10) / 10 : session.body_weight_lb} ${displayUnit}` : ''}
-                    </p>
+              <div key={session.id} className="space-y-4 p-6 transition-colors hover:bg-[var(--color-surface-subtle)]/30">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-strong tracking-tight">{getSessionTitle(session)}</p>
+                    <div className="flex items-center gap-2 text-[11px] font-medium text-subtle">
+                      <span>{formatDateTime(session.started_at)}</span>
+                      <span className="h-1 w-1 rounded-full bg-[var(--color-border)]" />
+                      <span>{formatDuration(session.started_at, session.ended_at)}</span>
+                      {session.body_weight_lb && (
+                        <>
+                          <span className="h-1 w-1 rounded-full bg-[var(--color-border)]" />
+                          <span>{isKg ? Math.round(session.body_weight_lb * KG_PER_LB * 10) / 10 : session.body_weight_lb} {displayUnit} BW</span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                    <span className="badge-neutral px-3 py-1">{totals.exercises} exercises</span>
-                    <span className="badge-neutral px-3 py-1">{totals.sets} sets</span>
-                    <span className="badge-neutral px-3 py-1">{totals.reps} reps</span>
-                    <span className="badge-neutral px-3 py-1">{Math.round(isKg ? totals.volume * KG_PER_LB : totals.volume)} {displayUnit} vol</span>
-                    <span className="badge-neutral px-3 py-1">{Math.round(isKg ? totals.workload * KG_PER_LB : totals.workload)} load</span>
-                    <span className="badge-neutral px-3 py-1">{totals.hardSets} hard sets</span>
-                    <span className="badge-neutral px-3 py-1">{Math.round(isKg ? totals.bestE1rm : totals.bestE1rm * LBS_PER_KG)} {displayUnit} e1RM</span>
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted">
+                    <span className="inline-flex items-center rounded-md bg-[var(--color-surface-muted)] px-2 py-0.5 font-bold uppercase tracking-wider text-subtle border border-[var(--color-border)]">{totals.exercises} exercises</span>
+                    <span className="inline-flex items-center rounded-md bg-[var(--color-surface-muted)] px-2 py-0.5 font-bold uppercase tracking-wider text-subtle border border-[var(--color-border)]">{totals.sets} sets</span>
+                    <span className="inline-flex items-center rounded-md bg-[var(--color-surface-muted)] px-2 py-0.5 font-bold uppercase tracking-wider text-subtle border border-[var(--color-border)]">{totals.reps} reps</span>
+                    <span className="inline-flex items-center rounded-md bg-[var(--color-surface-muted)] px-2 py-0.5 font-bold uppercase tracking-wider text-subtle border border-[var(--color-border)]">{Math.round(isKg ? totals.volume * KG_PER_LB : totals.volume).toLocaleString()} {displayUnit} vol</span>
+                    <span className="inline-flex items-center rounded-md bg-[var(--color-surface-muted)] px-2 py-0.5 font-bold uppercase tracking-wider text-subtle border border-[var(--color-border)]">{Math.round(totals.workload).toLocaleString()} load</span>
+                    <span className="inline-flex items-center rounded-md bg-[var(--color-surface-muted)] px-2 py-0.5 font-bold uppercase tracking-wider text-subtle border border-[var(--color-border)]">{totals.hardSets} hard sets</span>
+                    <span className="inline-flex items-center rounded-md bg-[var(--color-surface-muted)] px-2 py-0.5 font-bold uppercase tracking-wider text-subtle border border-[var(--color-border)]">{Math.round(isKg ? totals.bestE1rm : totals.bestE1rm * LBS_PER_KG)} {displayUnit} e1RM</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Link href={`/sessions/${session.id}/edit`}>

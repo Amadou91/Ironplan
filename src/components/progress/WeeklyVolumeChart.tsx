@@ -3,16 +3,20 @@
 import React from 'react'
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis
+  YAxis,
+  ReferenceArea
 } from 'recharts'
 import { useUIStore } from '@/store/uiStore'
 import { KG_PER_LB } from '@/lib/units'
+import { useChartZoom } from '@/hooks/useChartZoom'
+import { CustomTooltip } from '@/components/progress/CustomTooltip'
+import { Button } from '@/components/ui/Button'
+import { RotateCcw } from 'lucide-react'
 
 interface VolumeTrendPoint {
   label: string
@@ -34,36 +38,111 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
       return data.map(p => ({
         ...p,
         volume: Math.round(p.volume * KG_PER_LB),
-        load: Math.round(p.load * KG_PER_LB)
       }))
     }
     return data
   }, [data, isKg])
 
+  const {
+    left, right, refAreaLeft, refAreaRight,
+    setRefAreaLeft, setRefAreaRight, zoom, zoomOut, isZoomed
+  } = useChartZoom({ data: convertedData, dataKey: 'label' })
+
   return (
-    <div className="h-64 w-full">
-      <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
-        <LineChart data={convertedData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-          <XAxis dataKey="label" stroke="var(--color-text-subtle)" fontSize={12} font-weight={500} />
-          <YAxis stroke="var(--color-text-subtle)" fontSize={12} font-weight={500} />
-          <Tooltip 
-            contentStyle={{ 
-              background: 'var(--color-surface)', 
-              border: '1px solid var(--color-border)', 
-              color: 'var(--color-text)',
-              borderRadius: '12px',
-              fontSize: '14px',
-              boxShadow: 'var(--shadow-md)'
-            }} 
-            itemStyle={{ color: 'var(--color-text)', fontWeight: 600 }}
-            labelStyle={{ color: 'var(--color-text)', fontWeight: 700, marginBottom: '4px' }}
-          />
-          <Legend formatter={(value) => `${value} (${displayUnit})`} />
-          <Line type="monotone" dataKey="volume" name="Volume" stroke="var(--color-primary)" strokeWidth={2} />
-          <Line type="monotone" dataKey="load" name="Load" stroke="var(--color-warning)" strokeWidth={2} />
-        </LineChart>
-      </ResponsiveContainer>
+    <div className="relative">
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex gap-4">
+           <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[var(--color-primary)]" />
+              <span className="text-[10px] font-black uppercase text-subtle">Volume ({displayUnit})</span>
+           </div>
+           <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[var(--color-warning)]" />
+              <span className="text-[10px] font-black uppercase text-subtle">Training Load</span>
+           </div>
+        </div>
+        {isZoomed && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={zoomOut}
+            className="h-7 px-2 text-[10px] font-black uppercase tracking-widest gap-1.5"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Reset Zoom
+          </Button>
+        )}
+      </div>
+
+      <div className="h-64 w-full select-none">
+        <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
+          <LineChart 
+            data={convertedData}
+            onMouseDown={(e) => e && setRefAreaLeft(e.activeLabel || null)}
+            onMouseMove={(e) => e && refAreaLeft && setRefAreaRight(e.activeLabel || null)}
+            onMouseUp={zoom}
+            style={{ outline: 'none' }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+            <XAxis 
+              dataKey="label" 
+              stroke="var(--color-text-subtle)" 
+              fontSize={10} 
+              fontWeight={700}
+              tickLine={false}
+              axisLine={false}
+              domain={[left || 'auto', right || 'auto']}
+              allowDataOverflow
+            />
+            <YAxis 
+              yAxisId="left"
+              stroke="var(--color-primary)" 
+              fontSize={10} 
+              fontWeight={700}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(val) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val}
+            />
+            <YAxis 
+              yAxisId="right"
+              orientation="right"
+              stroke="var(--color-warning)" 
+              fontSize={10} 
+              fontWeight={700}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip content={<CustomTooltip unit={displayUnit} type="volume" />} />
+            
+            <Line 
+              yAxisId="left"
+              type="monotone" 
+              dataKey="volume" 
+              name="Volume" 
+              stroke="var(--color-primary)" 
+              strokeWidth={3} 
+              dot={{ r: 0 }}
+              activeDot={{ r: 6, strokeWidth: 0 }}
+              animationDuration={300}
+            />
+            <Line 
+              yAxisId="right"
+              type="monotone" 
+              dataKey="load" 
+              name="Load" 
+              stroke="var(--color-warning)" 
+              strokeWidth={3} 
+              dot={{ r: 0 }}
+              activeDot={{ r: 6, strokeWidth: 0 }}
+              animationDuration={300}
+            />
+
+            {refAreaLeft && refAreaRight ? (
+              <ReferenceArea yAxisId="left" x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} fill="var(--color-primary)" fillOpacity={0.1} />
+            ) : null}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }
