@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { X } from 'lucide-react';
-import { EXERCISE_LIBRARY } from '@/lib/generator';
+import { useExerciseCatalog } from '@/hooks/useExerciseCatalog';
 import { toMuscleLabel } from '@/lib/muscle-utils';
 import type { Exercise } from '@/types/domain';
 
@@ -15,10 +15,11 @@ interface AddExerciseModalProps {
 
 export function AddExerciseModal({ onClose, onAdd, focus, style }: AddExerciseModalProps) {
   const [search, setSearch] = useState('');
+  const { catalog } = useExerciseCatalog();
 
   const filteredLibrary = useMemo(() => {
     const s = search.toLowerCase();
-    const unique = Array.from(new Map(EXERCISE_LIBRARY.map(ex => [ex.name.toLowerCase(), ex])).values());
+    const unique = Array.from(new Map(catalog.map(ex => [ex.name.toLowerCase(), ex])).values());
     
     let base = unique;
     if (!s) {
@@ -34,7 +35,7 @@ export function AddExerciseModal({ onClose, onAdd, focus, style }: AddExerciseMo
       ex.name.toLowerCase().includes(s) || 
       ex.primaryMuscle?.toLowerCase().includes(s)
     ).slice(0, 15);
-  }, [search, focus, style]);
+  }, [search, focus, style, catalog]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">

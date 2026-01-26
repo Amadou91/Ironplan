@@ -256,6 +256,7 @@ const buildSessionForTime = (
 }
 
 export const buildSessionExercises = (
+  catalog: Exercise[],
   focus: FocusArea,
   duration: number,
   input: PlanInput,
@@ -267,6 +268,7 @@ export const buildSessionExercises = (
   const baseFocus = focusMuscleMap[focus]?.baseFocus
   const focusConstraint = focusMuscleMap[focus]?.constraint
   let primaryPool = filterExercises(
+    catalog,
     focus,
     input.equipment.inventory,
     input.preferences.dislikedActivities,
@@ -275,6 +277,7 @@ export const buildSessionExercises = (
     targetGoal
   )
   const secondaryPool = filterExercises(
+    catalog,
     focus,
     input.equipment.inventory,
     input.preferences.dislikedActivities,
@@ -287,6 +290,7 @@ export const buildSessionExercises = (
   }
   let accessoryPool = baseFocus && baseFocus !== focus
     ? filterExercises(
+        catalog,
         baseFocus,
         input.equipment.inventory,
         input.preferences.dislikedActivities,
@@ -321,6 +325,7 @@ export const buildSessionExercises = (
 }
 
 export const generateSessionExercises = (
+  catalog: Exercise[],
   input: PlanInput,
   focus: FocusArea,
   durationMinutes: number,
@@ -328,6 +333,7 @@ export const generateSessionExercises = (
   options?: { seed?: string; history?: SessionHistory }
 ) => {
   const result = buildSessionExercises(
+    catalog,
     focus,
     durationMinutes,
     input,
@@ -377,6 +383,7 @@ export const buildWorkoutTemplate = (
 }
 
 export const generateWorkoutPlan = (
+  catalog: Exercise[],
   partialInput: Partial<PlanInput>
 ): { plan?: GeneratedPlan; errors: string[] } => {
   const normalized = applyRestPreference(normalizePlanInput(partialInput))
@@ -403,6 +410,7 @@ export const generateWorkoutPlan = (
   const durationMinutes = adjustMinutesPerSession(normalized, sessionsPerWeek)
   const schedule = layout.map((entry, index) => {
     const exercises = generateSessionExercises(
+      catalog,
       normalized,
       entry.focus,
       durationMinutes,

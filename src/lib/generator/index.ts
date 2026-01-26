@@ -1,4 +1,3 @@
-export { EXERCISE_LIBRARY } from './constants'
 export {
   validatePlanInput,
   normalizePlanInput

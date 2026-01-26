@@ -21,8 +21,9 @@ export default function AdminDashboard() {
             <Link href="/admin/workouts/new" className="block text-sm text-[var(--color-primary)] hover:underline">
               Create New Workout Item
             </Link>
-            {/* Future: Link to list of workouts */}
-            <span className="block text-sm text-slate-400">Manage Existing (Coming Soon)</span>
+            <Link href="/admin/exercises" className="block text-sm text-[var(--color-primary)] hover:underline">
+              Manage Exercises
+            </Link>
           </div>
         </Card>
         

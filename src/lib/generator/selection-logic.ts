@@ -10,9 +10,6 @@ import type {
 } from '@/types/domain'
 import { matchesCardioSelection } from '@/lib/cardio-activities'
 import {
-  EXERCISE_LIBRARY
-} from './constants'
-import {
   normalizeExerciseKey,
   getPrimaryMuscleKey,
   getMovementFamily,
@@ -25,13 +22,14 @@ import {
 } from './scoring'
 
 export const filterExercises = (
+  catalog: Exercise[],
   focus: FocusArea,
   inventory: EquipmentInventory,
   disliked: string[],
   accessibility: string[],
   cardioActivities: CardioActivity[],
   goal?: Goal
-) => EXERCISE_LIBRARY.filter(exercise => {
+) => catalog.filter(exercise => {
   const matchesFocus = matchesFocusArea(focus, exercise)
   const option = selectEquipmentOption(inventory, exercise.equipment)
   const isDisliked = disliked.some(activity => exercise.name.toLowerCase().includes(activity.toLowerCase()))

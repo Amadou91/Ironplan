@@ -2,7 +2,7 @@ import { generateSessionExercises, calculateExerciseImpact } from '@/lib/generat
 import { toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { FocusArea, Goal, MovementPattern, PlanInput, SessionExercise, WorkoutImpact, MetricProfile } from '@/types/domain'
+import type { FocusArea, Goal, MovementPattern, PlanInput, SessionExercise, WorkoutImpact, MetricProfile, Exercise } from '@/types/domain'
 import type { ReadinessLevel, ReadinessSurvey } from '@/lib/training-metrics'
 
 type SessionExerciseSeed = {
@@ -28,6 +28,7 @@ type CreateSessionParams = {
     score: number
     level: ReadinessLevel
   }
+  catalog: Exercise[]
   bodyWeightLb?: number | null
   sessionNotes?: Record<string, unknown> | string | null
   history?: {
@@ -64,6 +65,7 @@ export const createWorkoutSession = async ({
   input,
   minutesAvailable,
   readiness,
+  catalog,
   bodyWeightLb,
   sessionNotes,
   history,
@@ -128,7 +130,7 @@ export const createWorkoutSession = async ({
 
     const exercises = goal === 'cardio' 
       ? [] 
-      : generateSessionExercises(input, focus, minutesAvailable, goal, {
+      : generateSessionExercises(catalog, input, focus, minutesAvailable, goal, {
           seed: sessionData.id,
           history
         })
