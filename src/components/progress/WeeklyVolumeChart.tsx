@@ -27,9 +27,20 @@ interface VolumeTrendPoint {
 
 interface WeeklyVolumeChartProps {
   data: VolumeTrendPoint[]
+  zoomProps?: {
+    left: string | number | null
+    right: string | number | null
+    refAreaLeft: string | number | null
+    refAreaRight: string | number | null
+    setRefAreaLeft: (val: string | number | null) => void
+    setRefAreaRight: (val: string | number | null) => void
+  }
 }
 
-export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
+const CHART_MARGIN = { top: 10, right: 10, left: 0, bottom: 30 }
+const Y_AXIS_WIDTH = 45
+
+export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
   const { displayUnit } = useUIStore()
   const isKg = displayUnit === 'kg'
 
@@ -43,47 +54,21 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
     return data
   }, [data, isKg])
 
-  const {
-    left, right, refAreaLeft, refAreaRight,
-    setRefAreaLeft, setRefAreaRight, zoom, zoomOut, isZoomed
-  } = useChartZoom({ data: convertedData, dataKey: 'label' })
+  const internalZoom = useChartZoom({ data: convertedData, dataKey: 'label' })
+  const zoom = zoomProps || internalZoom
 
   const zoomedData = React.useMemo(() => {
-    if (!left || !right) return convertedData
-    const leftIndex = convertedData.findIndex(i => i.label === left)
-    const rightIndex = convertedData.findIndex(i => i.label === right)
+    if (!zoom.left || !zoom.right) return convertedData
+    const leftIndex = convertedData.findIndex(i => i.label === zoom.left)
+    const rightIndex = convertedData.findIndex(i => i.label === zoom.right)
     const [start, end] = leftIndex < rightIndex ? [leftIndex, rightIndex] : [rightIndex, leftIndex]
     return convertedData.slice(start, end + 1)
-  }, [convertedData, left, right])
+  }, [convertedData, zoom.left, zoom.right])
 
   return (
-    <div className="relative">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex gap-4">
-           <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-[var(--color-primary)]" />
-              <span className="text-[10px] font-black uppercase text-subtle">Volume ({displayUnit})</span>
-           </div>
-           <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-[var(--color-warning)]" />
-              <span className="text-[10px] font-black uppercase text-subtle">Training Load</span>
-           </div>
-        </div>
-        {isZoomed && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={zoomOut}
-            className="h-7 px-2 text-[10px] font-black uppercase tracking-widest gap-1.5"
-          >
-            <RotateCcw className="h-3 w-3" />
-            Reset Zoom
-          </Button>
-        )}
-      </div>
-
+    <div className="flex flex-col h-full">
       <div 
-        className="h-64 w-full outline-none"
+        className="h-64 w-full outline-none mt-auto"
         onMouseDown={(e) => e.stopPropagation()}
         onMouseMove={(e) => e.stopPropagation()}
         tabIndex={-1}
@@ -92,9 +77,9 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
         <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
           <LineChart 
             data={zoomedData}
-            margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-            onMouseDown={(e) => { if (e?.activeLabel) setRefAreaLeft(e.activeLabel) }}
-            onMouseMove={(e) => { if (refAreaLeft && e?.activeLabel) setRefAreaRight(e.activeLabel) }}
+            margin={CHART_MARGIN}
+            onMouseDown={(e) => { if (e?.activeLabel) zoom.setRefAreaLeft(e.activeLabel) }}
+            onMouseMove={(e) => { if (zoom.refAreaLeft && e?.activeLabel) zoom.setRefAreaRight(e.activeLabel) }}
             style={{ outline: 'none' }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -106,6 +91,7 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
               tickLine={false}
               axisLine={false}
               allowDataOverflow
+              dy={10}
             />
             <YAxis 
               yAxisId="left"
@@ -115,6 +101,7 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
               tickLine={false}
               axisLine={false}
               tickFormatter={(val) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val}
+              width={Y_AXIS_WIDTH}
             />
             <YAxis 
               yAxisId="right"
@@ -124,6 +111,7 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
               fontWeight={700}
               tickLine={false}
               axisLine={false}
+              width={Y_AXIS_WIDTH}
             />
             <Tooltip content={<CustomTooltip unit={displayUnit} type="volume" />} />
             
@@ -150,8 +138,8 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
               animationDuration={300}
             />
 
-            {refAreaLeft && refAreaRight ? (
-              <ReferenceArea yAxisId="left" x1={refAreaLeft} x2={refAreaRight} stroke="none" strokeWidth={0} fill="var(--color-primary)" fillOpacity={0.1} />
+            {zoom.refAreaLeft && zoom.refAreaRight ? (
+              <ReferenceArea yAxisId="left" x1={zoom.refAreaLeft} x2={zoom.refAreaRight} stroke="none" strokeWidth={0} fill="var(--color-primary)" fillOpacity={0.1} />
             ) : null}
           </LineChart>
         </ResponsiveContainer>

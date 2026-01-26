@@ -61,16 +61,19 @@ interface ProgressChartsProps {
   readinessTrendLine: ReadinessTrendLinePoint[]
 }
 
-function ChartHeader({ title, isZoomed, onReset }: { title: string; isZoomed?: boolean; onReset?: () => void }) {
+function ChartHeader({ title, isZoomed, onReset, children }: { title: string; isZoomed?: boolean; onReset?: () => void; children?: React.ReactNode }) {
   return (
-    <div className="mb-4 flex items-center justify-between">
-      <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-subtle">{title}</h3>
+    <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between min-h-[48px]">
+      <div className="flex flex-col gap-2">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-subtle leading-none">{title}</h3>
+        {children}
+      </div>
       {isZoomed && (
         <Button 
           variant="outline" 
           size="sm" 
           onClick={onReset}
-          className="h-7 px-2 text-[10px] font-black uppercase tracking-widest gap-1.5"
+          className="h-7 px-2 text-[10px] font-black uppercase tracking-widest gap-1.5 self-start sm:self-auto shrink-0"
         >
           <RotateCcw className="h-3 w-3" />
           Reset Zoom
@@ -79,6 +82,9 @@ function ChartHeader({ title, isZoomed, onReset }: { title: string; isZoomed?: b
     </div>
   )
 }
+
+const CHART_MARGIN = { top: 10, right: 10, left: 0, bottom: 30 }
+const Y_AXIS_WIDTH = 45
 
 export function ProgressCharts({
   volumeTrend,
@@ -116,6 +122,7 @@ export function ProgressCharts({
   }, [bodyWeightData, isKg])
 
   // Zoom states
+  const volumeZoom = useChartZoom({ data: volumeTrend, dataKey: 'label' })
   const effortZoom = useChartZoom({ data: effortTrend, dataKey: 'day' })
   const exerciseZoom = useChartZoom({ data: convertedExerciseTrend, dataKey: 'day' })
   const weightZoom = useChartZoom({ data: convertedBodyWeightData, dataKey: 'day' })
@@ -169,15 +176,30 @@ export function ProgressCharts({
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <Card className="p-6 min-w-0 select-none">
-        <ChartHeader title="Volume & load" />
-        <WeeklyVolumeChart data={volumeTrend} />
+      <Card className="p-6 min-w-0 select-none flex flex-col">
+        <ChartHeader 
+          title="Volume & load" 
+          isZoomed={volumeZoom.isZoomed} 
+          onReset={volumeZoom.zoomOut}
+        >
+          <div className="flex gap-4">
+             <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary)]" />
+                <span className="text-[9px] font-bold uppercase tracking-wider text-subtle">Volume ({displayUnit})</span>
+             </div>
+             <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-warning)]" />
+                <span className="text-[9px] font-bold uppercase tracking-wider text-subtle">Training Load</span>
+             </div>
+          </div>
+        </ChartHeader>
+        <WeeklyVolumeChart data={volumeTrend} zoomProps={volumeZoom} />
       </Card>
 
-      <Card className="p-6 min-w-0 select-none">
+      <Card className="p-6 min-w-0 select-none flex flex-col">
         <ChartHeader title="Effort trend" isZoomed={effortZoom.isZoomed} onReset={effortZoom.zoomOut} />
         <div 
-          className="h-64 w-full outline-none"
+          className="h-64 w-full outline-none mt-auto"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
           tabIndex={-1}
@@ -186,7 +208,7 @@ export function ProgressCharts({
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
               data={zoomedEffortTrend}
-              margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+              margin={CHART_MARGIN}
               onMouseDown={(e) => { if (e?.activeLabel) effortZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (effortZoom.refAreaLeft && e?.activeLabel) effortZoom.setRefAreaRight(e.activeLabel) }}
               style={{ outline: 'none' }}
@@ -200,6 +222,7 @@ export function ProgressCharts({
                 tickLine={false}
                 axisLine={false}
                 allowDataOverflow
+                dy={10}
               />
               <YAxis 
                 stroke="var(--color-text-subtle)" 
@@ -208,6 +231,7 @@ export function ProgressCharts({
                 tickLine={false}
                 axisLine={false}
                 domain={[0, 10]}
+                width={Y_AXIS_WIDTH}
               />
               <Tooltip content={<CustomTooltip />} />
               <Line type="monotone" dataKey="effort" name="Effort" stroke="var(--color-success)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} animationDuration={300} />
@@ -220,10 +244,10 @@ export function ProgressCharts({
       </Card>
 
       {exerciseTrend.length > 0 && (
-        <Card className="p-6 min-w-0 select-none">
+        <Card className="p-6 min-w-0 select-none flex flex-col">
           <ChartHeader title={`e1RM trend (${displayUnit})`} isZoomed={exerciseZoom.isZoomed} onReset={exerciseZoom.zoomOut} />
           <div 
-            className="h-64 w-full outline-none"
+            className="h-64 w-full outline-none mt-auto"
             onMouseDown={(e) => e.stopPropagation()}
             onMouseMove={(e) => e.stopPropagation()}
             tabIndex={-1}
@@ -231,7 +255,7 @@ export function ProgressCharts({
             <ResponsiveContainer width="100%" height="100%">
               <LineChart 
                 data={zoomedExerciseTrend}
-                margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+                margin={CHART_MARGIN}
                 onMouseDown={(e) => { if (e?.activeLabel) exerciseZoom.setRefAreaLeft(e.activeLabel) }}
                 onMouseMove={(e) => { if (exerciseZoom.refAreaLeft && e?.activeLabel) exerciseZoom.setRefAreaRight(e.activeLabel) }}
                 style={{ outline: 'none' }}
@@ -245,6 +269,7 @@ export function ProgressCharts({
                   tickLine={false}
                   axisLine={false}
                   allowDataOverflow
+                  dy={10}
                 />
                 <YAxis 
                   stroke="var(--color-text-subtle)" 
@@ -253,6 +278,7 @@ export function ProgressCharts({
                   tickLine={false}
                   axisLine={false}
                   domain={['auto', 'auto']}
+                  width={Y_AXIS_WIDTH}
                 />
                 <Tooltip content={<CustomTooltip unit={displayUnit} />} />
                 <Line type="monotone" dataKey="e1rm" name="e1RM" stroke="var(--color-warning)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} animationDuration={300} />
@@ -266,10 +292,10 @@ export function ProgressCharts({
         </Card>
       )}
 
-      <Card className="p-6 min-w-0 select-none">
+      <Card className="p-6 min-w-0 select-none flex flex-col">
         <ChartHeader title={`Bodyweight trend (${displayUnit})`} isZoomed={weightZoom.isZoomed} onReset={weightZoom.zoomOut} />
         <div 
-          className="h-64 w-full outline-none"
+          className="h-64 w-full outline-none mt-auto"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
           tabIndex={-1}
@@ -278,7 +304,7 @@ export function ProgressCharts({
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
               data={zoomedWeightData}
-              margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+              margin={CHART_MARGIN}
               onMouseDown={(e) => { if (e?.activeLabel) weightZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (weightZoom.refAreaLeft && e?.activeLabel) weightZoom.setRefAreaRight(e.activeLabel) }}
               style={{ outline: 'none' }}
@@ -292,6 +318,7 @@ export function ProgressCharts({
                 tickLine={false}
                 axisLine={false}
                 allowDataOverflow
+                dy={10}
               />
               <YAxis 
                 domain={['auto', 'auto']} 
@@ -300,6 +327,7 @@ export function ProgressCharts({
                 fontWeight={700}
                 tickLine={false}
                 axisLine={false}
+                width={Y_AXIS_WIDTH}
               />
               <Tooltip content={<CustomTooltip unit={displayUnit} type="bodyweight" />} />
               <Line type="monotone" dataKey="weight" name="Weight" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} animationDuration={300} />
@@ -312,10 +340,10 @@ export function ProgressCharts({
         </div>
       </Card>
 
-      <Card className="p-6 min-w-0 select-none">
+      <Card className="p-6 min-w-0 select-none flex flex-col">
         <ChartHeader title="Readiness score trend" isZoomed={readinessZoom.isZoomed} onReset={readinessZoom.zoomOut} />
         <div 
-          className="h-64 w-full outline-none"
+          className="h-64 w-full outline-none mt-auto"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
           tabIndex={-1}
@@ -324,7 +352,7 @@ export function ProgressCharts({
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
               data={zoomedReadinessSeries}
-              margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+              margin={CHART_MARGIN}
               onMouseDown={(e) => { if (e?.activeLabel) readinessZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (readinessZoom.refAreaLeft && e?.activeLabel) readinessZoom.setRefAreaRight(e.activeLabel) }}
               style={{ outline: 'none' }}
@@ -338,6 +366,7 @@ export function ProgressCharts({
                 tickLine={false}
                 axisLine={false}
                 allowDataOverflow
+                dy={10}
               />
               <YAxis 
                 domain={[0, 100]} 
@@ -346,6 +375,7 @@ export function ProgressCharts({
                 fontWeight={700}
                 tickLine={false}
                 axisLine={false}
+                width={Y_AXIS_WIDTH}
               />
               <Tooltip content={<CustomTooltip />} />
               <Line type="monotone" dataKey="score" name="Score" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} animationDuration={300} />
@@ -357,20 +387,20 @@ export function ProgressCharts({
         </div>
       </Card>
 
-      <Card className="p-6 min-w-0 select-none">
+      <Card className="p-6 min-w-0 select-none flex flex-col">
         <ChartHeader title="Readiness components" />
         <div 
-          className="h-64 w-full outline-none"
+          className="h-64 w-full outline-none mt-auto"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
           tabIndex={-1}
           draggable="false"
         >
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={readinessComponents} margin={{ top: 10, right: 10, left: -25, bottom: 0 }} style={{ outline: 'none' }}>
+            <ComposedChart data={readinessComponents} margin={CHART_MARGIN} style={{ outline: 'none' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="metric" stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} />
-              <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} />
+              <XAxis dataKey="metric" stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} dy={10} />
+              <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} width={Y_AXIS_WIDTH} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="value" name="Score">
                 {readinessComponents.map((entry: ReadinessComponentPoint) => {
@@ -393,14 +423,14 @@ export function ProgressCharts({
         </div>
       </Card>
 
-      <Card className={`p-6 min-w-0 select-none ${exerciseTrend.length > 0 ? 'lg:col-span-2' : ''}`}>
+      <Card className={`p-6 min-w-0 select-none flex flex-col ${exerciseTrend.length > 0 ? 'lg:col-span-2' : ''}`}>
         <ChartHeader 
           title="Readiness vs session effort" 
           isZoomed={correlationZoom.isZoomed} 
           onReset={correlationZoom.zoomOut} 
         />
         <div 
-          className="h-64 w-full outline-none"
+          className="h-64 w-full outline-none mt-auto"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
           tabIndex={-1}
@@ -409,7 +439,7 @@ export function ProgressCharts({
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart 
               data={zoomedCorrelation}
-              margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+              margin={CHART_MARGIN}
               onMouseDown={(e) => { if (e?.activeLabel) correlationZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (correlationZoom.refAreaLeft && e?.activeLabel) correlationZoom.setRefAreaRight(e.activeLabel) }}
               style={{ outline: 'none' }}
@@ -426,6 +456,7 @@ export function ProgressCharts({
                 tickLine={false} 
                 axisLine={false} 
                 allowDataOverflow
+                dy={10}
               />
               <YAxis 
                 dataKey="effort" 
@@ -437,6 +468,7 @@ export function ProgressCharts({
                 fontWeight={700} 
                 tickLine={false} 
                 axisLine={false} 
+                width={Y_AXIS_WIDTH}
               />
               <Tooltip content={<CustomTooltip type="readiness" />} cursor={{ strokeDasharray: '3 3' }} />
               {/* Overreaching: Low Readiness, High Effort */}
@@ -471,3 +503,4 @@ export function ProgressCharts({
     </div>
   )
 }
+
