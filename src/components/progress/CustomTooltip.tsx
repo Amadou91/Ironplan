@@ -12,7 +12,7 @@ interface CustomTooltipProps extends TooltipProps<ValueType, NameType> {
 export function CustomTooltip({ active, payload, label, type, unit }: CustomTooltipProps) {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-xl backdrop-blur-sm">
+      <div className="pointer-events-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-xl backdrop-blur-sm">
         <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-subtle">{label}</p>
         <div className="space-y-1.5">
           {payload.map((entry, index) => {

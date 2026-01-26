@@ -135,7 +135,6 @@ export function ProgressCharts({
               data={effortTrend}
               onMouseDown={(e) => { if (e?.activeLabel) effortZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (effortZoom.refAreaLeft && e?.activeLabel) effortZoom.setRefAreaRight(e.activeLabel) }}
-              onMouseLeave={() => effortZoom.setRefAreaRight(null)}
               style={{ outline: 'none' }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -176,7 +175,6 @@ export function ProgressCharts({
                 data={convertedExerciseTrend}
                 onMouseDown={(e) => { if (e?.activeLabel) exerciseZoom.setRefAreaLeft(e.activeLabel) }}
                 onMouseMove={(e) => { if (exerciseZoom.refAreaLeft && e?.activeLabel) exerciseZoom.setRefAreaRight(e.activeLabel) }}
-                onMouseLeave={() => exerciseZoom.setRefAreaRight(null)}
                 style={{ outline: 'none' }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -218,7 +216,6 @@ export function ProgressCharts({
               data={convertedBodyWeightData}
               onMouseDown={(e) => { if (e?.activeLabel) weightZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (weightZoom.refAreaLeft && e?.activeLabel) weightZoom.setRefAreaRight(e.activeLabel) }}
-              onMouseLeave={() => weightZoom.setRefAreaRight(null)}
               style={{ outline: 'none' }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -259,7 +256,6 @@ export function ProgressCharts({
               data={readinessSeries}
               onMouseDown={(e) => { if (e?.activeLabel) readinessZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (readinessZoom.refAreaLeft && e?.activeLabel) readinessZoom.setRefAreaRight(e.activeLabel) }}
-              onMouseLeave={() => readinessZoom.setRefAreaRight(null)}
               style={{ outline: 'none' }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />

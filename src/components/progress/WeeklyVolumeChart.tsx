@@ -80,7 +80,6 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
             data={convertedData}
             onMouseDown={(e) => { if (e?.activeLabel) setRefAreaLeft(e.activeLabel) }}
             onMouseMove={(e) => { if (refAreaLeft && e?.activeLabel) setRefAreaRight(e.activeLabel) }}
-            onMouseLeave={() => setRefAreaRight(null)}
             style={{ outline: 'none' }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
