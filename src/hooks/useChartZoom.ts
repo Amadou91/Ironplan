@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 
 interface UseChartZoomProps<T> {
   data: T[]
@@ -14,17 +14,16 @@ export function useChartZoom<T>({ data, dataKey }: UseChartZoomProps<T>) {
   const [refAreaRight, setRefAreaRight] = useState<string | number | null>(null)
 
   const zoom = useCallback(() => {
-    let actualLeft = refAreaLeft
-    let actualRight = refAreaRight
-
-    if (actualLeft === actualRight || actualRight === null || actualLeft === null) {
+    if (refAreaLeft === refAreaRight || refAreaRight === null || refAreaLeft === null) {
       setRefAreaLeft(null)
       setRefAreaRight(null)
       return
     }
 
-    // Ensure left is always earlier in the data array than right
-    // This is crucial for Recharts categorical X-Axis domain
+    let actualLeft = refAreaLeft
+    let actualRight = refAreaRight
+
+    // Find indices to ensure correct domain order
     const leftIndex = data.findIndex(item => item[dataKey] === actualLeft)
     const rightIndex = data.findIndex(item => item[dataKey] === actualRight)
 
@@ -45,6 +44,17 @@ export function useChartZoom<T>({ data, dataKey }: UseChartZoomProps<T>) {
     setRefAreaRight(null)
   }, [])
 
+  // Handle mouse up anywhere on the screen if dragging started
+  useEffect(() => {
+    if (refAreaLeft !== null) {
+      const handleGlobalMouseUp = () => {
+        zoom()
+      }
+      window.addEventListener('mouseup', handleGlobalMouseUp)
+      return () => window.removeEventListener('mouseup', handleGlobalMouseUp)
+    }
+  }, [refAreaLeft, zoom])
+
   return {
     left,
     right,
@@ -54,6 +64,6 @@ export function useChartZoom<T>({ data, dataKey }: UseChartZoomProps<T>) {
     setRefAreaRight,
     zoom,
     zoomOut,
-    isZoomed: left !== null || right !== null
+    isZoomed: left !== null && right !== null
   }
 }

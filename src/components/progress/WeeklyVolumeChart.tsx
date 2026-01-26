@@ -78,9 +78,9 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
         <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
           <LineChart 
             data={convertedData}
-            onMouseDown={(e) => e && setRefAreaLeft(e.activeLabel || null)}
-            onMouseMove={(e) => e && refAreaLeft && setRefAreaRight(e.activeLabel || null)}
-            onMouseUp={zoom}
+            onMouseDown={(e) => { if (e?.activeLabel) setRefAreaLeft(e.activeLabel) }}
+            onMouseMove={(e) => { if (refAreaLeft && e?.activeLabel) setRefAreaRight(e.activeLabel) }}
+            onMouseLeave={() => setRefAreaRight(null)}
             style={{ outline: 'none' }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />

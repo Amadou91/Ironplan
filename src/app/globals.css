@@ -122,6 +122,14 @@ textarea::placeholder {
   color: var(--color-text);
 }
 
+/* Recharts Overrides */
+.recharts-wrapper {
+  outline: none !important;
+}
+.recharts-surface {
+  outline: none !important;
+}
+
 @layer components {
   .page-shell {
     background: transparent;

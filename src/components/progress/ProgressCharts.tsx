@@ -133,9 +133,9 @@ export function ProgressCharts({
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
               data={effortTrend}
-              onMouseDown={(e) => e && effortZoom.setRefAreaLeft(e.activeLabel || null)}
-              onMouseMove={(e) => e && effortZoom.refAreaLeft && effortZoom.setRefAreaRight(e.activeLabel || null)}
-              onMouseUp={effortZoom.zoom}
+              onMouseDown={(e) => { if (e?.activeLabel) effortZoom.setRefAreaLeft(e.activeLabel) }}
+              onMouseMove={(e) => { if (effortZoom.refAreaLeft && e?.activeLabel) effortZoom.setRefAreaRight(e.activeLabel) }}
+              onMouseLeave={() => effortZoom.setRefAreaRight(null)}
               style={{ outline: 'none' }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -174,9 +174,9 @@ export function ProgressCharts({
             <ResponsiveContainer width="100%" height="100%">
               <LineChart 
                 data={convertedExerciseTrend}
-                onMouseDown={(e) => e && exerciseZoom.setRefAreaLeft(e.activeLabel || null)}
-                onMouseMove={(e) => e && exerciseZoom.refAreaLeft && exerciseZoom.setRefAreaRight(e.activeLabel || null)}
-                onMouseUp={exerciseZoom.zoom}
+                onMouseDown={(e) => { if (e?.activeLabel) exerciseZoom.setRefAreaLeft(e.activeLabel) }}
+                onMouseMove={(e) => { if (exerciseZoom.refAreaLeft && e?.activeLabel) exerciseZoom.setRefAreaRight(e.activeLabel) }}
+                onMouseLeave={() => exerciseZoom.setRefAreaRight(null)}
                 style={{ outline: 'none' }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -216,9 +216,9 @@ export function ProgressCharts({
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
               data={convertedBodyWeightData}
-              onMouseDown={(e) => e && weightZoom.setRefAreaLeft(e.activeLabel || null)}
-              onMouseMove={(e) => e && weightZoom.refAreaLeft && weightZoom.setRefAreaRight(e.activeLabel || null)}
-              onMouseUp={weightZoom.zoom}
+              onMouseDown={(e) => { if (e?.activeLabel) weightZoom.setRefAreaLeft(e.activeLabel) }}
+              onMouseMove={(e) => { if (weightZoom.refAreaLeft && e?.activeLabel) weightZoom.setRefAreaRight(e.activeLabel) }}
+              onMouseLeave={() => weightZoom.setRefAreaRight(null)}
               style={{ outline: 'none' }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -257,9 +257,9 @@ export function ProgressCharts({
           <ResponsiveContainer width="100%" height="100%">
             <LineChart 
               data={readinessSeries}
-              onMouseDown={(e) => e && readinessZoom.setRefAreaLeft(e.activeLabel || null)}
-              onMouseMove={(e) => e && readinessZoom.refAreaLeft && readinessZoom.setRefAreaRight(e.activeLabel || null)}
-              onMouseUp={readinessZoom.zoom}
+              onMouseDown={(e) => { if (e?.activeLabel) readinessZoom.setRefAreaLeft(e.activeLabel) }}
+              onMouseMove={(e) => { if (readinessZoom.refAreaLeft && e?.activeLabel) readinessZoom.setRefAreaRight(e.activeLabel) }}
+              onMouseLeave={() => readinessZoom.setRefAreaRight(null)}
               style={{ outline: 'none' }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
