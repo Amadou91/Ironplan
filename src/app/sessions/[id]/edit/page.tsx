@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card'
 import { SetLogger } from '@/components/workout/SetLogger'
 import { ReadinessSurvey } from '@/components/workout/ReadinessSurvey'
 import { useSessionEditor } from '@/hooks/useSessionEditor'
-import { EXERCISE_LIBRARY } from '@/lib/generator'
+import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import { enhanceExerciseData, isTimeBasedExercise, toMuscleSlug } from '@/lib/muscle-utils'
 import { buildWeightOptions } from '@/lib/equipment'
 import type { WorkoutSet, Exercise } from '@/types/domain'
@@ -45,8 +45,9 @@ export default function SessionEditPage() {
   } = useSessionEditor(params?.id as string)
 
   const [newExerciseName, setNewExerciseName] = useState('')
+  const { catalog } = useExerciseCatalog()
 
-  const exerciseLibraryByName = useMemo(() => new Map(EXERCISE_LIBRARY.map(ex => [ex.name.toLowerCase(), ex])), [])
+  const exerciseLibraryByName = useMemo(() => new Map(catalog.map(ex => [ex.name.toLowerCase(), ex])), [catalog])
 
   const getWeightOptions = (exerciseName: string) => {
     const match = exerciseLibraryByName.get(exerciseName.toLowerCase())

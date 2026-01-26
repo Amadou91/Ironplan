@@ -2,56 +2,131 @@
 
 import React, { useEffect, useState } from 'react';
 import { WorkoutEditor } from '@/components/admin/WorkoutEditor';
-import { Exercise } from '@/types/domain';
+import { Exercise, ExerciseCategory, MetricProfile, Goal } from '@/types/domain';
 import { Button } from '@/components/ui/Button';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
 export default function EditWorkoutPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params?.id as string;
   const [initialData, setInitialData] = useState<Partial<Exercise> | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  const supabase = createClient();
 
   useEffect(() => {
-    // Mock fetch data
-    if (id) {
-        // TODO: Fetch from Supabase
-        console.log('Fetching workout/exercise with ID:', id);
-        
-        // Simulating fetch delay
-        setTimeout(() => {
-            setInitialData({
-                id: id,
-                name: 'Mock Loaded Exercise',
-                focus: 'chest',
-                metricProfile: 'strength',
-                difficulty: 'intermediate',
-                sets: 4,
-                reps: '8-10',
-                rpe: 9,
-                // ... populate other fields as needed
-            });
-            setLoading(false);
-        }, 500);
-    }
-  }, [id]);
+    const fetchExercise = async () => {
+      if (!id) return;
+
+      const { data, error } = await supabase
+        .from('exercise_catalog')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching exercise:', error);
+        alert('Failed to load exercise');
+        setLoading(false);
+        return;
+      }
+
+      // Map DB fields to Domain fields
+      // Defaulting category/metricProfile based on old data if needed
+      let category: ExerciseCategory = 'Strength';
+      let metricProfile: MetricProfile = 'reps_weight';
+      
+      // Heuristic mapping for old data
+      if (data.focus === 'cardio' || data.goal === 'cardio' || data.metric_profile === 'cardio_session') {
+        category = 'Cardio';
+        metricProfile = 'distance_duration';
+      } else if (data.focus === 'mobility' || data.metric_profile === 'yoga_session' || data.metric_profile === 'mobility_session') {
+        category = 'Yoga';
+        metricProfile = 'duration';
+      } else {
+        // Strength defaults
+        if (data.metric_profile === 'timed_strength') metricProfile = 'duration';
+        else if (data.metric_profile === 'bodyweight') metricProfile = 'reps_only'; // assuming bodyweight mapped
+        else metricProfile = 'reps_weight';
+      }
+
+      const exercise: Partial<Exercise> = {
+        id: data.id,
+        name: data.name,
+        category: category, // Derived
+        focus: data.focus,
+        metricProfile: metricProfile, // Derived/Mapped
+        sets: data.sets,
+        reps: data.reps,
+        rpe: data.rpe,
+        equipment: data.equipment,
+        difficulty: data.difficulty,
+        eligibleGoals: data.eligible_goals || (data.goal ? [data.goal] : []), // Use new column or fallback
+        goal: data.goal,
+        durationMinutes: data.duration_minutes,
+        restSeconds: data.rest_seconds,
+        primaryMuscle: data.primary_muscle,
+        // ... map other fields if necessary
+      };
+
+      setInitialData(exercise);
+      setLoading(false);
+    };
+
+    fetchExercise();
+  }, [id, supabase]);
 
   const handleSave = async (data: Exercise) => {
-    console.log('Updating workout (exercise):', data);
-    // TODO: Implement update logic
-    alert('Workout/Exercise updated! (Check console for data)');
+    // Map Domain fields back to DB fields
+    // Assuming DB schema might not be fully migrated, we map back to what we can.
+    // If DB has new columns (category, eligible_goals), use them.
+    
+    // We'll update both old and new fields to ensure compatibility
+    const updates = {
+      name: data.name,
+      focus: data.category === 'Cardio' ? 'cardio' : data.category === 'Yoga' ? 'mobility' : data.focus, // Fallback focus
+      // category: data.category, // Uncomment if DB column exists
+      // eligible_goals: data.eligibleGoals, // Uncomment if DB column exists
+      goal: data.eligibleGoals?.[0] || data.goal, // Fallback goal
+      metric_profile: data.metricProfile === 'reps_weight' ? 'strength' 
+                    : data.metricProfile === 'distance_duration' ? 'cardio_session'
+                    : data.metricProfile === 'duration' ? (data.category === 'Yoga' ? 'yoga_session' : 'timed_strength')
+                    : 'strength', // Map back to old enums for now
+      sets: data.sets,
+      reps: data.reps,
+      rpe: data.rpe,
+      equipment: data.equipment,
+      difficulty: data.difficulty,
+      duration_minutes: data.durationMinutes,
+      rest_seconds: data.restSeconds,
+      primary_muscle: data.primaryMuscle,
+    };
+
+    const { error } = await supabase
+      .from('exercise_catalog')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating exercise:', error);
+      alert(`Failed to update exercise: ${error.message}`);
+    } else {
+      alert('Exercise updated successfully!');
+      router.push('/admin');
+    }
   };
 
   if (loading) {
-      return <div className="p-8 text-center">Loading exercise data...</div>;
+      return <div className="p-8 text-center text-slate-500">Loading exercise details...</div>;
   }
 
   return (
     <div className="container mx-auto py-8 max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Edit Workout</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Edit Workout</h1>
           <p className="text-slate-500">Update existing exercise details.</p>
         </div>
          <Link href="/admin">

@@ -15,7 +15,7 @@ import {
 } from '@/lib/transformers/progress-data'
 import { isMuscleMatch } from '@/lib/muscle-utils'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
-import { EXERCISE_LIBRARY } from '@/lib/generator'
+import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import {
   aggregateHardSets,
   aggregateTonnage,
@@ -57,12 +57,13 @@ export function useStrengthMetrics(options: {
   const [hasMoreSessions, setHasMoreSessions] = useState(true)
 
   const templateById = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates])
+  const { catalog } = useExerciseCatalog()
   const exerciseLibraryByName = useMemo(
     () =>
       new Map(
-        EXERCISE_LIBRARY.filter((e) => e.name).map((exercise) => [exercise.name.toLowerCase(), exercise])
+        catalog.filter((e) => e.name).map((exercise) => [exercise.name.toLowerCase(), exercise])
       ),
-    []
+    [catalog]
   )
 
   const ensureSession = useCallback(async () => {

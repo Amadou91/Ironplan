@@ -6,13 +6,13 @@ import { createClient } from '@/lib/supabase/client'
 import { computeSetE1rm, computeSetTonnage } from '@/lib/session-metrics'
 import { computeSessionMetrics, type ReadinessSurvey } from '@/lib/training-metrics'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
-import { EXERCISE_LIBRARY } from '@/lib/generator'
 import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
-import type { FocusArea, Goal, Intensity, PlanInput, WeightUnit, MetricProfile } from '@/types/domain'
+import type { FocusArea, Goal, Intensity, PlanInput, WeightUnit, MetricProfile, Exercise } from '@/types/domain'
 import { SummaryHeader } from '@/components/workout/SummaryHeader'
 import { SessionHighlights } from '@/components/workout/SessionHighlights'
 import { ExerciseHighlights } from '@/components/workout/ExerciseHighlights'
+import { mapCatalogRowToExercise } from '@/lib/generator/mappers'
 
 type SessionDetail = {
   id: string
@@ -110,6 +110,7 @@ export default function WorkoutSummaryPage() {
   const [session, setSession] = useState<SessionDetail | null>(null)
   const [loading, setLoading] = useState(Boolean(sessionId))
   const [error, setError] = useState<string | null>(null)
+  const [catalog, setCatalog] = useState<Exercise[]>([])
 
   const parsedNotes = useMemo(() => parseSessionNotes(session?.session_notes ?? null), [session?.session_notes])
   const intensityLabel = formatSessionIntensity(getSessionIntensity(parsedNotes))
@@ -134,23 +135,31 @@ export default function WorkoutSummaryPage() {
 
   useEffect(() => {
     if (!sessionId) return
-    const loadSession = async () => {
+    const loadData = async () => {
       setLoading(true)
-      const { data, error: fetchError } = await supabase
-        .from('sessions')
-        .select('id, name, started_at, ended_at, status, session_notes, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds)), template:workout_templates(id, title, focus, style, intensity, template_inputs)')
-        .eq('id', sessionId).single()
-      if (fetchError) setError('Unable to load session summary.')
-      else setSession(data as unknown as SessionDetail)
+      const [sessionRes, catalogRes] = await Promise.all([
+        supabase
+          .from('sessions')
+          .select('id, name, started_at, ended_at, status, session_notes, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds)), template:workout_templates(id, title, focus, style, intensity, template_inputs)')
+          .eq('id', sessionId).single(),
+        supabase.from('exercise_catalog').select('*')
+      ])
+      
+      if (sessionRes.error) setError('Unable to load session summary.')
+      else setSession(sessionRes.data as unknown as SessionDetail)
+
+      if (catalogRes.data) {
+        setCatalog(catalogRes.data.map(mapCatalogRowToExercise))
+      }
       setLoading(false)
     }
-    loadSession()
+    loadData()
   }, [sessionId, supabase])
 
   const sessionMetrics = useMemo(() => {
     if (!session) return null
     const sessionGoal = session.template?.style as Goal | undefined
-    const exerciseLibraryByName = new Map(EXERCISE_LIBRARY.map(ex => [ex.name.toLowerCase(), ex]))
+    const exerciseLibraryByName = new Map(catalog.map(ex => [ex.name.toLowerCase(), ex]))
     const metricSets = session.session_exercises.flatMap(exercise => {
       const isEligible = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())?.e1rmEligible
       return exercise.sets.filter(set => set.completed !== false).map(set => ({
@@ -163,7 +172,7 @@ export default function WorkoutSummaryPage() {
     const metrics = computeSessionMetrics({ startedAt: session.started_at, endedAt: session.ended_at, intensity: getSessionIntensity(parsedNotes), sets: metricSets })
     const bestE1rm = metricSets.reduce((best, item) => Math.max(best, computeSetE1rm(item, item.sessionGoal, item.isEligible) || 0), 0)
     return { ...metrics, bestE1rm: Math.round(bestE1rm) }
-  }, [parsedNotes, session])
+  }, [parsedNotes, session, catalog])
 
   const readiness = parsedNotes?.readiness
   const avgEffort = sessionMetrics?.avgEffort

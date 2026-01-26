@@ -7,6 +7,13 @@ import type {
 } from '@/types/domain'
 import { clamp, isCompoundMovement } from './utils'
 
+/**
+ * Calculates a score modifier based on the exercise difficulty and user experience.
+ * Used during selection to favor exercises that match the user's skill level.
+ * 
+ * - Beginner: Favors 'beginner' exercises (+2), penalizes 'advanced' (-2).
+ * - Advanced: Favors 'advanced' exercises (+2), slight penalty for 'beginner' (-1).
+ */
 export const getExperienceScore = (exercise: Exercise, experience: PlanInput['experienceLevel']) => {
   if (!exercise.difficulty) return 0
   if (experience === 'beginner') {
@@ -16,13 +23,17 @@ export const getExperienceScore = (exercise: Exercise, experience: PlanInput['ex
   }
   if (experience === 'advanced') {
     if (exercise.difficulty === 'advanced') return 2
-    if (exercise.difficulty === 'intermediate') return 1
+    if (experience === 'advanced' && exercise.difficulty === 'intermediate') return 1
     return -1
   }
   if (exercise.difficulty === 'intermediate') return 1.5
   return 0.5
 }
 
+/**
+ * Favors compound movements for high intensity sessions and 
+ * isolation/lighter movements for low intensity sessions.
+ */
 export const getIntensityScore = (exercise: Exercise, intensity: Intensity) => {
   if (intensity === 'high') {
     return isCompoundMovement(exercise) ? 2 : 0
@@ -33,24 +44,41 @@ export const getIntensityScore = (exercise: Exercise, intensity: Intensity) => {
   return 0
 }
 
+/**
+ * Baseline RPE adjustment based on session intensity.
+ * Database defaults are treated as 'Moderate' (Intensity) baselines.
+ */
 export const adjustRpe = (baseRpe: number, intensity: Intensity) => {
   if (intensity === 'low') return clamp(baseRpe - 1, 5, 9)
   if (intensity === 'high') return clamp(baseRpe + 1, 5, 9)
   return baseRpe
 }
 
+/**
+ * Adjusts set counts based on user experience.
+ * More experienced users get higher volume baselines.
+ */
 export const adjustSets = (baseSets: number, experience: PlanInput['experienceLevel']) => {
   if (experience === 'beginner') return clamp(baseSets - 1, 2, 5)
   if (experience === 'advanced') return clamp(baseSets + 1, 3, 6)
   return baseSets
 }
 
+/**
+ * Adjusts set counts inversely with intensity to maintain manageable workload.
+ * Higher intensity sessions typically have fewer sets per exercise.
+ */
 export const adjustSetsForIntensity = (sets: number, intensity: Intensity) => {
   if (intensity === 'low') return Math.max(2, sets + 1)
   if (intensity === 'high') return Math.max(2, sets - 1)
   return sets
 }
 
+/**
+ * Derives rep ranges based on the session goal and intensity.
+ * NOTE: This currently overrides the 'reps' field from the exercise catalog,
+ * using the catalog value only as an informational baseline for specific exercise types.
+ */
 export const deriveReps = (goal: Goal, intensity: Intensity) => {
   if (goal === 'strength') return intensity === 'high' ? '3-6' : '4-6'
   if (goal === 'endurance') return intensity === 'high' ? '15-20' : '12-15'

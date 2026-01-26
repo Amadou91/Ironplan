@@ -49,6 +49,23 @@ import {
 import { filterExercises, orderPool, reorderForVariety } from './selection-logic'
 import { createPlannedExercise, adjustSessionVolume } from './volume-math'
 
+/**
+ * Core generation logic for a single training session.
+ * 
+ * SEMANTICS OF PRESCRIPTIONS:
+ * The 'sets', 'reps', and 'rpe' values from the exercise catalog are treated as
+ * MODERATE INTENSITY BASELINES. 
+ * 
+ * During generation, these are adjusted by:
+ * 1. Session Intensity: Low intensity reduces RPE/Sets, High intensity increases them.
+ * 2. User Experience: Beginners get lower volume, Advanced users get higher volume.
+ * 3. Time Constraints: If a session is running long, sets are reduced starting from 
+ *    accessory movements to fit the target duration.
+ * 4. Session Goal: Rep ranges are derived primarily from the goal (Strength/Hypertrophy/Endurance).
+ * 
+ * Once a session is generated, these prescriptions are RECOMMENDATIONS. Users can
+ * always adjust them during workout execution.
+ */
 const buildSessionForTime = (
   primaryPool: Exercise[],
   secondaryPool: Exercise[],
@@ -256,6 +273,7 @@ const buildSessionForTime = (
 }
 
 export const buildSessionExercises = (
+  catalog: Exercise[],
   focus: FocusArea,
   duration: number,
   input: PlanInput,
@@ -267,6 +285,7 @@ export const buildSessionExercises = (
   const baseFocus = focusMuscleMap[focus]?.baseFocus
   const focusConstraint = focusMuscleMap[focus]?.constraint
   let primaryPool = filterExercises(
+    catalog,
     focus,
     input.equipment.inventory,
     input.preferences.dislikedActivities,
@@ -275,6 +294,7 @@ export const buildSessionExercises = (
     targetGoal
   )
   const secondaryPool = filterExercises(
+    catalog,
     focus,
     input.equipment.inventory,
     input.preferences.dislikedActivities,
@@ -287,6 +307,7 @@ export const buildSessionExercises = (
   }
   let accessoryPool = baseFocus && baseFocus !== focus
     ? filterExercises(
+        catalog,
         baseFocus,
         input.equipment.inventory,
         input.preferences.dislikedActivities,
@@ -321,6 +342,7 @@ export const buildSessionExercises = (
 }
 
 export const generateSessionExercises = (
+  catalog: Exercise[],
   input: PlanInput,
   focus: FocusArea,
   durationMinutes: number,
@@ -328,6 +350,7 @@ export const generateSessionExercises = (
   options?: { seed?: string; history?: SessionHistory }
 ) => {
   const result = buildSessionExercises(
+    catalog,
     focus,
     durationMinutes,
     input,
@@ -377,6 +400,7 @@ export const buildWorkoutTemplate = (
 }
 
 export const generateWorkoutPlan = (
+  catalog: Exercise[],
   partialInput: Partial<PlanInput>
 ): { plan?: GeneratedPlan; errors: string[] } => {
   const normalized = applyRestPreference(normalizePlanInput(partialInput))
@@ -403,6 +427,7 @@ export const generateWorkoutPlan = (
   const durationMinutes = adjustMinutesPerSession(normalized, sessionsPerWeek)
   const schedule = layout.map((entry, index) => {
     const exercises = generateSessionExercises(
+      catalog,
       normalized,
       entry.focus,
       durationMinutes,

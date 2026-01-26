@@ -7,7 +7,7 @@ import { equipmentPresets } from '@/lib/equipment';
 import { normalizePreferences } from '@/lib/preferences';
 import { convertWeight, roundWeight } from '@/lib/units';
 import { fetchExerciseHistory, type ExerciseHistoryPoint } from '@/lib/session-history';
-import { EXERCISE_LIBRARY } from '@/lib/generator';
+import { useExerciseCatalog } from '@/hooks/useExerciseCatalog';
 import { enhanceExerciseData, toMuscleLabel } from '@/lib/muscle-utils';
 import type { 
   WeightUnit, 
@@ -89,8 +89,9 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
   
   const restIntervalRef = useRef<number | null>(null);
   const supabase = createClient();
+  const { catalog } = useExerciseCatalog();
 
-  const exerciseLibrary = useMemo(() => EXERCISE_LIBRARY.map((exercise) => enhanceExerciseData(exercise)), []);
+  const exerciseLibrary = useMemo(() => catalog.map((exercise) => enhanceExerciseData(exercise)), [catalog]);
   const exerciseLibraryByName = useMemo(
     () => new Map(exerciseLibrary.map((exercise) => [exercise.name.toLowerCase(), exercise])),
     [exerciseLibrary]

@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { computeSetE1rm, computeSetTonnage } from '@/lib/session-metrics'
 import { computeSessionMetrics, type ReadinessSurvey } from '@/lib/training-metrics'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
-import { EXERCISE_LIBRARY } from '@/lib/generator'
+import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
 import type { FocusArea, Goal, Intensity, PlanInput, WeightUnit, MetricProfile } from '@/types/domain'
@@ -110,6 +110,7 @@ function WorkoutSummaryContent() {
   const [session, setSession] = useState<SessionDetail | null>(null)
   const [loading, setLoading] = useState(Boolean(sessionId))
   const [error, setError] = useState<string | null>(null)
+  const { catalog } = useExerciseCatalog()
 
   const parsedNotes = useMemo(() => parseSessionNotes(session?.session_notes ?? null), [session?.session_notes])
   const intensityLabel = formatSessionIntensity(getSessionIntensity(parsedNotes))
@@ -150,7 +151,7 @@ function WorkoutSummaryContent() {
   const sessionMetrics = useMemo(() => {
     if (!session) return null
     const sessionGoal = session.template?.style as Goal | undefined
-    const exerciseLibraryByName = new Map(EXERCISE_LIBRARY.map(ex => [ex.name.toLowerCase(), ex]))
+    const exerciseLibraryByName = new Map(catalog.map(ex => [ex.name.toLowerCase(), ex]))
     const metricSets = session.session_exercises.flatMap(exercise => {
       const isEligible = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())?.e1rmEligible
       return exercise.sets.filter(set => set.completed !== false).map(set => ({
@@ -163,7 +164,7 @@ function WorkoutSummaryContent() {
     const metrics = computeSessionMetrics({ startedAt: session.started_at, endedAt: session.ended_at, intensity: getSessionIntensity(parsedNotes), sets: metricSets })
     const bestE1rm = metricSets.reduce((best, item) => Math.max(best, computeSetE1rm(item, item.sessionGoal, item.isEligible) || 0), 0)
     return { ...metrics, bestE1rm: Math.round(bestE1rm) }
-  }, [parsedNotes, session])
+  }, [parsedNotes, session, catalog])
 
   const readiness = parsedNotes?.readiness
   const avgEffort = sessionMetrics?.avgEffort

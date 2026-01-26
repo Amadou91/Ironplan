@@ -14,9 +14,10 @@ import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import type { FocusArea, Goal, PlanInput } from '@/types/domain'
+import type { FocusArea, Goal, PlanInput, Exercise } from '@/types/domain'
 import { ReadinessCheck, READINESS_FIELDS } from '@/components/workout/start/ReadinessCheck'
 import { SessionPreview } from '@/components/workout/start/SessionPreview'
+import { mapCatalogRowToExercise } from '@/lib/generator/mappers'
 
 type WorkoutTemplate = {
   id: string
@@ -72,20 +73,28 @@ export default function WorkoutStartPage() {
   const [startError, setStartError] = useState<string | null>(null)
   const [showConflictModal, setShowConflictModal] = useState(false)
   const [minutesAvailable, setMinutesAvailable] = useState(45)
+  const [catalog, setCatalog] = useState<Exercise[]>([])
   const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurveyDraft>({
     sleep: null, soreness: null, stress: null, motivation: null
   })
 
   useEffect(() => {
-    const fetchTemplate = async () => {
-      const { data, error } = await supabase.from('workout_templates').select('*').eq('id', params.id).single()
-      if (!error) {
-        setTemplate(data)
-        setMinutesAvailable(data?.template_inputs?.time?.minutesPerSession ?? 45)
+    const init = async () => {
+      const [templateRes, catalogRes] = await Promise.all([
+        supabase.from('workout_templates').select('*').eq('id', params.id).single(),
+        supabase.from('exercise_catalog').select('*')
+      ])
+      
+      if (!templateRes.error) {
+        setTemplate(templateRes.data)
+        setMinutesAvailable(templateRes.data?.template_inputs?.time?.minutesPerSession ?? 45)
+      }
+      if (!catalogRes.error && catalogRes.data) {
+        setCatalog(catalogRes.data.map(mapCatalogRowToExercise))
       }
       setLoading(false)
     }
-    if (params.id) fetchTemplate()
+    if (params.id) init()
   }, [params.id, supabase])
 
   const readinessComplete = useMemo(() => READINESS_FIELDS.every((f) => typeof readinessSurvey[f.key] === 'number'), [readinessSurvey])
@@ -122,7 +131,8 @@ export default function WorkoutStartPage() {
         supabase, userId: user.id, templateId: template.id, templateTitle: buildWorkoutDisplayName({ focus: template.focus, style: template.style, intensity: template.intensity, fallback: template.title }),
         focus: template.focus, goal: template.style, input: tunedInputs, minutesAvailable, readiness: { survey: readinessSurvey as ReadinessSurvey, score: readinessScore, level: readinessLevel },
         sessionNotes: { sessionIntensity: selectedIntensity.intensity, minutesAvailable, readiness: readinessLevel, readinessScore, readinessSurvey: readinessSurvey as ReadinessSurvey, source: 'workout_start' },
-        history, nameSuffix: `${toMuscleLabel(template.focus)} ${template.style.replace('_', ' ')}`
+        history, nameSuffix: `${toMuscleLabel(template.focus)} ${template.style.replace('_', ' ')}`,
+        catalog
       })
       startSession({ id: sessionId, userId: user.id, templateId: template.id, name: sessionName, startedAt, status: 'in_progress', impact, exercises, timezone, sessionNotes })
       router.push(`/workouts/${template.id}/active?sessionId=${sessionId}&from=start`)
