@@ -5,7 +5,7 @@ import type { Goal } from '@/types/domain'
 const styleOptions: { value: Goal; label: string; description: string }[] = [
   { value: 'strength', label: 'Strength', description: 'Heavier loads, lower reps, power focus.' },
   { value: 'hypertrophy', label: 'Hypertrophy', description: 'Muscle growth with balanced volume.' },
-  { value: 'endurance', label: 'Endurance', description: 'Higher reps and conditioning focus.' }
+  { value: 'endurance', label: 'Endurance & Cardio', description: 'Higher reps and conditioning focus.' }
 ]
 
 interface GoalSelectorProps {

@@ -21,6 +21,15 @@ import {
   getIntensityScore
 } from './scoring'
 
+/**
+ * Narrow down the exercise catalog to a valid pool for the current session.
+ * 
+ * Filters applied:
+ * 1. Focus: Ensures exercise aligns with target body part or session type.
+ * 2. Equipment: Strictly enforces the user's available inventory.
+ * 3. User Preferences: Removes disliked activities or high-impact moves if constrained.
+ * 4. Goal Alignment: Special handling for Cardio vs Yoga vs Strength goals.
+ */
 export const filterExercises = (
   catalog: Exercise[],
   focus: FocusArea,
@@ -35,13 +44,30 @@ export const filterExercises = (
   const isDisliked = disliked.some(activity => exercise.name.toLowerCase().includes(activity.toLowerCase()))
   const lowImpact = accessibility.includes('low-impact')
   const isHighImpact = exercise.name.toLowerCase().includes('jump') || exercise.name.toLowerCase().includes('interval')
-  const matchesGoal = goal
-    ? exercise.goal === goal || !exercise.goal || (goal === 'cardio' && exercise.goal === 'endurance')
-    : true
+  
+  // "Universal Donor" logic for general_fitness
+  const isUniversalDonor = exercise.goal === 'general_fitness'
+  
+  let matchesGoal = true
+  if (goal && !isUniversalDonor) {
+    if (exercise.goal === 'general_fitness') {
+      matchesGoal = true
+    } else if (goal === 'hypertrophy' && exercise.goal === 'strength') {
+      // Waterfall: Hypertrophy can build on strength base
+      matchesGoal = true
+    } else if (goal === 'endurance' && exercise.goal === 'cardio') {
+      // Cardio maps to endurance
+      matchesGoal = true
+    } else {
+      // Strict match otherwise
+      matchesGoal = exercise.goal === goal || !exercise.goal
+    }
+  }
+
   const matchesCardio = exercise.focus === 'cardio' ? matchesCardioSelection(exercise.name, cardioActivities) : true
 
   // Strict filter for Yoga/Mobility
-  const isYogaOrMobility = exercise.goal === 'general_fitness' || exercise.focus === 'mobility'
+  const isYogaOrMobility = exercise.focus === 'mobility' || (exercise.goal === 'general_fitness' && exercise.metricProfile === 'yoga_session')
   if (isYogaOrMobility && goal !== 'general_fitness') {
     return false
   }
@@ -49,6 +75,15 @@ export const filterExercises = (
   return matchesFocus && matchesGoal && matchesCardio && Boolean(option) && !isDisliked && !(lowImpact && isHighImpact)
 })
 
+/**
+ * Ranks exercises for selection based on multiple factors.
+ * 
+ * Scoring components:
+ * 1. Freshness: Penalizes exercises performed very recently (-3).
+ * 2. Muscle/Pattern Variety: Penalizes repeating the same primary muscle or pattern (-1).
+ * 3. Profile Match: Bonus for exercises matching user's experience and intensity level.
+ * 4. Source Priority: Bonus for exercises that are 'primary' for the session focus.
+ */
 export const scoreExercise = (
   exercise: Exercise,
   source: ExerciseSource,
@@ -76,6 +111,9 @@ export const scoreExercise = (
   return score
 }
 
+/**
+ * Sorts a pool of exercises by their calculated score, with a small random factor.
+ */
 export const orderPool = (
   pool: Exercise[],
   source: ExerciseSource,
@@ -96,6 +134,14 @@ export const orderPool = (
     .sort((a, b) => b.score - a.score)
     .map((item) => item.exercise)
 
+/**
+ * Final pass to reorder exercises for a better workout flow.
+ * 
+ * Rules:
+ * - Avoid adjacent exercises with the same movement pattern (e.g., two heavy pushes).
+ * - Avoid adjacent exercises targeting the same primary muscle.
+ * - Prioritize variety in movement "families" (e.g., rotate between press, squat, pull).
+ */
 export const reorderForVariety = (
   picks: PlannedExercise[],
   rng: () => number,

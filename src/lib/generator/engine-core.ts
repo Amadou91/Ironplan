@@ -49,6 +49,23 @@ import {
 import { filterExercises, orderPool, reorderForVariety } from './selection-logic'
 import { createPlannedExercise, adjustSessionVolume } from './volume-math'
 
+/**
+ * Core generation logic for a single training session.
+ * 
+ * SEMANTICS OF PRESCRIPTIONS:
+ * The 'sets', 'reps', and 'rpe' values from the exercise catalog are treated as
+ * MODERATE INTENSITY BASELINES. 
+ * 
+ * During generation, these are adjusted by:
+ * 1. Session Intensity: Low intensity reduces RPE/Sets, High intensity increases them.
+ * 2. User Experience: Beginners get lower volume, Advanced users get higher volume.
+ * 3. Time Constraints: If a session is running long, sets are reduced starting from 
+ *    accessory movements to fit the target duration.
+ * 4. Session Goal: Rep ranges are derived primarily from the goal (Strength/Hypertrophy/Endurance).
+ * 
+ * Once a session is generated, these prescriptions are RECOMMENDATIONS. Users can
+ * always adjust them during workout execution.
+ */
 const buildSessionForTime = (
   primaryPool: Exercise[],
   secondaryPool: Exercise[],
