@@ -78,7 +78,7 @@ export function MuscleSplitChart({ data }: MuscleSplitChartProps) {
       </div>
 
       <div className="flex flex-col xl:flex-row items-center gap-8">
-        <div className="h-[280px] w-full xl:w-1/2">
+        <div className="h-[280px] w-full xl:w-5/12">
           <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <PieChart>
               <Pie 
@@ -88,8 +88,8 @@ export function MuscleSplitChart({ data }: MuscleSplitChartProps) {
                 })).filter(m => m.value > 0)} 
                 dataKey="value" 
                 nameKey="muscle" 
-                outerRadius={100}
-                innerRadius={70}
+                outerRadius={110}
+                innerRadius={75}
                 paddingAngle={2}
                 stroke="none"
               >
@@ -109,15 +109,16 @@ export function MuscleSplitChart({ data }: MuscleSplitChartProps) {
                   border: '1px solid var(--color-border)', 
                   color: 'var(--color-text)', 
                   fontSize: '12px',
-                  borderRadius: '8px',
-                  boxShadow: 'var(--shadow-md)'
+                  borderRadius: '12px',
+                  boxShadow: 'var(--shadow-md)',
+                  padding: '12px'
                 }} 
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
         
-        <div className="w-full xl:w-1/2 space-y-2 pr-2">
+        <div className="w-full xl:w-7/12 space-y-2 pr-2">
           <p className="text-[10px] font-black uppercase tracking-widest text-subtle border-b border-[var(--color-border)] pb-2 mb-3">
             {muscleVizMode === 'absolute' ? `Volume (${displayUnit})` : muscleVizMode === 'relative' ? 'Distribution (%)' : 'Target Index (100=target)'}
           </p>

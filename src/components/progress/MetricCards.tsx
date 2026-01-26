@@ -63,7 +63,7 @@ export function MetricCards({
 
   return (
     <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
-      <Card className="p-10">
+      <Card className="p-6">
         <div className="flex items-center mb-6">
           <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">Performance PRs</h3>
           <ChartInfoTooltip 
@@ -87,7 +87,7 @@ export function MetricCards({
         </div>
       </Card>
 
-      <Card className="p-10">
+      <Card className="p-6">
         <div className="flex items-center mb-6">
           <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">Workload & Volume</h3>
           <ChartInfoTooltip 
@@ -119,7 +119,7 @@ export function MetricCards({
         </div>
       </Card>
 
-      <Card className="p-10">
+      <Card className="p-6">
         <div className="flex items-center mb-6">
           <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-subtle">Activity & Recovery</h3>
           <ChartInfoTooltip 

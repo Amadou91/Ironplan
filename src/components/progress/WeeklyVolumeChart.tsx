@@ -92,6 +92,7 @@ export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
         <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
           <LineChart 
             data={zoomedData}
+            margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
             onMouseDown={(e) => { if (e?.activeLabel) setRefAreaLeft(e.activeLabel) }}
             onMouseMove={(e) => { if (refAreaLeft && e?.activeLabel) setRefAreaRight(e.activeLabel) }}
             style={{ outline: 'none' }}

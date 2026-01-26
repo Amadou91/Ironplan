@@ -129,7 +129,7 @@ export function ProgressFilters({
   }
 
   return (
-    <Card className="p-6 md:p-8">
+    <Card className="p-6">
       <div className="flex flex-col gap-10">
         <div>
           <div className="flex items-center gap-2 mb-6">

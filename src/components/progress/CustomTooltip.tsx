@@ -30,23 +30,29 @@ export function CustomTooltip({ active, payload, label, type, unit }: CustomTool
             )
           })}
 
-          {type === 'readiness' && payload.length >= 2 && (
+          {type === 'readiness' && payload.length >= 1 && (
             <div className="mt-2 border-t border-[var(--color-border)] pt-2">
               {(() => {
                 const readiness = payload.find(p => p.dataKey === 'score' || p.dataKey === 'readiness')?.value as number
                 const effort = payload.find(p => p.dataKey === 'effort')?.value as number
                 
                 if (readiness !== undefined && effort !== undefined) {
-                  const normalizedEffort = effort * 10
-                  const diff = readiness - normalizedEffort
-                  
                   let status = { label: 'Optimal', color: 'text-green-500', icon: '✅' }
-                  if (diff < -20) status = { label: 'Overreaching', color: 'text-red-500', icon: '⚠️' }
-                  else if (diff > 20) status = { label: 'Undertraining', color: 'text-amber-500', icon: '📉' }
+                  
+                  // Quadrant Logic
+                  if (readiness < 50 && effort >= 5) {
+                    status = { label: 'Overreaching', color: 'text-red-500', icon: '⚠️' }
+                  } else if (readiness >= 50 && effort >= 5) {
+                    status = { label: 'Optimal', color: 'text-green-500', icon: '🔥' }
+                  } else if (readiness < 50 && effort < 5) {
+                    status = { label: 'Recovery', color: 'text-blue-500', icon: '💤' }
+                  } else {
+                    status = { label: 'Undertraining', color: 'text-amber-500', icon: '📉' }
+                  }
                   
                   return (
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase text-subtle">Analysis:</span>
+                      <span className="text-[10px] font-black uppercase text-subtle">Status:</span>
                       <span className={`text-[10px] font-black uppercase ${status.color}`}>
                         {status.icon} {status.label}
                       </span>
