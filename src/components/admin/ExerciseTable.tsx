@@ -11,21 +11,26 @@ interface ExerciseTableProps {
   exercises: Exercise[];
 }
 
-const FocusBadge = ({ focus }: { focus: string }) => {
+const FocusBadge = ({ category }: { category: string }) => {
   const colors: Record<string, string> = {
-    upper: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border-blue-200 dark:border-blue-500/30',
-    lower: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300 border-orange-200 dark:border-orange-500/30',
-    core: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300 border-purple-200 dark:border-purple-500/30',
-    cardio: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 border-red-200 dark:border-red-500/30',
-    mobility: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30',
-    full_body: 'bg-slate-100 text-slate-700 dark:bg-slate-700/40 dark:text-slate-300 border-slate-200 dark:border-slate-600',
+    Strength: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border-blue-200 dark:border-blue-500/30',
+    Cardio: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 border-red-200 dark:border-red-500/30',
+    Yoga: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30',
+    default: 'bg-slate-100 text-slate-700 dark:bg-slate-700/40 dark:text-slate-300 border-slate-200 dark:border-slate-600',
   };
-  const colorClass = colors[focus] || colors.full_body;
+  const colorClass = colors[category] || colors.default;
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${colorClass}`}>
-      {focus.replace('_', ' ').toUpperCase()}
+      {category}
     </span>
   );
+};
+
+const METRIC_LABELS: Record<string, string> = {
+  reps_weight: 'Reps & Weight',
+  duration: 'Duration',
+  distance_duration: 'Dist & Time',
+  reps_only: 'Reps Only'
 };
 
 export function ExerciseTable({ exercises }: ExerciseTableProps) {
@@ -76,17 +81,23 @@ export function ExerciseTable({ exercises }: ExerciseTableProps) {
                       <span className="text-sm font-bold text-[var(--color-text)]">{exercise.name}</span>
                       <span className="text-xs text-[var(--color-text-muted)] uppercase tracking-wide">{exercise.primaryMuscle?.replace(/_/g, ' ')}</span>
                       <span className="inline-flex w-fit items-center px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--color-surface-muted)] text-[var(--color-text-subtle)] border border-[var(--color-border)]">
-                        {exercise.metricProfile?.replace(/_/g, ' ')}
+                        {METRIC_LABELS[exercise.metricProfile || ''] || exercise.metricProfile?.replace(/_/g, ' ')}
                       </span>
                     </div>
                   </td>
 
-                  {/* Logic: Focus, Goal, Difficulty */}
+                  {/* Logic: Category, Goal, Difficulty */}
                   <td className="px-6 py-4 align-top">
                     <div className="flex flex-col gap-2 items-start">
-                      <FocusBadge focus={exercise.focus} />
+                      <FocusBadge category={exercise.category || (exercise.focus === 'cardio' ? 'Cardio' : 'Strength')} />
                       <div className="text-xs text-[var(--color-text-muted)] flex flex-col gap-0.5">
-                        <span className="capitalize">Goal: <strong className="font-medium text-[var(--color-text)]">{exercise.goal?.replace(/_/g, ' ')}</strong></span>
+                        <span className="capitalize">
+                          Goal: <strong className="font-medium text-[var(--color-text)]">
+                            {exercise.eligibleGoals && exercise.eligibleGoals.length > 0 
+                              ? exercise.eligibleGoals.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(', ')
+                              : exercise.goal?.replace(/_/g, ' ')}
+                          </strong>
+                        </span>
                         <span className="capitalize">Lvl: <strong className="font-medium text-[var(--color-text)]">{exercise.difficulty}</strong></span>
                       </div>
                     </div>

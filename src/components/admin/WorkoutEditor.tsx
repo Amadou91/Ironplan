@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Exercise, FocusArea, Goal, Difficulty, MetricProfile, MuscleGroup, EquipmentOption } from '@/types/domain';
+import { Exercise, Goal, Difficulty, MetricProfile, MuscleGroup, EquipmentOption, ExerciseCategory } from '@/types/domain';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Label } from '@/components/ui/Label';
 import { Button } from '@/components/ui/Button';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { RPE_OPTIONS } from '@/constants/intensityOptions';
 
 interface WorkoutEditorProps {
@@ -14,28 +15,35 @@ interface WorkoutEditorProps {
   isLoading?: boolean;
 }
 
-const FOCUS_AREAS: FocusArea[] = ['upper', 'lower', 'full_body', 'core', 'cardio', 'mobility', 'arms', 'legs', 'biceps', 'triceps', 'chest', 'back'];
-const GOALS: Goal[] = ['strength', 'hypertrophy', 'endurance', 'cardio', 'general_fitness'];
+const CATEGORIES: ExerciseCategory[] = ['Strength', 'Cardio', 'Yoga'];
+const GOALS: Goal[] = ['strength', 'hypertrophy', 'endurance'];
 const DIFFICULTIES: Difficulty[] = ['beginner', 'intermediate', 'advanced'];
-const METRIC_PROFILES: MetricProfile[] = ['strength', 'timed_strength', 'yoga_session', 'cardio_session', 'mobility_session'];
+const METRIC_PROFILES: { value: MetricProfile; label: string }[] = [
+  { value: 'reps_weight', label: 'Reps & Weight' },
+  { value: 'duration', label: 'Duration (Time)' },
+  { value: 'distance_duration', label: 'Distance & Time' },
+  { value: 'reps_only', label: 'Reps Only (Bodyweight)' },
+];
+
+// Anatomic muscles only
 const MUSCLE_GROUPS: MuscleGroup[] = [
   'chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'core', 
   'glutes', 'quads', 'hamstrings', 'calves', 'hip_flexors', 'adductors', 'abductors', 
-  'full_body', 'upper_body', 'lower_body', 
-  'cardio', 'yoga'
+  'full_body', 'upper_body', 'lower_body'
 ];
+
 const EQUIPMENT_KINDS = ['bodyweight', 'dumbbell', 'kettlebell', 'band', 'barbell', 'machine'];
 
 const DEFAULT_EXERCISE: Partial<Exercise> = {
   name: '',
-  focus: 'full_body',
-  metricProfile: 'strength',
+  category: 'Strength',
+  metricProfile: 'reps_weight',
   sets: 3,
   reps: 10,
   rpe: 8,
   equipment: [],
   difficulty: 'beginner',
-  goal: 'general_fitness',
+  eligibleGoals: ['strength', 'hypertrophy'],
   durationMinutes: 30,
   restSeconds: 60,
   primaryMuscle: 'full_body',
@@ -53,11 +61,23 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleGoalToggle = (goal: Goal) => {
+    const current = formData.eligibleGoals || [];
+    const exists = current.includes(goal);
+    let next: Goal[];
+    if (exists) {
+      next = current.filter(g => g !== goal);
+    } else {
+      next = [...current, goal];
+    }
+    handleChange('eligibleGoals', next);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Basic validation
-    if (!formData.name || !formData.focus || !formData.metricProfile) {
-      alert('Please fill in Name, Focus, and Metric Profile.');
+    if (!formData.name || !formData.category || !formData.metricProfile) {
+      alert('Please fill in Name, Category, and Metric Profile.');
       return;
     }
     onSubmit(formData as Exercise);
@@ -82,21 +102,50 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
               placeholder="e.g. Barbell Squat"
             />
           </div>
+           <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <Select
+              id="category"
+              value={formData.category}
+              onChange={(e) => handleChange('category', e.target.value as ExerciseCategory)}
+            >
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </Select>
+          </div>
           <div className="space-y-2">
-            <Label htmlFor="metricProfile">Metric Profile</Label>
+            <Label htmlFor="metricProfile">Tracking Type (Metric Profile)</Label>
             <Select
               id="metricProfile"
               value={formData.metricProfile}
-              onChange={(e) => handleChange('metricProfile', e.target.value)}
+              onChange={(e) => handleChange('metricProfile', e.target.value as MetricProfile)}
             >
               {METRIC_PROFILES.map((p) => (
-                <option key={p} value={p}>
-                  {p.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                <option key={p.value} value={p.value}>
+                  {p.label}
                 </option>
               ))}
             </Select>
             <p className="text-xs text-slate-500">Determines how volume and intensity are tracked.</p>
           </div>
+          
+           {formData.category === 'Strength' && (
+            <div className="space-y-2">
+              <Label htmlFor="primaryMuscle">Target Muscle</Label>
+              <Select
+                id="primaryMuscle"
+                value={formData.primaryMuscle as string}
+                onChange={(e) => handleChange('primaryMuscle', e.target.value)}
+              >
+                {MUSCLE_GROUPS.map((m) => (
+                  <option key={m} value={m}>{m.replace('_', ' ').toUpperCase()}</option>
+                ))}
+              </Select>
+            </div>
+           )}
         </div>
       </section>
 
@@ -110,54 +159,6 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
         </div>
         <div className="grid gap-6 md:grid-cols-4">
           <div className="space-y-2">
-            <Label htmlFor="focus">Focus Area (Category)</Label>
-            <Select
-              id="focus"
-              value={formData.focus}
-              onChange={(e) => handleChange('focus', e.target.value)}
-            >
-              <optgroup label="Body Part Splits">
-                {FOCUS_AREAS.filter(f => !['cardio', 'mobility'].includes(f)).map((f) => (
-                  <option key={f} value={f}>{f.replace('_', ' ').toUpperCase()}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Specialty">
-                <option value="cardio">CARDIO</option>
-                <option value="mobility">MOBILITY</option>
-              </optgroup>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="primaryMuscle">Target Muscle / System</Label>
-            <Select
-              id="primaryMuscle"
-              value={formData.primaryMuscle as string}
-              onChange={(e) => handleChange('primaryMuscle', e.target.value)}
-            >
-              <optgroup label="Muscle Groups">
-                {MUSCLE_GROUPS.filter(m => !['cardio', 'yoga'].includes(m)).map((m) => (
-                  <option key={m} value={m}>{m.replace('_', ' ').toUpperCase()}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Systems">
-                <option value="cardio">CARDIO</option>
-                <option value="yoga">YOGA / FLOW</option>
-              </optgroup>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="goal">Primary Goal</Label>
-            <Select
-              id="goal"
-              value={formData.goal}
-              onChange={(e) => handleChange('goal', e.target.value)}
-            >
-              {GOALS.map((g) => (
-                <option key={g} value={g}>{g.replace('_', ' ').toUpperCase()}</option>
-              ))}
-            </Select>
-          </div>
-          <div className="space-y-2">
             <Label htmlFor="difficulty">Difficulty</Label>
             <Select
               id="difficulty"
@@ -168,6 +169,21 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
                 <option key={d} value={d}>{d.toUpperCase()}</option>
               ))}
             </Select>
+          </div>
+          
+          <div className="col-span-3 space-y-2">
+             <Label className="block mb-2">Eligible Styles</Label>
+             <div className="flex gap-4">
+               {GOALS.map(goal => (
+                 <Checkbox
+                   key={goal}
+                   label={goal.charAt(0).toUpperCase() + goal.slice(1)}
+                   checked={formData.eligibleGoals?.includes(goal)}
+                   onCheckedChange={() => handleGoalToggle(goal)}
+                 />
+               ))}
+             </div>
+             <p className="text-xs text-slate-500">Uncheck styles only if this exercise is strictly incompatible (e.g., exclude box jumps from hypertrophy).</p>
           </div>
           
           {/* Equipment Selection merged into Logic Filters */}

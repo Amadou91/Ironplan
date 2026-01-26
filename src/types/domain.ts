@@ -98,12 +98,15 @@ export interface ExerciseLoad {
   label: string
 }
 
-export type MetricProfile = 'strength' | 'timed_strength' | 'yoga_session' | 'cardio_session' | 'mobility_session'
+export type MetricProfile = 'reps_weight' | 'duration' | 'distance_duration' | 'reps_only'
+
+export type ExerciseCategory = 'Strength' | 'Cardio' | 'Yoga'
 
 export interface Exercise {
   id?: string
   name: string
-  focus: FocusArea
+  category: ExerciseCategory
+  focus?: FocusArea
   metricProfile?: MetricProfile
   sets: number
   reps: string | number
@@ -111,6 +114,7 @@ export interface Exercise {
   equipment: EquipmentOption[]
   movementPattern?: MovementPattern
   difficulty?: Difficulty
+  eligibleGoals: Goal[]
   goal?: Goal
   durationMinutes: number
   restSeconds: number
