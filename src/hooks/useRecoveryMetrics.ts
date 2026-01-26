@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { 
   transformSessionsToBodyWeightTrend,
-  transformSessionsToReadinessTrend
+  transformSessionsToReadinessTrend,
+  formatDateForInput
 } from '@/lib/transformers/chart-data'
 import { type SessionRow } from '@/lib/transformers/progress-data'
 import { computeSessionMetrics } from '@/lib/training-metrics'
@@ -83,8 +84,15 @@ export function useRecoveryMetrics(options: {
     return sessions.map(session => {
       const entry = readinessBySessionId.get(session.id)
       return entry ? { session, entry } : null
-    }).filter((v): v is { session: SessionRow; entry: ReadinessRow } => Boolean(v))
-  }, [sessions, readinessBySessionId])
+    })
+    .filter((v): v is { session: SessionRow; entry: ReadinessRow } => Boolean(v))
+    .filter(({ session }) => {
+      const localDay = formatDateForInput(new Date(session.started_at))
+      if (startDate && localDay < startDate) return false
+      if (endDate && localDay > endDate) return false
+      return true
+    })
+  }, [sessions, readinessBySessionId, startDate, endDate])
 
   const readinessAverages = useMemo(() => {
     if (!readinessSessions.length) return null

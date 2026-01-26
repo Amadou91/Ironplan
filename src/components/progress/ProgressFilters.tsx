@@ -20,21 +20,11 @@ const DATE_RANGE_PRESETS: DateRangePreset[] = [
       return { start: today, end: today }
     }
   },
-  { label: 'Last 7 days', getRange: () => createPastRange(7) },
+  { label: '7D', getRange: () => createPastRange(7) },
+  { label: '30D', getRange: () => createPastRange(30) },
+  { label: '90D', getRange: () => createPastRange(90) },
   {
-    label: 'This Month',
-    getRange: () => {
-      const today = new Date()
-      today.setHours(23, 59, 59, 999)
-      const start = new Date(today.getFullYear(), today.getMonth(), 1)
-      start.setHours(0, 0, 0, 0)
-      return { start, end: today }
-    }
-  },
-  { label: 'Last 30 days', getRange: () => createPastRange(30) },
-  { label: 'Last 90 days', getRange: () => createPastRange(90) },
-  {
-    label: 'Last 6 months',
+    label: '6M',
     getRange: () => {
       const today = new Date()
       today.setHours(23, 59, 59, 999)
@@ -45,12 +35,22 @@ const DATE_RANGE_PRESETS: DateRangePreset[] = [
     }
   },
   {
-    label: 'Last 12 months',
+    label: '12M',
     getRange: () => {
       const today = new Date()
       today.setHours(23, 59, 59, 999)
       const start = new Date()
       start.setFullYear(today.getFullYear() - 1)
+      start.setHours(0, 0, 0, 0)
+      return { start, end: today }
+    }
+  },
+  {
+    label: 'This Month',
+    getRange: () => {
+      const today = new Date()
+      today.setHours(23, 59, 59, 999)
+      const start = new Date(today.getFullYear(), today.getMonth(), 1)
       start.setHours(0, 0, 0, 0)
       return { start, end: today }
     }
@@ -126,26 +126,32 @@ export function ProgressFilters({
   }
 
   return (
-    <Card className="p-4 shadow-xl border-[var(--color-primary)]/20 backdrop-blur-md bg-surface/80">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <Card className="p-4 shadow-xl border-[var(--color-primary-border)]/30 backdrop-blur-md bg-surface/80">
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-1.5 h-6 bg-[var(--color-primary)] rounded-full" />
-            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-strong">Data Insights Control</h2>
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-strong">Insights Control</h2>
           </div>
           
-          <div className="flex flex-wrap items-center gap-2">
-            {DATE_RANGE_PRESETS.slice(1, 8).map((preset) => (
-              <Button
-                key={preset.label}
-                variant={activeDatePreset === preset.label ? 'primary' : 'outline'}
-                size="sm"
-                onClick={() => handlePresetClick(preset)}
-                className="h-7 px-3 text-[10px] font-bold"
-              >
-                {preset.label}
-              </Button>
-            ))}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex items-center gap-1 bg-surface-muted/50 p-1 rounded-lg">
+              {DATE_RANGE_PRESETS.map((preset) => (
+                <Button
+                  key={preset.label}
+                  variant={activeDatePreset === preset.label ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => handlePresetClick(preset)}
+                  className={`h-7 px-2.5 text-[10px] font-bold transition-all duration-200 ${
+                    activeDatePreset === preset.label 
+                      ? 'shadow-sm' 
+                      : 'text-subtle hover:text-strong'
+                  }`}
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
