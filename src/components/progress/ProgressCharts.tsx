@@ -326,8 +326,14 @@ export function ProgressCharts({
               <XAxis dataKey="readiness" type="number" name="Readiness" domain={[0, 100]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} />
               <YAxis dataKey="effort" type="number" name="Effort" domain={[0, 10]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} />
               <Tooltip content={<CustomTooltip type="readiness" />} cursor={{ strokeDasharray: '3 3' }} />
+              {/* Overreaching: Low Readiness, High Effort */}
               <ReferenceArea x1={0} x2={50} y1={5} y2={10} fill="var(--color-danger)" fillOpacity={0.1} />
-              <ReferenceArea x1={50} x2={100} y1={0} y2={5} fill="var(--color-success)" fillOpacity={0.1} />
+              {/* Optimal: High Readiness, High Effort */}
+              <ReferenceArea x1={50} x2={100} y1={5} y2={10} fill="var(--color-success)" fillOpacity={0.1} />
+              {/* Recovery: Low Readiness, Low Effort */}
+              <ReferenceArea x1={0} x2={50} y1={0} y2={5} fill="var(--color-success)" fillOpacity={0.1} />
+              {/* Undertraining: High Readiness, Low Effort */}
+              <ReferenceArea x1={50} x2={100} y1={0} y2={5} fill="var(--color-warning)" fillOpacity={0.1} />
               <ReferenceLine x={50} stroke="var(--color-border)" strokeDasharray="3 3" />
               <ReferenceLine y={5} stroke="var(--color-border)" strokeDasharray="3 3" />
               <Scatter data={readinessCorrelation} name="Session" fill="var(--color-primary)" />
