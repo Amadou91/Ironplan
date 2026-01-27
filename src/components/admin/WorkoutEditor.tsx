@@ -190,9 +190,11 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
     } else if (cat === 'Cardio') {
       updates.eligibleGoals = ['cardio'];
       updates.metricProfile = 'duration';
+      updates.primaryMuscle = 'cardio';
     } else if (cat === 'Mobility') {
       updates.eligibleGoals = ['mobility'];
       updates.metricProfile = 'duration';
+      updates.primaryMuscle = 'full_body';
     }
     setFormData(prev => ({ ...prev, ...updates }));
   };
