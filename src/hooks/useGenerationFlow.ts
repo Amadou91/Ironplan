@@ -113,16 +113,16 @@ export function useGenerationFlow() {
   const handleFocusChange = (focus: FocusArea) => {
     updateFormData((prev) => {
       let targetStyle: Goal = prev.goals.primary
-      if (focus === 'mobility') targetStyle = 'general_fitness'
+      if (focus === 'mobility') targetStyle = 'mobility'
       else if (focus === 'cardio') targetStyle = 'cardio'
-      else if (['cardio', 'general_fitness'].includes(prev.goals.primary)) {
+      else if (['cardio', 'mobility', 'general_fitness'].includes(prev.goals.primary)) {
         targetStyle = 'strength'
       }
 
       const isCardio = targetStyle === 'cardio'
-      const isYoga = targetStyle === 'general_fitness'
+      const isYoga = targetStyle === 'mobility'
       const wasCardio = prev.goals.primary === 'cardio'
-      const wasYoga = prev.goals.primary === 'general_fitness'
+      const wasYoga = prev.goals.primary === 'mobility'
 
       if ((isCardio || isYoga) && !wasCardio && !wasYoga) {
         lastStrengthInventoryRef.current = cloneInventory(prev.equipment.inventory)
@@ -173,9 +173,9 @@ export function useGenerationFlow() {
   const updatePrimaryStyle = (style: Goal) => {
     updateFormData((prev) => {
       const isCardio = style === 'cardio'
-      const isYoga = style === 'general_fitness'
+      const isYoga = style === 'mobility'
       const wasCardio = prev.goals.primary === 'cardio'
-      const wasYoga = prev.goals.primary === 'general_fitness'
+      const wasYoga = prev.goals.primary === 'mobility'
 
       if ((isCardio || isYoga) && !wasCardio && !wasYoga) {
         lastStrengthInventoryRef.current = cloneInventory(prev.equipment.inventory)

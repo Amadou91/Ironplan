@@ -53,6 +53,7 @@ const GOALS: { value: Goal; label: string }[] = [
   { value: 'strength', label: 'Strength' },
   { value: 'hypertrophy', label: 'Hypertrophy' },
   { value: 'endurance', label: 'Endurance' },
+  { value: 'mobility', label: 'Mobility' },
 ];
 
 const DEFAULT_EXERCISE: Partial<Exercise> = {
@@ -207,10 +208,10 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
                     updates.eligibleGoals = ['strength', 'hypertrophy'];
                   } else if (cat === 'Cardio') {
                     updates.metricProfile = 'distance_duration';
-                    updates.eligibleGoals = ['endurance'];
+                    updates.eligibleGoals = ['cardio'];
                   } else if (cat === 'Yoga') {
                     updates.metricProfile = 'duration';
-                    updates.eligibleGoals = [];
+                    updates.eligibleGoals = ['mobility'];
                     updates.primaryMuscle = 'full_body';
                     updates.equipment = [{ kind: 'bodyweight' }];
                   }

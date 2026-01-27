@@ -1,17 +1,30 @@
 import React from 'react';
 import { fetchExerciseCatalog } from '@/lib/generator/catalog-loader';
-import { ExerciseTable } from '@/components/admin/ExerciseTable';
+import { ExerciseBrowser } from '@/components/admin/exercise-browser/ExerciseBrowser';
+import { ResetWorkoutsButton } from '@/components/admin/ResetWorkoutsButton';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import Link from 'next/link';
 
 export default async function AdminDashboard() {
   const exercises = await fetchExerciseCatalog();
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+    <div className="container mx-auto py-8 px-4 sm:px-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+        <h1 className="text-4xl font-bold tracking-tight">Admin Dashboard</h1>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+             <ResetWorkoutsButton />
+             <Link href="/admin/workouts/new" className="w-full sm:w-auto">
+                <Button className="w-full sm:w-auto shadow-sm bg-primary text-primary-foreground hover:opacity-90">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Exercise
+                </Button>
+             </Link>
+        </div>
       </div>
 
-      <ExerciseTable exercises={exercises} />
+      <ExerciseBrowser initialExercises={exercises} />
     </div>
   );
 }

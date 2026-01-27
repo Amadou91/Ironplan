@@ -1,8 +1,23 @@
+# Ironplan
+
 Ironplan is a constraint-driven workout planner that builds personalized programs from time, schedule, and preference inputs.
 
 ## What Ironplan Generates
 
 Ironplan produces a weekly schedule with exercises, duration estimates, and rationale strings that explain why each day looks the way it does.
+
+## Maintenance
+
+### Generating Default Exercises
+To update the default exercise dataset (used for the Admin "Reset to Defaults" feature), run the following script. This reads from the current database state, applies normalization rules (e.g., locking Yoga to Mobility goal), and writes to `src/lib/data/defaultExercises.ts`.
+
+```bash
+# Ensure .env.local has NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
+npx tsx scripts/generate-defaults.ts
+```
+
+### Resetting Workouts
+In the Admin Dashboard (`/admin`), use the "Reset to Defaults" button to wipe the `exercise_catalog` table and restore it from the generated `src/lib/data/defaultExercises.ts` file. This is useful for syncing environments or restoring after bad edits.
 
 ## Configuration Inputs
 

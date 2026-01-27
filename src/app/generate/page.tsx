@@ -45,7 +45,7 @@ export default function GeneratePage() {
 
   const invalidEquipment = !isEquipmentValid(formData.equipment)
   const isCardioStyle = formData.goals.primary === 'cardio'
-  const isYogaStyle = formData.goals.primary === 'general_fitness'
+  const isYogaStyle = formData.goals.primary === 'mobility'
   const inventory = formData.equipment.inventory
 
   const equipmentSummary = (
