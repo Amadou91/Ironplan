@@ -984,9 +984,9 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
   },
   {
     "name": "Stretching",
-    "category": "Strength",
+    "category": "Mobility",
     "focus": "mobility",
-    "metricProfile": "strength",
+    "metricProfile": "mobility_session",
     "sets": 1,
     "reps": "10-15 min",
     "rpe": 3,
@@ -997,9 +997,9 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     ],
     "difficulty": "beginner",
     "eligibleGoals": [
-      "strength"
+      "mobility"
     ],
-    "goal": "strength",
+    "goal": "mobility",
     "durationMinutes": 10,
     "restSeconds": 30,
     "primaryMuscle": "full_body",
@@ -1009,9 +1009,9 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
   },
   {
     "name": "Yoga",
-    "category": "Yoga",
+    "category": "Mobility",
     "focus": "mobility",
-    "metricProfile": "yoga_session",
+    "metricProfile": "mobility_session",
     "sets": 1,
     "reps": "15-20 min",
     "rpe": 5,

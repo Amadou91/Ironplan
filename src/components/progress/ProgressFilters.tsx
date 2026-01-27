@@ -84,7 +84,9 @@ const MUSCLE_PRESETS = [
   { label: 'Shoulders', value: 'shoulders' },
   { label: 'Legs', value: 'legs' },
   { label: 'Arms', value: 'arms' },
-  { label: 'Core', value: 'core' }
+  { label: 'Core', value: 'core' },
+  { label: 'Cardio', value: 'cardio' },
+  { label: 'Yoga / Mobility', value: 'mobility' }
 ]
 
 interface ProgressFiltersProps {

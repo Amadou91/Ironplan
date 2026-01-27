@@ -22,7 +22,7 @@ const MUSCLE_GROUP_SLUGS = new Set([
   'lower_body',
   'full_body',
   'cardio',
-  'yoga'
+  'mobility'
 ]);
 
 const resolveByKeyword = (label: string) => {
@@ -85,7 +85,9 @@ export const PRESET_MAPPINGS: Record<string, string[]> = {
   shoulders: ['shoulders'],
   legs: ['quads', 'hamstrings', 'glutes', 'calves', 'hip_flexors', 'adductors', 'abductors'],
   arms: ['arms', 'biceps', 'triceps', 'forearms'],
-  core: ['core']
+  core: ['core'],
+  cardio: ['cardio'],
+  mobility: ['mobility']
 };
 
 export const isMuscleMatch = (targetPreset: string, primary?: string | null, secondary?: string[] | null): boolean => {
@@ -168,7 +170,7 @@ export const getMetricProfile = (exercise: Partial<Exercise>): MetricProfile => 
   
   const name = (exercise.name ?? '').toLowerCase();
   
-  if (name.includes('yoga') || name.includes('flow')) return 'yoga_session';
+  if (name.includes('yoga') || name.includes('flow')) return 'mobility_session';
   
   if (
     name.includes('run') || 

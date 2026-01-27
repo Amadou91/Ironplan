@@ -14,7 +14,7 @@ interface SetLoggerProps {
   onToggleComplete: () => void;
   metricProfile?: MetricProfile;
   isCardio?: boolean;
-  isYoga?: boolean;
+  isMobility?: boolean;
   isTimeBased?: boolean;
   repsLabel?: string;
 }
@@ -55,7 +55,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
   onToggleComplete,
   metricProfile,
   isCardio = false,
-  isYoga = false,
+  isMobility = false,
   isTimeBased = false,
   repsLabel = 'Reps'
 }) => {
@@ -77,7 +77,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
     metricProfile,
     weightOptions,
     isCardio,
-    isYoga,
+    isMobility,
     isTimeBased,
     onUpdate
   });
@@ -123,9 +123,9 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
       </div>
   );
 
-  if (effectiveProfile === 'yoga_session') {
+  if (effectiveProfile === 'mobility_session') {
     return (
-      <div className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+      <div className={`grid grid-cols-[1fr_auto_auto] gap-2 px-4 py-3 items-center ${isEditing ? 'bg-surface-muted/30' : ''}`}>
         {renderHeader()}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col">

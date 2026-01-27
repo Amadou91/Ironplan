@@ -27,7 +27,7 @@ export const buildWorkoutDisplayName = ({
   const styleLabel = formatGoalLabel(style)
   
   // Special cases for Yoga and Cardio to avoid redundancy
-  if (style === 'general_fitness') {
+  if (style === 'mobility') {
      parts.push('Yoga')
   } else if (style === 'cardio') {
      if (cardioExerciseName) {

@@ -36,7 +36,7 @@ new Function('module', 'exports', 'require', sessionMetricsCode)(sessionMetricsM
 const { computeSetLoad, computeSetTonnage } = sessionMetricsModule.exports
 
 const mockYogaSet = {
-  metricProfile: 'yoga_session',
+  metricProfile: 'mobility_session',
   reps: null,
   weight: null,
   weightUnit: null,
@@ -58,12 +58,12 @@ const mockStrengthSet = {
   completed: true
 }
 
-test('Yoga Metrics: computeSetTonnage returns 0 for Yoga set', () => {
+test('Mobility Metrics: computeSetTonnage returns 0 for Yoga set', () => {
   const tonnage = computeSetTonnage(mockYogaSet)
   assert.equal(tonnage, 0)
 })
 
-test('Yoga Metrics: computeSetLoad returns normalized workload', () => {
+test('Mobility Metrics: computeSetLoad returns normalized workload', () => {
   // 60 min * 0.285 (RPE 5) * 450 (Factor) ≈ 7700
   const load = computeSetLoad(mockYogaSet)
   console.log('Yoga Load:', load)
@@ -71,7 +71,7 @@ test('Yoga Metrics: computeSetLoad returns normalized workload', () => {
   assert.ok(load < 8500)
 })
 
-test('Yoga Metrics: computeSetLoad handles missing intensity (defaults to moderate)', () => {
+test('Mobility Metrics: computeSetLoad handles missing intensity (defaults to moderate)', () => {
   const noIntensitySet = { ...mockYogaSet, rpe: null }
   const load = computeSetLoad(noIntensitySet)
   // RPE null -> 0.5 intensity (default in units.ts)
@@ -80,7 +80,7 @@ test('Yoga Metrics: computeSetLoad handles missing intensity (defaults to modera
   assert.equal(load, 60 * 0.5 * 450)
 })
 
-test('Yoga Metrics: Strength set uses Tonnage based calculation', () => {
+test('Mobility Metrics: Strength set uses Tonnage based calculation', () => {
   // 135lb * 10 reps = 1350 tonnage
   // RPE 7 -> (7-3)/7 = 0.5714
   // Load = 1350 * 0.5714 ≈ 771

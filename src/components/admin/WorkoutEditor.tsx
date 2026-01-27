@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Label } from '@/components/ui/Label';
 import { Button } from '@/components/ui/Button';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { RPE_OPTIONS } from '@/constants/intensityOptions';
 import { Info } from 'lucide-react';
 
@@ -18,7 +19,7 @@ interface WorkoutEditorProps {
 const CATEGORIES: { value: ExerciseCategory; label: string }[] = [
   { value: 'Strength', label: 'Strength' },
   { value: 'Cardio', label: 'Cardio' },
-  { value: 'Yoga', label: 'Yoga' },
+  { value: 'Mobility', label: 'Yoga / Mobility' },
 ];
 
 const DIFFICULTIES: { value: Difficulty; label: string }[] = [
@@ -37,7 +38,7 @@ const METRIC_PROFILES: { value: MetricProfile; label: string }[] = [
 const MUSCLE_GROUPS: MuscleGroup[] = [
   'chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'core', 
   'glutes', 'quads', 'hamstrings', 'calves', 'hip_flexors', 'adductors', 'abductors', 
-  'full_body', 'upper_body', 'lower_body'
+  'full_body', 'upper_body', 'lower_body', 'mobility', 'cardio'
 ];
 
 const EQUIPMENT_KINDS = [
@@ -53,6 +54,7 @@ const GOALS: { value: Goal; label: string }[] = [
   { value: 'strength', label: 'Strength' },
   { value: 'hypertrophy', label: 'Hypertrophy' },
   { value: 'endurance', label: 'Endurance' },
+  { value: 'cardio', label: 'Cardio' },
   { value: 'mobility', label: 'Mobility' },
 ];
 
@@ -65,7 +67,7 @@ const DEFAULT_EXERCISE: Partial<Exercise> = {
   rpe: 8,
   equipment: [{ kind: 'bodyweight' }],
   difficulty: 'beginner',
-  eligibleGoals: ['strength', 'hypertrophy'],
+  eligibleGoals: ['strength', 'hypertrophy', 'endurance'],
   durationMinutes: 30,
   restSeconds: 60,
   primaryMuscle: 'full_body',
@@ -169,9 +171,31 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
   const filteredMetricProfiles = METRIC_PROFILES.filter(p => {
     if (formData.category === 'Strength') return ['reps_weight', 'reps_only'].includes(p.value);
     if (formData.category === 'Cardio') return ['distance_duration', 'duration'].includes(p.value);
-    if (formData.category === 'Yoga') return ['duration'].includes(p.value);
+    if (formData.category === 'Mobility') return ['duration'].includes(p.value);
     return true;
   });
+
+  const filteredGoals = GOALS.filter(g => {
+    if (formData.category === 'Strength') return ['strength', 'hypertrophy', 'endurance'].includes(g.value);
+    if (formData.category === 'Cardio') return g.value === 'cardio';
+    if (formData.category === 'Mobility') return g.value === 'mobility';
+    return true;
+  });
+
+  const handleCategoryChange = (cat: ExerciseCategory) => {
+    const updates: Partial<Exercise> = { category: cat };
+    if (cat === 'Strength') {
+      updates.eligibleGoals = ['strength', 'hypertrophy', 'endurance'];
+      updates.metricProfile = 'reps_weight';
+    } else if (cat === 'Cardio') {
+      updates.eligibleGoals = ['cardio'];
+      updates.metricProfile = 'duration';
+    } else if (cat === 'Mobility') {
+      updates.eligibleGoals = ['mobility'];
+      updates.metricProfile = 'duration';
+    }
+    setFormData(prev => ({ ...prev, ...updates }));
+  };
 
   return (
     <form onSubmit={handleSubmit} className="relative flex flex-col gap-8 bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border)] overflow-hidden">
@@ -201,22 +225,7 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
               <SegmentedControl
                 options={CATEGORIES}
                 value={formData.category || 'Strength'}
-                onChange={(cat) => {
-                  const updates: Partial<Exercise> = { category: cat };
-                  if (cat === 'Strength') {
-                    updates.metricProfile = 'reps_weight';
-                    updates.eligibleGoals = ['strength', 'hypertrophy'];
-                  } else if (cat === 'Cardio') {
-                    updates.metricProfile = 'distance_duration';
-                    updates.eligibleGoals = ['cardio'];
-                  } else if (cat === 'Yoga') {
-                    updates.metricProfile = 'duration';
-                    updates.eligibleGoals = ['mobility'];
-                    updates.primaryMuscle = 'full_body';
-                    updates.equipment = [{ kind: 'bodyweight' }];
-                  }
-                  setFormData(prev => ({ ...prev, ...updates }));
-                }}
+                onChange={handleCategoryChange}
               />
             </div>
 
@@ -262,38 +271,35 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
               </div>
             )}
 
-            {formData.category === 'Strength' && (
-              <div className="col-span-2 space-y-2">
-                <Label className="flex items-center gap-2">
-                  Eligible Styles
-                  <div className="group relative">
-                    <Info className="w-3.5 h-3.5 text-[var(--color-text-subtle)] cursor-help" />
-                    <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-xs text-[var(--color-bg)] bg-[var(--color-text)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
-                      Uncheck only if strictly incompatible
-                    </span>
-                  </div>
-                </Label>
-                <MultiSelectChips
-                  options={GOALS}
-                  selected={formData.eligibleGoals || []}
-                  onChange={(goals) => handleChange('eligibleGoals', goals)}
-                />
-              </div>
-            )}
+            <div className="col-span-2 space-y-2">
+              <Label className="flex items-center gap-2">
+                Eligible Styles
+                <div className="group relative">
+                  <Info className="w-3.5 h-3.5 text-[var(--color-text-subtle)] cursor-help" />
+                  <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-xs text-[var(--color-bg)] bg-[var(--color-text)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
+                    Uncheck only if strictly incompatible
+                  </span>
+                </div>
+              </Label>
+              <MultiSelectChips
+                options={filteredGoals}
+                selected={formData.eligibleGoals || []}
+                onChange={(goals) => handleChange('eligibleGoals', goals)}
+              />
+            </div>
 
-            {formData.category !== 'Yoga' && (
-              <div className="col-span-2 space-y-2">
-                <Label>Required Equipment</Label>
-                <MultiSelectChips
-                  options={EQUIPMENT_KINDS}
-                  selected={formData.equipment?.map(e => e.kind) || []}
-                  onChange={(kinds) => {
-                    const newEquipment = kinds.map(k => ({ kind: k } as EquipmentOption));
-                    handleChange('equipment', newEquipment);
-                  }}
-                />
-              </div>
-            )}
+        {formData.category !== 'Mobility' && (
+          <div className="flex items-center gap-2 pt-6">
+            <Checkbox 
+              checked={formData.e1rmEligible || false} 
+              onCheckedChange={(c) => handleChange('e1rmEligible', c === true)} 
+            />
+            <div className="grid gap-1.5 leading-none">
+              <Label>E1RM Eligible</Label>
+              <p className="text-xs text-muted">Supports 1-rep max estimation.</p>
+            </div>
+          </div>
+        )}
           </div>
         </section>
 

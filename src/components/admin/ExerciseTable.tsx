@@ -33,7 +33,6 @@ const METRIC_LABELS: Record<string, string> = {
   duration: 'Time',
   distance_duration: 'Dist/Time',
   reps_only: 'Reps',
-  yoga_session: 'Yoga',
   mobility_session: 'Mobility',
   timed_strength: 'Timed',
   cardio_session: 'Cardio',
@@ -50,8 +49,13 @@ interface ExerciseTableProps {
   exercises: Exercise[];
 }
 
+const TIME_BASED_PROFILES = ['duration', 'cardio_session', 'mobility_session']
+
 export function ExerciseTable({ exercises }: ExerciseTableProps) {
   const [search, setSearch] = useState('');
+
+  const isTimeBased = (ex: Exercise) => TIME_BASED_PROFILES.includes(ex.metricProfile || '')
+  const headerLabel = exercises.length > 0 && exercises.every(isTimeBased) ? 'Duration' : 'Volume'
 
   const groupedExercises = useMemo(() => {
     // 1. Filter
@@ -110,7 +114,7 @@ export function ExerciseTable({ exercises }: ExerciseTableProps) {
             <thead className="bg-[var(--color-surface-subtle)]">
               <tr>
                 <th scope="col" className="px-8 py-5 text-left text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider w-[40%]">Exercise</th>
-                <th scope="col" className="px-6 py-5 text-center text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider w-[15%]">Volume</th>
+                <th scope="col" className="px-6 py-5 text-center text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider w-[15%]">{headerLabel}</th>
                 <th scope="col" className="px-6 py-5 text-center text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider w-[10%]">Intensity</th>
                 <th scope="col" className="px-6 py-5 text-center text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider w-[10%]">Rest</th>
                 <th scope="col" className="px-8 py-5 text-right text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider w-[25%]">Details</th>
@@ -168,10 +172,16 @@ export function ExerciseTable({ exercises }: ExerciseTableProps) {
                         {/* Column 2: Volume */}
                         <td className="px-6 py-6 text-center">
                           <div className="flex flex-col items-center gap-1">
-                            <span className="text-lg font-bold text-[var(--color-text)] tabular-nums">
-                              {exercise.sets} <span className="text-[var(--color-text-subtle)] font-normal mx-1">×</span> {exercise.reps}
-                            </span>
-                            {metricLabel && metricLabel !== 'Reps/Wt' && (
+                            {isTimeBased(exercise) ? (
+                              <span className="text-lg font-bold text-[var(--color-text)] tabular-nums">
+                                {exercise.durationMinutes} <span className="text-sm font-normal text-[var(--color-text-subtle)]">min</span>
+                              </span>
+                            ) : (
+                              <span className="text-lg font-bold text-[var(--color-text)] tabular-nums">
+                                {exercise.sets} <span className="text-[var(--color-text-subtle)] font-normal mx-1">×</span> {exercise.reps}
+                              </span>
+                            )}
+                            {metricLabel && metricLabel !== 'Reps/Wt' && !isTimeBased(exercise) && (
                               <span className="text-xs text-[var(--color-text-subtle)] uppercase tracking-wide font-medium">
                                 {metricLabel}
                               </span>

@@ -80,7 +80,7 @@ interface EquipmentSelectorProps {
   equipment: PlanInput['equipment']
   cardioActivities: string[]
   isCardioStyle: boolean
-  isYogaStyle: boolean
+  isMobilityStyle: boolean
   onUpdateEquipment: (updater: (prev: PlanInput['equipment']) => PlanInput['equipment']) => void
   onUpdateCardioActivities: (activities: string[]) => void
 }
@@ -89,7 +89,7 @@ export function EquipmentSelector({
   equipment,
   cardioActivities,
   isCardioStyle,
-  isYogaStyle,
+  isMobilityStyle,
   onUpdateEquipment,
   onUpdateCardioActivities
 }: EquipmentSelectorProps) {
@@ -153,7 +153,7 @@ export function EquipmentSelector({
 
   return (
     <div className="space-y-5">
-      {!isCardioStyle && !isYogaStyle && (
+      {!isCardioStyle && !isMobilityStyle && (
         <>
           <div className="surface-card p-5 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]">
             <div className="flex flex-col gap-2 border-b border-[var(--color-primary-border)] pb-4">
@@ -374,7 +374,7 @@ export function EquipmentSelector({
         </>
       )}
 
-      {isYogaStyle && (
+      {isMobilityStyle && (
         <div className="surface-card-subtle p-5">
           <div className="border-b border-[var(--color-border)] pb-3">
             <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-strong">Essentials</h3>

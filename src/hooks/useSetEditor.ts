@@ -7,7 +7,7 @@ export interface UseSetEditorOptions {
   metricProfile?: MetricProfile
   weightOptions?: WeightOption[]
   isCardio?: boolean
-  isYoga?: boolean
+  isMobility?: boolean
   isTimeBased?: boolean
   onUpdate: (field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => void
 }
@@ -17,7 +17,7 @@ export function useSetEditor({
   metricProfile,
   weightOptions,
   isCardio,
-  isYoga,
+  isMobility,
   isTimeBased,
   onUpdate
 }: UseSetEditorOptions) {
@@ -26,14 +26,13 @@ export function useSetEditor({
 
   const isEditing = !set.completed
 
-  const effectiveProfile = useMemo(() => {
-    if (metricProfile) return metricProfile
-    if (isYoga) return 'yoga_session'
-    if (isCardio) return 'cardio_session'
-    if (isTimeBased) return 'timed_strength'
-    return 'strength'
-  }, [metricProfile, isYoga, isCardio, isTimeBased])
-
+      const effectiveProfile = useMemo(() => {
+        if (metricProfile) return metricProfile
+        if (isMobility) return 'mobility_session'
+        if (isCardio) return 'cardio_session'
+        if (isTimeBased) return 'timed_strength'
+        return 'strength'
+      }, [metricProfile, isMobility, isCardio, isTimeBased])
   const timeLabel = useMemo(() => {
     if (!set.performedAt) return 'Not logged yet'
     const date = new Date(set.performedAt)
@@ -86,7 +85,7 @@ export function useSetEditor({
 
   const durationMinutes = useMemo(() => {
     if (typeof set.durationSeconds === 'number') return Math.round(set.durationSeconds / 60)
-    if (['timed_strength', 'cardio_session', 'yoga_session', 'mobility_session'].includes(effectiveProfile) && typeof set.reps === 'number') {
+    if (['timed_strength', 'cardio_session', 'mobility_session'].includes(effectiveProfile) && typeof set.reps === 'number') {
       return Math.round(set.reps / 60)
     }
     return ''
@@ -96,7 +95,7 @@ export function useSetEditor({
     onUpdate('durationSeconds', val === '' ? '' : Number(val) * 60)
   }
 
-  const rirValue = (['yoga_session', 'cardio_session', 'mobility_session'].includes(effectiveProfile))
+  const rirValue = (['cardio_session', 'mobility_session'].includes(effectiveProfile))
     ? (typeof set.rpe === 'number' ? String(set.rpe) : '')
     : (typeof set.rir === 'number' ? String(set.rir) : '')
 

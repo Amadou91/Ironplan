@@ -48,17 +48,14 @@ async function run() {
 
     // Check for Yoga
     if (
-      ex.metric_profile === 'yoga_session' ||
+      ex.metric_profile === 'mobility_session' ||
       ex.name.toLowerCase().includes('yoga') ||
-      ex.primary_muscle === 'mobility' // if that exists
+      ex.primary_muscle === 'mobility'
     ) {
-      category = 'Yoga';
+      category = 'Mobility';
       goal = 'mobility';
-    }
-    // Check for Cardio
-    else if (
+    } else if (
       ex.metric_profile === 'cardio_session' ||
-      ex.focus === 'cardio' ||
       ex.category === 'Cardio' // if it already exists
     ) {
       category = 'Cardio';

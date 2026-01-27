@@ -43,6 +43,12 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
 
   const constraints = getConstraintForProfile(formData.metricProfile)
 
+  useEffect(() => {
+    if (!constraints.allowLoad && formData.loadTarget) {
+      setFormData(prev => ({ ...prev, loadTarget: undefined }))
+    }
+  }, [constraints.allowLoad, formData.loadTarget])
+
   const handleEquipmentChange = (kind: EquipmentOption['kind'], checked: boolean) => {
     setFormData(prev => {
       const current = prev.equipment || []

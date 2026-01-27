@@ -3,12 +3,12 @@
 import React from 'react';
 import { Exercise } from '@/types/domain';
 import { ChevronRight, ChevronDown, Check } from 'lucide-react';
-import { MUSCLE_MAPPING, REGION_ORDER, BodyRegion, LimbGroup } from '@/lib/muscle-mapping';
+import { MUSCLE_MAPPING, REGION_ORDER, BodyRegion } from '@/lib/muscle-mapping';
 import { cn } from '@/lib/utils'; // Assuming generic utility, or I can implement minimal inline
 
 // --- Helper Types ---
 type TreeNode = {
-  id: string; // 'upper', 'arms', 'biceps'
+  id: string; // 'upper', 'chest'
   label: string;
   count: number;
   level: number;
@@ -41,30 +41,21 @@ export function MuscleGroupTree({
     });
 
     const regions: Record<BodyRegion, {
-      limbs: Record<string, { label: string; muscles: string[] }>;
       directMuscles: string[];
     }> = {
-      'Upper Body': { limbs: {}, directMuscles: [] },
-      'Lower Body': { limbs: {}, directMuscles: [] },
-      'Full Body & Core': { limbs: {}, directMuscles: [] },
+      'Upper Body': { directMuscles: [] },
+      'Lower Body': { directMuscles: [] },
+      'Full Body & Core': { directMuscles: [] },
     };
 
     // Populate structure
     Object.entries(MUSCLE_MAPPING).forEach(([key, mapping]) => {
       if (!mapping) return;
-      const { region, limb, order } = mapping;
+      const { region } = mapping;
       
       // Ensure region exists (safe guard)
       if (!regions[region]) return;
-
-      if (limb) {
-        if (!regions[region].limbs[limb]) {
-          regions[region].limbs[limb] = { label: limb, muscles: [] };
-        }
-        regions[region].limbs[limb].muscles.push(key);
-      } else {
-        regions[region].directMuscles.push(key);
-      }
+      regions[region].directMuscles.push(key);
     });
 
     // Sort function
@@ -79,52 +70,21 @@ export function MuscleGroupTree({
       const regionData = regions[regionName];
       if (!regionData) return null;
 
-      const children: TreeNode[] = [];
-      let regionCount = 0;
-
-      // Add Limb Groups
-      Object.entries(regionData.limbs).forEach(([limbKey, limbData]) => {
-        const limbChildren: TreeNode[] = limbData.muscles
-          .sort(sortByOrder)
-          .map(mKey => {
-            const count = muscleCounts[mKey] || 0;
-            regionCount += count;
-            return {
-              id: mKey,
-              label: MUSCLE_MAPPING[mKey]?.label || mKey,
-              count,
-              level: 2,
-              isLeaf: true,
-              muscleKey: mKey
-            };
-          });
-        
-        // Only add limb group if it has muscles with exercises (or always show? Let's show all for discovery)
-        // But count aggregation is needed.
-        const limbCount = limbChildren.reduce((acc, child) => acc + child.count, 0);
-
-        children.push({
-          id: `${regionName}-${limbKey}`,
-          label: limbData.label,
-          count: limbCount,
-          level: 1,
-          children: limbChildren,
+      const children: TreeNode[] = regionData.directMuscles
+        .sort(sortByOrder)
+        .map(mKey => {
+          const count = muscleCounts[mKey] || 0;
+          return {
+            id: mKey,
+            label: MUSCLE_MAPPING[mKey]?.label || mKey,
+            count,
+            level: 1, // Direct children of region
+            isLeaf: true,
+            muscleKey: mKey
+          };
         });
-      });
 
-      // Add Direct Muscles
-      regionData.directMuscles.sort(sortByOrder).forEach(mKey => {
-        const count = muscleCounts[mKey] || 0;
-        regionCount += count;
-        children.push({
-          id: mKey,
-          label: MUSCLE_MAPPING[mKey]?.label || mKey,
-          count,
-          level: 1, // Direct children of region
-          isLeaf: true,
-          muscleKey: mKey
-        });
-      });
+      const regionCount = children.reduce((acc, child) => acc + child.count, 0);
 
       return {
         id: regionName,
@@ -138,13 +98,7 @@ export function MuscleGroupTree({
   }, [filteredExercises]);
 
   // Expand state management
-  const [expandedNodes, setExpandedNodes] = React.useState<Record<string, boolean>>({
-    'Upper Body': true,
-    'Lower Body': true,
-    'Full Body & Core': true,
-    'Upper Body-Arms': true,
-    'Lower Body-Legs': true
-  });
+  const [expandedNodes, setExpandedNodes] = React.useState<Record<string, boolean>>({});
 
   const toggleExpand = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();

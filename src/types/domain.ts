@@ -21,7 +21,7 @@ export type MuscleGroup =
   | 'abductors'
   | 'full_body'
   | 'cardio'
-  | 'yoga'
+  | 'mobility'
   | 'lower_body'
   | 'upper_body'
 
@@ -98,14 +98,22 @@ export interface ExerciseLoad {
   label: string
 }
 
-export type MetricProfile = 'reps_weight' | 'duration' | 'distance_duration' | 'reps_only'
+export type MetricProfile =
+  | 'reps_weight'
+  | 'duration'
+  | 'distance_duration'
+  | 'reps_only'
+  | 'strength'
+  | 'timed_strength'
+  | 'cardio_session'
+  | 'mobility_session'
 
-export type ExerciseCategory = 'Strength' | 'Cardio' | 'Yoga'
+export type ExerciseCategory = 'Strength' | 'Cardio' | 'Mobility'
 
 export interface Exercise {
   id?: string
   name: string
-  category: ExerciseCategory
+  category?: ExerciseCategory
   focus?: FocusArea
   metricProfile?: MetricProfile
   sets: number

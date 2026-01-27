@@ -77,13 +77,14 @@ export function ExerciseFilters({
         </div>
 
         {/* Categories */}
-        {(['Strength', 'Cardio', 'Yoga'] as ExerciseCategory[]).map(cat => (
-          <FilterChip 
-            key={cat}
-            label={cat}
-            isActive={activeFilters.category.includes(cat)}
+        {(['Strength', 'Cardio', 'Mobility'] as ExerciseCategory[]).map(cat => (
+          <FilterButton 
+            key={cat} 
+            isActive={activeFilters.category.includes(cat)} 
             onClick={() => toggleFilter('category', cat)}
-          />
+          >
+            {cat === 'Mobility' ? 'Yoga / Mobility' : cat}
+          </FilterButton>
         ))}
 
         <div className="w-px h-6 bg-border mx-1" />
@@ -111,12 +112,12 @@ export function ExerciseFilters({
   );
 }
 
-function FilterChip({ 
-  label, 
+function FilterButton({ 
+  children, 
   isActive, 
   onClick 
 }: { 
-  label: string; 
+  children: React.ReactNode; 
   isActive: boolean; 
   onClick: () => void; 
 }) {
@@ -131,7 +132,23 @@ function FilterChip({
         }
       `}
     >
-      <span className="capitalize">{label}</span>
+      {children}
     </button>
+  );
+}
+
+function FilterChip({ 
+  label, 
+  isActive, 
+  onClick 
+}: { 
+  label: string; 
+  isActive: boolean; 
+  onClick: () => void; 
+}) {
+  return (
+    <FilterButton isActive={isActive} onClick={onClick}>
+      <span className="capitalize">{label}</span>
+    </FilterButton>
   );
 }

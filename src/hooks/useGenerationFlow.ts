@@ -120,24 +120,24 @@ export function useGenerationFlow() {
       }
 
       const isCardio = targetStyle === 'cardio'
-      const isYoga = targetStyle === 'mobility'
+      const isMobility = targetStyle === 'mobility'
       const wasCardio = prev.goals.primary === 'cardio'
-      const wasYoga = prev.goals.primary === 'mobility'
+      const wasMobility = prev.goals.primary === 'mobility'
 
-      if ((isCardio || isYoga) && !wasCardio && !wasYoga) {
+      if ((isCardio || isMobility) && !wasCardio && !wasMobility) {
         lastStrengthInventoryRef.current = cloneInventory(prev.equipment.inventory)
         lastStrengthPresetRef.current = prev.equipment.preset
       }
 
       const nextInventory = isCardio
         ? buildCardioInventory(prev.equipment.inventory)
-        : (wasCardio || wasYoga) && !isCardio && !isYoga
+        : (wasCardio || wasMobility) && !isCardio && !isMobility
           ? cloneInventory(lastStrengthInventoryRef.current ?? equipmentPresets.full_gym)
           : prev.equipment.inventory
 
       const nextPreset = isCardio
         ? 'custom'
-        : (wasCardio || wasYoga) && !isCardio && !isYoga
+        : (wasCardio || wasMobility) && !isCardio && !isMobility
           ? lastStrengthPresetRef.current ?? 'full_gym'
           : prev.equipment.preset
 
@@ -145,8 +145,8 @@ export function useGenerationFlow() {
         ...prev,
         intent: {
           ...prev.intent,
-          mode: isCardio || isYoga ? 'style' : 'body_part',
-          style: isCardio || isYoga ? targetStyle : undefined,
+          mode: isCardio || isMobility ? 'style' : 'body_part',
+          style: isCardio || isMobility ? targetStyle : undefined,
           bodyParts: [focus]
         },
         goals: {
@@ -173,11 +173,11 @@ export function useGenerationFlow() {
   const updatePrimaryStyle = (style: Goal) => {
     updateFormData((prev) => {
       const isCardio = style === 'cardio'
-      const isYoga = style === 'mobility'
+      const isMobility = style === 'mobility'
       const wasCardio = prev.goals.primary === 'cardio'
-      const wasYoga = prev.goals.primary === 'mobility'
+      const wasMobility = prev.goals.primary === 'mobility'
 
-      if ((isCardio || isYoga) && !wasCardio && !wasYoga) {
+      if ((isCardio || isMobility) && !wasCardio && !wasMobility) {
         lastStrengthInventoryRef.current = cloneInventory(prev.equipment.inventory)
         lastStrengthPresetRef.current = prev.equipment.preset
       }
@@ -185,17 +185,17 @@ export function useGenerationFlow() {
       const fallbackFocus = prev.intent.bodyParts?.[0] ?? prev.preferences.focusAreas[0] ?? 'chest'
       const bodyFocus = fallbackFocus === 'cardio' || fallbackFocus === 'mobility' ? 'chest' : fallbackFocus
 
-      const nextFocus = isCardio ? 'cardio' : isYoga ? 'mobility' : bodyFocus
+      const nextFocus = isCardio ? 'cardio' : isMobility ? 'mobility' : bodyFocus
 
       const nextInventory = isCardio
         ? buildCardioInventory(prev.equipment.inventory)
-        : wasCardio || wasYoga
+        : wasCardio || wasMobility
           ? cloneInventory(lastStrengthInventoryRef.current ?? equipmentPresets.full_gym)
           : prev.equipment.inventory
 
       const nextPreset = isCardio
         ? 'custom'
-        : wasCardio || wasYoga
+        : wasCardio || wasMobility
           ? lastStrengthPresetRef.current ?? 'full_gym'
           : prev.equipment.preset
 
@@ -203,9 +203,9 @@ export function useGenerationFlow() {
         ...prev,
         intent: {
           ...prev.intent,
-          mode: isCardio || isYoga ? 'style' : 'body_part',
+          mode: isCardio || isMobility ? 'style' : 'body_part',
           style,
-          bodyParts: isCardio || isYoga ? prev.intent.bodyParts : [bodyFocus]
+          bodyParts: isCardio || isMobility ? prev.intent.bodyParts : [bodyFocus]
         },
         goals: {
           ...prev.goals,

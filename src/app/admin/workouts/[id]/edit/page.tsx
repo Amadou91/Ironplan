@@ -41,13 +41,11 @@ export default function EditWorkoutPage() {
       let metricProfile: MetricProfile = 'reps_weight';
       
       // Heuristic mapping for old data
-      if (data.focus === 'cardio' || data.goal === 'cardio' || data.metric_profile === 'cardio_session') {
-        category = 'Cardio';
-        metricProfile = 'distance_duration';
-      } else if (data.focus === 'mobility' || data.metric_profile === 'yoga_session' || data.metric_profile === 'mobility_session') {
-        category = 'Yoga';
-        metricProfile = 'duration';
-      } else {
+          if (data.focus === 'cardio' || data.goal === 'cardio' || data.metric_profile === 'cardio_session') {
+            category = 'Cardio';
+          } else if (data.focus === 'mobility' || data.metric_profile === 'mobility_session') {
+            category = 'Mobility';
+          } else {
         // Strength defaults
         if (data.metric_profile === 'timed_strength') metricProfile = 'duration';
         else if (data.metric_profile === 'bodyweight') metricProfile = 'reps_only'; // assuming bodyweight mapped
@@ -88,15 +86,13 @@ export default function EditWorkoutPage() {
     // We'll update both old and new fields to ensure compatibility
     const updates = {
       name: data.name,
-      focus: data.category === 'Cardio' ? 'cardio' : data.category === 'Yoga' ? 'mobility' : data.focus, // Fallback focus
-      // category: data.category, // Uncomment if DB column exists
-      // eligible_goals: data.eligibleGoals, // Uncomment if DB column exists
-      goal: data.eligibleGoals?.[0] || data.goal, // Fallback goal
-      metric_profile: data.metricProfile === 'reps_weight' ? 'strength' 
-                    : data.metricProfile === 'distance_duration' ? 'cardio_session'
-                    : data.metricProfile === 'duration' ? (data.category === 'Yoga' ? 'yoga_session' : 'timed_strength')
-                    : 'strength', // Map back to old enums for now
-      sets: data.sets,
+          focus: data.category === 'Cardio' ? 'cardio' : data.category === 'Mobility' ? 'mobility' : data.focus, // Fallback focus
+          // category: data.category, // Uncomment if DB column exists
+          // eligible_goals: data.eligibleGoals, // Uncomment if DB column exists
+          goal: data.eligibleGoals?.[0] || data.goal, // Fallback goal
+          metric_profile: data.metricProfile === 'reps_weight' ? 'reps_weight' 
+            : data.metricProfile === 'duration' ? (data.category === 'Mobility' ? 'mobility_session' : 'timed_strength')
+            : data.metricProfile,      sets: data.sets,
       reps: data.reps,
       rpe: data.rpe,
       equipment: data.equipment,

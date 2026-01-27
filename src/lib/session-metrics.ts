@@ -146,12 +146,12 @@ export const computeSetLoad = (set: MetricsSet): number => {
   // Strategy 1: Strength/Hypertrophy (Load-based)
   // Used for 'strength' and 'timed_strength' if weight is present
   const tonnage = computeSetTonnage(set)
-  if (tonnage > 0 && profile !== 'yoga_session' && profile !== 'cardio_session' && profile !== 'mobility_session') {
+  if (tonnage > 0 && profile !== 'cardio_session' && profile !== 'mobility_session') {
     // Tonnage (lbs) * IntensityFactor.
     return tonnage * intensityFactor
   }
 
-  // Strategy 2: Duration-based (Cardio/Yoga/Mobility/Timed Bodyweight)
+  // Strategy 2: Duration-based (Cardio/Mobility/Timed Bodyweight)
   // Normalize minutes to be comparable to Tonnage.
   // CONSTANT: 450 scales ~60min moderate Cardio to ~7700 Load, 
   // comparable to a moderate lifting session (~9000-10000 Load).

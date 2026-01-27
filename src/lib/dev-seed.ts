@@ -259,9 +259,9 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     3: [
       {
         name: 'Yoga',
-        primaryMuscle: 'yoga',
+        primaryMuscle: 'mobility',
         secondaryMuscles: ['core', 'full_body'],
-        metricProfile: 'yoga_session',
+        metricProfile: 'mobility_session',
         sets: [
           { reps: null, weight: null, weightUnit: 'lb', rpe: 6, durationSeconds: 900, extraMetrics: { style: 'Vinyasa', focus: 'Flow' } }
         ]
@@ -315,7 +315,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
           durationSeconds: typeof s.durationSeconds === 'number' ? Math.round(s.durationSeconds * (0.9 + Math.random() * 0.2)) : null
         };
 
-        const isYogaOrCardio = ex.metricProfile === 'yoga_session' || ex.metricProfile === 'cardio_session' || ex.metricProfile === 'mobility_session';
+        const isYogaOrCardio = ex.metricProfile === 'mobility_session' || ex.metricProfile === 'cardio_session';
 
         if (isYogaOrCardio) {
           // Yoga/Cardio effort is 1-10, stored in RPE

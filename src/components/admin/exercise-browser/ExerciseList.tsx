@@ -24,11 +24,11 @@ function DifficultyBadge({ level }: { level?: string }) {
 }
 
 function CategoryBadge({ category }: { category: string }) {
-    const colors: Record<string, string> = {
-      Strength: 'bg-blue-500/10 text-blue-600 border-blue-200',
-      Cardio: 'bg-purple-500/10 text-purple-600 border-purple-200',
-      Yoga: 'bg-teal-500/10 text-teal-600 border-teal-200',
-    };
+  const colors: Record<string, string> = {
+    Strength: 'bg-indigo-500/10 text-indigo-600 border-indigo-200',
+    Cardio: 'bg-rose-500/10 text-rose-600 border-rose-200',
+    Mobility: 'bg-teal-500/10 text-teal-600 border-teal-200',
+  };
     return (
       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${colors[category] || 'bg-gray-100 text-gray-600'}`}>
         {category}

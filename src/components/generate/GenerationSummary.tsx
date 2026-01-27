@@ -5,14 +5,14 @@ import type { PlanInput } from '@/types/domain'
 interface GenerationSummaryProps {
   formData: PlanInput
   isCardioStyle: boolean
-  isYogaStyle: boolean
+  isMobilityStyle: boolean
   equipmentSummary: string[]
 }
 
 export function GenerationSummary({
   formData,
   isCardioStyle,
-  isYogaStyle,
+  isMobilityStyle,
   equipmentSummary
 }: GenerationSummaryProps) {
   return (
@@ -22,10 +22,10 @@ export function GenerationSummary({
         <div>
           <dt className="text-subtle">Muscle focus</dt>
           <dd className="text-strong capitalize">
-            {isYogaStyle ? 'Yoga' : isCardioStyle ? 'Cardio' : formData.intent.bodyParts?.[0]?.replace('_', ' ') ?? 'Not set'}
+            {isMobilityStyle ? 'Yoga' : isCardioStyle ? 'Cardio' : formData.intent.bodyParts?.[0]?.replace('_', ' ') ?? 'Not set'}
           </dd>
         </div>
-        {!isYogaStyle && !isCardioStyle && (
+        {!isMobilityStyle && !isCardioStyle && (
           <div>
             <dt className="text-subtle">Training style</dt>
             <dd className="text-strong capitalize">{(formData.intent.style ?? formData.goals.primary).replace('_', ' ')}</dd>

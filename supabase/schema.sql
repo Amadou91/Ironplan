@@ -38,7 +38,8 @@ insert into public.muscle_groups (slug, label) values
   ('upper_body', 'Upper Body'),
   ('lower_body', 'Lower Body'),
   ('full_body', 'Full Body'),
-  ('cardio', 'Cardio')
+  ('cardio', 'Cardio'),
+  ('mobility', 'Mobility')
 on conflict (slug) do nothing;
 
 create table if not exists public.profiles (
@@ -59,29 +60,36 @@ create table if not exists public.profiles (
 create table if not exists public.exercise_catalog (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  category text not null default 'Strength',
+  focus text,
+  movement_pattern text,
+  difficulty text,
+  goal text,
+  eligible_goals text[] not null default '{}',
+  metric_profile text,
+  sets int,
+  reps text,
+  rpe int,
+  duration_minutes int,
+  rest_seconds int,
+  load_target int,
   primary_muscle text references public.muscle_groups(slug),
   secondary_muscles text[] not null default '{}',
-  equipment text,
+  instructions text[] not null default '{}',
+  video_url text,
+  equipment jsonb not null default '[]'::jsonb,
+  e1rm_eligible boolean default false,
+  is_interval boolean not null default false,
+  interval_duration int,
+  interval_rest int,
   created_at timestamptz not null default now()
 );
 
 create index if not exists exercise_catalog_primary_muscle_idx on public.exercise_catalog (primary_muscle);
-
-create table if not exists public.workouts (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  title text not null,
-  description text,
-  goal text,
-  level text,
-  tags text[],
-  status text not null default 'DRAFT' check (status in ('DRAFT', 'ACTIVE', 'ARCHIVED', 'COMPLETED')),
-  exercises jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now()
-);
-
-create index if not exists workouts_user_created_idx
-  on public.workouts (user_id, created_at desc);
+create index if not exists exercise_catalog_focus_idx on public.exercise_catalog (focus);
+create index if not exists exercise_catalog_goal_idx on public.exercise_catalog (goal);
+create index if not exists exercise_catalog_difficulty_idx on public.exercise_catalog (difficulty);
+create index if not exists exercise_catalog_category_idx on public.exercise_catalog (category);
 
 create table if not exists public.workout_templates (
   id uuid primary key default gen_random_uuid(),
@@ -101,24 +109,12 @@ create table if not exists public.workout_templates (
 create index if not exists workout_templates_user_created_idx
   on public.workout_templates (user_id, created_at desc);
 
-alter table public.workouts enable row level security;
-alter table public.workout_templates enable row level security;
-
-drop policy if exists "Users can manage their workouts" on public.workouts;
-drop policy if exists "Users can manage their workout templates" on public.workout_templates;
-
-create policy "Users can manage their workouts" on public.workouts
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "Users can manage their workout templates" on public.workout_templates
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
 create table if not exists public.sessions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   template_id uuid references public.workout_templates(id) on delete set null,
   name text not null,
-  status text not null default 'in_progress' check (status in ('in_progress', 'completed', 'cancelled')),
+  status text not null default 'in_progress' check (status in ('in_progress', 'completed', 'cancelled', 'initializing')),
   started_at timestamptz not null default now(),
   ended_at timestamptz,
   minutes_available int,
@@ -126,6 +122,7 @@ create table if not exists public.sessions (
   impact jsonb,
   timezone text,
   session_notes text,
+  body_weight_lb numeric(6,2),
   created_at timestamptz not null default now()
 );
 
@@ -161,6 +158,7 @@ create table if not exists public.session_exercises (
   exercise_name text not null,
   primary_muscle text references public.muscle_groups(slug),
   secondary_muscles text[] not null default '{}',
+  metric_profile text not null default 'strength',
   order_index int not null default 0,
   created_at timestamptz not null default now()
 );
@@ -185,133 +183,66 @@ create table if not exists public.sets (
   group_id text,
   group_type public.group_type_enum,
   extras jsonb not null default '{}'::jsonb,
+  extra_metrics jsonb not null default '{}'::jsonb,
+  duration_seconds int,
+  distance numeric(10,2),
+  distance_unit text,
+  rest_seconds_actual int,
   constraint sets_rpe_rir_exclusive check (not (rpe is not null and rir is not null))
 );
 
 create index if not exists sets_exercise_idx on public.sets (session_exercise_id, set_number);
 
-create table if not exists public.scheduled_sessions (
+create table if not exists public.body_measurements (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  workout_id uuid not null references public.workouts(id) on delete cascade,
-  schedule_batch_id uuid not null,
-  day_of_week int not null check (day_of_week between 0 and 6),
-  week_start_date date not null,
-  order_index int not null default 0,
-  status text not null default 'DRAFT' check (status in ('DRAFT', 'ACTIVE', 'ARCHIVED', 'COMPLETED')),
-  is_active boolean not null default true,
+  weight_lb numeric(6,2),
+  source text not null default 'user',
+  recorded_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
 
-create table if not exists public.saved_sessions (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  workout_id uuid references public.workouts(id) on delete set null,
-  day_of_week int not null check (day_of_week between 0 and 6),
-  session_name text not null,
-  workouts jsonb not null default '[]'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+create index if not exists body_measurements_user_recorded_idx on public.body_measurements (user_id, recorded_at desc);
 
-create unique index if not exists saved_sessions_user_day_idx
-  on public.saved_sessions (user_id, day_of_week);
-
-alter table public.scheduled_sessions enable row level security;
-
-drop policy if exists "Users can manage their scheduled sessions" on public.scheduled_sessions;
-
-create policy "Users can manage their scheduled sessions" on public.scheduled_sessions
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-alter table public.saved_sessions enable row level security;
-
-drop policy if exists "Users can manage their saved sessions" on public.saved_sessions;
-
-create policy "Users can manage their saved sessions" on public.saved_sessions
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
+-- RLS & Policies
 alter table public.muscle_groups enable row level security;
 alter table public.profiles enable row level security;
 alter table public.exercise_catalog enable row level security;
+alter table public.workout_templates enable row level security;
 alter table public.sessions enable row level security;
 alter table public.session_readiness enable row level security;
 alter table public.session_exercises enable row level security;
 alter table public.sets enable row level security;
+alter table public.body_measurements enable row level security;
 
-create policy "Muscle groups are viewable by everyone" on public.muscle_groups
-  for select using (true);
+create policy "Muscle groups are viewable by everyone" on public.muscle_groups for select using (true);
+create policy "Exercise catalog is viewable by everyone" on public.exercise_catalog for select using (true);
 
-drop policy if exists "Profiles are viewable by owner" on public.profiles;
-drop policy if exists "Profiles are updatable by owner" on public.profiles;
-drop policy if exists "Profiles are insertable by owner" on public.profiles;
+create policy "Profiles are viewable by owner" on public.profiles for select using (auth.uid() = id);
+create policy "Profiles are updatable by owner" on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
+create policy "Profiles are insertable by owner" on public.profiles for insert with check (auth.uid() = id);
 
-create policy "Profiles are viewable by owner" on public.profiles
-  for select using (auth.uid() = id);
-
-create policy "Profiles are updatable by owner" on public.profiles
-  for update using (auth.uid() = id) with check (auth.uid() = id);
-
-create policy "Profiles are insertable by owner" on public.profiles
-  for insert with check (auth.uid() = id);
-
-grant select, insert, update on public.profiles to authenticated;
-
-create policy "Exercise catalog is viewable by everyone" on public.exercise_catalog
-  for select using (true);
-
-create policy "Users can manage their sessions" on public.sessions
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "Users can manage their session readiness" on public.session_readiness
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can manage their workout templates" on public.workout_templates for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can manage their sessions" on public.sessions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can manage their session readiness" on public.session_readiness for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can manage their body measurements" on public.body_measurements for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "Users can manage their session exercises" on public.session_exercises
-  for all using (
-    exists (
-      select 1
-      from public.sessions
-      where public.sessions.id = session_exercises.session_id
-        and public.sessions.user_id = auth.uid()
-    )
-  ) with check (
-    exists (
-      select 1
-      from public.sessions
-      where public.sessions.id = session_exercises.session_id
-        and public.sessions.user_id = auth.uid()
-    )
-  );
+  for all using (exists (select 1 from public.sessions where public.sessions.id = session_id and public.sessions.user_id = auth.uid()))
+  with check (exists (select 1 from public.sessions where public.sessions.id = session_id and public.sessions.user_id = auth.uid()));
 
 create policy "Users can manage their sets" on public.sets
-  for all using (
-    exists (
-      select 1
-      from public.session_exercises
-      join public.sessions on public.sessions.id = session_exercises.session_id
-      where session_exercises.id = sets.session_exercise_id
-        and public.sessions.user_id = auth.uid()
-    )
-  ) with check (
-    exists (
-      select 1
-      from public.session_exercises
-      join public.sessions on public.sessions.id = session_exercises.session_id
-      where session_exercises.id = sets.session_exercise_id
-        and public.sessions.user_id = auth.uid()
-    )
-  );
+  for all using (exists (select 1 from public.session_exercises join public.sessions on public.sessions.id = session_id where session_exercises.id = session_exercise_id and public.sessions.user_id = auth.uid()))
+  with check (exists (select 1 from public.session_exercises join public.sessions on public.sessions.id = session_id where session_exercises.id = session_exercise_id and public.sessions.user_id = auth.uid()));
 
+-- Grants
 grant usage on schema public to anon, authenticated;
-
 grant select on public.muscle_groups to anon, authenticated;
 grant select on public.exercise_catalog to anon, authenticated;
-
-grant select, insert, update, delete on public.workouts to authenticated;
+grant select, insert, update on public.profiles to authenticated;
 grant select, insert, update, delete on public.workout_templates to authenticated;
 grant select, insert, update, delete on public.sessions to authenticated;
 grant select, insert, update, delete on public.session_readiness to authenticated;
 grant select, insert, update, delete on public.session_exercises to authenticated;
 grant select, insert, update, delete on public.sets to authenticated;
-grant select, insert, update, delete on public.scheduled_sessions to authenticated;
-grant select, insert, update, delete on public.saved_sessions to authenticated;
+grant select, insert, update, delete on public.body_measurements to authenticated;

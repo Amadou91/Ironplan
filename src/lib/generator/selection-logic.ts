@@ -43,7 +43,7 @@ export const filterExercises = (
   let matchesFocus = false
   
   if (focus === 'yoga') {
-    matchesFocus = exercise.category === 'Yoga'
+    matchesFocus = exercise.category === 'Mobility'
   } else if (focus === 'cardio') {
     matchesFocus = exercise.category === 'Cardio'
   } else if (exercise.category === 'Strength') {
@@ -92,13 +92,11 @@ export const filterExercises = (
     // If it's a cardio exercise, it matches Endurance/Cardio goals
     if (exercise.category === 'Cardio' && (goal === 'endurance' || goal === 'cardio')) {
       matchesGoal = true
-    } 
-    // If it's Yoga, it generally matches 'general_fitness' or recovery goals, but let's check strict goal
-    else if (exercise.category === 'Yoga') {
-      matchesGoal = true // Assume Yoga fits all or handle specifically?
-      // Prompt said: "If the User selects "Yoga", query Category = 'Yoga'." implied goal might not filter it strictly.
     }
-    // Standard Strength Logic
+    // If it's Mobility, it generally matches 'general_fitness' or recovery goals, but let's check strict goal
+    else if (exercise.category === 'Mobility') {
+      matchesGoal = true // Assume Mobility fits all or handle specifically?
+    }
     else if (exercise.eligibleGoals && exercise.eligibleGoals.length > 0) {
       matchesGoal = exercise.eligibleGoals.includes(goal)
     } else {

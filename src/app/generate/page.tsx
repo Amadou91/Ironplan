@@ -45,11 +45,11 @@ export default function GeneratePage() {
 
   const invalidEquipment = !isEquipmentValid(formData.equipment)
   const isCardioStyle = formData.goals.primary === 'cardio'
-  const isYogaStyle = formData.goals.primary === 'mobility'
+  const isMobilityStyle = formData.goals.primary === 'mobility'
   const inventory = formData.equipment.inventory
 
   const equipmentSummary = (
-    isCardioStyle || isYogaStyle
+    isCardioStyle || isMobilityStyle
       ? [
           inventory.bodyweight ? 'Bodyweight' : null,
           ...(isCardioStyle ? cardioMachineOptions : [])
@@ -144,7 +144,7 @@ export default function GeneratePage() {
 
               <MuscleGroupSelector selectedFocus={formData.intent.bodyParts?.[0]} onFocusChange={handleFocusChange} />
 
-              {!isCardioStyle && !isYogaStyle && <GoalSelector value={formData.goals.primary} onChange={updatePrimaryStyle} />}
+              {!isCardioStyle && !isMobilityStyle && <GoalSelector value={formData.goals.primary} onChange={updatePrimaryStyle} />}
             </section>
 
             <section className="space-y-6">
@@ -158,7 +158,7 @@ export default function GeneratePage() {
                 equipment={formData.equipment}
                 cardioActivities={formData.preferences.cardioActivities}
                 isCardioStyle={isCardioStyle}
-                isYogaStyle={isYogaStyle}
+                isMobilityStyle={isMobilityStyle}
                 onUpdateEquipment={(updater) =>
                   updateFormData((prev) => ({
                     ...prev,
@@ -206,7 +206,7 @@ export default function GeneratePage() {
               <GenerationSummary
                 formData={formData}
                 isCardioStyle={isCardioStyle}
-                isYogaStyle={isYogaStyle}
+                isMobilityStyle={isMobilityStyle}
                 equipmentSummary={equipmentSummary}
               />
 

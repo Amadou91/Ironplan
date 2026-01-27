@@ -1,14 +1,13 @@
-import type { Exercise, MetricProfile } from '@/types/domain'
+import type { Exercise, MetricProfile, Goal } from '@/types/domain'
 
 export const METRIC_PROFILES: { label: string; value: MetricProfile; description: string }[] = [
   { value: 'strength', label: 'Strength', description: 'Sets × Reps × Load (RPE aware)' },
   { value: 'timed_strength', label: 'Timed Strength', description: 'Isometric holds, carries, planks' },
   { value: 'cardio_session', label: 'Cardio Session', description: 'Time-based endurance' },
-  { value: 'yoga_session', label: 'Yoga Session', description: 'Time-based, recovery focused' },
-  { value: 'mobility_session', label: 'Mobility Session', description: 'Time-based, general movement' }
+  { value: 'mobility_session', label: 'Yoga / Mobility Session', description: 'Time-based, recovery focused' }
 ]
 
-export const EXERCISE_GOALS = [
+export const EXERCISE_GOALS: { label: string; value: Goal; description: string }[] = [
   { value: 'strength', label: 'Strength', description: 'Maximize force production' },
   { value: 'hypertrophy', label: 'Hypertrophy', description: 'Muscle growth focus' },
   { value: 'endurance', label: 'Endurance', description: 'Sustained effort' },
@@ -55,7 +54,7 @@ export function validateExercise(exercise: Partial<Exercise>): string[] {
   }
 
   // Metric Profile Validation
-  if (exercise.metricProfile === 'cardio_session' || exercise.metricProfile === 'yoga_session' || exercise.metricProfile === 'mobility_session') {
+  if (exercise.metricProfile === 'cardio_session' || exercise.metricProfile === 'mobility_session') {
     if (!exercise.durationMinutes || exercise.durationMinutes <= 0) {
       errors.push('Duration is required for time-based profiles')
     }
@@ -78,7 +77,6 @@ export function validateExercise(exercise: Partial<Exercise>): string[] {
 export function getConstraintForProfile(profile?: MetricProfile) {
   switch (profile) {
     case 'cardio_session':
-    case 'yoga_session':
     case 'mobility_session':
       return {
         requiresDuration: true,

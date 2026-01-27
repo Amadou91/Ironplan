@@ -1,10 +1,28 @@
-import type { Exercise, EquipmentOption } from '@/types/domain'
+import type { Exercise, EquipmentOption, ExerciseCategory } from '@/types/domain'
+
+function inferCategory(row: any): ExerciseCategory {
+  const indicators = [
+    row.name,
+    row.focus,
+    row.metric_profile,
+    row.primary_muscle,
+  ].map(s => s?.toLowerCase() || '')
+
+  if (indicators.some(s => s.includes('yoga') || s.includes('mobility') || s.includes('stretch'))) return 'Mobility'
+  if (indicators.some(s => s.includes('cardio'))) return 'Cardio'
+
+  if (row.category && ['Strength', 'Cardio', 'Mobility'].includes(row.category)) {
+    return row.category as ExerciseCategory
+  }
+  
+  return 'Strength'
+}
 
 export function mapCatalogRowToExercise(row: any): Exercise {
   return {
     id: row.id,
     name: row.name,
-    category: row.category || 'Strength', // Default fallback
+    category: inferCategory(row),
     focus: row.focus,
     metricProfile: row.metric_profile,
     sets: row.sets,
