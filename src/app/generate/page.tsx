@@ -142,7 +142,14 @@ export default function GeneratePage() {
                 <p className="text-sm text-muted">Pick a muscle group, or select Yoga/Cardio.</p>
               </div>
 
-              <MuscleGroupSelector selectedFocus={formData.intent.bodyParts?.[0]} onFocusChange={handleFocusChange} />
+              <MuscleGroupSelector
+                selectedFocus={
+                  (['cardio', 'mobility'] as string[]).includes(formData.goals.primary)
+                    ? (formData.goals.primary as any)
+                    : formData.intent.bodyParts?.[0]
+                }
+                onFocusChange={handleFocusChange}
+              />
 
               {!isCardioStyle && !isMobilityStyle && <GoalSelector value={formData.goals.primary} onChange={updatePrimaryStyle} />}
             </section>

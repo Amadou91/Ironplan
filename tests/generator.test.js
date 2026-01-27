@@ -81,6 +81,165 @@ const { calculateWorkoutImpact, buildWorkoutTemplate, generateSessionExercises, 
 const getPrimaryMuscle = (exercise) =>
   (exercise.primaryBodyParts && exercise.primaryBodyParts[0]) || exercise.primaryMuscle || ''
 
+const mockCatalog = [
+  {
+    name: 'Bench Press',
+    primaryMuscle: 'chest',
+    equipment: [{ kind: 'barbell' }, { kind: 'dumbbell' }],
+    category: 'Strength',
+    sets: 3,
+    reps: 10,
+    rpe: 7,
+    restSeconds: 90,
+    durationMinutes: 15,
+    eligibleGoals: ['strength', 'hypertrophy']
+  },
+  {
+    name: 'Push Up',
+    primaryMuscle: 'chest',
+    equipment: [{ kind: 'bodyweight' }],
+    category: 'Strength',
+    sets: 3,
+    reps: 15,
+    rpe: 8,
+    restSeconds: 60,
+    durationMinutes: 10,
+    eligibleGoals: ['strength', 'hypertrophy', 'endurance']
+  },
+  {
+    name: 'Pull Up',
+    primaryMuscle: 'back',
+    equipment: [{ kind: 'bodyweight' }, { kind: 'band' }],
+    category: 'Strength',
+    sets: 3,
+    reps: 8,
+    rpe: 8,
+    restSeconds: 90,
+    durationMinutes: 10,
+    eligibleGoals: ['strength', 'hypertrophy']
+  },
+  {
+    name: 'Dumbbell Row',
+    primaryMuscle: 'back',
+    equipment: [{ kind: 'dumbbell' }],
+    category: 'Strength',
+    sets: 3,
+    reps: 12,
+    rpe: 7,
+    restSeconds: 60,
+    durationMinutes: 12,
+    eligibleGoals: ['strength', 'hypertrophy']
+  },
+  {
+    name: 'Squat',
+    primaryMuscle: 'quads',
+    equipment: [{ kind: 'barbell' }, { kind: 'dumbbell' }, { kind: 'bodyweight' }],
+    category: 'Strength',
+    sets: 3,
+    reps: 10,
+    rpe: 8,
+    restSeconds: 120,
+    durationMinutes: 15,
+    eligibleGoals: ['strength', 'hypertrophy']
+  },
+  {
+    name: 'Deadlift',
+    primaryMuscle: 'hamstrings',
+    equipment: [{ kind: 'barbell' }],
+    category: 'Strength',
+    sets: 3,
+    reps: 5,
+    rpe: 9,
+    restSeconds: 180,
+    durationMinutes: 20,
+    eligibleGoals: ['strength']
+  },
+  {
+    name: 'Plank',
+    primaryMuscle: 'core',
+    equipment: [{ kind: 'bodyweight' }],
+    category: 'Strength',
+    sets: 3,
+    reps: 60,
+    rpe: 7,
+    restSeconds: 60,
+    durationMinutes: 5,
+    eligibleGoals: ['strength', 'endurance']
+  },
+  {
+    name: 'Crunch',
+    primaryMuscle: 'core',
+    equipment: [{ kind: 'bodyweight' }],
+    category: 'Strength',
+    sets: 3,
+    reps: 15,
+    rpe: 7,
+    restSeconds: 45,
+    durationMinutes: 5,
+    eligibleGoals: ['strength', 'endurance']
+  },
+  {
+    name: 'Shoulder Press',
+    primaryMuscle: 'shoulders',
+    equipment: [{ kind: 'dumbbell' }],
+    category: 'Strength',
+    sets: 3,
+    reps: 10,
+    rpe: 8,
+    restSeconds: 90,
+    durationMinutes: 12,
+    eligibleGoals: ['strength', 'hypertrophy']
+  },
+  {
+    name: 'Lateral Raise',
+    primaryMuscle: 'shoulders',
+    equipment: [{ kind: 'dumbbell' }],
+    category: 'Strength',
+    sets: 3,
+    reps: 15,
+    rpe: 9,
+    restSeconds: 60,
+    durationMinutes: 8,
+    eligibleGoals: ['hypertrophy', 'strength']
+  },
+  {
+    name: 'Bicep Curl',
+    primaryMuscle: 'biceps',
+    equipment: [{ kind: 'dumbbell' }, { kind: 'barbell' }],
+    category: 'Strength',
+    sets: 3,
+    reps: 12,
+    rpe: 9,
+    restSeconds: 60,
+    durationMinutes: 8,
+    eligibleGoals: ['hypertrophy', 'strength']
+  },
+  {
+    name: 'Tricep Extension',
+    primaryMuscle: 'triceps',
+    equipment: [{ kind: 'dumbbell' }, { kind: 'cable' }],
+    category: 'Strength',
+    sets: 3,
+    reps: 12,
+    rpe: 9,
+    restSeconds: 60,
+    durationMinutes: 8,
+    eligibleGoals: ['hypertrophy', 'strength']
+  },
+  {
+    name: 'Running',
+    primaryMuscle: 'full_body',
+    equipment: [{ kind: 'bodyweight' }, { kind: 'machine', machineType: 'treadmill' }],
+    category: 'Cardio',
+    sets: 1,
+    reps: 1,
+    rpe: 7,
+    restSeconds: 0,
+    durationMinutes: 30,
+    eligibleGoals: ['cardio', 'endurance']
+  }
+]
+
 // Tests
 test('validate input errors when required fields are missing', () => {
   const { errors } = buildWorkoutTemplate({
@@ -98,7 +257,7 @@ test('chest focus stays chest-dominant with allowed accessories', () => {
     preferences: { focusAreas: ['chest'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
   })
 
-  const exercises = generateSessionExercises(input, 'chest', 45, input.goals.primary, { seed: 'seed-chest' })
+  const exercises = generateSessionExercises(mockCatalog, input, 'chest', 45, input.goals.primary, { seed: 'seed-chest' })
   assert.ok(exercises.length > 0)
 
   const totalSets = exercises.reduce((sum, ex) => sum + (ex.sets || 0), 0)
@@ -132,7 +291,7 @@ test('returns an error when chest focus cannot be satisfied by equipment', () =>
       }
     }
   })
-  const exercises = generateSessionExercises(input, 'chest', 45, input.goals.primary, { seed: 'seed-empty' })
+  const exercises = generateSessionExercises(mockCatalog, input, 'chest', 45, input.goals.primary, { seed: 'seed-empty' })
   assert.equal(exercises.length, 0)
 })
 
@@ -142,7 +301,7 @@ test('back focus avoids unrelated primary muscles', () => {
     preferences: { focusAreas: ['back'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
   })
 
-  const exercises = generateSessionExercises(input, 'back', 45, input.goals.primary, { seed: 'seed-back' })
+  const exercises = generateSessionExercises(mockCatalog, input, 'back', 45, input.goals.primary, { seed: 'seed-back' })
   assert.ok(exercises.length > 0)
 
   const forbidden = exercises.filter(ex => {
@@ -171,8 +330,8 @@ test('time availability scales exercise count and volume', () => {
     preferences: { focusAreas: ['upper'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
   })
 
-  const shortSession = generateSessionExercises(input, 'upper', 30, input.goals.primary, { seed: 'seed-short' })
-  const longSession = generateSessionExercises(input, 'upper', 120, input.goals.primary, { seed: 'seed-long' })
+  const shortSession = generateSessionExercises(mockCatalog, input, 'upper', 30, input.goals.primary, { seed: 'seed-short' })
+  const longSession = generateSessionExercises(mockCatalog, input, 'upper', 120, input.goals.primary, { seed: 'seed-long' })
 
   assert.ok(shortSession.length > 0)
   assert.ok(longSession.length >= shortSession.length)
@@ -198,7 +357,7 @@ test('filters exercises to available equipment inventory', () => {
     preferences: { focusAreas: ['core'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
   })
 
-  const allExercises = generateSessionExercises(input, 'core', 40, input.goals.primary, { seed: 'seed-core' })
+  const allExercises = generateSessionExercises(mockCatalog, input, 'core', 40, input.goals.primary, { seed: 'seed-core' })
   assert.ok(allExercises.length > 0)
   assert.ok(allExercises.every(exercise => exercise.equipment.some(option => option.kind === 'bodyweight')))
 })
@@ -210,6 +369,7 @@ test('intensity and experience change prescriptions', () => {
   })
 
   const lowIntensity = generateSessionExercises(
+    mockCatalog,
     { ...baseInput, intensity: 'low' },
     'upper',
     45,
@@ -217,6 +377,7 @@ test('intensity and experience change prescriptions', () => {
     { seed: 'seed-intensity' }
   )
   const highIntensity = generateSessionExercises(
+    mockCatalog,
     { ...baseInput, intensity: 'high' },
     'upper',
     45,
@@ -228,17 +389,21 @@ test('intensity and experience change prescriptions', () => {
   const highRest = highIntensity.reduce((sum, ex) => sum + ex.restSeconds, 0)
   assert.notEqual(lowRest, highRest)
 
+  const { filterExercises } = generatorModule
+  
   const beginner = generateSessionExercises(
+    mockCatalog,
     { ...baseInput, experienceLevel: 'beginner' },
     'upper',
-    45,
+    35,
     baseInput.goals.primary,
     { seed: 'seed-experience' }
   )
   const advanced = generateSessionExercises(
+    mockCatalog,
     { ...baseInput, experienceLevel: 'advanced' },
     'upper',
-    45,
+    35,
     baseInput.goals.primary,
     { seed: 'seed-experience' }
   )
@@ -251,13 +416,13 @@ test('repeated runs vary while avoiding back-to-back duplicates', () => {
     preferences: { focusAreas: ['back'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
   })
 
-  const firstRun = generateSessionExercises(input, 'back', 45, input.goals.primary, { seed: 'run-1' })
+  const firstRun = generateSessionExercises(mockCatalog, input, 'back', 45, input.goals.primary, { seed: 'run-1' })
   const history = {
     recentExerciseNames: firstRun.map(ex => ex.name),
     recentMovementPatterns: firstRun.map(ex => ex.movementPattern).filter(Boolean),
     recentPrimaryMuscles: firstRun.map(ex => ex.primaryMuscle).filter(Boolean)
   }
-  const secondRun = generateSessionExercises(input, 'back', 45, input.goals.primary, { seed: 'run-2', history })
+  const secondRun = generateSessionExercises(mockCatalog, input, 'back', 45, input.goals.primary, { seed: 'run-2', history })
 
   assert.notEqual(firstRun.map(ex => ex.name).join('|'), secondRun.map(ex => ex.name).join('|'))
 

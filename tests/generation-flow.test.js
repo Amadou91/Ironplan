@@ -18,6 +18,15 @@ const { outputText } = ts.transpileModule(source, {
   }
 })
 
+const unitsPath = join(__dirname, '../src/lib/units.ts')
+const unitsSource = readFileSync(unitsPath, 'utf8')
+const { outputText: unitsOutput } = ts.transpileModule(unitsSource, {
+  compilerOptions: {
+    module: ts.ModuleKind.CommonJS,
+    target: ts.ScriptTarget.ES2020
+  }
+})
+
 const equipmentPath = join(__dirname, '../src/lib/equipment.ts')
 const equipmentSource = readFileSync(equipmentPath, 'utf8')
 const { outputText: equipmentOutput } = ts.transpileModule(equipmentSource, {
@@ -29,19 +38,27 @@ const { outputText: equipmentOutput } = ts.transpileModule(equipmentSource, {
 
 const moduleShim = { exports: {} }
 const equipmentModuleShim = { exports: {} }
+const unitsModuleShim = { exports: {} }
 const requireShim = createRequire(import.meta.url)
-const equipmentFactory = new Function('module', 'exports', 'require', equipmentOutput)
-equipmentFactory(equipmentModuleShim, equipmentModuleShim.exports, requireShim)
 
-const requireWithEquipment = (moduleId) => {
+const customRequire = (moduleId) => {
   if (moduleId === './equipment' || moduleId === '../src/lib/equipment') {
     return equipmentModuleShim.exports
+  }
+  if (moduleId === '@/lib/units') {
+    return unitsModuleShim.exports
   }
   return requireShim(moduleId)
 }
 
+const unitsFactory = new Function('module', 'exports', 'require', unitsOutput)
+unitsFactory(unitsModuleShim, unitsModuleShim.exports, customRequire)
+
+const equipmentFactory = new Function('module', 'exports', 'require', equipmentOutput)
+equipmentFactory(equipmentModuleShim, equipmentModuleShim.exports, customRequire)
+
 const factory = new Function('module', 'exports', 'require', outputText)
-factory(moduleShim, moduleShim.exports, requireWithEquipment)
+factory(moduleShim, moduleShim.exports, customRequire)
 
 const { getFlowCompletion } = moduleShim.exports
 

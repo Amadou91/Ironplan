@@ -22,7 +22,7 @@ export function GenerationSummary({
         <div>
           <dt className="text-subtle">Muscle focus</dt>
           <dd className="text-strong capitalize">
-            {isMobilityStyle ? 'Yoga' : isCardioStyle ? 'Cardio' : formData.intent.bodyParts?.[0]?.replace('_', ' ') ?? 'Not set'}
+            {formData.intent.bodyParts?.[0]?.replace('_', ' ') ?? 'Not set'}
           </dd>
         </div>
         {!isMobilityStyle && !isCardioStyle && (

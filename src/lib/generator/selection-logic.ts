@@ -46,6 +46,8 @@ export const filterExercises = (
     matchesFocus = exercise.category === 'Mobility'
   } else if (focus === 'cardio') {
     matchesFocus = exercise.category === 'Cardio'
+  } else if (focus === 'full_body') {
+    matchesFocus = true
   } else if (exercise.category === 'Strength') {
     // Strength Category: Check Muscle Mapping
     const primary = exercise.primaryMuscle?.toLowerCase() || ''

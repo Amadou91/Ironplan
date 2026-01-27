@@ -141,13 +141,15 @@ export function useGenerationFlow() {
           ? lastStrengthPresetRef.current ?? 'full_gym'
           : prev.equipment.preset
 
+      const nextFocus = isCardio || isMobility ? 'full_body' : focus
+
       return {
         ...prev,
         intent: {
           ...prev.intent,
           mode: isCardio || isMobility ? 'style' : 'body_part',
           style: isCardio || isMobility ? targetStyle : undefined,
-          bodyParts: [focus]
+          bodyParts: [nextFocus]
         },
         goals: {
           ...prev.goals,
@@ -160,11 +162,11 @@ export function useGenerationFlow() {
         },
         preferences: {
           ...prev.preferences,
-          focusAreas: [focus]
+          focusAreas: [nextFocus]
         },
         schedule: {
           ...prev.schedule,
-          weeklyLayout: [{ sessionIndex: 0, style: targetStyle, focus }]
+          weeklyLayout: [{ sessionIndex: 0, style: targetStyle, focus: nextFocus }]
         }
       }
     })
@@ -183,9 +185,9 @@ export function useGenerationFlow() {
       }
 
       const fallbackFocus = prev.intent.bodyParts?.[0] ?? prev.preferences.focusAreas[0] ?? 'chest'
-      const bodyFocus = fallbackFocus === 'cardio' || fallbackFocus === 'mobility' ? 'chest' : fallbackFocus
+      const bodyFocus = fallbackFocus === 'cardio' || fallbackFocus === 'mobility' || fallbackFocus === 'full_body' ? 'chest' : fallbackFocus
 
-      const nextFocus = isCardio ? 'cardio' : isMobility ? 'mobility' : bodyFocus
+      const nextFocus = isCardio || isMobility ? 'full_body' : bodyFocus
 
       const nextInventory = isCardio
         ? buildCardioInventory(prev.equipment.inventory)
@@ -205,7 +207,7 @@ export function useGenerationFlow() {
           ...prev.intent,
           mode: isCardio || isMobility ? 'style' : 'body_part',
           style,
-          bodyParts: isCardio || isMobility ? prev.intent.bodyParts : [bodyFocus]
+          bodyParts: [nextFocus]
         },
         goals: {
           ...prev.goals,
