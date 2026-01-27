@@ -73,7 +73,7 @@ export async function resetWorkoutsAction() {
     secondary_muscles: ex.secondaryMuscles,
     instructions: ex.instructions,
     video_url: ex.videoUrl,
-    is_interval: ex.isInterval,
+    is_interval: ex.isInterval ?? false,
     interval_duration: ex.intervalDuration,
     interval_rest: ex.intervalRest
     // If 'category' is a column, add it.
