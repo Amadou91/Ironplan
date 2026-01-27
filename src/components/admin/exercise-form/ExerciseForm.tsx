@@ -1,7 +1,17 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { AlertCircle, Dumbbell, Heart, Activity } from 'lucide-react'
+import { 
+  AlertCircle, 
+  Dumbbell, 
+  Heart, 
+  Activity, 
+  FileText, 
+  Settings2, 
+  Layers, 
+  Check,
+  XCircle
+} from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
@@ -102,20 +112,24 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
   // Filter Focus Areas based on type
   const availableFocusAreas = FOCUS_AREAS
 
-  const handleEquipmentChange = (kind: EquipmentOption['kind'], checked: boolean) => {
+  const handleEquipmentChange = (kind: EquipmentOption['kind']) => {
     setFormData(prev => {
       const current = prev.equipment || []
-      if (checked) {
+      const exists = current.some(e => e.kind === kind)
+      
+      if (!exists) {
         return { ...prev, equipment: [...current, { kind }] }
       }
       return { ...prev, equipment: current.filter(e => e.kind !== kind) }
     })
   }
 
-  const handleSecondaryMuscleChange = (slug: string, checked: boolean) => {
+  const handleSecondaryMuscleChange = (slug: string) => {
     setFormData(prev => {
       const current = prev.secondaryMuscles || []
-      if (checked) {
+      const exists = current.includes(slug)
+      
+      if (!exists) {
         return { ...prev, secondaryMuscles: [...current, slug] }
       }
       return { ...prev, secondaryMuscles: current.filter(m => m !== slug) }
@@ -127,6 +141,7 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
     const validationErrors = validateExercise(formData)
     if (validationErrors.length > 0) {
       setErrors(validationErrors)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
     
@@ -140,70 +155,94 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
       else {
         setErrors(['Failed to save exercise. Please try again.'])
       }
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
       setIsSubmitting(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-5xl mx-auto">
-      {errors.length > 0 && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md flex items-start gap-2">
-          <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-          <ul className="list-disc list-inside text-sm">
-            {errors.map((err, i) => <li key={i}>{err}</li>)}
-          </ul>
+    <div className="pb-24">
+      <form onSubmit={handleSubmit} className="space-y-6 max-w-5xl mx-auto">
+        {/* Error Alert */}
+        {errors.length > 0 && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg flex items-start gap-3 shadow-sm">
+            <XCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <h4 className="font-semibold text-sm">Please correct the following errors:</h4>
+              <ul className="list-disc list-inside text-sm text-red-600/90">
+                {errors.map((err, i) => <li key={i}>{err}</li>)}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Type Selector - High Level Toggle */}
+        <div className="grid grid-cols-3 gap-4 p-1.5 bg-muted rounded-xl">
+          {[
+            { id: 'Strength', icon: Dumbbell, label: 'Strength' },
+            { id: 'Yoga', icon: Activity, label: 'Yoga / Mobility' },
+            { id: 'Cardio', icon: Heart, label: 'Cardio' },
+          ].map((type) => {
+            const Icon = type.icon
+            const isSelected = exerciseType === type.id
+            return (
+              <button
+                key={type.id}
+                type="button"
+                onClick={() => handleTypeChange(type.id as ExerciseType)}
+                className={`
+                  flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all duration-200
+                  ${isSelected 
+                    ? 'bg-white text-primary shadow-sm ring-1 ring-black/5' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/50'}
+                `}
+              >
+                <Icon className="w-4 h-4" />
+                {type.label}
+              </button>
+            )
+          })}
         </div>
-      )}
 
-      {/* Type Selector */}
-      <div className="grid grid-cols-3 gap-4 p-1 bg-slate-100 rounded-lg">
-        {[
-          { id: 'Strength', icon: Dumbbell, label: 'Strength' },
-          { id: 'Yoga', icon: Activity, label: 'Yoga / Mobility' },
-          { id: 'Cardio', icon: Heart, label: 'Cardio' },
-        ].map((type) => {
-          const Icon = type.icon
-          const isSelected = exerciseType === type.id
-          return (
-            <button
-              key={type.id}
-              type="button"
-              onClick={() => handleTypeChange(type.id as ExerciseType)}
-              className={`
-                flex items-center justify-center gap-2 py-3 px-4 rounded-md font-medium transition-all
-                ${isSelected 
-                  ? 'bg-white text-primary shadow-sm border border-slate-200' 
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}
-              `}
-            >
-              <Icon className="w-4 h-4" />
-              {type.label}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Section 1: Classification & Identity */}
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>Classification & Identity</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div>
-              <Label>Exercise Name</Label>
+        {/* Section 1: Core Details */}
+        <Card>
+          <CardHeader className="border-b bg-muted/30 pb-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <FileText className="w-5 h-5 text-primary" />
+              <CardTitle className="text-base text-foreground">Core Details</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6 grid grid-cols-12 gap-6">
+            {/* Exercise Name */}
+            <div className="col-span-12 md:col-span-8">
+              <Label className="mb-2 block">Exercise Name</Label>
               <Input 
                 value={formData.name || ''} 
                 onChange={e => setFormData({...formData, name: e.target.value})} 
-                placeholder={exerciseType === 'Cardio' ? "e.g. Running" : "e.g. Bench Press"}
+                placeholder={exerciseType === 'Cardio' ? "e.g. 5k Run" : "e.g. Barbell Bench Press"}
+                className="text-lg font-medium"
               />
             </div>
-            
-            {exerciseType === 'Strength' && (
+
+            {/* Metric Profile */}
+            <div className="col-span-12 md:col-span-4">
+              <Label className="mb-2 block">Metric Profile</Label>
+              <Select 
+                value={formData.metricProfile || ''} 
+                onChange={e => setFormData({...formData, metricProfile: e.target.value as MetricProfile})}
+              >
+                <option value="">Select Profile...</option>
+                {METRIC_PROFILES.map(p => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </Select>
+            </div>
+
+            {exerciseType === 'Strength' ? (
               <>
-                <div>
-                  <Label>Focus Area</Label>
+                <div className="col-span-12 md:col-span-4">
+                  <Label className="mb-2 block">Focus Area</Label>
                   <Select 
                     value={formData.focus || ''} 
                     onChange={e => setFormData({...formData, focus: e.target.value as FocusArea})}
@@ -213,11 +252,23 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                       <option key={f.value} value={f.value}>{f.label}</option>
                     ))}
                   </Select>
-                  <p className="text-xs text-muted mt-1">Primary body region targeted.</p>
                 </div>
 
-                <div>
-                  <Label>Goal</Label>
+                <div className="col-span-12 md:col-span-4">
+                  <Label className="mb-2 block">Primary Muscle</Label>
+                  <Select 
+                    value={formData.primaryMuscle as string || ''} 
+                    onChange={e => setFormData({...formData, primaryMuscle: e.target.value})}
+                  >
+                    <option value="">Select Muscle...</option>
+                    {muscleOptions.map(m => (
+                      <option key={m.slug} value={m.slug}>{m.label}</option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div className="col-span-12 md:col-span-4">
+                  <Label className="mb-2 block">Goal</Label>
                   <Select 
                     value={formData.goal || ''} 
                     onChange={e => setFormData({...formData, goal: e.target.value as Goal})}
@@ -229,139 +280,65 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                   </Select>
                 </div>
               </>
+            ) : (
+               <div className="col-span-12 bg-blue-50/50 border border-blue-100 rounded-lg p-4">
+                <p className="text-sm text-blue-800 font-medium mb-2">Auto-configured for {exerciseType}:</p>
+                <div className="flex gap-6 text-sm text-blue-600/80">
+                  <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Category: {exerciseType === 'Yoga' ? 'Mobility' : 'Cardio'}</span>
+                  <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Focus: Full Body</span>
+                  <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Goal: {exerciseType === 'Yoga' ? 'Range of Motion' : 'Endurance'}</span>
+                </div>
+               </div>
             )}
 
-            {(exerciseType === 'Yoga' || exerciseType === 'Cardio') && (
-              <div className="p-4 bg-slate-50 rounded border text-sm text-slate-600">
-                <p className="font-medium text-slate-900 mb-1">Auto-configured settings:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Category: {exerciseType === 'Yoga' ? 'Mobility' : 'Cardio'}</li>
-                  <li>Focus: Full Body</li>
-                  <li>Goal: {exerciseType === 'Yoga' ? 'Range of Motion' : 'Endurance'}</li>
-                </ul>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4">
-             <div className="flex items-start gap-2 pt-6 p-4 border rounded-md bg-slate-50/50">
-              <Checkbox 
-                checked={formData.e1rmEligible || false} 
-                onCheckedChange={(c) => setFormData({...formData, e1rmEligible: c === true})}
-                id="e1rm"
-              />
-              <div className="grid gap-1.5 leading-none">
-                <Label htmlFor="e1rm">E1RM Eligible</Label>
-                <p className="text-xs text-muted">
-                  Enable if this exercise is suitable for calculating a One-Rep Max (e.g., compound lifts).
-                  Usually disabled for cardio, mobility, or isolation exercises.
-                </p>
+            <div className="col-span-12 pt-2">
+              <div className="flex items-start gap-3 p-4 border rounded-lg bg-muted/20">
+                <Checkbox 
+                  checked={formData.e1rmEligible || false} 
+                  onCheckedChange={(c) => setFormData({...formData, e1rmEligible: c === true})}
+                  id="e1rm"
+                  className="mt-1"
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="e1rm" className="font-medium cursor-pointer">E1RM Eligible</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Enable if this exercise is suitable for calculating a One-Rep Max (e.g., Squat, Deadlift).
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Section 2: Equipment & Muscles */}
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>Equipment & Muscles</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-           <div>
-            <Label className="mb-3 block">Required Equipment</Label>
-            <div className="flex flex-wrap gap-3">
-              {EQUIPMENT_KINDS.map(item => (
-                <label key={item.value} className="flex items-center gap-2 border px-3 py-2 rounded-md hover:bg-slate-50 cursor-pointer transition-colors has-[:checked]:border-primary/30 has-[:checked]:bg-primary/5">
-                  <Checkbox 
-                    checked={formData.equipment?.some(e => e.kind === item.value) || false}
-                    onCheckedChange={(c) => handleEquipmentChange(item.value, c === true)}
-                  />
-                  <span className="text-sm font-medium">{item.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
-            {exerciseType === 'Strength' && (
-              <div>
-                <Label>Primary Muscle</Label>
-                <Select 
-                  value={formData.primaryMuscle as string || ''} 
-                  onChange={e => setFormData({...formData, primaryMuscle: e.target.value})}
-                >
-                  <option value="">Select Muscle...</option>
-                  {muscleOptions.map(m => (
-                    <option key={m.slug} value={m.slug}>{m.label}</option>
-                  ))}
-                </Select>
-                <p className="text-xs text-muted mt-1">The main muscle group worked.</p>
+        {/* Section 2: Training Standards */}
+        <Card>
+           <CardHeader className="border-b bg-muted/30 pb-4">
+             <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Settings2 className="w-5 h-5 text-primary" />
+                <CardTitle className="text-base text-foreground">Training Standards</CardTitle>
               </div>
-            )}
-
-            <div className={exerciseType !== 'Strength' ? 'col-span-2' : ''}>
-              <Label className="mb-2 block">Secondary Muscles / Synergists</Label>
-              <div className="h-48 overflow-y-auto border rounded-md p-4 grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-50/50">
-                {muscleOptions.map(m => (
-                  <label key={m.slug} className="flex items-center gap-2 text-sm cursor-pointer hover:text-primary">
-                    <Checkbox 
-                      checked={formData.secondaryMuscles?.includes(m.slug) || false}
-                      onCheckedChange={(c) => handleSecondaryMuscleChange(m.slug, c === true)}
-                    />
-                    {m.label}
-                  </label>
-                ))}
+              
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border shadow-sm">
+                <Checkbox 
+                  id="isInterval"
+                  checked={formData.isInterval || false} 
+                  onCheckedChange={(c) => {
+                    const isInterval = c === true
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      isInterval,
+                      restSeconds: isInterval ? 0 : prev.restSeconds
+                    }))
+                  }}
+                />
+                <Label htmlFor="isInterval" className="text-sm font-medium cursor-pointer select-none">Interval Mode</Label>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Section 3: Details & Prescription */}
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle>Details & Prescription</CardTitle>
-            <div className="flex items-center gap-2">
-              <Checkbox 
-                id="isInterval"
-                checked={formData.isInterval || false} 
-                onCheckedChange={(c) => {
-                  const isInterval = c === true
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    isInterval,
-                    // clear restSeconds if interval mode enabled to avoid confusion with intervalRest? 
-                    // or keep it. WorkoutEditor cleared it. Let's keep it simple.
-                    restSeconds: isInterval ? 0 : prev.restSeconds
-                  }))
-                }}
-              />
-              <Label htmlFor="isInterval" className="text-sm font-medium cursor-pointer">Interval Mode</Label>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="max-w-md">
-            <Label>Metric Profile</Label>
-            <Select 
-              value={formData.metricProfile || ''} 
-              onChange={e => setFormData({...formData, metricProfile: e.target.value as MetricProfile})}
-            >
-              <option value="">Select Profile...</option>
-              {METRIC_PROFILES.map(p => (
-                <option key={p.value} value={p.value}>{p.label}</option>
-              ))}
-            </Select>
-            <p className="text-xs text-muted mt-1">
-              {METRIC_PROFILES.find(p => p.value === formData.metricProfile)?.description || 'Defines how progress is tracked (e.g., Weight & Reps vs Duration).'}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
-            <div>
-              <Label>{formData.isInterval ? 'Intervals' : 'Default Sets'}</Label>
+          </CardHeader>
+          <CardContent className="pt-6 grid grid-cols-12 gap-6">
+            <div className="col-span-6 md:col-span-3">
+              <Label className="mb-2 block">{formData.isInterval ? 'Intervals' : 'Default Sets'}</Label>
               <Input 
                 type="number" 
                 min="1"
@@ -372,32 +349,30 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
 
             {formData.isInterval ? (
               <>
-                <div>
-                  <Label>On Duration (s)</Label>
+                <div className="col-span-6 md:col-span-3">
+                  <Label className="mb-2 block">Work (sec)</Label>
                   <Input 
                     type="number"
                     min="1"
                     value={formData.intervalDuration || ''} 
                     onChange={e => setFormData({...formData, intervalDuration: Number(e.target.value)})}
-                    placeholder="Work"
                   />
                 </div>
-                <div>
-                  <Label>Off Duration (s)</Label>
+                <div className="col-span-6 md:col-span-3">
+                  <Label className="mb-2 block">Rest (sec)</Label>
                   <Input 
                     type="number"
                     min="0"
                     value={formData.intervalRest || ''} 
                     onChange={e => setFormData({...formData, intervalRest: Number(e.target.value)})}
-                    placeholder="Rest"
                   />
                 </div>
               </>
             ) : (
               <>
                 {(constraints.requiresReps || (!constraints.requiresDuration && !formData.isInterval)) && (
-                  <div>
-                    <Label>Rep Range</Label>
+                  <div className="col-span-6 md:col-span-3">
+                    <Label className="mb-2 block">Rep Range</Label>
                     <Input 
                       value={formData.reps || ''} 
                       onChange={e => setFormData({...formData, reps: e.target.value})} 
@@ -407,8 +382,8 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                 )}
 
                 {constraints.requiresDuration && (
-                  <div>
-                    <Label>Duration (Min)</Label>
+                  <div className="col-span-6 md:col-span-3">
+                    <Label className="mb-2 block">Duration (Min)</Label>
                     <Input 
                       type="number" 
                       min="1"
@@ -420,25 +395,23 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
               </>
             )}
 
-            <div>
-              <Label>Target RPE</Label>
-              <div className="flex items-center gap-2">
-                <Input 
-                  type="number" 
-                  min="1" 
-                  max="10"
-                  value={formData.rpe || ''} 
-                  onChange={e => setFormData({...formData, rpe: Number(e.target.value)})}
-                />
-              </div>
-              <span className="text-[10px] text-muted block mt-1">
+            <div className="col-span-6 md:col-span-3">
+              <Label className="mb-2 block">Target RPE</Label>
+              <Input 
+                type="number" 
+                min="1" 
+                max="10"
+                value={formData.rpe || ''} 
+                onChange={e => setFormData({...formData, rpe: Number(e.target.value)})}
+              />
+              <span className="text-xs text-muted-foreground mt-1.5 block">
                  Rec: {constraints.defaultRpeRange[0]}-{constraints.defaultRpeRange[1]}
               </span>
             </div>
 
             {!formData.isInterval && (
-              <div>
-                <Label>Rest (Sec)</Label>
+              <div className="col-span-6 md:col-span-3">
+                <Label className="mb-2 block">Rest (Sec)</Label>
                 <Input 
                   type="number" 
                   step="15"
@@ -447,21 +420,95 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                 />
               </div>
             )}
-          </div>
-          
-          <div className="bg-blue-50 text-blue-700 text-xs p-3 rounded flex items-center gap-2">
-            <Activity className="w-4 h-4" />
-            <span>These values serve as a baseline. The generator adjusts them based on intensity, experience, and time constraints.</span>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <div className="flex items-center justify-end gap-4 pt-4">
-        <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving...' : 'Save Exercise'}
-        </Button>
+        {/* Section 3: Requirements */}
+        <Card>
+          <CardHeader className="border-b bg-muted/30 pb-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Layers className="w-5 h-5 text-primary" />
+              <CardTitle className="text-base text-foreground">Requirements</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-8">
+            {/* Equipment Pills */}
+            <div>
+              <Label className="mb-3 block text-base">Required Equipment</Label>
+              <div className="flex flex-wrap gap-2">
+                {EQUIPMENT_KINDS.map(item => {
+                  const isSelected = formData.equipment?.some(e => e.kind === item.value)
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => handleEquipmentChange(item.value)}
+                      className={`
+                        flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200
+                        ${isSelected
+                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                          : 'bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'}
+                      `}
+                    >
+                      {item.label}
+                      {isSelected && <Check className="w-3.5 h-3.5" />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Secondary Muscles Scrollable */}
+            <div>
+              <Label className="mb-3 block text-base">Secondary Muscles</Label>
+              <div className="border rounded-xl h-64 overflow-y-auto p-2 bg-muted/20">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
+                  {muscleOptions.map(m => {
+                    const isSelected = formData.secondaryMuscles?.includes(m.slug)
+                    return (
+                      <button
+                        type="button"
+                        key={m.slug}
+                        onClick={() => handleSecondaryMuscleChange(m.slug)}
+                        className={`
+                          w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors text-left
+                          ${isSelected 
+                            ? 'bg-white text-primary font-medium shadow-sm ring-1 ring-black/5' 
+                            : 'hover:bg-muted-foreground/10 text-muted-foreground'}
+                        `}
+                      >
+                        {m.label}
+                        {isSelected && <Check className="w-3.5 h-3.5" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </form>
+
+      {/* Sticky Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 flex items-center justify-end gap-4 shadow-lg">
+        <div className="max-w-5xl w-full mx-auto flex justify-end gap-4">
+          <Button 
+            type="button" 
+            variant="ghost" 
+            onClick={onCancel}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting}
+            className="min-w-[120px]"
+          >
+            {isSubmitting ? 'Saving...' : 'Save Exercise'}
+          </Button>
+        </div>
       </div>
-    </form>
+    </div>
   )
 }
