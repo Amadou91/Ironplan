@@ -72,7 +72,10 @@ export async function resetWorkoutsAction() {
     primary_muscle: ex.primaryMuscle,
     secondary_muscles: ex.secondaryMuscles,
     instructions: ex.instructions,
-    video_url: ex.videoUrl
+    video_url: ex.videoUrl,
+    is_interval: ex.isInterval,
+    interval_duration: ex.intervalDuration,
+    interval_rest: ex.intervalRest
     // If 'category' is a column, add it.
     // The script `generate-defaults` inferred it. 
     // I will exclude 'category' from insert if I'm not sure, 

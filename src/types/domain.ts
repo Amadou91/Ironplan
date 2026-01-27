@@ -124,9 +124,12 @@ export interface Exercise {
   secondaryMuscles?: string[]
   primaryBodyParts?: string[]
   secondaryBodyParts?: string[]
-  videoUrl?: string
   instructions?: string[]
+  videoUrl?: string
   e1rmEligible?: boolean
+  isInterval?: boolean
+  intervalDuration?: number
+  intervalRest?: number
 }
 
 export type WorkoutExercise = Exercise

@@ -299,13 +299,31 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
 
         {/* Section 3: Default Prescription */}
         <section className="space-y-6">
-           <div className="flex items-center gap-2 pb-2 border-b border-[var(--color-border)]">
+           <div className="flex items-center justify-between gap-2 pb-2 border-b border-[var(--color-border)]">
             <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-subtle)]">Default Prescription</h3>
+            
+            {/* Interval Mode Toggle */}
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input 
+                    type="checkbox" 
+                    checked={!!formData.isInterval} 
+                    onChange={(e) => {
+                        const isInterval = e.target.checked;
+                        handleChange('isInterval', isInterval);
+                        if (isInterval) {
+                            // Clear conflicting fields if enabling
+                            handleChange('restSeconds', 0); // Hide rest
+                        }
+                    }}
+                    className="w-4 h-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                />
+                <span className="font-medium">Interval Mode</span>
+            </label>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="sets">Sets</Label>
+              <Label htmlFor="sets">{formData.isInterval ? 'Intervals' : 'Sets'}</Label>
               <Input
                 id="sets"
                 type="number"
@@ -313,15 +331,52 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
                 onChange={(e) => handleChange('sets', parseInt(e.target.value) || 0)}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="reps">Reps / Duration</Label>
-              <Input
-                id="reps"
-                value={formData.reps}
-                onChange={(e) => handleChange('reps', e.target.value)}
-                placeholder="e.g. 8-12"
-              />
-            </div>
+
+            {formData.isInterval ? (
+                <>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="intervalDuration">On Duration (Sec)</Label>
+                        <Input
+                            id="intervalDuration"
+                            type="number"
+                            value={formData.intervalDuration || ''}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                handleChange('intervalDuration', val);
+                                // Update display string
+                                const off = formData.intervalRest || 0;
+                                handleChange('reps', `${val}s on / ${off}s off`);
+                            }}
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="intervalRest">Off Duration (Sec)</Label>
+                        <Input
+                            id="intervalRest"
+                            type="number"
+                            value={formData.intervalRest || ''}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                handleChange('intervalRest', val);
+                                // Update display string
+                                const on = formData.intervalDuration || 0;
+                                handleChange('reps', `${on}s on / ${val}s off`);
+                            }}
+                        />
+                    </div>
+                </>
+            ) : (
+                <div className="space-y-1.5">
+                <Label htmlFor="reps">Reps / Duration</Label>
+                <Input
+                    id="reps"
+                    value={formData.reps}
+                    onChange={(e) => handleChange('reps', e.target.value)}
+                    placeholder="e.g. 8-12"
+                />
+                </div>
+            )}
+
             <div className="space-y-1.5">
               <Label htmlFor="rpe">Target RPE</Label>
               <Select
@@ -336,15 +391,18 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
                 ))}
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="restSeconds">Rest (Sec)</Label>
-              <Input
-                id="restSeconds"
-                type="number"
-                value={formData.restSeconds}
-                onChange={(e) => handleChange('restSeconds', parseInt(e.target.value) || 0)}
-              />
-            </div>
+
+            {!formData.isInterval && (
+                <div className="space-y-1.5">
+                <Label htmlFor="restSeconds">Rest (Sec)</Label>
+                <Input
+                    id="restSeconds"
+                    type="number"
+                    value={formData.restSeconds}
+                    onChange={(e) => handleChange('restSeconds', parseInt(e.target.value) || 0)}
+                />
+                </div>
+            )}
           </div>
         </section>
 

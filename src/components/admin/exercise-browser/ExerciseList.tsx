@@ -89,9 +89,14 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
       {/* Metrics Grid */}
       <div className="grid grid-cols-3 gap-3 mt-auto">
         <div className="bg-muted/40 rounded-lg p-3 flex flex-col items-center justify-center text-center">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Volume</span>
+            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">
+                {exercise.isInterval ? 'Structure' : 'Volume'}
+            </span>
             <span className="text-base font-bold tabular-nums">
-                {exercise.sets} <span className="text-muted-foreground font-normal">×</span> {exercise.reps}
+                {exercise.isInterval 
+                    ? `${exercise.sets} × ${exercise.intervalDuration}s/${exercise.intervalRest}s` 
+                    : `${exercise.sets} × ${exercise.reps}`
+                }
             </span>
         </div>
         <div className="bg-muted/40 rounded-lg p-3 flex flex-col items-center justify-center text-center">
@@ -101,13 +106,33 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
                 <span className="text-base font-bold tabular-nums">{exercise.rpe}</span>
             </div>
         </div>
-        <div className="bg-muted/40 rounded-lg p-3 flex flex-col items-center justify-center text-center">
-             <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Rest</span>
-             <div className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-blue-500" />
-                <span className="text-base font-bold tabular-nums">{exercise.restSeconds}s</span>
+        
+        {/* Hide Rest block for Intervals if it duplicates the Off time (which it should) */}
+        {!exercise.isInterval && (
+            <div className="bg-muted/40 rounded-lg p-3 flex flex-col items-center justify-center text-center">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Rest</span>
+                <div className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-blue-500" />
+                    <span className="text-base font-bold tabular-nums">{exercise.restSeconds}s</span>
+                </div>
             </div>
-        </div>
+        )}
+        
+        {/* If Interval, maybe show total time estimate or leave empty to keep grid balance? 
+            Let's show a placeholder or total duration if calculated. 
+            For now, let's just leave the space or center the other two if needed.
+            But grid-cols-3 expects 3 items. 
+            We can show "Type: Interval" or similar? Or just keep Rest if it signifies "Rest Between Rounds"?
+            Requirement: "do not show a separate 'Rest: X' unless it is 'rest between rounds'".
+            Since we didn't implement complex rounds yet, we assume no extra rest. 
+            I'll replace the 3rd column with something useful or just blank.
+        */}
+        {exercise.isInterval && (
+             <div className="bg-muted/40 rounded-lg p-3 flex flex-col items-center justify-center text-center opacity-50">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Type</span>
+                <span className="text-base font-bold tabular-nums">Intervals</span>
+            </div>
+        )}
       </div>
 
       {/* Footer Tags */}
