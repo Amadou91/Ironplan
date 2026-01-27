@@ -128,7 +128,7 @@ export const createWorkoutSession = async ({
     })
     if (readinessError) throw readinessError
 
-    const exercises = goal === 'cardio' 
+    const exercises = focus === 'cardio' 
       ? [] 
       : generateSessionExercises(catalog, input, focus, minutesAvailable, goal, {
           seed: sessionData.id,

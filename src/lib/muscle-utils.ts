@@ -20,9 +20,7 @@ const MUSCLE_GROUP_SLUGS = new Set([
   'abductors',
   'upper_body',
   'lower_body',
-  'full_body',
-  'cardio',
-  'mobility'
+  'full_body'
 ]);
 
 const resolveByKeyword = (label: string) => {
@@ -64,7 +62,7 @@ const resolveByKeyword = (label: string) => {
     return { primary: 'core', secondary: [] };
   }
   if (label.includes('run') || label.includes('rower') || label.includes('bike') || label.includes('cardio') || label.includes('cycle') || label.includes('elliptical')) {
-    return { primary: 'cardio', secondary: [] };
+    return { primary: 'full_body', secondary: [] };
   }
   
   // Fallback for generic 'press' if not caught above (likely shoulders or chest, defaulting to Shoulders if it's just 'press', or Chest if context implies)
@@ -86,8 +84,8 @@ export const PRESET_MAPPINGS: Record<string, string[]> = {
   legs: ['quads', 'hamstrings', 'glutes', 'calves', 'hip_flexors', 'adductors', 'abductors'],
   arms: ['arms', 'biceps', 'triceps', 'forearms'],
   core: ['core'],
-  cardio: ['cardio'],
-  mobility: ['mobility']
+  cardio: ['full_body'],
+  mobility: ['full_body']
 };
 
 export const isMuscleMatch = (targetPreset: string, primary?: string | null, secondary?: string[] | null): boolean => {

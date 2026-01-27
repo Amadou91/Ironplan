@@ -20,8 +20,6 @@ export type MuscleGroup =
   | 'adductors'
   | 'abductors'
   | 'full_body'
-  | 'cardio'
-  | 'mobility'
   | 'lower_body'
   | 'upper_body'
 
@@ -78,7 +76,7 @@ export type FocusArea =
   | 'chest'
   | 'back'
 
-export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'cardio' | 'mobility'
+export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'range_of_motion'
 
 export type GoalPriority = 'primary' | 'secondary' | 'balanced'
 

@@ -44,8 +44,8 @@ export default function GeneratePage() {
   const flowState = useMemo(() => getFlowCompletion(formData), [formData])
 
   const invalidEquipment = !isEquipmentValid(formData.equipment)
-  const isCardioStyle = formData.goals.primary === 'cardio'
-  const isMobilityStyle = formData.goals.primary === 'mobility'
+  const isCardioStyle = formData.intent.bodyParts?.[0] === 'cardio'
+  const isMobilityStyle = formData.intent.bodyParts?.[0] === 'mobility'
   const inventory = formData.equipment.inventory
 
   const equipmentSummary = (
@@ -143,11 +143,7 @@ export default function GeneratePage() {
               </div>
 
               <MuscleGroupSelector
-                selectedFocus={
-                  (['cardio', 'mobility'] as string[]).includes(formData.goals.primary)
-                    ? (formData.goals.primary as any)
-                    : formData.intent.bodyParts?.[0]
-                }
+                selectedFocus={formData.intent.bodyParts?.[0]}
                 onFocusChange={handleFocusChange}
               />
 

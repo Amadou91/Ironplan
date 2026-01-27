@@ -31,7 +31,8 @@ const focusLabelMap: Record<FocusArea, string> = {
 }
 
 const goalLabelMap: Record<string, string> = {
-  cardio: 'Conditioning'
+  cardio: 'Conditioning',
+  range_of_motion: 'Mobility & Flexibility'
 }
 
 export const formatGoalLabel = (goal?: string | null) => {

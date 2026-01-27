@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Check, AlertCircle, Dumbbell, Heart, Activity } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { AlertCircle, Dumbbell, Heart, Activity } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
@@ -15,7 +15,7 @@ import {
   getConstraintForProfile, 
   validateExercise 
 } from '@/lib/validation/exercise-validation'
-import type { Exercise, MuscleGroup, FocusArea, Goal, MetricProfile, EquipmentOption } from '@/types/domain'
+import type { Exercise, FocusArea, Goal, MetricProfile, EquipmentOption } from '@/types/domain'
 
 type Props = {
   initialData?: Partial<Exercise>
@@ -68,17 +68,16 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
         ...prev,
         category: 'Mobility',
         focus: 'full_body',
-        goal: 'mobility',
-        // Optional: clear primary muscle if desired, but keeping it allows specific targeting if needed
-        // primaryMuscle: undefined 
+        goal: 'range_of_motion',
+        primaryMuscle: 'full_body' 
       }))
     } else if (type === 'Cardio') {
       setFormData(prev => ({
         ...prev,
         category: 'Cardio',
         focus: 'full_body',
-        goal: 'cardio',
-        // primaryMuscle: undefined
+        goal: 'endurance',
+        primaryMuscle: 'full_body'
       }))
     } else {
       // Strength - Defaulting to Strength category, but keeping existing focus/goal if valid or clearing if they were set by other types
@@ -88,26 +87,20 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
         // If coming from Yoga/Cardio, these might be set to specific values. 
         // We let the user choose, so we don't necessarily reset them unless we want to force a selection.
         // But to be safe and avoid confusion:
-        goal: (prev.goal === 'mobility' || prev.goal === 'cardio') ? undefined : prev.goal,
-        focus: (prev.focus === 'full_body' || prev.focus === 'cardio') ? undefined : prev.focus,
+        goal: (prev.goal === 'range_of_motion' || prev.goal === 'endurance') ? undefined : prev.goal,
+        focus: prev.focus === 'full_body' ? undefined : prev.focus,
       }))
     }
   }
 
   const availableGoals = EXERCISE_GOALS.filter(g => {
-    if (exerciseType === 'Yoga') return g.value === 'mobility'
-    if (exerciseType === 'Cardio') return g.value === 'cardio'
+    if (exerciseType === 'Yoga') return g.value === 'range_of_motion'
+    if (exerciseType === 'Cardio') return g.value === 'endurance'
     return ['strength', 'hypertrophy', 'endurance'].includes(g.value)
   })
 
   // Filter Focus Areas based on type
-  const availableFocusAreas = FOCUS_AREAS.filter(f => {
-    if (exerciseType === 'Strength') {
-      // Exclude cardio/mobility specific focus areas if they exist in list (though domain logic might vary)
-      return !['cardio', 'mobility'].includes(f.value)
-    }
-    return true // For Yoga/Cardio we pre-set it, but if we allowed selection, we'd filter here
-  })
+  const availableFocusAreas = FOCUS_AREAS
 
   const handleEquipmentChange = (kind: EquipmentOption['kind'], checked: boolean) => {
     setFormData(prev => {
@@ -143,7 +136,8 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
     } catch (err) {
       if (err instanceof Error) {
         setErrors([`Failed to save exercise: ${err.message}`])
-      } else {
+      }
+      else {
         setErrors(['Failed to save exercise. Please try again.'])
       }
     } finally {
@@ -243,7 +237,7 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                 <ul className="list-disc list-inside space-y-1">
                   <li>Category: {exerciseType === 'Yoga' ? 'Mobility' : 'Cardio'}</li>
                   <li>Focus: Full Body</li>
-                  <li>Goal: {exerciseType === 'Yoga' ? 'Mobility' : 'Cardio'}</li>
+                  <li>Goal: {exerciseType === 'Yoga' ? 'Range of Motion' : 'Endurance'}</li>
                 </ul>
               </div>
             )}

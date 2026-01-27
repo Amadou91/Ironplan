@@ -95,9 +95,9 @@ export const filterExercises = (
     if (exercise.category === 'Cardio' && (goal === 'endurance' || goal === 'cardio')) {
       matchesGoal = true
     }
-    // If it's Mobility, it generally matches 'general_fitness' or recovery goals, but let's check strict goal
-    else if (exercise.category === 'Mobility') {
-      matchesGoal = true // Assume Mobility fits all or handle specifically?
+    // If it's Mobility, it generally matches 'range_of_motion'
+    else if (exercise.category === 'Mobility' && goal === 'range_of_motion') {
+      matchesGoal = true
     }
     else if (exercise.eligibleGoals && exercise.eligibleGoals.length > 0) {
       matchesGoal = exercise.eligibleGoals.includes(goal)

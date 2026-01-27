@@ -29,8 +29,6 @@ export const MUSCLE_MAPPING: Record<MuscleGroup | string, MuscleMapping> = {
   // Full Body / Core / Other
   core: { region: 'Full Body & Core', label: 'Core', order: 1 },
   full_body: { region: 'Full Body & Core', label: 'Full Body', order: 2 },
-  cardio: { region: 'Full Body & Core', label: 'Cardio', order: 3 },
-  mobility: { region: 'Full Body & Core', label: 'Yoga / Mobility', order: 4 },
   
   // Catch-alls
   upper_body: { region: 'Upper Body', label: 'General Upper', order: 99 },

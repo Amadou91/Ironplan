@@ -38,24 +38,14 @@ const METRIC_PROFILES: { value: MetricProfile; label: string }[] = [
 const MUSCLE_GROUPS: MuscleGroup[] = [
   'chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'core', 
   'glutes', 'quads', 'hamstrings', 'calves', 'hip_flexors', 'adductors', 'abductors', 
-  'full_body', 'upper_body', 'lower_body', 'mobility', 'cardio'
-];
-
-const EQUIPMENT_KINDS = [
-  { value: 'bodyweight', label: 'Bodyweight' },
-  { value: 'dumbbell', label: 'Dumbbell' },
-  { value: 'kettlebell', label: 'Kettlebell' },
-  { value: 'band', label: 'Band' },
-  { value: 'barbell', label: 'Barbell' },
-  { value: 'machine', label: 'Machine' },
+  'full_body', 'upper_body', 'lower_body'
 ];
 
 const GOALS: { value: Goal; label: string }[] = [
   { value: 'strength', label: 'Strength' },
   { value: 'hypertrophy', label: 'Hypertrophy' },
   { value: 'endurance', label: 'Endurance' },
-  { value: 'cardio', label: 'Cardio' },
-  { value: 'mobility', label: 'Yoga / Mobility' },
+  { value: 'range_of_motion', label: 'Range of Motion' },
 ];
 
 const DEFAULT_EXERCISE: Partial<Exercise> = {
@@ -177,8 +167,8 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
 
   const filteredGoals = GOALS.filter(g => {
     if (formData.category === 'Strength') return ['strength', 'hypertrophy', 'endurance'].includes(g.value);
-    if (formData.category === 'Cardio') return g.value === 'cardio';
-    if (formData.category === 'Mobility') return g.value === 'mobility';
+    if (formData.category === 'Cardio') return g.value === 'endurance';
+    if (formData.category === 'Mobility') return g.value === 'range_of_motion';
     return true;
   });
 
@@ -188,12 +178,12 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
       updates.eligibleGoals = ['strength', 'hypertrophy', 'endurance'];
       updates.metricProfile = 'reps_weight';
     } else if (cat === 'Cardio') {
-      updates.eligibleGoals = ['cardio'];
-      updates.metricProfile = 'duration';
-      updates.primaryMuscle = 'cardio';
+      updates.eligibleGoals = ['endurance'];
+      updates.metricProfile = 'cardio_session';
+      updates.primaryMuscle = 'full_body';
     } else if (cat === 'Mobility') {
-      updates.eligibleGoals = ['mobility'];
-      updates.metricProfile = 'duration';
+      updates.eligibleGoals = ['range_of_motion'];
+      updates.metricProfile = 'mobility_session';
       updates.primaryMuscle = 'full_body';
     }
     setFormData(prev => ({ ...prev, ...updates }));

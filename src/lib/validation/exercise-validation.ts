@@ -11,15 +11,13 @@ export const EXERCISE_GOALS: { label: string; value: Goal; description: string }
   { value: 'strength', label: 'Strength', description: 'Maximize force production' },
   { value: 'hypertrophy', label: 'Hypertrophy', description: 'Muscle growth focus' },
   { value: 'endurance', label: 'Endurance', description: 'Sustained effort' },
-  { value: 'cardio', label: 'Cardio', description: 'Cardiovascular health' }
+  { value: 'range_of_motion', label: 'Range of Motion', description: 'Flexibility and mobility' }
 ]
 
 export const FOCUS_AREAS = [
   { value: 'upper', label: 'Upper Body' },
   { value: 'lower', label: 'Lower Body' },
   { value: 'core', label: 'Core' },
-  { value: 'cardio', label: 'Cardio' },
-  { value: 'mobility', label: 'Yoga / Mobility' },
   { value: 'full_body', label: 'Full Body' }
 ]
 

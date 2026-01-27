@@ -113,16 +113,21 @@ export function useGenerationFlow() {
   const handleFocusChange = (focus: FocusArea) => {
     updateFormData((prev) => {
       let targetStyle: Goal = prev.goals.primary
-      if (focus === 'mobility') targetStyle = 'mobility'
-      else if (focus === 'cardio') targetStyle = 'cardio'
-      else if (['cardio', 'mobility', 'general_fitness'].includes(prev.goals.primary)) {
+      if (focus === 'mobility') targetStyle = 'range_of_motion'
+      else if (focus === 'cardio') targetStyle = 'endurance'
+      else if (['endurance', 'range_of_motion', 'general_fitness'].includes(prev.goals.primary)) {
+        // Reset to strength if moving away from special modes, unless the user explicitly wants endurance strength
+        // But for simplicity, let's default to strength when switching to a muscle part, 
+        // unless the previous style was strictly tied to the previous focus.
+        // If previous was 'range_of_motion' (Mobility), we probably want 'strength' or keep it?
+        // Usually switching to 'chest' implies Strength.
         targetStyle = 'strength'
       }
 
-      const isCardio = targetStyle === 'cardio'
-      const isMobility = targetStyle === 'mobility'
-      const wasCardio = prev.goals.primary === 'cardio'
-      const wasMobility = prev.goals.primary === 'mobility'
+      const isCardio = focus === 'cardio'
+      const isMobility = focus === 'mobility'
+      const wasCardio = prev.intent.bodyParts?.[0] === 'cardio'
+      const wasMobility = prev.intent.bodyParts?.[0] === 'mobility'
 
       if ((isCardio || isMobility) && !wasCardio && !wasMobility) {
         lastStrengthInventoryRef.current = cloneInventory(prev.equipment.inventory)
@@ -141,7 +146,7 @@ export function useGenerationFlow() {
           ? lastStrengthPresetRef.current ?? 'full_gym'
           : prev.equipment.preset
 
-      const nextFocus = isCardio || isMobility ? 'full_body' : focus
+      const nextFocus = focus // We keep focus as 'cardio'/'mobility' if selected
 
       return {
         ...prev,
@@ -174,53 +179,21 @@ export function useGenerationFlow() {
 
   const updatePrimaryStyle = (style: Goal) => {
     updateFormData((prev) => {
-      const isCardio = style === 'cardio'
-      const isMobility = style === 'mobility'
-      const wasCardio = prev.goals.primary === 'cardio'
-      const wasMobility = prev.goals.primary === 'mobility'
-
-      if ((isCardio || isMobility) && !wasCardio && !wasMobility) {
-        lastStrengthInventoryRef.current = cloneInventory(prev.equipment.inventory)
-        lastStrengthPresetRef.current = prev.equipment.preset
-      }
-
-      const fallbackFocus = prev.intent.bodyParts?.[0] ?? prev.preferences.focusAreas[0] ?? 'chest'
-      const bodyFocus = fallbackFocus === 'cardio' || fallbackFocus === 'mobility' || fallbackFocus === 'full_body' ? 'chest' : fallbackFocus
-
-      const nextFocus = isCardio || isMobility ? 'full_body' : bodyFocus
-
-      const nextInventory = isCardio
-        ? buildCardioInventory(prev.equipment.inventory)
-        : wasCardio || wasMobility
-          ? cloneInventory(lastStrengthInventoryRef.current ?? equipmentPresets.full_gym)
-          : prev.equipment.inventory
-
-      const nextPreset = isCardio
-        ? 'custom'
-        : wasCardio || wasMobility
-          ? lastStrengthPresetRef.current ?? 'full_gym'
-          : prev.equipment.preset
-
+      // Style change shouldn't trigger Cardio/Mobility mode unless implied?
+      // But we removed Cardio/Mobility from Goal. 
+      // So changing style to 'endurance' doesn't necessarily mean Cardio mode (could be high rep strength).
+      // We rely on Focus for mode.
+      const currentFocus = prev.intent.bodyParts?.[0]
+      
       return {
         ...prev,
         intent: {
           ...prev.intent,
-          mode: isCardio || isMobility ? 'style' : 'body_part',
           style,
-          bodyParts: [nextFocus]
         },
         goals: {
           ...prev.goals,
           primary: style
-        },
-        equipment: {
-          ...prev.equipment,
-          preset: nextPreset,
-          inventory: nextInventory
-        },
-        preferences: {
-          ...prev.preferences,
-          focusAreas: [nextFocus]
         },
         schedule: {
           ...prev.schedule,
@@ -228,7 +201,7 @@ export function useGenerationFlow() {
             {
               sessionIndex: 0,
               style,
-              focus: nextFocus
+              focus: currentFocus ?? 'chest'
             }
           ]
         }
