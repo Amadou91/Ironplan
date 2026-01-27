@@ -1,42 +1,27 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Exercise, Difficulty } from '@/types/domain';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
-import { Search, Plus, Activity, Clock, Layers, Repeat, Zap } from 'lucide-react';
+import { Search, Plus, Activity, Clock, Zap, Dumbbell, MoreHorizontal } from 'lucide-react';
 
 // --- Local UI Helpers ---
 
-type BadgeVariant = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info' | 'purple' | 'outline';
-
-const Badge = ({ 
-  children, 
-  variant = 'neutral', 
-  className, 
-  icon: Icon 
-}: { 
-  children: React.ReactNode; 
-  variant?: BadgeVariant; 
-  className?: string;
-  icon?: React.ElementType;
-}) => {
-  const variants: Record<BadgeVariant, string> = {
-    neutral: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
-    brand: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
-    success: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
-    warning: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
-    danger: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800',
-    info: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800',
-    purple: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800',
-    outline: 'bg-transparent text-slate-600 border-slate-200 dark:text-slate-400 dark:border-slate-700',
+const DifficultyDot = ({ level }: { level?: Difficulty }) => {
+  const colors: Record<Difficulty, string> = {
+    beginner: 'bg-emerald-500',
+    intermediate: 'bg-amber-500',
+    advanced: 'bg-rose-500',
   };
+  
+  if (!level) return null;
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border uppercase tracking-wide ${variants[variant]} ${className}`}>
-      {Icon && <Icon className="w-3 h-3 mr-1 opacity-70" />}
-      {children}
+    <span className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] capitalize font-medium">
+      <span className={`w-2.5 h-2.5 rounded-full ${colors[level]}`} />
+      {level}
     </span>
   );
 };
@@ -55,19 +40,10 @@ const METRIC_LABELS: Record<string, string> = {
   strength: 'Str',
 };
 
-const DIFFICULTY_COLORS: Record<Difficulty, BadgeVariant> = {
-  beginner: 'success',
-  intermediate: 'warning',
-  advanced: 'danger',
-};
-
-const GOAL_COLORS: Record<string, BadgeVariant> = {
-  strength: 'brand',
-  hypertrophy: 'purple',
-  endurance: 'info',
-  cardio: 'danger',
-  general_fitness: 'success',
-  mobility: 'warning',
+const DIFFICULTY_RANK: Record<Difficulty, number> = {
+  beginner: 0,
+  intermediate: 1,
+  advanced: 2,
 };
 
 interface ExerciseTableProps {
@@ -77,144 +53,174 @@ interface ExerciseTableProps {
 export function ExerciseTable({ exercises }: ExerciseTableProps) {
   const [search, setSearch] = useState('');
 
-  const filteredExercises = exercises.filter((ex) =>
-    ex.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const groupedExercises = useMemo(() => {
+    // 1. Filter
+    const filtered = exercises.filter((ex) =>
+      ex.name.toLowerCase().includes(search.toLowerCase())
+    );
+
+    // 2. Group by Muscle
+    const groups: Record<string, Exercise[]> = {};
+    filtered.forEach((ex) => {
+      const key = ex.primaryMuscle ? ex.primaryMuscle.replace(/_/g, ' ') : 'Other';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(ex);
+    });
+
+    // 3. Sort Groups (Alphabetical) & Exercises (Difficulty)
+    return Object.keys(groups)
+      .sort()
+      .map((key) => {
+        return {
+          category: key,
+          items: groups[key].sort((a, b) => {
+            const diffA = a.difficulty ? DIFFICULTY_RANK[a.difficulty] : 99;
+            const diffB = b.difficulty ? DIFFICULTY_RANK[b.difficulty] : 99;
+            return diffA - diffB;
+          }),
+        };
+      });
+  }, [exercises, search]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="relative max-w-sm w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div className="relative max-w-md w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-text-subtle)]" />
           <Input
             placeholder="Search exercises..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+            className="pl-11 h-12 text-base bg-[var(--color-surface)] border-[var(--color-border)] rounded-xl"
           />
         </div>
         <Link href="/admin/workouts/new">
-          <Button className="w-full sm:w-auto shadow-sm bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200">
-            <Plus className="h-4 w-4 mr-2" />
+          <Button className="w-full sm:w-auto h-12 px-6 text-base shadow-sm bg-[var(--color-text)] text-[var(--color-bg)] hover:opacity-90 transition-opacity rounded-xl">
+            <Plus className="h-5 w-5 mr-2" />
             Create New Workout
           </Button>
         </Link>
       </div>
 
       {/* Table Container */}
-      <div className="border rounded-xl overflow-hidden border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+      <div className="border rounded-2xl overflow-hidden border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800">
-            <thead className="bg-slate-50 dark:bg-slate-900/50">
+          <table className="min-w-full divide-y divide-[var(--color-border)]">
+            <thead className="bg-[var(--color-surface-subtle)]">
               <tr>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[30%]">Exercise</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[25%]">Focus & Level</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-[35%]">Prescription</th>
-                <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider w-[10%]"></th>
+                <th scope="col" className="px-8 py-5 text-left text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider w-[40%]">Exercise</th>
+                <th scope="col" className="px-6 py-5 text-center text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider w-[15%]">Volume</th>
+                <th scope="col" className="px-6 py-5 text-center text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider w-[10%]">Intensity</th>
+                <th scope="col" className="px-6 py-5 text-center text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider w-[10%]">Rest</th>
+                <th scope="col" className="px-8 py-5 text-right text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider w-[25%]">Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredExercises.map((exercise) => {
-                const metricLabel = exercise.metricProfile ? METRIC_LABELS[exercise.metricProfile] || 'Other' : null;
-                const goals = exercise.eligibleGoals || (exercise.goal ? [exercise.goal] : []);
-                
-                return (
-                  <tr key={exercise.id || exercise.name} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-                    
-                    {/* Column 1: Identity */}
-                    <td className="px-6 py-4 align-top">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2">
-                           <span className="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                             {exercise.name}
-                           </span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {exercise.primaryMuscle && (
-                            <Badge variant="neutral" icon={Activity}>
-                              {exercise.primaryMuscle.replace(/_/g, ' ')}
-                            </Badge>
-                          )}
-                          {exercise.equipment?.map((eq, i) => (
-                             <Badge key={i} variant="outline" className="border-slate-200 text-slate-500 bg-white dark:bg-slate-900">
-                               {eq.kind === 'machine' ? (eq.machineType?.replace(/_/g, ' ') || 'Machine') : eq.kind}
-                             </Badge>
-                          ))}
-                        </div>
+            <tbody className="divide-y divide-[var(--color-border)]">
+              {groupedExercises.map((group) => (
+                <React.Fragment key={group.category}>
+                  {/* Category Header Row */}
+                  <tr className="bg-[var(--color-surface-muted)]">
+                    <td colSpan={5} className="px-8 py-4 text-left">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold uppercase tracking-widest text-[var(--color-text-subtle)]">
+                          {group.category}
+                        </span>
+                        <div className="h-px flex-1 bg-[var(--color-border)] ml-4 opacity-50" />
+                        <span className="text-xs font-medium text-[var(--color-text-subtle)] bg-[var(--color-surface-subtle)] px-2 py-0.5 rounded-full border border-[var(--color-border)]">
+                          {group.items.length}
+                        </span>
                       </div>
                     </td>
+                  </tr>
 
-                    {/* Column 2: Context */}
-                    <td className="px-6 py-4 align-top">
-                      <div className="flex flex-col items-start gap-2">
-                         <div className="flex flex-wrap gap-1">
-                           {goals.slice(0, 2).map((g) => (
-                             <Badge key={g} variant={GOAL_COLORS[g] || 'neutral'}>
-                               {g.replace(/_/g, ' ')}
-                             </Badge>
-                           ))}
-                           {goals.length > 2 && (
-                             <Badge variant="outline">+{goals.length - 2}</Badge>
-                           )}
-                         </div>
-                         <div className="flex items-center gap-1.5">
-                            {exercise.difficulty && (
-                              <Badge variant={DIFFICULTY_COLORS[exercise.difficulty] || 'neutral'}>
-                                {exercise.difficulty}
-                              </Badge>
-                            )}
-                            {metricLabel && (
-                              <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide ml-1">
-                                • {metricLabel}
+                  {/* Exercise Rows */}
+                  {group.items.map((exercise) => {
+                    const metricLabel = exercise.metricProfile ? METRIC_LABELS[exercise.metricProfile] || 'Other' : null;
+                    const goals = exercise.eligibleGoals || (exercise.goal ? [exercise.goal] : []);
+                    const mainGoal = goals[0];
+                    
+                    return (
+                      <tr key={exercise.id || exercise.name} className="hover:bg-[var(--color-surface-subtle)] transition-colors group">
+                        
+                        {/* Column 1: Identity */}
+                        <td className="px-8 py-6">
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-lg font-bold text-[var(--color-text)] group-hover:text-[var(--color-primary)] transition-colors">
+                               {exercise.name}
+                            </span>
+                            <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--color-text-muted)]">
+                              {exercise.equipment && exercise.equipment.length > 0 && (
+                                <div className="flex items-center gap-1.5">
+                                  <Dumbbell className="w-4 h-4 opacity-70" />
+                                  <span className="capitalize">
+                                    {exercise.equipment[0].kind === 'machine' 
+                                      ? (exercise.equipment[0].machineType?.replace(/_/g, ' ') || 'Machine') 
+                                      : exercise.equipment[0].kind}
+                                    {exercise.equipment.length > 1 && ` +${exercise.equipment.length - 1}`}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Column 2: Volume */}
+                        <td className="px-6 py-6 text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-lg font-bold text-[var(--color-text)] tabular-nums">
+                              {exercise.sets} <span className="text-[var(--color-text-subtle)] font-normal mx-1">×</span> {exercise.reps}
+                            </span>
+                            {metricLabel && metricLabel !== 'Reps/Wt' && (
+                              <span className="text-xs text-[var(--color-text-subtle)] uppercase tracking-wide font-medium">
+                                {metricLabel}
                               </span>
                             )}
-                         </div>
-                      </div>
-                    </td>
-
-                    {/* Column 3: Protocol */}
-                    <td className="px-6 py-4 align-top">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {/* Sets & Reps Group */}
-                        <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-md p-1 border border-slate-200 dark:border-slate-700">
-                          <div className="flex items-center px-2 py-0.5 border-r border-slate-200 dark:border-slate-700">
-                            <Layers className="w-3 h-3 text-slate-400 mr-1.5" />
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{exercise.sets}</span>
-                            <span className="text-[10px] text-slate-500 ml-1">SETS</span>
                           </div>
-                          <div className="flex items-center px-2 py-0.5">
-                            <Repeat className="w-3 h-3 text-slate-400 mr-1.5" />
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{exercise.reps}</span>
-                            <span className="text-[10px] text-slate-500 ml-1">REPS</span>
+                        </td>
+
+                        {/* Column 3: Intensity */}
+                        <td className="px-6 py-6 text-center">
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-primary-soft)] border border-[var(--color-primary-border)] text-[var(--color-primary-strong)]">
+                            <Zap className="w-4 h-4" />
+                            <span className="text-sm font-bold tabular-nums">{exercise.rpe}</span>
                           </div>
-                        </div>
+                        </td>
 
-                        {/* Intensity & Rest Group */}
-                        <div className="flex items-center gap-2">
-                           <Badge variant="outline" className="bg-white dark:bg-slate-900" icon={Zap}>
-                             RPE {exercise.rpe}
-                           </Badge>
-                           <Badge variant="outline" className="bg-white dark:bg-slate-900" icon={Clock}>
-                             {exercise.restSeconds}s
-                           </Badge>
-                        </div>
-                      </div>
-                    </td>
+                        {/* Column 4: Rest */}
+                        <td className="px-6 py-6 text-center">
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-surface-muted)] border border-[var(--color-border)] text-[var(--color-text-muted)]">
+                            <Clock className="w-4 h-4" />
+                            <span className="text-sm font-bold tabular-nums">{exercise.restSeconds}s</span>
+                          </div>
+                        </td>
 
-                    {/* Column 4: Actions */}
-                    <td className="px-6 py-4 align-top text-right">
-                      <Link href={`/admin/workouts/${exercise.id}/edit`}>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-slate-900 dark:hover:text-white">
-                          <span className="sr-only">Edit</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                        </Button>
-                      </Link>
-                    </td>
+                        {/* Column 5: Details & Actions */}
+                        <td className="px-8 py-6 text-right align-middle">
+                          <div className="flex items-center justify-end gap-6">
+                            <div className="flex flex-col items-end gap-1">
+                              <DifficultyDot level={exercise.difficulty} />
+                              {mainGoal && (
+                                <span className="text-xs uppercase tracking-wider font-semibold text-[var(--color-text-subtle)]">
+                                  {mainGoal.replace(/_/g, ' ')}
+                                </span>
+                              )}
+                            </div>
+                            
+                            <Link href={`/admin/workouts/${exercise.id}/edit`}>
+                              <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] rounded-lg">
+                                <span className="sr-only">Edit</span>
+                                <MoreHorizontal className="w-5 h-5" />
+                              </Button>
+                            </Link>
+                          </div>
+                        </td>
 
-                  </tr>
-                );
-              })}
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
             </tbody>
           </table>
         </div>

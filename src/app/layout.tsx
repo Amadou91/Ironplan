@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { JetBrains_Mono, Source_Sans_3, Space_Grotesk } from "next/font/google";
 import AuthProvider from "@/components/auth/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ToastProvider } from "@/components/ui/Toast";
 import AppShell from "@/components/layout/AppShell";
 import "./globals.css";
 
@@ -40,7 +41,9 @@ export default function RootLayout({
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
-            <AppShell>{children}</AppShell>
+            <ToastProvider>
+              <AppShell>{children}</AppShell>
+            </ToastProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

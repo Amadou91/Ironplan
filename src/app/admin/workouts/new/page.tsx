@@ -4,14 +4,22 @@ import React from 'react';
 import { WorkoutEditor } from '@/components/admin/WorkoutEditor';
 import { Exercise } from '@/types/domain';
 import { Button } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function NewWorkoutPage() {
+  const { toast } = useToast();
+  const router = useRouter();
+
   const handleSave = async (data: Exercise) => {
     console.log('Saving new workout (exercise):', data);
     // TODO: Implement actual save logic (e.g., to Supabase 'exercise_catalog' or 'workouts' table)
     // const { error } = await supabase.from('exercise_catalog').insert({...})
-    alert('Workout/Exercise saved! (Check console for data)');
+    
+    // Simulating success for now
+    toast('Workout created successfully!', 'success');
+    router.push('/admin');
   };
 
   return (

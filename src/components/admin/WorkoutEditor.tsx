@@ -62,7 +62,7 @@ const DEFAULT_EXERCISE: Partial<Exercise> = {
   sets: 3,
   reps: 10,
   rpe: 8,
-  equipment: [],
+  equipment: [{ kind: 'bodyweight' }],
   difficulty: 'beginner',
   eligibleGoals: ['strength', 'hypertrophy'],
   durationMinutes: 30,
@@ -84,7 +84,7 @@ function SegmentedControl<T extends string>({
   onChange: (value: T) => void; 
 }) {
   return (
-    <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+    <div className="flex p-1 bg-[var(--color-surface-muted)] rounded-lg">
       {options.map((option) => {
         const isSelected = value === option.value;
         return (
@@ -94,8 +94,8 @@ function SegmentedControl<T extends string>({
             onClick={() => onChange(option.value)}
             className={`flex-1 py-1.5 px-3 text-sm font-medium rounded-md transition-all ${
               isSelected
-                ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-slate-500'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm ring-1 ring-[var(--color-border)]'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
             }`}
           >
             {option.label}
@@ -132,8 +132,8 @@ function MultiSelectChips<T extends string>({
             }}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
               isSelected
-                ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white'
-                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800 dark:hover:bg-slate-800'
+                ? 'bg-[var(--color-text)] text-[var(--color-bg)] border-[var(--color-text)]'
+                : 'bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:bg-[var(--color-surface-muted)]'
             }`}
           >
             {option.label}
@@ -173,14 +173,14 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
   });
 
   return (
-    <form onSubmit={handleSubmit} className="relative flex flex-col gap-8 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+    <form onSubmit={handleSubmit} className="relative flex flex-col gap-8 bg-[var(--color-surface)] rounded-xl shadow-sm border border-[var(--color-border)] overflow-hidden">
       
-      <div className="p-8 space-y-8 pb-24"> {/* Added padding bottom to account for sticky footer */}
+      <div className="p-8 space-y-8 pb-24">
         
         {/* Section 1: Identity */}
         <section className="space-y-6">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Identity</h3>
+          <div className="flex items-center gap-2 pb-2 border-b border-[var(--color-border)]">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-subtle)]">Identity</h3>
           </div>
           
           <div className="grid gap-6 md:grid-cols-2">
@@ -208,11 +208,13 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
                   } else if (cat === 'Cardio') {
                     updates.metricProfile = 'distance_duration';
                     updates.eligibleGoals = ['endurance'];
-                                  } else {
-                                    updates.metricProfile = 'duration';
-                                    updates.eligibleGoals = [];
-                                    updates.primaryMuscle = 'full_body';
-                                  }                  setFormData(prev => ({ ...prev, ...updates }));
+                  } else if (cat === 'Yoga') {
+                    updates.metricProfile = 'duration';
+                    updates.eligibleGoals = [];
+                    updates.primaryMuscle = 'full_body';
+                    updates.equipment = [{ kind: 'bodyweight' }];
+                  }
+                  setFormData(prev => ({ ...prev, ...updates }));
                 }}
               />
             </div>
@@ -230,8 +232,8 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
 
         {/* Section 2: Tracking and Filters */}
         <section className="space-y-6">
-           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Filters & Requirements</h3>
+           <div className="flex items-center gap-2 pb-2 border-b border-[var(--color-border)]">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-subtle)]">Filters & Requirements</h3>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
@@ -264,8 +266,8 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
                 <Label className="flex items-center gap-2">
                   Eligible Styles
                   <div className="group relative">
-                    <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" />
-                    <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-xs text-white bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                    <Info className="w-3.5 h-3.5 text-[var(--color-text-subtle)] cursor-help" />
+                    <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-xs text-[var(--color-bg)] bg-[var(--color-text)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
                       Uncheck only if strictly incompatible
                     </span>
                   </div>
@@ -278,24 +280,26 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
               </div>
             )}
 
-            <div className="col-span-2 space-y-2">
-              <Label>Required Equipment</Label>
-              <MultiSelectChips
-                options={EQUIPMENT_KINDS}
-                selected={formData.equipment?.map(e => e.kind) || []}
-                onChange={(kinds) => {
-                  const newEquipment = kinds.map(k => ({ kind: k } as EquipmentOption));
-                  handleChange('equipment', newEquipment);
-                }}
-              />
-            </div>
+            {formData.category !== 'Yoga' && (
+              <div className="col-span-2 space-y-2">
+                <Label>Required Equipment</Label>
+                <MultiSelectChips
+                  options={EQUIPMENT_KINDS}
+                  selected={formData.equipment?.map(e => e.kind) || []}
+                  onChange={(kinds) => {
+                    const newEquipment = kinds.map(k => ({ kind: k } as EquipmentOption));
+                    handleChange('equipment', newEquipment);
+                  }}
+                />
+              </div>
+            )}
           </div>
         </section>
 
         {/* Section 3: Default Prescription */}
         <section className="space-y-6">
-           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Default Prescription</h3>
+           <div className="flex items-center gap-2 pb-2 border-b border-[var(--color-border)]">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-subtle)]">Default Prescription</h3>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -346,11 +350,11 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
       </div>
 
       {/* Sticky Footer */}
-      <div className="sticky bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 flex justify-between items-center z-20">
+      <div className="sticky bottom-0 left-0 right-0 p-4 bg-[var(--color-surface)]/80 backdrop-blur-md border-t border-[var(--color-border)] flex justify-between items-center z-20">
         <Button type="button" variant="ghost" onClick={() => window.history.back()}>
           Cancel
         </Button>
-        <Button type="submit" disabled={isLoading}>
+        <Button type="submit" disabled={isLoading} className="bg-[var(--color-text)] text-[var(--color-bg)] hover:opacity-90 transition-opacity">
           {isLoading ? 'Saving...' : 'Save Exercise'}
         </Button>
       </div>

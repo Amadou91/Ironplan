@@ -6,11 +6,13 @@ import { Exercise, ExerciseCategory, MetricProfile, Goal } from '@/types/domain'
 import { Button } from '@/components/ui/Button';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
 
 export default function EditWorkoutPage() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const id = params?.id as string;
   const [initialData, setInitialData] = useState<Partial<Exercise> | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -28,7 +30,7 @@ export default function EditWorkoutPage() {
 
       if (error) {
         console.error('Error fetching exercise:', error);
-        alert('Failed to load exercise');
+        toast('Failed to load exercise', 'error');
         setLoading(false);
         return;
       }
@@ -76,7 +78,7 @@ export default function EditWorkoutPage() {
     };
 
     fetchExercise();
-  }, [id, supabase]);
+  }, [id, supabase, toast]);
 
   const handleSave = async (data: Exercise) => {
     // Map Domain fields back to DB fields
@@ -111,9 +113,9 @@ export default function EditWorkoutPage() {
 
     if (error) {
       console.error('Error updating exercise:', error);
-      alert(`Failed to update exercise: ${error.message}`);
+      toast(`Failed to update exercise: ${error.message}`, 'error');
     } else {
-      alert('Exercise updated successfully!');
+      toast('Exercise updated successfully!', 'success');
       router.push('/admin');
     }
   };
