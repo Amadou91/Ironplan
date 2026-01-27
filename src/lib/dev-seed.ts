@@ -140,7 +140,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       })
     },
     {
-      title: `${DEV_TEMPLATE_PREFIX}Yoga Flow`,
+      title: `${DEV_TEMPLATE_PREFIX}Yoga / Mobility Flow`,
       focus: 'mobility' as FocusArea,
       style: 'general_fitness' as Goal,
       experience_level: 'beginner',
@@ -258,7 +258,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     ],
     3: [
       {
-        name: 'Yoga',
+        name: 'Yoga / Mobility',
         primaryMuscle: 'mobility',
         secondaryMuscles: ['core', 'full_body'],
         metricProfile: 'mobility_session',

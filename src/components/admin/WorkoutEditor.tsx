@@ -55,7 +55,7 @@ const GOALS: { value: Goal; label: string }[] = [
   { value: 'hypertrophy', label: 'Hypertrophy' },
   { value: 'endurance', label: 'Endurance' },
   { value: 'cardio', label: 'Cardio' },
-  { value: 'mobility', label: 'Mobility' },
+  { value: 'mobility', label: 'Yoga / Mobility' },
 ];
 
 const DEFAULT_EXERCISE: Partial<Exercise> = {

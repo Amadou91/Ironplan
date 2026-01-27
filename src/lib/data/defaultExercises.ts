@@ -1008,7 +1008,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "videoUrl": ""
   },
   {
-    "name": "Yoga",
+    "name": "Yoga / Mobility",
     "category": "Mobility",
     "focus": "mobility",
     "metricProfile": "mobility_session",

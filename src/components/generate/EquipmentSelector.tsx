@@ -396,7 +396,7 @@ export function EquipmentSelector({
                   }))
                 }
               />
-              <p className="mt-2 text-xs text-subtle">Yoga primarily uses bodyweight. Ensure this is checked.</p>
+              <p className="mt-2 text-xs text-subtle">Yoga / Mobility primarily uses bodyweight. Ensure this is checked.</p>
             </div>
           </div>
         </div>

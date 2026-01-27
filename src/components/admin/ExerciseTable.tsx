@@ -33,7 +33,7 @@ const METRIC_LABELS: Record<string, string> = {
   duration: 'Time',
   distance_duration: 'Dist/Time',
   reps_only: 'Reps',
-  mobility_session: 'Mobility',
+  mobility_session: 'Yoga / Mobility',
   timed_strength: 'Timed',
   cardio_session: 'Cardio',
   strength: 'Str',

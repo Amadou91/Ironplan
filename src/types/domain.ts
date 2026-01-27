@@ -78,7 +78,7 @@ export type FocusArea =
   | 'chest'
   | 'back'
 
-export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'cardio' | 'general_fitness' | 'mobility'
+export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'cardio' | 'mobility'
 
 export type GoalPriority = 'primary' | 'secondary' | 'balanced'
 

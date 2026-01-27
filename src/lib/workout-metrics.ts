@@ -21,7 +21,7 @@ const focusLabelMap: Record<FocusArea, string> = {
   full_body: 'Full Body',
   core: 'Core',
   cardio: 'Conditioning',
-  mobility: 'Mobility',
+  mobility: 'Yoga / Mobility',
   arms: 'Arms',
   legs: 'Legs',
   biceps: 'Biceps',

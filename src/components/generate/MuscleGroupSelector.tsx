@@ -9,7 +9,7 @@ const focusOptions: { value: FocusArea; label: string; description?: string }[] 
   { value: 'legs', label: 'Legs' },
   { value: 'biceps', label: 'Biceps' },
   { value: 'triceps', label: 'Triceps' },
-  { value: 'mobility', label: 'Yoga' },
+  { value: 'mobility', label: 'Yoga / Mobility' },
   { value: 'cardio', label: 'Cardio' }
 ]
 

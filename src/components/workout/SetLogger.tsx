@@ -149,7 +149,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
                 <option value="Power">Power</option>
                 <option value="Restorative">Restorative</option>
                 <option value="Yin">Yin</option>
-                <option value="Mobility">Mobility</option>
+                <option value="Mobility">Yoga / Mobility</option>
                 <option value="Breathwork">Breathwork</option>
              </select>
            </div>

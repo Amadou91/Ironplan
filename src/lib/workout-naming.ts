@@ -28,7 +28,7 @@ export const buildWorkoutDisplayName = ({
   
   // Special cases for Yoga and Cardio to avoid redundancy
   if (style === 'mobility') {
-     parts.push('Yoga')
+     parts.push('Yoga / Mobility')
   } else if (style === 'cardio') {
      if (cardioExerciseName) {
        parts.push(`Cardio ${cardioExerciseName}`)

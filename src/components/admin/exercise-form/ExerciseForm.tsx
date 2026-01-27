@@ -49,6 +49,40 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
     }
   }, [constraints.allowLoad, formData.loadTarget])
 
+  // Enforce Domain Rules for Category and Goal
+  useEffect(() => {
+    if (formData.focus === 'cardio') {
+      setFormData(prev => ({ 
+        ...prev, 
+        category: 'Cardio',
+        goal: 'mobility' // Per audit rule: Cardio focus -> Mobility goal
+      }))
+    } else if (formData.focus === 'mobility') {
+      setFormData(prev => ({ 
+        ...prev, 
+        category: 'Mobility',
+        goal: 'mobility'
+      }))
+    } else if (formData.focus) {
+      // Strength/Muscle focus
+      setFormData(prev => {
+        const newGoal = (prev.goal === 'cardio' || prev.goal === 'mobility') ? 'strength' : prev.goal
+        return { 
+          ...prev, 
+          category: 'Strength',
+          goal: newGoal
+        }
+      })
+    }
+  }, [formData.focus])
+
+  const availableGoals = EXERCISE_GOALS.filter(g => {
+    if (formData.focus === 'cardio' || formData.focus === 'mobility') {
+      return g.value === 'mobility'
+    }
+    return ['strength', 'hypertrophy', 'endurance'].includes(g.value)
+  })
+
   const handleEquipmentChange = (kind: EquipmentOption['kind'], checked: boolean) => {
     setFormData(prev => {
       const current = prev.equipment || []
@@ -167,7 +201,7 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
               onChange={e => setFormData({...formData, goal: e.target.value as Goal})}
             >
               <option value="">Select Goal...</option>
-              {EXERCISE_GOALS.map(g => (
+              {availableGoals.map(g => (
                 <option key={g.value} value={g.value}>{g.label}</option>
               ))}
             </Select>

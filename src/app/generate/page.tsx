@@ -139,7 +139,7 @@ export default function GeneratePage() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-subtle">Step 1</p>
                 <h2 className="text-xl font-semibold text-strong">Choose your workout focus</h2>
-                <p className="text-sm text-muted">Pick a muscle group, or select Yoga/Cardio.</p>
+                <p className="text-sm text-muted">Pick a muscle group, or select Yoga / Mobility or Cardio.</p>
               </div>
 
               <MuscleGroupSelector
