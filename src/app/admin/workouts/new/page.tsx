@@ -1,12 +1,18 @@
 'use client';
 
 import React from 'react';
-import { WorkoutEditor } from '@/components/admin/WorkoutEditor';
+import { ExerciseForm } from '@/components/admin/exercise-form/ExerciseForm';
 import { Exercise } from '@/types/domain';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { MUSCLE_MAPPING } from '@/lib/muscle-mapping';
+
+const muscleOptions = Object.entries(MUSCLE_MAPPING).map(([slug, data]) => ({
+  slug,
+  label: data.label
+})).sort((a, b) => a.label.localeCompare(b.label));
 
 export default function NewWorkoutPage() {
   const { toast } = useToast();
@@ -23,7 +29,7 @@ export default function NewWorkoutPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 max-w-3xl">
+    <div className="container mx-auto py-8 max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Create New Standard Workout</h1>
@@ -34,7 +40,11 @@ export default function NewWorkoutPage() {
         </Link>
       </div>
       
-      <WorkoutEditor onSubmit={handleSave} />
+      <ExerciseForm 
+        onSubmit={handleSave} 
+        onCancel={() => router.back()}
+        muscleOptions={muscleOptions}
+      />
     </div>
   );
 }

@@ -1,13 +1,19 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { WorkoutEditor } from '@/components/admin/WorkoutEditor';
+import { ExerciseForm } from '@/components/admin/exercise-form/ExerciseForm';
 import { Exercise, ExerciseCategory, MetricProfile, Goal } from '@/types/domain';
 import { Button } from '@/components/ui/Button';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
+import { MUSCLE_MAPPING } from '@/lib/muscle-mapping';
+
+const muscleOptions = Object.entries(MUSCLE_MAPPING).map(([slug, data]) => ({
+  slug,
+  label: data.label
+})).sort((a, b) => a.label.localeCompare(b.label));
 
 export default function EditWorkoutPage() {
   const params = useParams();
@@ -68,6 +74,10 @@ export default function EditWorkoutPage() {
         durationMinutes: data.duration_minutes,
         restSeconds: data.rest_seconds,
         primaryMuscle: data.primary_muscle,
+        secondaryMuscles: data.secondary_muscles,
+        isInterval: !!data.sets && !!data.interval_duration, // Heuristic for interval
+        intervalDuration: data.interval_duration,
+        intervalRest: data.interval_rest,
         // ... map other fields if necessary
       };
 
@@ -100,6 +110,10 @@ export default function EditWorkoutPage() {
       duration_minutes: data.durationMinutes,
       rest_seconds: data.restSeconds,
       primary_muscle: data.primaryMuscle,
+      secondary_muscles: data.secondaryMuscles,
+      // interval fields if DB supports them
+      // interval_duration: data.intervalDuration,
+      // interval_rest: data.intervalRest,
     };
 
     const { error } = await supabase
@@ -121,7 +135,7 @@ export default function EditWorkoutPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 max-w-3xl">
+    <div className="container mx-auto py-8 max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Edit Workout</h1>
@@ -132,7 +146,12 @@ export default function EditWorkoutPage() {
         </Link>
       </div>
       
-      <WorkoutEditor initialData={initialData} onSubmit={handleSave} />
+      <ExerciseForm 
+        initialData={initialData} 
+        onSubmit={handleSave} 
+        onCancel={() => router.back()}
+        muscleOptions={muscleOptions}
+      />
     </div>
   );
 }
