@@ -42,7 +42,7 @@ export const filterExercises = (
   // 1. Focus Mapping (User Input -> DB Fields)
   let matchesFocus = false
   
-  if (focus === 'yoga') {
+  if (focus === 'mobility') {
     matchesFocus = exercise.category === 'Mobility'
   } else if (focus === 'cardio') {
     matchesFocus = exercise.category === 'Cardio'
