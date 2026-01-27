@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Exercise } from '@/types/domain';
-import { Badge } from '@/components/ui/Badge'; // Assuming standard badge or will implement simple one
-import { Dumbbell, Clock, Activity, Signal, MoreHorizontal } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge'; 
+import { Dumbbell, Clock, Activity, Signal, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
+import { deleteExerciseAction } from '@/app/admin/actions';
 
 // Helper for badges
 function DifficultyBadge({ level }: { level?: string }) {
@@ -57,6 +58,26 @@ export function ExerciseList({ exercises }: { exercises: Exercise[] }) {
 }
 
 function ExerciseCard({ exercise }: { exercise: Exercise }) {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!exercise.id) return;
+    if (!confirm('Are you sure you want to delete this exercise?')) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await deleteExerciseAction(exercise.id);
+      if (!res.success) {
+        alert('Failed to delete: ' + res.error);
+        setIsDeleting(false);
+      }
+      // If success, server revalidation will remove the card.
+    } catch (e) {
+      alert('Error deleting exercise');
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="group relative bg-surface border border-border rounded-xl p-6 hover:shadow-md hover:border-primary/50 transition-all duration-200 flex flex-col gap-5">
       
@@ -79,11 +100,29 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
           </div>
         </div>
         
-        <Link href={`/admin/workouts/${exercise.id}/edit`}>
-            <Button variant="ghost" size="sm" className="h-10 w-10 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                <MoreHorizontal className="w-5 h-5" />
-            </Button>
-        </Link>
+        {/* Actions */}
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Link href={`/admin/workouts/${exercise.id}/edit`}>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-9 w-9 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                title="Edit"
+              >
+                  <Pencil className="w-4 h-4" />
+              </Button>
+          </Link>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            title="Delete"
+          >
+              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+          </Button>
+        </div>
       </div>
 
       {/* Metrics Grid */}
@@ -107,7 +146,6 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
             </div>
         </div>
         
-        {/* Hide Rest block for Intervals if it duplicates the Off time (which it should) */}
         {!exercise.isInterval && (
             <div className="bg-muted/40 rounded-lg p-3 flex flex-col items-center justify-center text-center">
                 <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Rest</span>
@@ -118,15 +156,6 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
             </div>
         )}
         
-        {/* If Interval, maybe show total time estimate or leave empty to keep grid balance? 
-            Let's show a placeholder or total duration if calculated. 
-            For now, let's just leave the space or center the other two if needed.
-            But grid-cols-3 expects 3 items. 
-            We can show "Type: Interval" or similar? Or just keep Rest if it signifies "Rest Between Rounds"?
-            Requirement: "do not show a separate 'Rest: X' unless it is 'rest between rounds'".
-            Since we didn't implement complex rounds yet, we assume no extra rest. 
-            I'll replace the 3rd column with something useful or just blank.
-        */}
         {exercise.isInterval && (
              <div className="bg-muted/40 rounded-lg p-3 flex flex-col items-center justify-center text-center opacity-50">
                 <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Type</span>
