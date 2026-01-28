@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Exercise, Goal, Difficulty, MetricProfile, MuscleGroup, EquipmentOption, ExerciseCategory } from '@/types/domain';
+import { Exercise, Goal, Difficulty, MetricProfile, MuscleGroup, ExerciseCategory } from '@/types/domain';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Label } from '@/components/ui/Label';
@@ -41,28 +41,12 @@ const MUSCLE_GROUPS: MuscleGroup[] = [
   'full_body', 'upper_body', 'lower_body'
 ];
 
-const GOALS: { value: Goal; label: string }[] = [
-  { value: 'strength', label: 'Strength' },
-  { value: 'hypertrophy', label: 'Hypertrophy' },
-  { value: 'endurance', label: 'Endurance' },
-  { value: 'range_of_motion', label: 'Range of Motion' },
-];
-
 const DEFAULT_EXERCISE: Partial<Exercise> = {
   name: '',
   category: 'Strength',
   metricProfile: 'reps_weight',
-  sets: 3,
-  reps: 10,
-  rpe: 8,
   equipment: [{ kind: 'bodyweight' }],
-  difficulty: 'beginner',
-  eligibleGoals: ['strength', 'hypertrophy', 'endurance'],
-  durationMinutes: 30,
-  restSeconds: 60,
   primaryMuscle: 'full_body',
-  instructions: [],
-  videoUrl: '',
 };
 
 // --- Helper Components ---
@@ -165,24 +149,14 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
     return true;
   });
 
-  const filteredGoals = GOALS.filter(g => {
-    if (formData.category === 'Strength') return ['strength', 'hypertrophy', 'endurance'].includes(g.value);
-    if (formData.category === 'Cardio') return g.value === 'endurance';
-    if (formData.category === 'Mobility') return g.value === 'range_of_motion';
-    return true;
-  });
-
   const handleCategoryChange = (cat: ExerciseCategory) => {
     const updates: Partial<Exercise> = { category: cat };
     if (cat === 'Strength') {
-      updates.eligibleGoals = ['strength', 'hypertrophy', 'endurance'];
       updates.metricProfile = 'reps_weight';
     } else if (cat === 'Cardio') {
-      updates.eligibleGoals = ['endurance'];
       updates.metricProfile = 'cardio_session';
       updates.primaryMuscle = 'full_body';
     } else if (cat === 'Mobility') {
-      updates.eligibleGoals = ['range_of_motion'];
       updates.metricProfile = 'mobility_session';
       updates.primaryMuscle = 'full_body';
     }
@@ -232,22 +206,13 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
           </div>
         </section>
 
-        {/* Section 2: Tracking and Filters */}
+        {/* Section 2: Filters & Requirements */}
         <section className="space-y-6">
            <div className="flex items-center gap-2 pb-2 border-b border-[var(--color-border)]">
             <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-subtle)]">Filters & Requirements</h3>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>Difficulty</Label>
-              <SegmentedControl
-                options={DIFFICULTIES}
-                value={formData.difficulty || 'beginner'}
-                onChange={(d) => handleChange('difficulty', d)}
-              />
-            </div>
-
             {formData.category === 'Strength' && (
               <div className="space-y-1.5">
                 <Label htmlFor="primaryMuscle">Target Muscle</Label>
@@ -263,143 +228,28 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
               </div>
             )}
 
-            <div className="col-span-2 space-y-2">
-              <Label className="flex items-center gap-2">
-                Eligible Styles
-                <div className="group relative">
-                  <Info className="w-3.5 h-3.5 text-[var(--color-text-subtle)] cursor-help" />
-                  <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-xs text-[var(--color-bg)] bg-[var(--color-text)] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
-                    Uncheck only if strictly incompatible
-                  </span>
-                </div>
-              </Label>
-              <MultiSelectChips
-                options={filteredGoals}
-                selected={formData.eligibleGoals || []}
-                onChange={(goals) => handleChange('eligibleGoals', goals)}
+            <div className="flex items-center gap-2 pt-6">
+              <Checkbox 
+                checked={formData.isInterval || false} 
+                onCheckedChange={(c) => handleChange('isInterval', c === true)} 
               />
+              <div className="grid gap-1.5 leading-none">
+                <Label>Interval Mode</Label>
+                <p className="text-xs text-muted">Flags this exercise as interval-based (on/off).</p>
+              </div>
             </div>
 
-        {formData.category !== 'Mobility' && (
-          <div className="flex items-center gap-2 pt-6">
-            <Checkbox 
-              checked={formData.e1rmEligible || false} 
-              onCheckedChange={(c) => handleChange('e1rmEligible', c === true)} 
-            />
-            <div className="grid gap-1.5 leading-none">
-              <Label>E1RM Eligible</Label>
-              <p className="text-xs text-muted">Supports 1-rep max estimation.</p>
-            </div>
-          </div>
-        )}
-          </div>
-        </section>
-
-        {/* Section 3: Default Prescription */}
-        <section className="space-y-6">
-           <div className="flex items-center justify-between gap-2 pb-2 border-b border-[var(--color-border)]">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-subtle)]">Default Prescription</h3>
-            
-            {/* Interval Mode Toggle */}
-            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                <input 
-                    type="checkbox" 
-                    checked={!!formData.isInterval} 
-                    onChange={(e) => {
-                        const isInterval = e.target.checked;
-                        handleChange('isInterval', isInterval);
-                        if (isInterval) {
-                            // Clear conflicting fields if enabling
-                            handleChange('restSeconds', 0); // Hide rest
-                        }
-                    }}
-                    className="w-4 h-4 rounded border-gray-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+            {formData.category !== 'Mobility' && (
+              <div className="flex items-center gap-2 pt-6">
+                <Checkbox 
+                  checked={formData.e1rmEligible || false} 
+                  onCheckedChange={(c) => handleChange('e1rmEligible', c === true)} 
                 />
-                <span className="font-medium">Interval Mode</span>
-            </label>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="sets">{formData.isInterval ? 'Intervals' : 'Sets'}</Label>
-              <Input
-                id="sets"
-                type="number"
-                value={formData.sets}
-                onChange={(e) => handleChange('sets', parseInt(e.target.value) || 0)}
-              />
-            </div>
-
-            {formData.isInterval ? (
-                <>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="intervalDuration">On Duration (Sec)</Label>
-                        <Input
-                            id="intervalDuration"
-                            type="number"
-                            value={formData.intervalDuration || ''}
-                            onChange={(e) => {
-                                const val = parseInt(e.target.value) || 0;
-                                handleChange('intervalDuration', val);
-                                // Update display string
-                                const off = formData.intervalRest || 0;
-                                handleChange('reps', `${val}s on / ${off}s off`);
-                            }}
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="intervalRest">Off Duration (Sec)</Label>
-                        <Input
-                            id="intervalRest"
-                            type="number"
-                            value={formData.intervalRest || ''}
-                            onChange={(e) => {
-                                const val = parseInt(e.target.value) || 0;
-                                handleChange('intervalRest', val);
-                                // Update display string
-                                const on = formData.intervalDuration || 0;
-                                handleChange('reps', `${on}s on / ${val}s off`);
-                            }}
-                        />
-                    </div>
-                </>
-            ) : (
-                <div className="space-y-1.5">
-                <Label htmlFor="reps">Reps / Duration</Label>
-                <Input
-                    id="reps"
-                    value={formData.reps}
-                    onChange={(e) => handleChange('reps', e.target.value)}
-                    placeholder="e.g. 8-12"
-                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label>E1RM Eligible</Label>
+                  <p className="text-xs text-muted">Supports 1-rep max estimation.</p>
                 </div>
-            )}
-
-            <div className="space-y-1.5">
-              <Label htmlFor="rpe">Target RPE</Label>
-              <Select
-                id="rpe"
-                value={formData.rpe}
-                onChange={(e) => handleChange('rpe', parseFloat(e.target.value))}
-              >
-                {RPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            {!formData.isInterval && (
-                <div className="space-y-1.5">
-                <Label htmlFor="restSeconds">Rest (Sec)</Label>
-                <Input
-                    id="restSeconds"
-                    type="number"
-                    value={formData.restSeconds}
-                    onChange={(e) => handleChange('restSeconds', parseInt(e.target.value) || 0)}
-                />
-                </div>
+              </div>
             )}
           </div>
         </section>

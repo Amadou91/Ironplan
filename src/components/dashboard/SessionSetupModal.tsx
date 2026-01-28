@@ -4,9 +4,7 @@ import React, { useState } from 'react'
 import { Clock, Dumbbell, Scale, X, Play } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
 import { Label } from '@/components/ui/Label'
-import { Card } from '@/components/ui/Card'
 import type { Goal } from '@/types/domain'
 
 interface SessionSetupModalProps {

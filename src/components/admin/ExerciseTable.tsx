@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Exercise, Difficulty, EquipmentKind } from '@/types/domain';
+import { Exercise, EquipmentKind } from '@/types/domain';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
-import { Search, Plus, Activity, Clock, Zap, Dumbbell, MoreHorizontal, User, Settings, Box, Circle, Link as LinkIcon } from 'lucide-react';
+import { Search, Plus, Zap, Dumbbell, MoreHorizontal, User, Settings, Box, Circle, Link as LinkIcon } from 'lucide-react';
 
 // --- Local UI Helpers ---
 
@@ -37,53 +37,14 @@ const EquipmentMiniBadge = ({ kind, machineType }: { kind: EquipmentKind, machin
   );
 };
 
-const DifficultyDot = ({ level }: { level?: Difficulty }) => {
-  const colors: Record<Difficulty, string> = {
-    beginner: 'bg-emerald-500',
-    intermediate: 'bg-amber-500',
-    advanced: 'bg-rose-500',
-  };
-  
-  if (!level) return null;
-
-  return (
-    <span className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] capitalize font-medium">
-      <span className={`w-2.5 h-2.5 rounded-full ${colors[level]}`} />
-      {level}
-    </span>
-  );
-};
-
 // --- Mappers ---
-
-const METRIC_LABELS: Record<string, string> = {
-  reps_weight: 'Reps/Wt',
-  duration: 'Time',
-  distance_duration: 'Dist/Time',
-  reps_only: 'Reps',
-  mobility_session: 'Yoga / Mobility',
-  timed_strength: 'Timed',
-  cardio_session: 'Cardio',
-  strength: 'Str',
-};
-
-const DIFFICULTY_RANK: Record<Difficulty, number> = {
-  beginner: 0,
-  intermediate: 1,
-  advanced: 2,
-};
 
 interface ExerciseTableProps {
   exercises: Exercise[];
 }
 
-const TIME_BASED_PROFILES = ['duration', 'cardio_session', 'mobility_session']
-
 export function ExerciseTable({ exercises }: ExerciseTableProps) {
   const [search, setSearch] = useState('');
-
-  const isTimeBased = (ex: Exercise) => TIME_BASED_PROFILES.includes(ex.metricProfile || '')
-  const headerLabel = exercises.length > 0 && exercises.every(isTimeBased) ? 'Duration' : 'Volume'
 
   const groupedExercises = useMemo(() => {
     // 1. Filter
@@ -99,17 +60,13 @@ export function ExerciseTable({ exercises }: ExerciseTableProps) {
       groups[key].push(ex);
     });
 
-    // 3. Sort Groups (Alphabetical) & Exercises (Difficulty)
+    // 3. Sort Groups (Alphabetical)
     return Object.keys(groups)
       .sort()
       .map((key) => {
         return {
           category: key,
-          items: groups[key].sort((a, b) => {
-            const diffA = a.difficulty ? DIFFICULTY_RANK[a.difficulty] : 99;
-            const diffB = b.difficulty ? DIFFICULTY_RANK[b.difficulty] : 99;
-            return diffA - diffB;
-          }),
+          items: groups[key].sort((a, b) => a.name.localeCompare(b.name)),
         };
       });
   }, [exercises, search]);
@@ -165,9 +122,6 @@ export function ExerciseTable({ exercises }: ExerciseTableProps) {
           
                             {/* Exercise Rows */}
                             {group.items.map((exercise) => {
-                              const goals = exercise.eligibleGoals || (exercise.goal ? [exercise.goal] : []);
-                              const mainGoal = goals[0];
-                              
                               return (
                                 <tr key={exercise.id || exercise.name} className="hover:bg-[var(--color-surface-subtle)] transition-colors group">
                                   
@@ -209,15 +163,6 @@ export function ExerciseTable({ exercises }: ExerciseTableProps) {
                                   {/* Column 2: Details & Actions */}
                                   <td className="px-8 py-6 text-right align-middle">
                                     <div className="flex items-center justify-end gap-6">
-                                      <div className="flex flex-col items-end gap-1">
-                                        <DifficultyDot level={exercise.difficulty} />
-                                        {mainGoal && (
-                                          <span className="text-xs uppercase tracking-wider font-semibold text-[var(--color-text-subtle)]">
-                                            {mainGoal.replace(/_/g, ' ')}
-                                          </span>
-                                        )}
-                                      </div>
-                                      
                                       <Link href={`/workouts/${exercise.id}/edit`}>
                                         <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] rounded-lg">
                                           <span className="sr-only">Edit</span>

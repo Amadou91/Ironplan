@@ -114,28 +114,15 @@ export interface Exercise {
   category?: ExerciseCategory
   focus?: FocusArea
   metricProfile?: MetricProfile
-  sets: number
-  reps: string | number
-  rpe: number
   equipment: EquipmentOption[]
   movementPattern?: MovementPattern
-  difficulty?: Difficulty
-  eligibleGoals: Goal[]
-  goal?: Goal
-  durationMinutes: number
-  restSeconds: number
-  loadTarget?: number
   load?: ExerciseLoad
   primaryMuscle?: MuscleGroup | string
   secondaryMuscles?: string[]
   primaryBodyParts?: string[]
   secondaryBodyParts?: string[]
-  instructions?: string[]
-  videoUrl?: string
   e1rmEligible?: boolean
   isInterval?: boolean
-  intervalDuration?: number
-  intervalRest?: number
 }
 
 export type WorkoutExercise = Exercise

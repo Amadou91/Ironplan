@@ -389,8 +389,6 @@ test('intensity and experience change prescriptions', () => {
   const highRest = highIntensity.reduce((sum, ex) => sum + ex.restSeconds, 0)
   assert.notEqual(lowRest, highRest)
 
-  const { filterExercises } = generatorModule
-  
   const beginner = generateSessionExercises(
     mockCatalog,
     { ...baseInput, experienceLevel: 'beginner' },

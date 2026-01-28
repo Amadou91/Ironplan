@@ -1,6 +1,20 @@
 import type { Exercise, EquipmentOption, ExerciseCategory } from '@/types/domain'
 
-function inferCategory(row: any): ExerciseCategory {
+type ExerciseRow = {
+  id: string;
+  name: string;
+  category: string;
+  focus: string;
+  metric_profile: string;
+  equipment: any;
+  movement_pattern: string;
+  primary_muscle: string;
+  secondary_muscles: string[];
+  e1rm_eligible: boolean;
+  is_interval: boolean;
+};
+
+function inferCategory(row: ExerciseRow): ExerciseCategory {
   const indicators = [
     row.name,
     row.focus,
@@ -18,33 +32,20 @@ function inferCategory(row: any): ExerciseCategory {
   return 'Strength'
 }
 
-export function mapCatalogRowToExercise(row: any): Exercise {
+export function mapCatalogRowToExercise(row: ExerciseRow): Exercise {
   return {
     id: row.id,
     name: row.name,
     category: inferCategory(row),
-    focus: row.focus,
-    metricProfile: row.metric_profile,
-    sets: row.sets,
-    reps: row.reps,
-    rpe: row.rpe,
+    focus: row.focus as any,
+    metricProfile: row.metric_profile as any,
     equipment: row.equipment as EquipmentOption[],
-    movementPattern: row.movement_pattern,
-    difficulty: row.difficulty,
-    eligibleGoals: row.eligible_goals || [],
-    goal: row.goal,
-    durationMinutes: row.duration_minutes,
-    restSeconds: row.rest_seconds,
-    loadTarget: row.load_target,
+    movementPattern: row.movement_pattern as any,
     primaryMuscle: row.primary_muscle,
     secondaryMuscles: row.secondary_muscles,
     e1rmEligible: row.e1rm_eligible,
     secondaryBodyParts: [],
     primaryBodyParts: [],
-    instructions: row.instructions || [],
-    videoUrl: row.video_url,
-    isInterval: row.is_interval,
-    intervalDuration: row.interval_duration,
-    intervalRest: row.interval_rest
+    isInterval: row.is_interval
   }
 }

@@ -2,18 +2,15 @@ import type {
   Exercise,
   FocusArea,
   Goal,
-  CardioActivity,
   EquipmentInventory,
   ExerciseSource,
   PlannedExercise,
   PlanInput
 } from '@/types/domain'
-import { matchesCardioSelection } from '@/lib/cardio-activities'
 import {
   normalizeExerciseKey,
   getPrimaryMuscleKey,
   getMovementFamily,
-  matchesFocusArea,
   selectEquipmentOption
 } from './utils'
 import {

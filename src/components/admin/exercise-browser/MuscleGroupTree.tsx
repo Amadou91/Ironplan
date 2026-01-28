@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Exercise } from '@/types/domain';
-import { ChevronRight, ChevronDown, Check } from 'lucide-react';
+import { ChevronRight, ChevronDown } from 'lucide-react';
 import { MUSCLE_MAPPING, REGION_ORDER, BodyRegion } from '@/lib/muscle-mapping';
 import { cn } from '@/lib/utils'; // Assuming generic utility, or I can implement minimal inline
 
@@ -18,7 +18,6 @@ type TreeNode = {
 };
 
 interface MuscleGroupTreeProps {
-  exercises: Exercise[];
   filteredExercises: Exercise[]; // used for counts
   selectedMuscle: string | null;
   onSelectMuscle: (muscle: string | null) => void;
@@ -26,7 +25,6 @@ interface MuscleGroupTreeProps {
 }
 
 export function MuscleGroupTree({ 
-  exercises, 
   filteredExercises, 
   selectedMuscle, 
   onSelectMuscle,

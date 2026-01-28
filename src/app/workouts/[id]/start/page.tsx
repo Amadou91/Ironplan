@@ -94,7 +94,7 @@ export default function WorkoutStartPage() {
 
   const [minutesAvailable, setMinutesAvailable] = useState(queryMinutes ? parseInt(queryMinutes) : 45)
   const [overrideStyle, setOverrideStyle] = useState<Goal | null>(queryStyle)
-  const [bodyWeightLb, setBodyWeightLb] = useState<number | undefined>(queryWeight ? parseFloat(queryWeight) : undefined)
+  const [bodyWeightLb] = useState<number | undefined>(queryWeight ? parseFloat(queryWeight) : undefined)
 
   const [catalog, setCatalog] = useState<Exercise[]>([])
   const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurveyDraft>({

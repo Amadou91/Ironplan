@@ -18,14 +18,15 @@ export default function Sidebar() {
   const clearUser = useAuthStore((state) => state.clearUser);
   const supabase = createClient();
   
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sidebar-collapsed') === 'true';
+    }
+    return false;
+  });
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('sidebar-collapsed');
-    if (saved === 'true') {
-      setIsCollapsed(true);
-    }
     setHasMounted(true);
   }, []);
 

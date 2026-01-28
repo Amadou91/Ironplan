@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ExerciseForm } from '@/components/admin/exercise-form/ExerciseForm';
-import { Exercise, ExerciseCategory, MetricProfile, Goal } from '@/types/domain';
+import { Exercise, ExerciseCategory, MetricProfile } from '@/types/domain';
 import { Button } from '@/components/ui/Button';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -43,7 +43,7 @@ export default function EditWorkoutPage() {
 
       // Map DB fields to Domain fields
       let category: ExerciseCategory = (data.category as ExerciseCategory) || 'Strength';
-      let metricProfile: MetricProfile = (data.metric_profile as MetricProfile) || 'reps_weight';
+      const metricProfile: MetricProfile = (data.metric_profile as MetricProfile) || 'reps_weight';
       
       // Heuristic mapping for old/legacy data
       if (!data.category) {
@@ -61,20 +61,10 @@ export default function EditWorkoutPage() {
         focus: data.focus,
         movementPattern: data.movement_pattern,
         metricProfile: metricProfile,
-        sets: data.sets,
-        reps: data.reps,
-        rpe: data.rpe,
         equipment: data.equipment,
-        difficulty: data.difficulty,
-        eligibleGoals: data.eligible_goals || (data.goal ? [data.goal] : []),
-        goal: data.goal,
-        durationMinutes: data.duration_minutes,
-        restSeconds: data.rest_seconds,
         primaryMuscle: data.primary_muscle,
         secondaryMuscles: data.secondary_muscles,
         isInterval: data.is_interval,
-        intervalDuration: data.interval_duration,
-        intervalRest: data.interval_rest,
       };
 
       setInitialData(exercise);
@@ -94,21 +84,11 @@ export default function EditWorkoutPage() {
       name: data.name,
       category: data.category,
       focus: data.focus,
-      eligible_goals: data.eligibleGoals,
-      goal: data.goal,
       metric_profile: data.metricProfile,
-      sets: data.sets,
-      reps: data.reps,
-      rpe: data.rpe,
       equipment: data.equipment,
-      difficulty: data.difficulty,
-      duration_minutes: data.durationMinutes,
-      rest_seconds: data.restSeconds,
       primary_muscle: data.primaryMuscle,
       secondary_muscles: data.secondaryMuscles,
       is_interval: data.isInterval,
-      interval_duration: data.intervalDuration,
-      interval_rest: data.intervalRest,
     };
 
     const { error } = await supabase

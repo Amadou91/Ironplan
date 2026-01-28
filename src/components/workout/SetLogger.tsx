@@ -1,7 +1,7 @@
 import React from 'react';
 import { WorkoutSet, MetricProfile } from '@/types/domain';
 import { Trash2, Check } from 'lucide-react';
-import { INTENSITY_RECOMMENDATION, RIR_HELPER_TEXT, RIR_OPTIONS, RPE_OPTIONS } from '@/constants/intensityOptions';
+import { RIR_OPTIONS, RPE_OPTIONS } from '@/constants/intensityOptions';
 import type { WeightOption } from '@/lib/equipment';
 import { mapRirToRpe } from '@/lib/session-metrics';
 import { useSetEditor } from '@/hooks/useSetEditor';

@@ -8,7 +8,6 @@ import {
   machineLabels,
   BARBELL_PLATE_OPTIONS
 } from '@/lib/equipment'
-import { CARDIO_ACTIVITY_OPTIONS } from '@/lib/cardio-activities'
 import type { BandResistance, EquipmentPreset, MachineType, PlanInput } from '@/types/domain'
 
 type WeightField = 'dumbbells' | 'kettlebells'

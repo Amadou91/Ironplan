@@ -8,7 +8,7 @@ const envPath = path.resolve(process.cwd(), '.env.local');
 let envContent = '';
 try {
   envContent = fs.readFileSync(envPath, 'utf-8');
-} catch (e) {
+} catch (_e) {
   // ignore
 }
 
@@ -28,6 +28,19 @@ if (!url || !key) {
 
 const supabase = createClient(url, key);
 
+type ExerciseRow = {
+  id: string;
+  name: string;
+  category: string;
+  focus: string;
+  metric_profile: string;
+  equipment: any;
+  primary_muscle: string;
+  secondary_muscles: string[];
+  e1rm_eligible: boolean;
+  is_interval: boolean;
+};
+
 async function run() {
   console.log('Fetching exercises...');
   const { data: exercises, error } = await supabase
@@ -41,10 +54,9 @@ async function run() {
 
   console.log(`Fetched ${exercises.length} exercises.`);
 
-  const processed = exercises.map((ex: any) => {
+  const processed = exercises.map((ex: ExerciseRow) => {
     // Normalization Logic
     let category = 'Strength';
-    let goal = ex.goal;
 
     // Check for Yoga
     if (
@@ -53,13 +65,11 @@ async function run() {
       ex.primary_muscle === 'mobility'
     ) {
       category = 'Mobility';
-      goal = 'range_of_motion';
     } else if (
       ex.metric_profile === 'cardio_session' ||
       ex.category === 'Cardio' // if it already exists
     ) {
       category = 'Cardio';
-      goal = 'endurance';
     }
 
     // Clean up primary_muscle if it was 'cardio' or 'mobility'
@@ -74,25 +84,17 @@ async function run() {
       category, // Inferred or existing
       focus: ex.focus,
       metricProfile: ex.metric_profile,
-      sets: ex.sets || 3,
-      reps: ex.reps || 10,
-      rpe: ex.rpe || 7,
       equipment: ex.equipment ? (typeof ex.equipment === 'string' ? JSON.parse(ex.equipment) : ex.equipment) : [],
-      difficulty: ex.difficulty || 'beginner',
-      eligibleGoals: ex.eligible_goals || (goal ? [goal] : []),
-      goal: goal,
-      durationMinutes: ex.duration_minutes || 0,
-      restSeconds: ex.rest_seconds || 60,
       primaryMuscle: primaryMuscle,
       secondaryMuscles: ex.secondary_muscles || [],
-      instructions: ex.instructions || [],
-      videoUrl: ex.video_url || ''
+      e1rmEligible: ex.e1rm_eligible || false,
+      isInterval: ex.is_interval || false
     };
   });
 
   // Deduplicate by name
   const seen = new Set();
-  const unique = processed.filter((ex: any) => {
+  const unique = processed.filter((ex: { name: string }) => {
     if (seen.has(ex.name)) return false;
     seen.add(ex.name);
     return true;

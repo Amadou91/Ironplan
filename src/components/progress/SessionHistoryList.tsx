@@ -18,7 +18,7 @@ import {
   computeSetE1rm 
 } from '@/lib/session-metrics'
 import { useUIStore } from '@/store/uiStore'
-import { KG_PER_LB, LBS_PER_KG, convertWeight } from '@/lib/units'
+import { KG_PER_LB, convertWeight } from '@/lib/units'
 import type { SessionRow } from '@/lib/transformers/progress-data'
 import type { Goal, Exercise, FocusArea, PlanInput, WeightUnit } from '@/types/domain'
 

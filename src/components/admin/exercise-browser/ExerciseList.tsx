@@ -2,15 +2,11 @@
 
 import React, { useState } from 'react';
 import { Exercise, EquipmentKind } from '@/types/domain';
-import { Badge } from '@/components/ui/Badge'; 
 import { 
   Dumbbell, 
-  Clock, 
-  Signal, 
   Pencil, 
   Trash2, 
   Loader2, 
-  Layers, 
   User, 
   Zap, 
   Settings, 
@@ -105,7 +101,7 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
         alert('Failed to delete: ' + res.error);
         setIsDeleting(false);
       }
-    } catch (e) {
+    } catch (_e) {
       alert('Error deleting exercise');
       setIsDeleting(false);
     }

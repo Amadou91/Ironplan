@@ -7,16 +7,13 @@ import {
   AlertTriangle, 
   Loader2, 
   Download, 
-  Upload, 
-  FileJson,
-  RefreshCw 
+  Upload
 } from 'lucide-react'
 import {
   resetToDefaultsAction,
   getExerciseBackupAction,
   importExercisesAction
 } from '@/app/workouts/actions'
-import { toast } from 'sonner' // Using sonner just in case, or just alerts
 
 export function DataManagementToolbar() {
   const [isResetOpen, setIsResetOpen] = useState(false)
@@ -40,7 +37,7 @@ export function DataManagementToolbar() {
       } else {
         alert(`Error: ${res.error}`)
       }
-    } catch (e) {
+    } catch (_e) {
       alert('An unexpected error occurred.')
     } finally {
       setIsLoading(false)
@@ -66,7 +63,7 @@ export function DataManagementToolbar() {
       } else {
         alert('Failed to export data: ' + res.error)
       }
-    } catch (e) {
+    } catch (_e) {
       alert('Export failed unexpectedly.')
     }
   }
@@ -102,7 +99,7 @@ export function DataManagementToolbar() {
         } else {
             alert(`Import failed: ${res.error}`)
         }
-      } catch (err) {
+      } catch (_err) {
         alert('Failed to parse JSON file.')
       } finally {
         setImportLoading(false)

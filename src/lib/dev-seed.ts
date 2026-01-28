@@ -562,7 +562,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         exercise_name: exercise.name,
         primary_muscle: exercise.primaryMuscle,
         secondary_muscles: exercise.secondaryMuscles ?? [],
-        movement_pattern: (exercise as any).movementPattern || 'push',
+        movement_pattern: exercise.movementPattern || 'push',
         metric_profile: exercise.metricProfile ?? 'reps_weight',
         order_index: index
       })

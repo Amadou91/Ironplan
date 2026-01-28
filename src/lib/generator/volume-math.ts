@@ -2,7 +2,6 @@ import type {
   Exercise,
   Goal,
   PlanInput,
-  ExercisePrescription,
   PlannedExercise,
   ExerciseSource,
   EquipmentInventory
@@ -13,11 +12,6 @@ import {
   buildLoad,
   estimateExerciseMinutes
 } from './utils'
-import {
-  adjustRpe,
-  adjustSets,
-  adjustSetsForIntensity
-} from './scoring'
 import { adaptPrescription } from './adaptation'
 
 export const createPlannedExercise = (

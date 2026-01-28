@@ -6,13 +6,11 @@ import {
   Heart, 
   Activity, 
   FileText, 
-  Settings2, 
-  Layers, 
-  Check,
   AlertCircle,
   Save,
   X,
-  Settings
+  Settings,
+  Check
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -22,20 +20,16 @@ import { Checkbox } from '@/components/ui/Checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { cn } from '@/lib/utils'
 import { 
-  EXERCISE_GOALS, 
-  FOCUS_AREAS, 
-  getConstraintForProfile, 
   validateExercise 
 } from '@/lib/validation/exercise-validation'
-import { deriveMetricProfile, METRIC_PROFILE_OPTIONS } from '@/lib/metric-derivation'
+import { METRIC_PROFILE_OPTIONS } from '@/lib/metric-derivation'
 import { getFocusAreaFromMuscle } from '@/lib/muscle-utils'
 import type { 
   Exercise, 
-  FocusArea, 
-  Goal, 
   EquipmentOption, 
   MachineType, 
-  EquipmentKind 
+  EquipmentKind,
+  MovementPattern
 } from '@/types/domain'
 
 type Props = {
@@ -358,7 +352,7 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                               onClick={() => {
                                 setFormData({
                                   ...formData, 
-                                  movementPattern: isSelected ? undefined : pattern.value as any,
+                                  movementPattern: isSelected ? undefined : pattern.value as MovementPattern,
                                 });
                               }}
                               className={cn(

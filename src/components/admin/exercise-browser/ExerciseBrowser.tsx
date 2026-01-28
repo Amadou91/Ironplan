@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Exercise, ExerciseCategory, Difficulty, Goal } from '@/types/domain';
+import { Exercise, ExerciseCategory, Goal } from '@/types/domain';
 import { MuscleGroupTree } from './MuscleGroupTree';
 import { ExerciseList } from './ExerciseList';
 import { ExerciseFilters } from './ExerciseFilters';
@@ -64,7 +64,6 @@ export function ExerciseBrowser({ initialExercises }: ExerciseBrowserProps) {
       {/* Sidebar: Filters & Tree */}
       <aside className="lg:col-span-3 lg:sticky lg:top-4 space-y-6">
         <MuscleGroupTree 
-          exercises={initialExercises} 
           filteredExercises={filteredExercises}
           selectedMuscle={selectedMuscle}
           onSelectMuscle={setSelectedMuscle}

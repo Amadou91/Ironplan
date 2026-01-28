@@ -8,7 +8,7 @@ const envPath = path.resolve(process.cwd(), '.env.local');
 let envContent = '';
 try {
   envContent = fs.readFileSync(envPath, 'utf-8');
-} catch (e) {
+} catch (_e) {
   // ignore
 }
 
@@ -107,9 +107,6 @@ async function run() {
           .from('exercise_catalog')
           .update({
               is_interval: update.is_interval,
-              interval_duration: update.interval_duration,
-              interval_rest: update.interval_rest,
-              rest_seconds: update.rest_seconds
           })
           .eq('id', update.id);
       

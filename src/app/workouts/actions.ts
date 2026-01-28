@@ -4,9 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import { DEFAULT_EXERCISES } from '@/lib/data/defaultExercises'
 import { revalidatePath } from 'next/cache'
 import type { Exercise } from '@/types/domain'
+import { SupabaseClient } from '@supabase/supabase-js'
 
 // Helper to clear catalog
-async function clearCatalog(supabase: any) {
+async function clearCatalog(supabase: SupabaseClient) {
   // RLS policy for DELETE must be enabled.
   return await supabase
     .from('exercise_catalog')
@@ -15,7 +16,7 @@ async function clearCatalog(supabase: any) {
 }
 
 // Helper to insert exercises
-async function insertExercises(supabase: any, exercises: Partial<Exercise>[]) {
+async function insertExercises(supabase: SupabaseClient, exercises: Partial<Exercise>[]) {
   const toInsert = exercises.map(ex => ({
     // If ID is preserved in export, we should try to keep it, but insert might fail on conflict if not handled.
     // Ideally, for a full restore, we might want to keep IDs to preserve history if tables were linked.
@@ -25,23 +26,11 @@ async function insertExercises(supabase: any, exercises: Partial<Exercise>[]) {
     name: ex.name,
     category: ex.category ?? 'Strength',
     metric_profile: ex.metricProfile,
-    sets: ex.sets,
-    reps: ex.reps,
-    rpe: ex.rpe,
     equipment: ex.equipment,
     movement_pattern: ex.movementPattern,
-    difficulty: ex.difficulty,
-    eligible_goals: ex.eligibleGoals,
-    goal: ex.goal,
-    duration_minutes: ex.durationMinutes,
-    rest_seconds: ex.restSeconds,
     primary_muscle: ex.primaryMuscle,
     secondary_muscles: ex.secondaryMuscles,
-    instructions: ex.instructions,
-    video_url: ex.videoUrl,
-    is_interval: ex.isInterval ?? false,
-    interval_duration: ex.intervalDuration,
-    interval_rest: ex.intervalRest
+    is_interval: ex.isInterval ?? false
   }))
 
   return await supabase
@@ -107,27 +96,26 @@ export async function getExerciseBackupAction() {
   if (error) return { success: false, error: error.message }
   
   // Transform to camelCase domain objects
-  const exercises = data.map((row: any) => ({
+  const exercises = data.map((row: {
+    id: string;
+    name: string;
+    category: string;
+    metric_profile: string;
+    equipment: any;
+    movement_pattern: string;
+    primary_muscle: string;
+    secondary_muscles: string[];
+    is_interval: boolean;
+  }) => ({
     id: row.id,
     name: row.name,
     category: row.category,
     metricProfile: row.metric_profile,
-    sets: row.sets,
-    reps: row.reps,
-    rpe: row.rpe,
     equipment: row.equipment,
-    difficulty: row.difficulty,
-    eligibleGoals: row.eligible_goals,
-    goal: row.goal,
-    durationMinutes: row.duration_minutes,
-    restSeconds: row.rest_seconds,
+    movementPattern: row.movement_pattern,
     primaryMuscle: row.primary_muscle,
     secondaryMuscles: row.secondary_muscles,
-    instructions: row.instructions,
-    videoUrl: row.video_url,
-    isInterval: row.is_interval,
-    intervalDuration: row.interval_duration,
-    intervalRest: row.interval_rest
+    isInterval: row.is_interval
   }))
 
   return { success: true, data: exercises }

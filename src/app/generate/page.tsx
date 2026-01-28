@@ -14,7 +14,6 @@ import { MuscleGroupSelector } from '@/components/generate/MuscleGroupSelector'
 import { TemplateHistory } from '@/components/generate/TemplateHistory'
 import { GenerationSummary } from '@/components/generate/GenerationSummary'
 import { useGenerationFlow } from '@/hooks/useGenerationFlow'
-import type { CardioActivity } from '@/types/domain'
 
 export default function GeneratePage() {
   const router = useRouter()

@@ -15,8 +15,6 @@ import { useUIStore } from '@/store/uiStore'
 import { KG_PER_LB } from '@/lib/units'
 import { useChartZoom } from '@/hooks/useChartZoom'
 import { CustomTooltip } from '@/components/progress/CustomTooltip'
-import { Button } from '@/components/ui/Button'
-import { RotateCcw } from 'lucide-react'
 
 interface VolumeTrendPoint {
   label: string
