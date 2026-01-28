@@ -95,7 +95,7 @@ export const computeSetE1rm = (
   sessionGoal?: Goal | null,
   exerciseEligible?: boolean | null
 ) => {
-  if (set.metricProfile && set.metricProfile !== 'strength') return null
+  if (set.metricProfile && set.metricProfile !== 'reps_weight') return null
   if (!isSetE1rmEligible(sessionGoal, exerciseEligible, set)) return null
   if (typeof set.weight !== 'number' || typeof set.reps !== 'number') return null
   if (!Number.isFinite(set.weight) || !Number.isFinite(set.reps)) return null
@@ -121,13 +121,13 @@ export const getEffortScore = (set: MetricsSet) => {
 }
 
 export const isHardSet = (set: MetricsSet) => {
-  if (set.metricProfile && set.metricProfile !== 'strength' && set.metricProfile !== 'timed_strength') return false
+  if (set.metricProfile && set.metricProfile !== 'reps_weight' && set.metricProfile !== 'timed_strength') return false
   const effort = getEffortScore(set)
   return typeof effort === 'number' ? effort >= 8 : false
 }
 
 export const computeSetIntensity = (set: MetricsSet) => {
-  const e1rm = computeSetE1rm(set, 'strength', true)
+  const e1rm = computeSetE1rm(set, 'reps_weight', true)
   if (!e1rm) return 0
   if (typeof set.weight !== 'number' || set.weight <= 0) return 0
   const weight = toKg(set.weight, set.weightUnit)
@@ -139,7 +139,7 @@ export const computeSetIntensity = (set: MetricsSet) => {
  * Formula: Volume Load (kg) * Normalized Intensity Factor
  */
 export const computeSetLoad = (set: MetricsSet): number => {
-  const profile = set.metricProfile || 'strength'
+  const profile = set.metricProfile || 'reps_weight'
   const effort = getEffortScore(set)
   const intensityFactor = normalizeIntensity(effort)
   

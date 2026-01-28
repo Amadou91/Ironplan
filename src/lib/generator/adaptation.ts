@@ -30,7 +30,7 @@ export function adaptPrescription(
   } = {}
 ): ExercisePrescription {
   const { restModifier = 1.0, repsOverride } = options
-  const profile = exercise.metricProfile || 'strength'
+  const profile = exercise.metricProfile || 'reps_weight'
 
   // 1. Determine Rep Range / Duration based on Style and Profile
   let reps = repsOverride ?? exercise.reps

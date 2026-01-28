@@ -91,7 +91,7 @@ export const computeExerciseMetrics = (exercise: ExerciseMetricsInput) => {
 
   const predictedSet: MetricsSet = {
 
-    metricProfile: exercise.metricProfile ?? 'strength',
+    metricProfile: exercise.metricProfile ?? 'reps_weight',
 
     reps: repsValue,
 

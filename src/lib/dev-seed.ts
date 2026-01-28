@@ -398,7 +398,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         exercise_name: exercise.name,
         primary_muscle: exercise.primaryMuscle,
         secondary_muscles: exercise.secondaryMuscles ?? [],
-        metric_profile: exercise.metricProfile ?? 'strength',
+        metric_profile: exercise.metricProfile ?? 'reps_weight',
         order_index: index
       })
     })

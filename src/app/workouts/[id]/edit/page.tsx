@@ -43,7 +43,7 @@ export default function EditWorkoutPage() {
 
       // Map DB fields to Domain fields
       let category: ExerciseCategory = (data.category as ExerciseCategory) || 'Strength';
-      let metricProfile: MetricProfile = (data.metric_profile as MetricProfile) || 'strength';
+      let metricProfile: MetricProfile = (data.metric_profile as MetricProfile) || 'reps_weight';
       
       // Heuristic mapping for old/legacy data
       if (!data.category) {
@@ -52,11 +52,6 @@ export default function EditWorkoutPage() {
         } else if (data.focus === 'mobility' || data.metric_profile === 'mobility_session') {
           category = 'Mobility';
         }
-      }
-
-      // Cleanup metric profile
-      if (metricProfile === 'reps_weight' || metricProfile === 'reps_only' || (metricProfile as string) === 'duration') {
-        metricProfile = 'strength';
       }
 
       const exercise: Partial<Exercise> = {

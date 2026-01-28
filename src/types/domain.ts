@@ -101,7 +101,6 @@ export interface ExerciseLoad {
 }
 
 export type MetricProfile =
-  | 'strength'
   | 'timed_strength'
   | 'cardio_session'
   | 'mobility_session'
@@ -265,7 +264,7 @@ export interface WorkoutSession {
   name: string
   startedAt: string
   endedAt?: string
-  status?: 'in_progress' | 'completed' | 'cancelled'
+  status?: 'in_progress' | 'completed' | 'cancelled' | 'initializing'
   impact?: WorkoutImpact
   timezone?: string | null
   sessionNotes?: string | null

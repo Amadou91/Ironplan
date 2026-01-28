@@ -15,7 +15,7 @@ export const METRIC_PROFILE_OPTIONS: MetricProfileOption[] = [
     value: 'strength', 
     label: 'Reps & Weight', 
     description: 'Standard sets & reps tracking',
-    backendProfile: 'strength',
+    backendProfile: 'reps_weight',
     isInterval: false
   },
   // Timed Strength (Isometrics)

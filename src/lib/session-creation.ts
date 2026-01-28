@@ -145,7 +145,7 @@ export const createWorkoutSession = async ({
         exercise_name: exercise.name,
         primary_muscle: primaryMuscle,
         secondary_muscles: secondaryMuscles,
-        metric_profile: exercise.metricProfile ?? 'strength',
+        metric_profile: exercise.metricProfile ?? 'reps_weight',
         order_index: index
       }
     })
@@ -176,27 +176,15 @@ export const createWorkoutSession = async ({
       name: exercise.exercise_name,
       primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
       secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
-      metricProfile: (exercise.metric_profile as MetricProfile) ?? 'strength',
+      metricProfile: (exercise.metric_profile as MetricProfile) ?? 'reps_weight',
       sets: [],
       orderIndex: exercise.order_index ?? idx
-    }))
-
-    const generatedPayload = exercises.map((exercise) => ({
-      name: exercise.name,
-      movementPattern: exercise.movementPattern ?? null,
-      primaryMuscle: exercise.primaryMuscle ?? null,
-      secondaryMuscles: exercise.secondaryMuscles ?? [],
-      sets: exercise.sets,
-      reps: exercise.reps,
-      rpe: exercise.rpe,
-      restSeconds: exercise.restSeconds
     }))
 
     const { error: updateError } = await supabase
       .from('sessions')
       .update({
         impact: impact ?? null,
-        generated_exercises: generatedPayload,
         status: 'in_progress'
       })
       .eq('id', sessionData.id)

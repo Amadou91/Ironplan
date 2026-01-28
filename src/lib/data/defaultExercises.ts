@@ -886,7 +886,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Dead Bug",
     "category": "Strength",
     "focus": "core",
-    "metricProfile": "strength",
+    "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-12",
     "rpe": 6,

@@ -28,7 +28,7 @@ export default function NewWorkoutPage() {
       focus: data.focus,
       eligible_goals: data.eligibleGoals || [],
       goal: data.goal,
-      metric_profile: data.metricProfile || 'strength',
+      metric_profile: data.metricProfile || 'reps_weight',
       sets: data.sets,
       reps: data.reps,
       rpe: data.rpe,
