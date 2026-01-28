@@ -63,9 +63,9 @@ interface ProgressChartsProps {
 
 function ChartHeader({ title, isZoomed, onReset, children }: { title: string; isZoomed?: boolean; onReset?: () => void; children?: React.ReactNode }) {
   return (
-    <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between min-h-[48px]">
-      <div className="flex flex-col gap-2">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-subtle leading-none">{title}</h3>
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between min-h-[48px]">
+      <div className="flex flex-col gap-2.5">
+        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-subtle/80 leading-none">{title}</h3>
         {children}
       </div>
       {isZoomed && (
@@ -73,9 +73,9 @@ function ChartHeader({ title, isZoomed, onReset, children }: { title: string; is
           variant="outline" 
           size="sm" 
           onClick={onReset}
-          className="h-7 px-2 text-[10px] font-black uppercase tracking-widest gap-1.5 self-start sm:self-auto shrink-0"
+          className="h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2 self-start sm:self-auto shrink-0 transition-all active:scale-95"
         >
-          <RotateCcw className="h-3 w-3" />
+          <RotateCcw className="h-3.5 w-3.5" />
           Reset Zoom
         </Button>
       )}
@@ -176,27 +176,27 @@ export function ProgressCharts({
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <Card className="p-6 min-w-0 select-none flex flex-col">
+      <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader 
           title="Volume & load" 
           isZoomed={volumeZoom.isZoomed} 
           onReset={volumeZoom.zoomOut}
         >
-          <div className="flex gap-4">
+          <div className="flex gap-5">
              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary)]" />
-                <span className="text-[9px] font-bold uppercase tracking-wider text-subtle">Volume ({displayUnit})</span>
+                <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-subtle/70">Volume ({displayUnit})</span>
              </div>
              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-warning)]" />
-                <span className="text-[9px] font-bold uppercase tracking-wider text-subtle">Training Load</span>
+                <div className="w-2 h-2 rounded-full bg-[var(--color-warning)]" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-subtle/70">Training Load</span>
              </div>
           </div>
         </ChartHeader>
         <WeeklyVolumeChart data={volumeTrend} zoomProps={volumeZoom} />
       </Card>
 
-      <Card className="p-6 min-w-0 select-none flex flex-col">
+      <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title="Effort trend" isZoomed={effortZoom.isZoomed} onReset={effortZoom.zoomOut} />
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -217,8 +217,8 @@ export function ProgressCharts({
               <XAxis 
                 dataKey="day" 
                 stroke="var(--color-text-subtle)" 
-                fontSize={10} 
-                fontWeight={700}
+                fontSize={11} 
+                fontWeight={800}
                 tickLine={false}
                 axisLine={false}
                 allowDataOverflow
@@ -226,8 +226,8 @@ export function ProgressCharts({
               />
               <YAxis 
                 stroke="var(--color-text-subtle)" 
-                fontSize={10} 
-                fontWeight={700}
+                fontSize={11} 
+                fontWeight={800}
                 tickLine={false}
                 axisLine={false}
                 domain={[0, 10]}
@@ -244,7 +244,7 @@ export function ProgressCharts({
       </Card>
 
       {exerciseTrend.length > 0 && (
-        <Card className="p-6 min-w-0 select-none flex flex-col">
+        <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
           <ChartHeader title={`e1RM trend (${displayUnit})`} isZoomed={exerciseZoom.isZoomed} onReset={exerciseZoom.zoomOut} />
           <div 
             className="h-64 w-full outline-none mt-auto"
@@ -264,8 +264,8 @@ export function ProgressCharts({
                 <XAxis 
                   dataKey="day" 
                   stroke="var(--color-text-subtle)" 
-                  fontSize={10} 
-                  fontWeight={700}
+                  fontSize={11} 
+                  fontWeight={800}
                   tickLine={false}
                   axisLine={false}
                   allowDataOverflow
@@ -273,8 +273,8 @@ export function ProgressCharts({
                 />
                 <YAxis 
                   stroke="var(--color-text-subtle)" 
-                  fontSize={10} 
-                  fontWeight={700}
+                  fontSize={11} 
+                  fontWeight={800}
                   tickLine={false}
                   axisLine={false}
                   domain={['auto', 'auto']}
@@ -292,7 +292,7 @@ export function ProgressCharts({
         </Card>
       )}
 
-      <Card className="p-6 min-w-0 select-none flex flex-col">
+      <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title={`Bodyweight trend (${displayUnit})`} isZoomed={weightZoom.isZoomed} onReset={weightZoom.zoomOut} />
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -313,8 +313,8 @@ export function ProgressCharts({
               <XAxis 
                 dataKey="day" 
                 stroke="var(--color-text-subtle)" 
-                fontSize={10} 
-                fontWeight={700}
+                fontSize={11} 
+                fontWeight={800}
                 tickLine={false}
                 axisLine={false}
                 allowDataOverflow
@@ -323,8 +323,8 @@ export function ProgressCharts({
               <YAxis 
                 domain={['auto', 'auto']} 
                 stroke="var(--color-text-subtle)" 
-                fontSize={10} 
-                fontWeight={700}
+                fontSize={11} 
+                fontWeight={800}
                 tickLine={false}
                 axisLine={false}
                 width={Y_AXIS_WIDTH}
@@ -340,7 +340,7 @@ export function ProgressCharts({
         </div>
       </Card>
 
-      <Card className="p-6 min-w-0 select-none flex flex-col">
+      <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title="Readiness score trend" isZoomed={readinessZoom.isZoomed} onReset={readinessZoom.zoomOut} />
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -361,8 +361,8 @@ export function ProgressCharts({
               <XAxis 
                 dataKey="day" 
                 stroke="var(--color-text-subtle)" 
-                fontSize={10} 
-                fontWeight={700}
+                fontSize={11} 
+                fontWeight={800}
                 tickLine={false}
                 axisLine={false}
                 allowDataOverflow
@@ -371,8 +371,8 @@ export function ProgressCharts({
               <YAxis 
                 domain={[0, 100]} 
                 stroke="var(--color-text-subtle)" 
-                fontSize={10} 
-                fontWeight={700}
+                fontSize={11} 
+                fontWeight={800}
                 tickLine={false}
                 axisLine={false}
                 width={Y_AXIS_WIDTH}
@@ -387,7 +387,7 @@ export function ProgressCharts({
         </div>
       </Card>
 
-      <Card className="p-6 min-w-0 select-none flex flex-col">
+      <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title="Readiness components" />
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -399,8 +399,8 @@ export function ProgressCharts({
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={readinessComponents} margin={CHART_MARGIN} style={{ outline: 'none' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="metric" stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} dy={10} />
-              <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" fontSize={10} fontWeight={700} tickLine={false} axisLine={false} width={Y_AXIS_WIDTH} />
+              <XAxis dataKey="metric" stroke="var(--color-text-subtle)" fontSize={11} fontWeight={800} tickLine={false} axisLine={false} dy={10} />
+              <YAxis domain={[1, 5]} stroke="var(--color-text-subtle)" fontSize={11} fontWeight={800} tickLine={false} axisLine={false} width={Y_AXIS_WIDTH} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="value" name="Score" radius={[4, 4, 0, 0]}>
                 {readinessComponents.map((entry: ReadinessComponentPoint) => {
@@ -424,7 +424,7 @@ export function ProgressCharts({
         </div>
       </Card>
 
-      <Card className={`p-6 min-w-0 select-none flex flex-col ${exerciseTrend.length > 0 ? 'lg:col-span-2' : ''}`}>
+      <Card className={`p-6 min-w-0 select-none flex flex-col glass-panel ${exerciseTrend.length > 0 ? 'lg:col-span-2' : ''}`}>
         <ChartHeader 
           title="Readiness vs session effort" 
           isZoomed={correlationZoom.isZoomed} 
@@ -452,8 +452,8 @@ export function ProgressCharts({
                 name="Readiness" 
                 domain={[correlationZoom.left || 0, correlationZoom.right || 100]} 
                 stroke="var(--color-text-subtle)" 
-                fontSize={10} 
-                fontWeight={700} 
+                fontSize={11} 
+                fontWeight={800} 
                 tickLine={false} 
                 axisLine={false} 
                 allowDataOverflow
@@ -465,8 +465,8 @@ export function ProgressCharts({
                 name="Effort" 
                 domain={correlationZoom.isZoomed ? ['auto', 'auto'] : [0, 10]} 
                 stroke="var(--color-text-subtle)" 
-                fontSize={10} 
-                fontWeight={700} 
+                fontSize={11} 
+                fontWeight={800} 
                 tickLine={false} 
                 axisLine={false} 
                 width={Y_AXIS_WIDTH}
@@ -474,19 +474,19 @@ export function ProgressCharts({
               <Tooltip content={<CustomTooltip type="readiness" />} cursor={{ strokeDasharray: '3 3' }} />
               {/* Overreaching: Low Readiness, High Effort */}
               <ReferenceArea x1={0} x2={50} y1={5} y2={10} fill="var(--color-danger)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extend">
-                <Label value="Overreaching" position="insideTopLeft" offset={10} fill="var(--color-danger)" fillOpacity={0.25} style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
+                <Label value="Overreaching" position="insideTopLeft" offset={10} fill="var(--color-danger)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               {/* Optimal: High Readiness, High Effort */}
               <ReferenceArea x1={50} x2={100} y1={5} y2={10} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extend">
-                <Label value="Optimal" position="insideTopRight" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
+                <Label value="Optimal" position="insideTopRight" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               {/* Recovery: Low Readiness, Low Effort */}
               <ReferenceArea x1={0} x2={50} y1={0} y2={5} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extend">
-                <Label value="Recovery" position="insideBottomLeft" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
+                <Label value="Recovery" position="insideBottomLeft" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               {/* Undertraining: High Readiness, Low Effort */}
               <ReferenceArea x1={50} x2={100} y1={0} y2={5} fill="var(--color-warning)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extend">
-                <Label value="Undertraining" position="insideBottomRight" offset={10} fill="var(--color-warning)" fillOpacity={0.25} style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
+                <Label value="Undertraining" position="insideBottomRight" offset={10} fill="var(--color-warning)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               <ReferenceLine x={50} stroke="var(--color-border)" strokeDasharray="3 3" />
               <ReferenceLine y={5} stroke="var(--color-border)" strokeDasharray="3 3" />

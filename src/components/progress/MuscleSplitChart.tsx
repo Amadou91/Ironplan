@@ -54,7 +54,7 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
     <div className={isCompact ? 'flex flex-col h-full relative' : 'space-y-6'}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <h3 className={`font-black uppercase tracking-widest text-strong ${isCompact ? 'text-[10px]' : 'text-xs'}`}>Muscle group volume</h3>
+          <h3 className={`font-black uppercase tracking-[0.15em] text-strong ${isCompact ? 'text-[10px]' : 'text-sm'}`}>Muscle Distribution</h3>
           {!isCompact && (
             <ChartInfoTooltip 
               description="Shows how much work each muscle group did. The bigger the slice, the more work that muscle did."
@@ -62,18 +62,18 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
             />
           )}
         </div>
-        <div className="flex gap-1 bg-[var(--color-surface-muted)] p-0.5 rounded-md">
+        <div className="flex gap-1 bg-[var(--color-surface-muted)] p-1 rounded-lg border border-[var(--color-border)]">
           <button 
             type="button"
             onClick={() => setMuscleVizMode('absolute')}
-            className={`px-1.5 py-0.5 text-[8px] font-black rounded transition-all ${muscleVizMode === 'absolute' ? 'bg-[var(--color-primary)] text-white' : 'text-subtle'}`}
+            className={`px-2 py-0.5 text-[9px] font-black rounded-md transition-all uppercase tracking-wider ${muscleVizMode === 'absolute' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-strong'}`}
           >
-            ABS
+            Abs
           </button>
           <button 
             type="button"
             onClick={() => setMuscleVizMode('relative')}
-            className={`px-1.5 py-0.5 text-[8px] font-black rounded transition-all ${muscleVizMode === 'relative' ? 'bg-[var(--color-primary)] text-white' : 'text-subtle'}`}
+            className={`px-2 py-0.5 text-[9px] font-black rounded-md transition-all uppercase tracking-wider ${muscleVizMode === 'relative' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-subtle hover:text-strong'}`}
           >
             %
           </button>
@@ -111,23 +111,25 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
                   background: 'var(--color-surface)', 
                   border: '1px solid var(--color-border)', 
                   color: 'var(--color-text)', 
-                  fontSize: '10px',
-                  borderRadius: '8px',
-                  padding: '8px'
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  borderRadius: '12px',
+                  padding: '10px',
+                  boxShadow: 'var(--shadow-md)'
                 }} 
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
         
-        <div className={`w-full space-y-1 ${isCompact ? 'mt-auto' : 'xl:w-7/12 pr-2'}`}>
+        <div className={`w-full space-y-1.5 ${isCompact ? 'mt-auto' : 'xl:w-7/12 pr-2'}`}>
           {!isCompact && (
-            <p className="text-[10px] font-black uppercase tracking-widest text-subtle border-b border-[var(--color-border)] pb-2 mb-3">
-              {muscleVizMode === 'absolute' ? `Volume (${displayUnit})` : muscleVizMode === 'relative' ? 'Distribution (%)' : 'Target Index (100=target)'}
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/60 border-b border-[var(--color-border)] pb-2 mb-3">
+              {muscleVizMode === 'absolute' ? `Volume (${displayUnit})` : muscleVizMode === 'relative' ? 'Distribution (%)' : 'Target Index'}
             </p>
           )}
           {data.length === 0 ? (
-            <p className="text-xs text-subtle italic">No data available.</p>
+            <p className="text-sm text-subtle italic font-medium">No data available.</p>
           ) : (
             sortedData
               .slice(0, isCompact ? 3 : undefined)
@@ -139,15 +141,15 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
                     : entry.imbalanceIndex !== null ? entry.imbalanceIndex : 'N/A'
                 
                 return (
-                  <div key={entry.muscle} className={`flex items-center justify-between border-b border-[var(--color-border)]/30 last:border-0 ${isCompact ? 'py-1' : 'py-1.5'}`}>
-                    <div className="flex items-center gap-2">
+                  <div key={entry.muscle} className={`flex items-center justify-between border-b border-[var(--color-border)]/30 last:border-0 ${isCompact ? 'py-1.5' : 'py-2'}`}>
+                    <div className="flex items-center gap-2.5">
                       <div 
-                        className="w-2 h-2 rounded-full" 
+                        className="w-2.5 h-2.5 rounded-full shadow-sm" 
                         style={{ background: chartColors[idx % chartColors.length] }} 
                       />
-                      <span className="text-muted font-bold uppercase text-[9px] tracking-tight truncate max-w-[80px]">{entry.muscle}</span>
+                      <span className="text-muted font-bold uppercase text-[10px] tracking-widest truncate max-w-[100px]">{entry.muscle}</span>
                     </div>
-                    <span className="text-strong font-black tabular-nums text-[10px]">{displayVal}</span>
+                    <span className="text-strong font-black tabular-nums text-[11px] tracking-tight">{displayVal}</span>
                   </div>
                 )
               })
@@ -156,7 +158,7 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
             <button 
               type="button"
               onClick={() => setIsExpanded(true)}
-              className="w-full text-[8px] text-[var(--color-primary)] hover:text-strong text-center mt-2 uppercase font-black tracking-[0.2em] py-1 border border-dashed border-[var(--color-primary)]/30 rounded-md transition-colors"
+              className="w-full text-[9px] text-[var(--color-primary)] hover:text-strong text-center mt-3 uppercase font-black tracking-[0.15em] py-2 border border-dashed border-[var(--color-primary)]/30 rounded-xl transition-all hover:bg-[var(--color-primary-soft)]/20"
             >
               + {data.length - 3} More Groups
             </button>
@@ -165,29 +167,29 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
       </div>
 
       {isCompact && isExpanded && (
-        <div className="absolute inset-0 z-50 bg-surface/95 backdrop-blur-sm rounded-xl p-4 flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
-          <div className="flex items-center justify-between mb-4 border-b border-[var(--color-border)] pb-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-strong">Detailed Breakdown</p>
+        <div className="absolute inset-0 z-50 bg-surface/98 backdrop-blur-md rounded-2xl p-5 flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200 border border-[var(--color-border)]">
+          <div className="flex items-center justify-between mb-5 border-b border-[var(--color-border)] pb-3">
+            <p className="text-[11px] font-black uppercase tracking-widest text-strong">Detailed Breakdown</p>
             <button 
               onClick={() => setIsExpanded(false)}
-              className="text-[10px] font-black uppercase tracking-widest text-subtle hover:text-strong"
+              className="text-[10px] font-black uppercase tracking-widest text-subtle hover:text-strong transition-colors"
             >
               Close
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto pr-1 space-y-1 scrollbar-hide">
+          <div className="flex-1 overflow-y-auto pr-1 space-y-1.5 scrollbar-hide">
             {sortedData.map((entry, idx) => {
               const displayVal = muscleVizMode === 'absolute' 
                 ? `${entry.volume.toLocaleString()} ${displayUnit}`
                 : muscleVizMode === 'relative' ? `${entry.relativePct}%` : (entry.imbalanceIndex ?? 'N/A')
               
               return (
-                <div key={entry.muscle} className="flex items-center justify-between py-1.5 border-b border-[var(--color-border)]/30 last:border-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: chartColors[idx % chartColors.length] }} />
-                    <span className="text-muted font-bold uppercase text-[9px] tracking-tight">{entry.muscle}</span>
+                <div key={entry.muscle} className="flex items-center justify-between py-2 border-b border-[var(--color-border)]/30 last:border-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-2 h-2 rounded-full shadow-sm" style={{ background: chartColors[idx % chartColors.length] }} />
+                    <span className="text-muted font-bold uppercase text-[10px] tracking-widest">{entry.muscle}</span>
                   </div>
-                  <span className="text-strong font-black tabular-nums text-[10px]">{displayVal}</span>
+                  <span className="text-strong font-black tabular-nums text-[11px] tracking-tight">{displayVal}</span>
                 </div>
               )
             })}

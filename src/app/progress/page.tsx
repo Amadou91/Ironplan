@@ -66,28 +66,28 @@ export default function ProgressPage() {
 
   return (
     <div className="page-shell">
-      <div className="w-full space-y-10 py-4">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+      <div className="w-full space-y-12 py-6">
+        <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between px-1">
           <div>
-            <p className="text-sm uppercase tracking-[0.4em] text-subtle font-bold">Progress</p>
-            <h1 className="font-display text-4xl lg:text-5xl font-extrabold text-strong mt-2">Progress and insights</h1>
+            <p className="text-[11px] uppercase tracking-[0.3em] text-subtle font-black opacity-70">Performance Hub</p>
+            <h1 className="font-display text-4xl lg:text-6xl font-black text-strong mt-3 tracking-tight">Progress & Insights</h1>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button variant="outline" size="md" type="button" onClick={handleCreateManualSession} disabled={creatingManualSession}>
+          <div className="flex flex-wrap items-center gap-4">
+            <Button variant="outline" size="md" type="button" onClick={handleCreateManualSession} disabled={creatingManualSession} className="h-12 px-6 text-[11px] font-black uppercase tracking-widest border-2">
               {creatingManualSession ? 'Creating...' : 'Log past workout'}
             </Button>
-            <Button variant="secondary" size="md" type="button" onClick={() => { setStartDate(''); setEndDate(''); setSelectedMuscle('all'); setSelectedExercise('all'); }}>
+            <Button variant="secondary" size="md" type="button" onClick={() => { setStartDate(''); setEndDate(''); setSelectedMuscle('all'); setSelectedExercise('all'); }} className="h-12 px-6 text-[11px] font-black uppercase tracking-widest">
               Reset filters
             </Button>
           </div>
         </div>
         
-        {error && <div className="alert-error p-6 text-base font-medium">{error}</div>}
+        {error && <div className="alert-error p-6 text-base font-medium glass-panel border-red-200 dark:border-red-900/30">{error}</div>}
         
         <div className="grid grid-cols-1 gap-12">
           <TrainingStatusCard {...trainingLoadSummary} />
 
-          <div className="sticky top-6 z-40 transition-all duration-300">
+          <div className="sticky top-6 z-40 transition-all duration-500">
             <ProgressFilters 
               startDate={startDate} 
               setStartDate={setStartDate} 
@@ -121,17 +121,24 @@ export default function ProgressPage() {
             readinessTrendLine={readinessTrendLine} 
           />
 
-          <SessionHistoryList 
-            sessions={filteredSessions} 
-            templateById={templateById} 
-            exerciseLibraryByName={exerciseLibraryByName} 
-            getSessionTitle={getSessionTitle} 
-            hasMore={hasMoreSessions} 
-            onLoadMore={() => setSessionPage(p => p + 1)} 
-            onDeleteSuccess={(id) => setSessions(prev => prev.filter(s => s.id !== id))} 
-            onError={setError} 
-            loading={loading} 
-          />
+          <div className="pt-12 border-t border-[var(--color-border)]">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="h-px flex-1 bg-[var(--color-border)]" />
+              <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-subtle opacity-60">Session History</h2>
+              <div className="h-px flex-1 bg-[var(--color-border)]" />
+            </div>
+            <SessionHistoryList 
+              sessions={filteredSessions} 
+              templateById={templateById} 
+              exerciseLibraryByName={exerciseLibraryByName} 
+              getSessionTitle={getSessionTitle} 
+              hasMore={hasMoreSessions} 
+              onLoadMore={() => setSessionPage(p => p + 1)} 
+              onDeleteSuccess={(id) => setSessions(prev => prev.filter(s => s.id !== id))} 
+              onError={setError} 
+              loading={loading} 
+            />
+          </div>
         </div>
       </div>
     </div>

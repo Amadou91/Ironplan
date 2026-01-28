@@ -86,8 +86,8 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
             <XAxis 
               dataKey="label" 
               stroke="var(--color-text-subtle)" 
-              fontSize={10} 
-              fontWeight={700}
+              fontSize={11} 
+              fontWeight={800}
               tickLine={false}
               axisLine={false}
               allowDataOverflow
@@ -96,8 +96,8 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
             <YAxis 
               yAxisId="left"
               stroke="var(--color-primary)" 
-              fontSize={10} 
-              fontWeight={700}
+              fontSize={11} 
+              fontWeight={800}
               tickLine={false}
               axisLine={false}
               tickFormatter={(val) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val}
@@ -107,8 +107,8 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               yAxisId="right"
               orientation="right"
               stroke="var(--color-warning)" 
-              fontSize={10} 
-              fontWeight={700}
+              fontSize={11} 
+              fontWeight={800}
               tickLine={false}
               axisLine={false}
               width={Y_AXIS_WIDTH}
