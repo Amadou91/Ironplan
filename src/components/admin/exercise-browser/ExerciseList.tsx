@@ -94,12 +94,6 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
     Mobility: 'hover:border-teal-500/50 hover:shadow-teal-500/5',
   };
 
-  const categoryIconColors: Record<string, string> = {
-    Strength: 'text-blue-500',
-    Cardio: 'text-rose-500',
-    Mobility: 'text-teal-500',
-  };
-
   const handleDelete = async () => {
     if (!exercise.id) return;
     if (!confirm('Are you sure you want to delete this exercise?')) return;
@@ -119,72 +113,48 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
 
   return (
     <div className={cn(
-      "group relative bg-surface border border-border rounded-2xl p-6 transition-all duration-300 flex flex-col gap-6",
+      "group relative bg-surface border border-border rounded-2xl p-6 transition-all duration-300 flex flex-col gap-5 min-h-[320px]",
       categoryAccents[category] || 'hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30'
     )}>
       
-      {/* Header */}
-      <div className="flex justify-between items-start gap-4">
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <h4 className={cn(
-              "font-black text-xl tracking-tight text-foreground transition-colors",
-              category === 'Strength' ? 'group-hover:text-blue-600' : 
-              category === 'Cardio' ? 'group-hover:text-rose-600' : 
-              category === 'Mobility' ? 'group-hover:text-teal-600' : 'group-hover:text-primary'
-            )}>
-              {exercise.name}
-            </h4>
-            <div className="flex flex-wrap items-center gap-2">
-              <CategoryBadge category={category} />
-              {exercise.movementPattern && (
-                <span className="text-[10px] uppercase tracking-widest font-black px-2.5 py-1 rounded-lg border-2 border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)] text-[var(--color-text-strong)] shadow-sm">
-                  {exercise.movementPattern}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 pt-1">
-             {exercise.equipment?.map((e, idx) => (
-                <EquipmentBadge key={idx} kind={e.kind} machineType={e.kind === 'machine' ? e.machineType : undefined} />
-             ))}
-          </div>
-        </div>
-        
-        {/* Actions */}
-        <div className="flex items-center gap-2 lg:opacity-0 group-hover:opacity-100 transition-all transform lg:translate-x-2 group-hover:translate-x-0">
-          <Link href={`/workouts/${exercise.id}/edit`}>
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                className={cn(
-                  "h-9 w-9 p-0 rounded-xl transition-all",
-                  category === 'Strength' ? 'hover:bg-blue-600 hover:text-white' : 
-                  category === 'Cardio' ? 'hover:bg-rose-600 hover:text-white' : 
-                  category === 'Mobility' ? 'hover:bg-teal-600 hover:text-white' : 'hover:bg-primary hover:text-primary-foreground'
-                )}
-                title="Edit"
-              >
-                  <Pencil className="w-4 h-4" />
-              </Button>
-          </Link>
-          <Button 
-            variant="secondary" 
-            size="sm" 
-            className="h-9 w-9 p-0 rounded-xl hover:bg-destructive hover:text-destructive-foreground transition-all"
-            onClick={handleDelete}
-            disabled={isDeleting}
-            title="Delete"
-          >
-              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-          </Button>
-        </div>
+      {/* 1. Header: Title */}
+      <div className="space-y-1">
+        <h4 className={cn(
+          "font-black text-xl tracking-tight text-foreground transition-colors",
+          category === 'Strength' ? 'group-hover:text-blue-600' : 
+          category === 'Cardio' ? 'group-hover:text-rose-600' : 
+          category === 'Mobility' ? 'group-hover:text-teal-600' : 'group-hover:text-primary'
+        )}>
+          {exercise.name}
+        </h4>
       </div>
 
-      {/* Footer Info */}
-      <div className="flex flex-col gap-4 pt-4 border-t border-border/50">
-        <div className="flex items-center justify-between gap-4">
-          {exercise.primaryMuscle && (
+      {/* 2. Secondary Info: Badges */}
+      <div className="flex flex-wrap items-center gap-2">
+        <CategoryBadge category={category} />
+        {exercise.movementPattern && (
+          <span className="text-[10px] uppercase tracking-widest font-black px-2.5 py-1 rounded-lg border-2 border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)] text-[var(--color-text-strong)] shadow-sm">
+            {exercise.movementPattern}
+          </span>
+        )}
+      </div>
+
+      {/* 3. Main Content: Equipment */}
+      <div className="flex-1 flex flex-col gap-2">
+         {exercise.equipment?.map((e, idx) => (
+            <div key={idx} className="flex justify-start">
+              <EquipmentBadge kind={e.kind} machineType={e.kind === 'machine' ? e.machineType : undefined} />
+            </div>
+         ))}
+      </div>
+
+      {/* 4. Footer: Metadata & Actions */}
+      <div className="pt-5 border-t border-border/50 mt-auto">
+        <div className="flex items-end justify-between gap-4 min-h-[48px]">
+          
+          {/* Metadata (Left) */}
+          <div className="flex flex-col gap-1.5 min-w-0">
+            {exercise.primaryMuscle && (
                <div className="flex items-center gap-2 min-w-0">
                   <div className={cn(
                     "w-1.5 h-1.5 rounded-full shrink-0",
@@ -196,29 +166,57 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
                     Primary: {exercise.primaryMuscle.replace('_', ' ')}
                   </span>
                </div>
-          )}
-          
-          {exercise.primaryMuscle !== 'full_body' && exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
-            <div className="flex items-center gap-2 opacity-70 ml-auto text-right min-w-0">
-              <span className="text-[9px] text-muted-foreground uppercase tracking-[0.12em] font-bold truncate">
+            )}
+            
+            {exercise.primaryMuscle !== 'full_body' && exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
+              <span className="text-[9px] text-muted-foreground uppercase tracking-[0.12em] font-bold truncate opacity-70 pl-3.5">
                 Secondary: {exercise.secondaryMuscles.map(m => m.replace('_', ' ')).join(', ')}
               </span>
-            </div>
-          )}
-        </div>
-        
-        {exercise.e1rmEligible && (
-          <div className="flex justify-start">
-            <span className={cn(
-              "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border",
-              category === 'Strength' ? 'text-blue-600 bg-blue-50 border-blue-100' : 
-              category === 'Cardio' ? 'text-rose-600 bg-rose-50 border-rose-100' : 
-              category === 'Mobility' ? 'text-teal-600 bg-teal-50 border-teal-100' : 'text-primary bg-primary/5 border-primary/10'
-            )}>
-              E1RM Enabled
-            </span>
+            )}
           </div>
-        )}
+
+          {/* Actions & High-Level Badges (Right) */}
+          <div className="flex items-center gap-2 shrink-0">
+            {exercise.e1rmEligible && (
+              <span className={cn(
+                "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border shrink-0",
+                category === 'Strength' ? 'text-blue-600 bg-blue-50 border-blue-100' : 
+                category === 'Cardio' ? 'text-rose-600 bg-rose-50 border-rose-100' : 
+                category === 'Mobility' ? 'text-teal-600 bg-teal-50 border-teal-100' : 'text-primary bg-primary/5 border-primary/10'
+              )}>
+                E1RM
+              </span>
+            )}
+            
+            <div className="flex items-center gap-1.5 ml-2">
+              <Link href={`/workouts/${exercise.id}/edit`}>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className={cn(
+                      "h-9 w-9 p-0 rounded-xl transition-all",
+                      category === 'Strength' ? 'hover:bg-blue-600 hover:text-white' : 
+                      category === 'Cardio' ? 'hover:bg-rose-600 hover:text-white' : 
+                      category === 'Mobility' ? 'hover:bg-teal-600 hover:text-white' : 'hover:bg-primary hover:text-primary-foreground'
+                    )}
+                    title="Edit"
+                  >
+                      <Pencil className="w-4 h-4" />
+                  </Button>
+              </Link>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                className="h-9 w-9 p-0 rounded-xl hover:bg-destructive hover:text-destructive-foreground transition-all"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                title="Delete"
+              >
+                  {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
