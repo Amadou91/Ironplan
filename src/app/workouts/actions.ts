@@ -49,7 +49,7 @@ async function insertExercises(supabase: any, exercises: Partial<Exercise>[]) {
     .select()
 }
 
-export async function resetWorkoutsAction() {
+export async function resetToDefaultsAction() {
   const supabase = await createClient()
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -68,7 +68,7 @@ export async function resetWorkoutsAction() {
     return { success: false, error: `Insert failed: ${insertError.message}` }
   }
 
-  revalidatePath('/admin')
+  revalidatePath('/workouts')
   return { success: true, count: inserted.length }
 }
 
@@ -85,7 +85,7 @@ export async function deleteExerciseAction(id: string) {
 
   if (error) return { success: false, error: error.message }
   
-  revalidatePath('/admin')
+  revalidatePath('/workouts')
   return { success: true }
 }
 
@@ -149,6 +149,6 @@ export async function importExercisesAction(exercises: Partial<Exercise>[]) {
 
   if (insertError) return { success: false, error: `Insert failed: ${insertError.message}` }
 
-  revalidatePath('/admin')
+  revalidatePath('/workouts')
   return { success: true, count: inserted.length }
 }

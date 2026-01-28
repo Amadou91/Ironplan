@@ -1,4 +1,5 @@
-import { Exercise, MetricProfile } from '@/types/domain';
+import { Exercise, MetricProfile, FocusArea } from '@/types/domain';
+import { MUSCLE_MAPPING } from './muscle-mapping';
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
 
@@ -22,6 +23,23 @@ const MUSCLE_GROUP_SLUGS = new Set([
   'lower_body',
   'full_body'
 ]);
+
+export const getFocusAreaFromMuscle = (muscle: string): FocusArea => {
+  const m = muscle.toLowerCase();
+  if (m === 'core') return 'core';
+  if (m === 'cardio') return 'cardio';
+  if (m === 'mobility') return 'mobility';
+  
+  const mapping = MUSCLE_MAPPING[m];
+  if (!mapping) return 'full_body';
+  
+  switch (mapping.region) {
+    case 'Upper Body': return 'upper';
+    case 'Lower Body': return 'lower';
+    case 'Full Body & Core': return 'full_body';
+    default: return 'full_body';
+  }
+};
 
 const resolveByKeyword = (label: string) => {
   // Specific compound movements first

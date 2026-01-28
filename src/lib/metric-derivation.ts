@@ -10,7 +10,7 @@ export type MetricProfileOption = {
 };
 
 export const METRIC_PROFILE_OPTIONS: MetricProfileOption[] = [
-  // Standard Strength
+  // Standard Strength (Covers reps_weight, reps_only, duration)
   { 
     value: 'strength', 
     label: 'Reps & Weight', 
@@ -18,15 +18,7 @@ export const METRIC_PROFILE_OPTIONS: MetricProfileOption[] = [
     backendProfile: 'strength',
     isInterval: false
   },
-  // Interval Strength (Virtual)
-  { 
-    value: 'strength_interval', 
-    label: 'Intervals (Work/Rest)', 
-    description: 'Time-based intervals (e.g. HIIT, Tabata)',
-    backendProfile: 'strength',
-    isInterval: true
-  },
-  // Timed Strength
+  // Timed Strength (Isometrics)
   { 
     value: 'timed_strength', 
     label: 'Duration / Isometric', 
@@ -34,7 +26,7 @@ export const METRIC_PROFILE_OPTIONS: MetricProfileOption[] = [
     backendProfile: 'timed_strength',
     isInterval: false
   },
-  // Cardio
+  // Cardio (Distance/Duration)
   { 
     value: 'cardio_session', 
     label: 'Cardio Session', 
@@ -48,22 +40,6 @@ export const METRIC_PROFILE_OPTIONS: MetricProfileOption[] = [
     label: 'Mobility / Yoga', 
     description: 'Time-based recovery',
     backendProfile: 'mobility_session',
-    isInterval: false
-  },
-  // Simple Duration
-  { 
-    value: 'duration', 
-    label: 'Duration Only', 
-    description: 'Simple timer',
-    backendProfile: 'duration',
-    isInterval: false
-  },
-  // Reps Only
-  {
-    value: 'reps_only',
-    label: 'Reps Only',
-    description: 'Bodyweight reps without load',
-    backendProfile: 'reps_only',
     isInterval: false
   }
 ];
@@ -103,7 +79,6 @@ export function deriveMetricProfile(
          isAmbiguous: true,
          alternatives: [
            findOpt('strength'),
-           findOpt('strength_interval'),
            findOpt('timed_strength')
          ]
        };

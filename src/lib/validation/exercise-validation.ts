@@ -1,10 +1,10 @@
 import type { Exercise, MetricProfile, Goal } from '@/types/domain'
 
 export const METRIC_PROFILES: { label: string; value: MetricProfile; description: string }[] = [
-  { value: 'strength', label: 'Strength', description: 'Sets × Reps × Load (RPE aware)' },
+  { value: 'strength', label: 'Strength', description: 'Sets × Reps × Load' },
   { value: 'timed_strength', label: 'Timed Strength', description: 'Isometric holds, carries, planks' },
   { value: 'cardio_session', label: 'Cardio Session', description: 'Time-based endurance' },
-  { value: 'mobility_session', label: 'Yoga / Mobility Session', description: 'Time-based, recovery focused' }
+  { value: 'mobility_session', label: 'Yoga / Mobility Session', description: 'Time-based recovery' }
 ]
 
 export const EXERCISE_GOALS: { label: string; value: Goal; description: string }[] = [

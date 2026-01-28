@@ -97,10 +97,6 @@ export interface ExerciseLoad {
 }
 
 export type MetricProfile =
-  | 'reps_weight'
-  | 'duration'
-  | 'distance_duration'
-  | 'reps_only'
   | 'strength'
   | 'timed_strength'
   | 'cardio_session'

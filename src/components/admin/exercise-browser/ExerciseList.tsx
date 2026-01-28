@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Dumbbell, Clock, Activity, Signal, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
-import { deleteExerciseAction } from '@/app/admin/actions';
+import { deleteExerciseAction } from '@/app/workouts/actions';
 
 // Helper for badges
 function DifficultyBadge({ level }: { level?: string }) {
@@ -102,7 +102,7 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
         
         {/* Actions */}
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Link href={`/admin/workouts/${exercise.id}/edit`}>
+          <Link href={`/workouts/${exercise.id}/edit`}>
               <Button 
                 variant="ghost" 
                 size="sm" 

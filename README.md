@@ -17,7 +17,7 @@ npx tsx scripts/generate-defaults.ts
 ```
 
 ### Resetting Workouts
-In the Admin Dashboard (`/admin`), use the "Reset to Defaults" button to wipe the `exercise_catalog` table and restore it from the generated `src/lib/data/defaultExercises.ts` file. This is useful for syncing environments or restoring after bad edits.
+In the Workouts Dashboard (`/workouts`), use the "Reset to Defaults" button to wipe the `exercise_catalog` table and restore it from the generated `src/lib/data/defaultExercises.ts` file. This is useful for syncing environments or restoring after bad edits.
 
 ## Configuration Inputs
 

@@ -25,7 +25,7 @@ export default function NewWorkoutPage() {
     
     // Simulating success for now
     toast('Workout created successfully!', 'success');
-    router.push('/admin');
+    router.push('/workouts');
   };
 
   return (
@@ -35,8 +35,8 @@ export default function NewWorkoutPage() {
           <h1 className="text-2xl font-bold tracking-tight">Create New Standard Workout</h1>
           <p className="text-slate-500">Define a new exercise or workout template for the library.</p>
         </div>
-        <Link href="/admin">
-          <Button variant="outline" size="sm">Back to Admin</Button>
+        <Link href="/workouts">
+          <Button variant="outline" size="sm">Back to Workouts</Button>
         </Link>
       </div>
       

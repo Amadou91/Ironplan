@@ -369,4 +369,12 @@ svg:focus {
     background: var(--color-input-muted);
     color: var(--color-text-muted);
   }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

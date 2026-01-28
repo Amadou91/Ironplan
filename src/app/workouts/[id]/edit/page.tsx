@@ -42,43 +42,43 @@ export default function EditWorkoutPage() {
       }
 
       // Map DB fields to Domain fields
-      // Defaulting category/metricProfile based on old data if needed
-      let category: ExerciseCategory = 'Strength';
-      let metricProfile: MetricProfile = 'reps_weight';
+      let category: ExerciseCategory = (data.category as ExerciseCategory) || 'Strength';
+      let metricProfile: MetricProfile = (data.metric_profile as MetricProfile) || 'strength';
       
-      // Heuristic mapping for old data
-          if (data.focus === 'cardio' || data.goal === 'cardio' || data.metric_profile === 'cardio_session') {
-            category = 'Cardio';
-          } else if (data.focus === 'mobility' || data.metric_profile === 'mobility_session') {
-            category = 'Mobility';
-          } else {
-        // Strength defaults
-        if (data.metric_profile === 'timed_strength') metricProfile = 'duration';
-        else if (data.metric_profile === 'bodyweight') metricProfile = 'reps_only'; // assuming bodyweight mapped
-        else metricProfile = 'reps_weight';
+      // Heuristic mapping for old/legacy data
+      if (!data.category) {
+        if (data.focus === 'cardio' || data.metric_profile === 'cardio_session') {
+          category = 'Cardio';
+        } else if (data.focus === 'mobility' || data.metric_profile === 'mobility_session') {
+          category = 'Mobility';
+        }
+      }
+
+      // Cleanup metric profile
+      if (metricProfile === 'reps_weight' || metricProfile === 'reps_only' || (metricProfile as string) === 'duration') {
+        metricProfile = 'strength';
       }
 
       const exercise: Partial<Exercise> = {
         id: data.id,
         name: data.name,
-        category: category, // Derived
+        category: category,
         focus: data.focus,
-        metricProfile: metricProfile, // Derived/Mapped
+        metricProfile: metricProfile,
         sets: data.sets,
         reps: data.reps,
         rpe: data.rpe,
         equipment: data.equipment,
         difficulty: data.difficulty,
-        eligibleGoals: data.eligible_goals || (data.goal ? [data.goal] : []), // Use new column or fallback
+        eligibleGoals: data.eligible_goals || (data.goal ? [data.goal] : []),
         goal: data.goal,
         durationMinutes: data.duration_minutes,
         restSeconds: data.rest_seconds,
         primaryMuscle: data.primary_muscle,
         secondaryMuscles: data.secondary_muscles,
-        isInterval: !!data.sets && !!data.interval_duration, // Heuristic for interval
+        isInterval: data.is_interval,
         intervalDuration: data.interval_duration,
         intervalRest: data.interval_rest,
-        // ... map other fields if necessary
       };
 
       setInitialData(exercise);
@@ -96,13 +96,12 @@ export default function EditWorkoutPage() {
     // We'll update both old and new fields to ensure compatibility
     const updates = {
       name: data.name,
-          focus: data.category === 'Cardio' ? 'cardio' : data.category === 'Mobility' ? 'mobility' : data.focus, // Fallback focus
-          // category: data.category, // Uncomment if DB column exists
-          // eligible_goals: data.eligibleGoals, // Uncomment if DB column exists
-          goal: data.eligibleGoals?.[0] || data.goal, // Fallback goal
-          metric_profile: data.metricProfile === 'reps_weight' ? 'reps_weight' 
-            : data.metricProfile === 'duration' ? (data.category === 'Mobility' ? 'mobility_session' : 'timed_strength')
-            : data.metricProfile,      sets: data.sets,
+      category: data.category,
+      focus: data.focus,
+      eligible_goals: data.eligibleGoals,
+      goal: data.goal,
+      metric_profile: data.metricProfile,
+      sets: data.sets,
       reps: data.reps,
       rpe: data.rpe,
       equipment: data.equipment,
@@ -111,9 +110,9 @@ export default function EditWorkoutPage() {
       rest_seconds: data.restSeconds,
       primary_muscle: data.primaryMuscle,
       secondary_muscles: data.secondaryMuscles,
-      // interval fields if DB supports them
-      // interval_duration: data.intervalDuration,
-      // interval_rest: data.intervalRest,
+      is_interval: data.isInterval,
+      interval_duration: data.intervalDuration,
+      interval_rest: data.interval_rest,
     };
 
     const { error } = await supabase
@@ -126,7 +125,7 @@ export default function EditWorkoutPage() {
       toast(`Failed to update exercise: ${error.message}`, 'error');
     } else {
       toast('Exercise updated successfully!', 'success');
-      router.push('/admin');
+      router.push('/workouts');
     }
   };
 
@@ -141,8 +140,8 @@ export default function EditWorkoutPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Edit Workout</h1>
           <p className="text-slate-500">Update existing exercise details.</p>
         </div>
-         <Link href="/admin">
-          <Button variant="outline" size="sm">Back to Admin</Button>
+         <Link href="/workouts">
+          <Button variant="outline" size="sm">Back to Workouts</Button>
         </Link>
       </div>
       

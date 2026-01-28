@@ -11,11 +11,11 @@ import {
   FileJson,
   RefreshCw 
 } from 'lucide-react'
-import { 
-  resetWorkoutsAction, 
-  getExerciseBackupAction, 
-  importExercisesAction 
-} from '@/app/admin/actions'
+import {
+  resetToDefaultsAction,
+  getExerciseBackupAction,
+  importExercisesAction
+} from '@/app/workouts/actions'
 import { toast } from 'sonner' // Using sonner just in case, or just alerts
 
 export function DataManagementToolbar() {
@@ -31,7 +31,7 @@ export function DataManagementToolbar() {
 
     setIsLoading(true)
     try {
-      const res = await resetWorkoutsAction()
+      const res = await resetToDefaultsAction()
       if (res.success) {
         setIsResetOpen(false)
         setConfirmText('')

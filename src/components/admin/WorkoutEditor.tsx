@@ -29,10 +29,10 @@ const DIFFICULTIES: { value: Difficulty; label: string }[] = [
 ];
 
 const METRIC_PROFILES: { value: MetricProfile; label: string }[] = [
-  { value: 'reps_weight', label: 'Reps & Weight' },
-  { value: 'duration', label: 'Duration' },
-  { value: 'distance_duration', label: 'Distance & Duration' },
-  { value: 'reps_only', label: 'Reps Only' },
+  { value: 'strength', label: 'Reps & Weight' },
+  { value: 'timed_strength', label: 'Duration / Isometric' },
+  { value: 'cardio_session', label: 'Cardio Session' },
+  { value: 'mobility_session', label: 'Mobility / Yoga' },
 ];
 
 const MUSCLE_GROUPS: MuscleGroup[] = [
@@ -51,7 +51,7 @@ const GOALS: { value: Goal; label: string }[] = [
 const DEFAULT_EXERCISE: Partial<Exercise> = {
   name: '',
   category: 'Strength',
-  metricProfile: 'reps_weight',
+  metricProfile: 'strength',
   sets: 3,
   reps: 10,
   rpe: 8,
@@ -159,9 +159,9 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
   };
 
   const filteredMetricProfiles = METRIC_PROFILES.filter(p => {
-    if (formData.category === 'Strength') return ['reps_weight', 'reps_only'].includes(p.value);
-    if (formData.category === 'Cardio') return ['distance_duration', 'duration'].includes(p.value);
-    if (formData.category === 'Mobility') return ['duration'].includes(p.value);
+    if (formData.category === 'Strength') return ['strength', 'timed_strength'].includes(p.value);
+    if (formData.category === 'Cardio') return p.value === 'cardio_session';
+    if (formData.category === 'Mobility') return p.value === 'mobility_session';
     return true;
   });
 
@@ -176,7 +176,7 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
     const updates: Partial<Exercise> = { category: cat };
     if (cat === 'Strength') {
       updates.eligibleGoals = ['strength', 'hypertrophy', 'endurance'];
-      updates.metricProfile = 'reps_weight';
+      updates.metricProfile = 'strength';
     } else if (cat === 'Cardio') {
       updates.eligibleGoals = ['endurance'];
       updates.metricProfile = 'cardio_session';
@@ -225,7 +225,7 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
               <Label>Tracking Type</Label>
               <SegmentedControl
                 options={filteredMetricProfiles}
-                value={formData.metricProfile || 'reps_weight'}
+                value={formData.metricProfile || 'strength'}
                 onChange={(mp) => handleChange('metricProfile', mp)}
               />
             </div>
