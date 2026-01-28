@@ -8,10 +8,10 @@ export const METRIC_PROFILES: { label: string; value: MetricProfile; description
 ]
 
 export const EXERCISE_GOALS: { label: string; value: Goal; description: string }[] = [
-  { value: 'strength', label: 'Strength', description: 'Maximize force production' },
-  { value: 'hypertrophy', label: 'Hypertrophy', description: 'Muscle growth focus' },
-  { value: 'endurance', label: 'Endurance', description: 'Sustained effort' },
-  { value: 'range_of_motion', label: 'Range of Motion', description: 'Flexibility and mobility' }
+  { value: 'strength', label: 'Strength', description: 'Default for power/force focus (1-6 reps)' },
+  { value: 'hypertrophy', label: 'Hypertrophy', description: 'Default for muscle growth (8-12 reps)' },
+  { value: 'endurance', label: 'Endurance', description: 'Default for conditioning/high volume (15+ reps)' },
+  { value: 'range_of_motion', label: 'Range of Motion', description: 'Default for mobility/yoga' }
 ]
 
 export const FOCUS_AREAS = [
@@ -40,32 +40,6 @@ export function validateExercise(exercise: Partial<Exercise>): string[] {
 
   if (!exercise.primaryMuscle) {
     errors.push('Primary muscle is required')
-  }
-
-  if (!exercise.focus) {
-    errors.push('Focus area is required')
-  }
-
-  if (!exercise.goal) {
-    errors.push('Goal is required')
-  }
-
-  // Metric Profile Validation
-  if (exercise.metricProfile === 'cardio_session' || exercise.metricProfile === 'mobility_session') {
-    if (!exercise.durationMinutes || exercise.durationMinutes <= 0) {
-      errors.push('Duration is required for time-based profiles')
-    }
-  } else {
-    // Strength / Hypertrophy
-    if (!exercise.sets || exercise.sets <= 0) {
-      errors.push('Default sets must be greater than 0')
-    }
-    if (!exercise.reps) {
-      errors.push('Default rep range is required')
-    }
-    if (!exercise.rpe || exercise.rpe < 1 || exercise.rpe > 10) {
-      errors.push('Target RPE must be between 1 and 10')
-    }
   }
 
   return errors

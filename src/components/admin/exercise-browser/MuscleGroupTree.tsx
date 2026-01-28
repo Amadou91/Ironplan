@@ -22,13 +22,15 @@ interface MuscleGroupTreeProps {
   filteredExercises: Exercise[]; // used for counts
   selectedMuscle: string | null;
   onSelectMuscle: (muscle: string | null) => void;
+  isFilterActive?: boolean;
 }
 
 export function MuscleGroupTree({ 
   exercises, 
   filteredExercises, 
   selectedMuscle, 
-  onSelectMuscle 
+  onSelectMuscle,
+  isFilterActive = false
 }: MuscleGroupTreeProps) {
   
   // 1. Build the Tree Structure based on filtered exercises to show relevant counts
@@ -51,10 +53,15 @@ export function MuscleGroupTree({
     // Populate structure
     Object.entries(MUSCLE_MAPPING).forEach(([key, mapping]) => {
       if (!mapping) return;
+      if (key === 'cardio' || key === 'mobility') return; // Exclude from tree filter
       const { region } = mapping;
       
       // Ensure region exists (safe guard)
       if (!regions[region]) return;
+
+      // If filtering is active, only include if count > 0
+      if (isFilterActive && (muscleCounts[key] || 0) === 0) return;
+
       regions[region].directMuscles.push(key);
     });
 
@@ -86,6 +93,9 @@ export function MuscleGroupTree({
 
       const regionCount = children.reduce((acc, child) => acc + child.count, 0);
 
+      // If filtering is active, only include region if it has exercises
+      if (isFilterActive && regionCount === 0) return null;
+
       return {
         id: regionName,
         label: regionName,
@@ -95,7 +105,7 @@ export function MuscleGroupTree({
       } as TreeNode;
     }).filter(Boolean) as TreeNode[];
 
-  }, [filteredExercises]);
+  }, [filteredExercises, isFilterActive]);
 
   // Expand state management
   const [expandedNodes, setExpandedNodes] = React.useState<Record<string, boolean>>({});

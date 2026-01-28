@@ -1,21 +1,20 @@
 'use client';
 
 import React from 'react';
-import { Search, Filter, X } from 'lucide-react';
+import { Activity, Dumbbell, Filter, Heart, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
-import { ExerciseCategory, Difficulty, Goal } from '@/types/domain';
+import { ExerciseCategory, Goal } from '@/types/domain';
+import { cn } from '@/lib/utils';
 
 interface ExerciseFiltersProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   activeFilters: {
     category: ExerciseCategory[];
-    difficulty: Difficulty[];
     goal: Goal[];
   };
   setActiveFilters: React.Dispatch<React.SetStateAction<{
     category: ExerciseCategory[];
-    difficulty: Difficulty[];
     goal: Goal[];
   }>>;
 }
@@ -26,6 +25,12 @@ export function ExerciseFilters({
   activeFilters, 
   setActiveFilters 
 }: ExerciseFiltersProps) {
+
+  const categories = [
+    { value: 'Strength', label: 'Strength', icon: Dumbbell },
+    { value: 'Cardio', label: 'Cardio', icon: Heart },
+    { value: 'Mobility', label: 'Yoga / Mobility', icon: Activity }
+  ] as { value: ExerciseCategory; label: string; icon: React.ElementType }[];
 
   const toggleFilter = <K extends keyof typeof activeFilters>(
     type: K, 
@@ -41,72 +46,84 @@ export function ExerciseFilters({
   };
 
   const clearFilters = () => {
-    setActiveFilters({ category: [], difficulty: [], goal: [] });
+    setActiveFilters({ category: [], goal: [] });
     setSearchQuery('');
   };
 
-  const hasFilters = searchQuery || 
+  const hasFilters = Boolean(searchQuery) || 
     Object.values(activeFilters).some(arr => arr.length > 0);
 
   return (
-    <div className="space-y-4 mb-6">
+    <div className="space-y-5 mb-6">
       {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        <Input 
-          placeholder="Search exercises by name, equipment, or muscle..." 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-12 h-12 text-base bg-background rounded-xl"
-        />
-        {searchQuery && (
-          <button 
-            onClick={() => setSearchQuery('')}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        )}
+      <div className="rounded-2xl bg-[var(--color-surface-subtle)] border border-[var(--color-border)] shadow-sm transition-all p-4 sm:p-5">
+        <div className="relative">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary)] flex items-center justify-center shadow-sm">
+            <Search className="h-5 w-5" />
+          </div>
+          <Input 
+            placeholder="Search exercises by name, equipment, or muscle..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-14 pr-12 h-14 text-base font-semibold bg-[var(--color-surface)] text-[var(--color-text)] rounded-2xl border border-[var(--color-border)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary-soft)] focus-visible:border-[var(--color-border-strong)]"
+          />
+          {searchQuery && (
+            <button 
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+              aria-label="Clear search"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Chip Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center text-sm font-medium text-muted-foreground mr-2">
-          <Filter className="w-4 h-4 mr-2" />
-          <span>Filters:</span>
+      <div className="rounded-2xl bg-[var(--color-surface-subtle)] border border-[var(--color-border)] shadow-sm transition-all p-4 sm:p-5">
+        <div className="flex flex-wrap items-center gap-5">
+          <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-primary)] bg-[var(--color-primary-soft)] px-3 py-2 rounded-xl shadow-sm">
+            <Filter className="w-4 h-4" />
+            <span>Filters</span>
+          </div>
+
+          {/* Categories */}
+          <div className="flex flex-wrap items-center gap-3">
+            {categories.map(cat => {
+              const Icon = cat.icon;
+              const isActive = activeFilters.category.includes(cat.value);
+              
+              const activeColors: Record<string, string> = {
+                Strength: 'bg-blue-600 border-blue-600 text-white shadow-blue-200',
+                Cardio: 'bg-rose-600 border-rose-600 text-white shadow-rose-200',
+                Mobility: 'bg-teal-600 border-teal-600 text-white shadow-teal-200',
+              };
+
+              return (
+                <FilterButton 
+                  key={cat.value} 
+                  isActive={isActive} 
+                  onClick={() => toggleFilter('category', cat.value)}
+                  activeClassName={activeColors[cat.value]}
+                >
+                  <Icon className="w-4 h-4" />
+                  {cat.label}
+                </FilterButton>
+              );
+            })}
+          </div>
+
+          {hasFilters && (
+            <button 
+              type="button"
+              onClick={clearFilters}
+              className="ml-auto text-sm font-semibold text-[var(--color-danger)] hover:underline transition-colors"
+            >
+              Clear all
+            </button>
+          )}
         </div>
-
-        {/* Categories */}
-        {(['Strength', 'Cardio', 'Mobility'] as ExerciseCategory[]).map(cat => (
-          <FilterButton 
-            key={cat} 
-            isActive={activeFilters.category.includes(cat)} 
-            onClick={() => toggleFilter('category', cat)}
-          >
-            {cat === 'Mobility' ? 'Yoga / Mobility' : cat}
-          </FilterButton>
-        ))}
-
-        <div className="w-px h-6 bg-border mx-1" />
-
-        {/* Difficulties */}
-        {(['beginner', 'intermediate', 'advanced'] as Difficulty[]).map(diff => (
-          <FilterChip 
-            key={diff}
-            label={diff}
-            isActive={activeFilters.difficulty.includes(diff)}
-            onClick={() => toggleFilter('difficulty', diff)}
-          />
-        ))}
-
-        {hasFilters && (
-          <button 
-            onClick={clearFilters}
-            className="ml-auto text-sm font-medium text-destructive hover:underline"
-          >
-            Clear all
-          </button>
-        )}
       </div>
     </div>
   );
@@ -115,40 +132,27 @@ export function ExerciseFilters({
 function FilterButton({ 
   children, 
   isActive, 
-  onClick 
+  onClick,
+  activeClassName
 }: { 
   children: React.ReactNode; 
   isActive: boolean; 
   onClick: () => void; 
+  activeClassName?: string;
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`
-        px-4 py-2 rounded-full text-sm font-semibold transition-all border
-        ${isActive 
-          ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
-          : 'bg-secondary/50 text-secondary-foreground border-transparent hover:bg-secondary hover:border-border'
-        }
-      `}
+      aria-pressed={isActive}
+      className={cn(
+        "inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 border min-h-[44px]",
+        isActive 
+          ? (activeClassName || "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md shadow-[var(--color-primary-soft)]") 
+          : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:bg-[var(--color-surface-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+      )}
     >
       {children}
     </button>
-  );
-}
-
-function FilterChip({ 
-  label, 
-  isActive, 
-  onClick 
-}: { 
-  label: string; 
-  isActive: boolean; 
-  onClick: () => void; 
-}) {
-  return (
-    <FilterButton isActive={isActive} onClick={onClick}>
-      <span className="capitalize">{label}</span>
-    </FilterButton>
   );
 }

@@ -1,11 +1,15 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Dumbbell, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import type { TemplateRow } from '@/hooks/useDashboardData'
+import type { Goal } from '@/types/domain'
 
 interface TemplateInventoryProps {
   templates: TemplateRow[]
@@ -20,86 +24,117 @@ export function TemplateInventory({
   onDeleteTemplate,
   deletingWorkoutIds
 }: TemplateInventoryProps) {
+  const router = useRouter()
+  const [activeTemplate, setActiveTemplate] = useState<TemplateRow | null>(null)
+
+  const handleStartClick = (template: TemplateRow) => {
+    setActiveTemplate(template)
+  }
+
+  const handleConfirm = (data: { minutes: number; style: Goal; bodyWeight?: number }) => {
+    if (!activeTemplate) return
+    
+    const params = new URLSearchParams({
+      minutes: data.minutes.toString(),
+      style: data.style,
+      ...(data.bodyWeight ? { weight: data.bodyWeight.toString() } : {})
+    })
+    
+    router.push(`/workouts/${activeTemplate.id}/start?${params.toString()}`)
+    setActiveTemplate(null)
+  }
+
   return (
-    <Card className="p-8 md:p-10 lg:p-12">
-      <div className="flex items-center justify-between mb-10">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-surface-muted)] text-strong shadow-sm">
-            <Dumbbell className="h-6 w-6" />
+    <>
+      <Card className="p-8 md:p-10 lg:p-12">
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-surface-muted)] text-strong shadow-sm">
+              <Dumbbell className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-strong uppercase tracking-wider">Your Templates</h2>
+              <p className="text-sm text-muted">Saved workout structures for quick starts.</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-strong uppercase tracking-wider">Your Templates</h2>
-            <p className="text-sm text-muted">Saved workout structures for quick starts.</p>
-          </div>
+          <Link href="/generate">
+            <Button variant="ghost" size="md" className="text-accent font-bold">
+              <Plus className="h-5 w-5 mr-2" /> New Template
+            </Button>
+          </Link>
         </div>
-        <Link href="/generate">
-          <Button variant="ghost" size="md" className="text-accent font-bold">
-            <Plus className="h-5 w-5 mr-2" /> New Template
-          </Button>
-        </Link>
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {templates.length === 0 ? (
-          <div className="col-span-full rounded-2xl border border-dashed border-[var(--color-border)] p-12 text-center text-base text-muted">
-            No templates found.
-          </div>
-        ) : (
-          templates.map((template) => {
-            const isRecommended = recommendedTemplateId === template.id
-            const displayTitle = buildWorkoutDisplayName({
-              focus: template.focus,
-              style: template.style,
-              intensity: template.intensity,
-              fallback: template.title
-            })
-            return (
-              <div
-                key={template.id}
-                className="flex flex-col rounded-2xl border border-[var(--color-border)] p-6 transition-all hover:border-[var(--color-primary-border)] hover:bg-[var(--color-surface-subtle)] hover:shadow-md"
-              >
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-lg font-bold text-strong truncate">{displayTitle}</p>
-                    {isRecommended && (
-                      <span className="flex-shrink-0 rounded bg-[var(--color-success-soft)] px-2 py-1 text-[10px] font-black uppercase text-[var(--color-success)] border border-[var(--color-success-border)]">
-                        Best
-                      </span>
-                    )}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {templates.length === 0 ? (
+            <div className="col-span-full rounded-2xl border border-dashed border-[var(--color-border)] p-12 text-center text-base text-muted">
+              No templates found.
+            </div>
+          ) : (
+            templates.map((template) => {
+              const isRecommended = recommendedTemplateId === template.id
+              const displayTitle = buildWorkoutDisplayName({
+                focus: template.focus,
+                style: template.style,
+                intensity: template.intensity,
+                fallback: template.title
+              })
+              return (
+                <div
+                  key={template.id}
+                  className="flex flex-col rounded-2xl border border-[var(--color-border)] p-6 transition-all hover:border-[var(--color-primary-border)] hover:bg-[var(--color-surface-subtle)] hover:shadow-md"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-lg font-bold text-strong truncate">{displayTitle}</p>
+                      {isRecommended && (
+                        <span className="flex-shrink-0 rounded bg-[var(--color-success-soft)] px-2 py-1 text-[10px] font-black uppercase text-[var(--color-success)] border border-[var(--color-success-border)]">
+                          Best
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1.5 text-xs text-subtle uppercase font-bold tracking-widest">
+                      {template.style.replace('_', ' ')} · {template.focus}
+                    </p>
                   </div>
-                  <p className="mt-1.5 text-xs text-subtle uppercase font-bold tracking-widest">
-                    {template.style.replace('_', ' ')} · {template.focus}
-                  </p>
-                </div>
 
-                <div className="mt-8 flex items-center justify-between pt-5 border-t border-[var(--color-border)]/50">
-                  <div className="flex gap-2">
-                    <Link href={`/workouts/${template.id}/start`}>
-                      <Button size="sm" className="h-10 px-4 text-xs font-bold">
+                  <div className="mt-8 flex items-center justify-between pt-5 border-t border-[var(--color-border)]/50">
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        className="h-10 px-4 text-xs font-bold"
+                        onClick={() => handleStartClick(template)}
+                      >
                         Start
                       </Button>
-                    </Link>
-                    <Link href={`/workout/${template.id}?from=dashboard`}>
-                      <Button variant="secondary" size="sm" className="h-10 px-4 text-xs font-bold">
-                        Preview
-                      </Button>
-                    </Link>
+                      <Link href={`/workout/${template.id}?from=dashboard`}>
+                        <Button variant="secondary" size="sm" className="h-10 px-4 text-xs font-bold">
+                          Preview
+                        </Button>
+                      </Link>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 w-10 p-0 text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
+                      onClick={() => onDeleteTemplate(template)}
+                      disabled={Boolean(deletingWorkoutIds[template.id])}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-10 w-10 p-0 text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
-                    onClick={() => onDeleteTemplate(template)}
-                    disabled={Boolean(deletingWorkoutIds[template.id])}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
-              </div>
-            )
-          })
-        )}
-      </div>
-    </Card>
+              )
+            })
+          )}
+        </div>
+      </Card>
+
+      <SessionSetupModal 
+        isOpen={Boolean(activeTemplate)}
+        onClose={() => setActiveTemplate(null)}
+        onConfirm={handleConfirm}
+        initialCategory={activeTemplate?.focus}
+      />
+    </>
   )
 }

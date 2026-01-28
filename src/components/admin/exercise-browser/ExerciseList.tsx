@@ -3,35 +3,20 @@
 import React, { useState } from 'react';
 import { Exercise } from '@/types/domain';
 import { Badge } from '@/components/ui/Badge'; 
-import { Dumbbell, Clock, Activity, Signal, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Dumbbell, Clock, Signal, Pencil, Trash2, Loader2, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { deleteExerciseAction } from '@/app/workouts/actions';
-
-// Helper for badges
-function DifficultyBadge({ level }: { level?: string }) {
-  const colors: Record<string, string> = {
-    beginner: 'bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-900',
-    intermediate: 'bg-amber-500/10 text-amber-600 border-amber-200 dark:border-amber-900',
-    advanced: 'bg-rose-500/10 text-rose-600 border-rose-200 dark:border-rose-900',
-  };
-  const colorClass = level ? colors[level] || 'bg-slate-100 text-slate-600' : 'bg-slate-100 text-slate-600';
-  
-  return (
-    <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full border ${colorClass}`}>
-      {level || 'Unknown'}
-    </span>
-  );
-}
+import { cn } from '@/lib/utils';
 
 function CategoryBadge({ category }: { category: string }) {
   const colors: Record<string, string> = {
-    Strength: 'bg-indigo-500/10 text-indigo-600 border-indigo-200',
-    Cardio: 'bg-rose-500/10 text-rose-600 border-rose-200',
-    Mobility: 'bg-teal-500/10 text-teal-600 border-teal-200',
+    Strength: 'bg-blue-500/10 text-blue-600 border-blue-200 dark:border-blue-900',
+    Cardio: 'bg-rose-500/10 text-rose-600 border-rose-200 dark:border-rose-900',
+    Mobility: 'bg-teal-500/10 text-teal-600 border-teal-200 dark:border-teal-900',
   };
     return (
-      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${colors[category] || 'bg-gray-100 text-gray-600'}`}>
+      <span className={`text-[10px] uppercase tracking-wider font-black px-2 py-0.5 rounded-md border ${colors[category] || 'bg-muted text-muted-foreground'}`}>
         {category}
       </span>
     );
@@ -40,16 +25,16 @@ function CategoryBadge({ category }: { category: string }) {
 export function ExerciseList({ exercises }: { exercises: Exercise[] }) {
   if (exercises.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-center p-8 bg-surface border border-border border-dashed rounded-xl">
+      <div className="flex flex-col items-center justify-center h-64 text-center p-8 bg-surface-subtle border-2 border-border border-dashed rounded-2xl">
         <Dumbbell className="h-10 w-10 text-muted-foreground mb-4 opacity-50" />
-        <h3 className="text-lg font-medium text-foreground">No exercises found</h3>
+        <h3 className="text-lg font-bold text-foreground">No exercises found</h3>
         <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters or search terms.</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       {exercises.map(exercise => (
         <ExerciseCard key={exercise.id || exercise.name} exercise={exercise} />
       ))}
@@ -59,6 +44,19 @@ export function ExerciseList({ exercises }: { exercises: Exercise[] }) {
 
 function ExerciseCard({ exercise }: { exercise: Exercise }) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const category = exercise.category || 'Strength';
+
+  const categoryAccents: Record<string, string> = {
+    Strength: 'hover:border-blue-500/50 hover:shadow-blue-500/5',
+    Cardio: 'hover:border-rose-500/50 hover:shadow-rose-500/5',
+    Mobility: 'hover:border-teal-500/50 hover:shadow-teal-500/5',
+  };
+
+  const categoryIconColors: Record<string, string> = {
+    Strength: 'text-blue-500',
+    Cardio: 'text-rose-500',
+    Mobility: 'text-teal-500',
+  };
 
   const handleDelete = async () => {
     if (!exercise.id) return;
@@ -71,7 +69,6 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
         alert('Failed to delete: ' + res.error);
         setIsDeleting(false);
       }
-      // If success, server revalidation will remove the card.
     } catch (e) {
       alert('Error deleting exercise');
       setIsDeleting(false);
@@ -79,21 +76,31 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
   };
 
   return (
-    <div className="group relative bg-surface border border-border rounded-xl p-6 hover:shadow-md hover:border-primary/50 transition-all duration-200 flex flex-col gap-5">
+    <div className={cn(
+      "group relative bg-surface border border-border rounded-2xl p-6 transition-all duration-300 flex flex-col gap-6",
+      categoryAccents[category] || 'hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30'
+    )}>
       
       {/* Header */}
       <div className="flex justify-between items-start gap-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <h4 className="font-bold text-xl text-foreground group-hover:text-primary transition-colors">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h4 className={cn(
+              "font-black text-xl tracking-tight text-foreground transition-colors",
+              category === 'Strength' ? 'group-hover:text-blue-600' : 
+              category === 'Cardio' ? 'group-hover:text-rose-600' : 
+              category === 'Mobility' ? 'group-hover:text-teal-600' : 'group-hover:text-primary'
+            )}>
               {exercise.name}
             </h4>
-            <CategoryBadge category={exercise.category} />
+            <CategoryBadge category={category} />
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-4 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
              {exercise.equipment && exercise.equipment.length > 0 && (
-                <span className="flex items-center gap-1.5">
-                   <Dumbbell className="w-4 h-4" />
+                <span className="flex items-center gap-2">
+                   <div className="p-1.5 bg-muted rounded-lg text-foreground/70">
+                      <Dumbbell className="w-3.5 h-3.5" />
+                   </div>
                    {exercise.equipment.map(e => e.kind === 'machine' ? (e.machineType || 'Machine') : e.kind).join(', ')}
                 </span>
              )}
@@ -101,21 +108,26 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
         </div>
         
         {/* Actions */}
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-2 lg:opacity-0 group-hover:opacity-100 transition-all transform lg:translate-x-2 group-hover:translate-x-0">
           <Link href={`/workouts/${exercise.id}/edit`}>
               <Button 
-                variant="ghost" 
+                variant="secondary" 
                 size="sm" 
-                className="h-9 w-9 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                className={cn(
+                  "h-9 w-9 p-0 rounded-xl transition-all",
+                  category === 'Strength' ? 'hover:bg-blue-600 hover:text-white' : 
+                  category === 'Cardio' ? 'hover:bg-rose-600 hover:text-white' : 
+                  category === 'Mobility' ? 'hover:bg-teal-600 hover:text-white' : 'hover:bg-primary hover:text-primary-foreground'
+                )}
                 title="Edit"
               >
                   <Pencil className="w-4 h-4" />
               </Button>
           </Link>
           <Button 
-            variant="ghost" 
+            variant="secondary" 
             size="sm" 
-            className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className="h-9 w-9 p-0 rounded-xl hover:bg-destructive hover:text-destructive-foreground transition-all"
             onClick={handleDelete}
             disabled={isDeleting}
             title="Delete"
@@ -126,53 +138,99 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-3 gap-3 mt-auto">
-        <div className="bg-muted/40 rounded-lg p-3 flex flex-col items-center justify-center text-center">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">
-                {exercise.isInterval ? 'Structure' : 'Volume'}
-            </span>
-            <span className="text-base font-bold tabular-nums">
+      <div className="grid grid-cols-3 gap-4">
+        <div className={cn(
+          "bg-surface-subtle border border-border/50 rounded-2xl p-4 flex flex-col items-center justify-center text-center group/metric transition-colors",
+          category === 'Strength' ? 'hover:border-blue-500/20' : 
+          category === 'Cardio' ? 'hover:border-rose-500/20' : 
+          category === 'Mobility' ? 'hover:border-teal-500/20' : 'hover:border-primary/20'
+        )}>
+            <div className={cn(
+              "flex items-center gap-2 mb-2 text-muted-foreground transition-colors",
+              category === 'Strength' ? 'group-hover/metric:text-blue-500' : 
+              category === 'Cardio' ? 'group-hover/metric:text-rose-500' : 
+              category === 'Mobility' ? 'group-hover/metric:text-teal-500' : 'group-hover/metric:text-primary'
+            )}>
+                <Layers className="w-3.5 h-3.5" />
+                <span className="text-[10px] uppercase tracking-[0.2em] font-black">
+                    {exercise.isInterval ? 'Intervals' : 'Sets'}
+                </span>
+            </div>
+            <span className="text-lg font-black tabular-nums text-foreground">
                 {exercise.isInterval 
-                    ? `${exercise.sets} × ${exercise.intervalDuration}s/${exercise.intervalRest}s` 
+                    ? `${exercise.sets} × ${exercise.intervalDuration}s` 
                     : `${exercise.sets} × ${exercise.reps}`
                 }
             </span>
         </div>
-        <div className="bg-muted/40 rounded-lg p-3 flex flex-col items-center justify-center text-center">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Intensity</span>
-            <div className="flex items-center gap-1.5">
-                <Signal className="w-4 h-4 text-amber-500" />
-                <span className="text-base font-bold tabular-nums">{exercise.rpe}</span>
+
+        <div className={cn(
+          "bg-surface-subtle border border-border/50 rounded-2xl p-4 flex flex-col items-center justify-center text-center group/metric transition-colors",
+          category === 'Strength' ? 'hover:border-blue-500/20' : 
+          category === 'Cardio' ? 'hover:border-rose-500/20' : 
+          category === 'Mobility' ? 'hover:border-teal-500/20' : 'hover:border-primary/20'
+        )}>
+            <div className="flex items-center gap-2 mb-2 text-muted-foreground group-hover/metric:text-amber-500 transition-colors">
+                <Signal className="w-3.5 h-3.5" />
+                <span className="text-[10px] uppercase tracking-[0.2em] font-black">RPE</span>
             </div>
+            <span className="text-lg font-black tabular-nums text-foreground">{exercise.rpe || 8}</span>
         </div>
         
-        {!exercise.isInterval && (
-            <div className="bg-muted/40 rounded-lg p-3 flex flex-col items-center justify-center text-center">
-                <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Rest</span>
-                <div className="flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-blue-500" />
-                    <span className="text-base font-bold tabular-nums">{exercise.restSeconds}s</span>
+        <div className={cn(
+          "bg-surface-subtle border border-border/50 rounded-2xl p-4 flex flex-col items-center justify-center text-center group/metric transition-colors",
+          category === 'Strength' ? 'hover:border-blue-500/20' : 
+          category === 'Cardio' ? 'hover:border-rose-500/20' : 
+          category === 'Mobility' ? 'hover:border-teal-500/20' : 'hover:border-primary/20'
+        )}>
+            {exercise.isInterval ? (
+              <>
+                <div className="flex items-center gap-2 mb-2 text-muted-foreground group-hover/metric:text-blue-500 transition-colors">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-black">Rest</span>
                 </div>
-            </div>
-        )}
-        
-        {exercise.isInterval && (
-             <div className="bg-muted/40 rounded-lg p-3 flex flex-col items-center justify-center text-center opacity-50">
-                <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Type</span>
-                <span className="text-base font-bold tabular-nums">Intervals</span>
-            </div>
-        )}
+                <span className="text-lg font-black tabular-nums text-foreground">{exercise.intervalRest}s</span>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-2 text-muted-foreground group-hover/metric:text-blue-500 transition-colors">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-black">Rest</span>
+                </div>
+                <span className="text-lg font-black tabular-nums text-foreground">{exercise.restSeconds}s</span>
+              </>
+            )}
+        </div>
       </div>
 
-      {/* Footer Tags */}
-      <div className="flex items-center justify-between pt-3 border-t border-border/50">
-        <DifficultyBadge level={exercise.difficulty} />
-        {exercise.primaryMuscle && (
-             <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
-                Target: {exercise.primaryMuscle.replace('_', ' ')}
-             </span>
+      {/* Footer Info */}
+      <div className="flex items-center justify-between pt-4 border-t border-border/50">
+        {exercise.primaryMuscle ? (
+             <div className="flex items-center gap-2">
+                <div className={cn(
+                  "w-1.5 h-1.5 rounded-full",
+                  category === 'Strength' ? 'bg-blue-500' : 
+                  category === 'Cardio' ? 'bg-rose-500' : 
+                  category === 'Mobility' ? 'bg-teal-500' : 'bg-primary'
+                )} />
+                <span className="text-[10px] text-strong uppercase tracking-[0.15em] font-black">
+                  Target: {exercise.primaryMuscle.replace('_', ' ')}
+                </span>
+             </div>
+        ) : <div />}
+        
+        {exercise.e1rmEligible && (
+          <span className={cn(
+            "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border",
+            category === 'Strength' ? 'text-blue-600 bg-blue-50 border-blue-100' : 
+            category === 'Cardio' ? 'text-rose-600 bg-rose-50 border-rose-100' : 
+            category === 'Mobility' ? 'text-teal-600 bg-teal-50 border-teal-100' : 'text-primary bg-primary/5 border-primary/10'
+          )}>
+            E1RM Enabled
+          </span>
         )}
       </div>
     </div>
   );
 }
+

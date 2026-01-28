@@ -25,11 +25,11 @@ export type MuscleGroup =
 
 export type BandResistance = 'light' | 'medium' | 'heavy'
 
-export type MachineType = 'cable' | 'leg_press' | 'treadmill' | 'rower'
+export type MachineType = 'cable' | 'leg_press' | 'treadmill' | 'rower' | 'indoor_bicycle'
 
 export type EquipmentPreset = 'home_minimal' | 'full_gym' | 'hotel'
 
-export type EquipmentKind = 'bodyweight' | 'dumbbell' | 'kettlebell' | 'band' | 'barbell' | 'machine'
+export type EquipmentKind = 'bodyweight' | 'dumbbell' | 'kettlebell' | 'band' | 'barbell' | 'machine' | 'block' | 'bolster' | 'strap'
 
 export type EquipmentOption =
   | { kind: 'bodyweight' }
@@ -38,6 +38,9 @@ export type EquipmentOption =
   | { kind: 'band' }
   | { kind: 'barbell' }
   | { kind: 'machine'; machineType?: MachineType }
+  | { kind: 'block' }
+  | { kind: 'bolster' }
+  | { kind: 'strap' }
 
 export type WeightUnit = 'lb' | 'kg'
 export type DistanceUnit = 'm' | 'km' | 'miles'
@@ -75,8 +78,9 @@ export type FocusArea =
   | 'triceps'
   | 'chest'
   | 'back'
+  | 'shoulders'
 
-export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'range_of_motion'
+export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'range_of_motion' | 'cardio' | 'general_fitness'
 
 export type GoalPriority = 'primary' | 'secondary' | 'balanced'
 
@@ -101,6 +105,9 @@ export type MetricProfile =
   | 'timed_strength'
   | 'cardio_session'
   | 'mobility_session'
+  | 'reps_weight'
+  | 'reps_only'
+  | 'duration'
 
 export type ExerciseCategory = 'Strength' | 'Cardio' | 'Mobility'
 

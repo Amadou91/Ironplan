@@ -30,7 +30,8 @@ import {
   buildFocusDistribution,
   calculateWorkoutImpact,
   buildFocusSequence,
-  formatFocusLabel
+  formatFocusLabel,
+  formatGoalLabel
 } from './utils'
 import {
   deriveReps,
@@ -174,7 +175,7 @@ const buildSessionForTime = (
         return false
       }
     }
-    const planned = createPlannedExercise(exercise, source, input, targetMinutes, minSetCap, maxSetCap, restModifier, reps, goal)
+    const planned = createPlannedExercise(exercise, source, input, targetMinutes, minSetCap, maxSetCap, restModifier, reps ?? '8-12', goal)
     if (!planned) return false
     if (focusConstraint && !isAllowedFocusExercise(exercise)) return false
     if (focusConstraint && !isPrimaryMatch(exercise)) {
@@ -196,7 +197,7 @@ const buildSessionForTime = (
 
   const seedPool = primaryPool.length ? primaryPool : secondaryPool
   const seedSource: ExerciseSource = primaryPool.length ? 'primary' : 'secondary'
-  const sortedSeed = orderPool(seedPool, seedSource, input, hist, rng)
+  const sortedSeed = orderPool(seedPool, seedSource, input, hist, rng, goal)
   let totalMinutes = 0
   sortedSeed.some((exercise) => {
     const added = canAdd(exercise, primaryPool.includes(exercise) ? 'primary' : 'secondary', totalMinutes)
@@ -213,7 +214,7 @@ const buildSessionForTime = (
   ]
 
   fillPools.forEach(({ source, pool }) => {
-    const orderedPool = orderPool(pool, source, input, hist, rng)
+    const orderedPool = orderPool(pool, source, input, hist, rng, goal)
     for (const exercise of orderedPool) {
       if (picks.length >= minExercises) break
       if (canAdd(exercise, source, totalMinutes)) {
@@ -242,7 +243,7 @@ const buildSessionForTime = (
     }
   }
 
-  const orderedAccessoryPool = orderPool(accessoryPool, 'accessory', input, hist, rng)
+  const orderedAccessoryPool = orderPool(accessoryPool, 'accessory', input, hist, rng, goal)
   for (const exercise of orderedAccessoryPool) {
     if (picks.length >= maxExercises || totalMinutes >= targetMinutes - 5) break
     if (canAdd(exercise, 'accessory', totalMinutes)) {
@@ -262,7 +263,7 @@ const buildSessionForTime = (
     }
   }
 
-  const orderedPicks = reorderForVariety(picks, rng, input, hist)
+  const orderedPicks = reorderForVariety(picks, rng, input, hist, goal)
   return {
     exercises: orderedPicks.map(({ exercise, prescription }) => ({
       ...exercise,

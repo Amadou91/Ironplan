@@ -27,7 +27,8 @@ const focusLabelMap: Record<FocusArea, string> = {
   biceps: 'Biceps',
   triceps: 'Triceps',
   chest: 'Chest',
-  back: 'Back'
+  back: 'Back',
+  shoulders: 'Shoulders'
 }
 
 const goalLabelMap: Record<string, string> = {

@@ -83,10 +83,11 @@ export const hasEquipment = (inventory: EquipmentInventory) =>
   Object.values(inventory.machines).some(Boolean)
 
 export const machineLabels: Record<MachineType, string> = {
-  cable: 'Cable Station',
+  cable: 'Cable Machine',
   leg_press: 'Leg Press',
   treadmill: 'Treadmill',
-  rower: 'Rower'
+  rower: 'Rowing Machine',
+  indoor_bicycle: 'Indoor Bicycle'
 }
 
 export const bandLabels: Record<BandResistance, string> = {
