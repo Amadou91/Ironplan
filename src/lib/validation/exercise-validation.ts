@@ -50,24 +50,6 @@ export function validateExercise(exercise: Partial<Exercise>): string[] {
     errors.push('Goal is required')
   }
 
-  // Metric Profile Validation
-  if (exercise.metricProfile === 'cardio_session' || exercise.metricProfile === 'mobility_session') {
-    if (!exercise.durationMinutes || exercise.durationMinutes <= 0) {
-      errors.push('Duration is required for time-based profiles')
-    }
-  } else {
-    // Strength / Hypertrophy
-    if (!exercise.sets || exercise.sets <= 0) {
-      errors.push('Default sets must be greater than 0')
-    }
-    if (!exercise.reps) {
-      errors.push('Default rep range is required')
-    }
-    if (!exercise.rpe || exercise.rpe < 1 || exercise.rpe > 10) {
-      errors.push('Target RPE must be between 1 and 10')
-    }
-  }
-
   return errors
 }
 

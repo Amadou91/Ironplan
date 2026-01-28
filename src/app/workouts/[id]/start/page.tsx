@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Clock, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { normalizePlanInput } from '@/lib/generator'
@@ -64,6 +64,7 @@ const shiftExperienceLevel = (base: PlanInput['experienceLevel'], delta: -1 | 0 
 
 export default function WorkoutStartPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const supabase = createClient()
   const { user } = useUser()
@@ -75,7 +76,15 @@ export default function WorkoutStartPage() {
   const [startingSession, setStartingSession] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [showConflictModal, setShowConflictModal] = useState(false)
-  const [minutesAvailable, setMinutesAvailable] = useState(45)
+  
+  const queryMinutes = searchParams.get('minutes')
+  const queryStyle = searchParams.get('style') as Goal | null
+  const queryWeight = searchParams.get('weight')
+
+  const [minutesAvailable, setMinutesAvailable] = useState(queryMinutes ? parseInt(queryMinutes) : 45)
+  const [overrideStyle, setOverrideStyle] = useState<Goal | null>(queryStyle)
+  const [bodyWeightLb, setBodyWeightLb] = useState<number | undefined>(queryWeight ? parseFloat(queryWeight) : undefined)
+
   const [catalog, setCatalog] = useState<Exercise[]>([])
   const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurveyDraft>({
     sleep: null, soreness: null, stress: null, motivation: null
@@ -107,7 +116,9 @@ export default function WorkoutStartPage() {
       
       if (!templateRes.error) {
         setTemplate(templateRes.data)
-        setMinutesAvailable(templateRes.data?.template_inputs?.time?.minutesPerSession ?? 45)
+        if (!queryMinutes) {
+          setMinutesAvailable(templateRes.data?.template_inputs?.time?.minutesPerSession ?? 45)
+        }
       }
       if (!catalogRes.error && catalogRes.data) {
         setCatalog(catalogRes.data.map(mapCatalogRowToExercise))
@@ -115,7 +126,7 @@ export default function WorkoutStartPage() {
       setLoading(false)
     }
     if (params.id) init()
-  }, [params.id, supabase])
+  }, [params.id, supabase, queryMinutes])
 
   const readinessComplete = useMemo(() => READINESS_FIELDS.every((f) => typeof readinessSurvey[f.key] === 'number'), [readinessSurvey])
   const readinessScore = useMemo(() => (readinessComplete ? computeReadinessScore(readinessSurvey as ReadinessSurvey) : null), [readinessComplete, readinessSurvey])
@@ -148,17 +159,103 @@ export default function WorkoutStartPage() {
         } 
       }
       const history = await fetchTemplateHistory(supabase, template.id)
+      
+      const sessionGoal = overrideStyle ?? template.style
+      
       const { sessionId, startedAt, sessionName, exercises, impact, timezone, sessionNotes } = await createWorkoutSession({
-        supabase, userId: user.id, templateId: template.id, templateTitle: buildWorkoutDisplayName({ focus: template.focus, style: template.style, intensity: template.intensity, fallback: template.title }),
-        focus: template.focus, goal: template.style, input: tunedInputs, minutesAvailable, readiness: { survey: readinessSurvey as ReadinessSurvey, score: readinessScore, level: readinessLevel },
+        supabase, userId: user.id, templateId: template.id, templateTitle: buildWorkoutDisplayName({ focus: template.focus, style: sessionGoal, intensity: template.intensity, fallback: template.title }),
+        focus: template.focus, goal: sessionGoal, input: tunedInputs, minutesAvailable, readiness: { survey: readinessSurvey as ReadinessSurvey, score: readinessScore, level: readinessLevel },
         sessionNotes: { sessionIntensity: selectedIntensity.intensity, minutesAvailable, readiness: readinessLevel, readinessScore, readinessSurvey: readinessSurvey as ReadinessSurvey, source: 'workout_start' },
         history, nameSuffix: '',
-        catalog
+        catalog,
+        bodyWeightLb: bodyWeightLb
       })
       startSession({ id: sessionId, userId: user.id, templateId: template.id, name: sessionName, startedAt, status: 'in_progress', impact, exercises, timezone, sessionNotes })
       router.push(`/workouts/${template.id}/active?sessionId=${sessionId}&from=start`)
     } catch { setStartError('Unable to start the session.') } finally { setStartingSession(false) }
   }
+
+  if (loading) return <div className="page-shell p-10 text-center text-muted">Loading session setup...</div>
+  if (!template) return <div className="page-shell p-10 text-center text-muted">Template not found.</div>
+
+  const activeSessionLink = activeSession?.templateId ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=workouts` : '/dashboard'
+
+  return (
+    <div className="page-shell">
+      <div className="w-full px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-2">
+            <h1 className="font-display text-3xl font-semibold text-strong">Start {buildWorkoutDisplayName({ focus: template.focus, style: overrideStyle ?? template.style, intensity: template.intensity, fallback: template.title })}</h1>
+            {template.description && <p className="text-sm text-muted">{template.description}</p>}
+          </div>
+        </div>
+        {startError && <div className="alert-error p-4 text-sm mb-6">{startError}</div>}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4"><Clock className="h-5 w-5 text-accent" /><h2 className="text-lg font-semibold text-strong">Session settings</h2></div>
+              <div className="space-y-6">
+                <div>
+                  <div className="flex items-center justify-between text-xs text-subtle"><span>Minutes available</span><span className="text-strong">{minutesAvailable} min</span></div>
+                  <input type="range" min={20} max={120} step={5} value={minutesAvailable} onChange={(e) => setMinutesAvailable(Number(e.target.value))} className="mt-3 w-full" />
+                  <div className="mt-3 flex flex-wrap gap-2">{[30, 45, 60, 75].map((v) => <Button key={v} size="sm" variant={minutesAvailable === v ? 'primary' : 'secondary'} onClick={() => setMinutesAvailable(v)}>{v} min</Button>)}</div>
+                </div>
+
+                {template.focus === 'cardio' && availableCardioOptions.length > 0 && (
+                  <div className="surface-card-muted p-5 rounded-xl border border-[var(--color-border)]">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-strong mb-4">Choose cardio activities</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {availableCardioOptions.map((option) => (
+                        <Checkbox
+                          key={option.value}
+                          label={option.label}
+                          checked={selectedCardioActivities.includes(option.value)}
+                          onCheckedChange={() => {
+                            setSelectedCardioActivities(prev => 
+                              prev.includes(option.value) 
+                                ? prev.filter(v => v !== option.value) 
+                                : [...prev, option.value]
+                            )
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <p className="mt-3 text-[10px] text-subtle italic">Leave blank to include any activity matching your equipment.</p>
+                  </div>
+                )}
+
+                <ReadinessCheck survey={readinessSurvey} onUpdateField={(f, v) => setReadinessSurvey(p => ({ ...p, [f]: v }))} score={readinessScore} level={readinessLevel} />
+              </div>
+            </Card>
+            <SessionPreview focus={template.focus} style={overrideStyle ?? template.style} intensityLabel={readinessLevel ? selectedIntensity.label : 'Pending readiness'} equipmentInventory={template.template_inputs?.equipment?.inventory} />
+          </div>
+          <div className="space-y-4">
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold text-strong">Ready to train?</h2>
+              <p className="mt-2 text-sm text-muted">We will adapt this plan to your time, readiness, and equipment.</p>
+              <Button type="button" onClick={() => handleStartSession()} disabled={startingSession || !readinessComplete} className="mt-4 w-full justify-center">{startingSession ? 'Starting...' : 'Start Session'}</Button>
+              {activeSession && <p className="mt-3 text-center text-xs font-medium text-accent">Session in progress</p>}
+              <p className="mt-3 text-xs text-subtle">{readinessLevel ? `Readiness is ${readinessLevel}. Intensity set to ${selectedIntensity.label}.` : 'Complete readiness to set intensity.'}</p>
+            </Card>
+          </div>
+        </div>
+      </div>
+      {showConflictModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="surface-elevated w-full max-w-md p-6 shadow-2xl border border-[var(--color-border-strong)]">
+            <div className="flex items-center gap-3 text-[var(--color-warning)] mb-4"><AlertTriangle size={24} /><h3 className="text-xl font-bold text-strong">Session in Progress</h3></div>
+            <p className="text-sm text-muted mb-6">You already have an active workout session. Would you like to continue it, or cancel it and start this new one?</p>
+            <div className="space-y-3">
+              <Button className="w-full justify-center py-6" onClick={() => router.push(activeSessionLink)}>Continue Current Session</Button>
+              <Button variant="ghost" className="w-full justify-center text-[var(--color-danger)]" onClick={() => handleStartSession(true)} disabled={startingSession}>{startingSession ? 'Starting...' : 'Cancel & Start New'}</Button>
+              <Button variant="secondary" className="w-full justify-center" onClick={() => setShowConflictModal(false)}>Go Back</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
   if (loading) return <div className="page-shell p-10 text-center text-muted">Loading session setup...</div>
   if (!template) return <div className="page-shell p-10 text-center text-muted">Template not found.</div>

@@ -14,11 +14,9 @@ export function ExerciseBrowser({ initialExercises }: ExerciseBrowserProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<{
     category: ExerciseCategory[];
-    difficulty: Difficulty[];
     goal: Goal[];
   }>({
     category: [],
-    difficulty: [],
     goal: []
   });
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
@@ -40,9 +38,6 @@ export function ExerciseBrowser({ initialExercises }: ExerciseBrowserProps) {
     // 2. Chip Filters
     if (activeFilters.category.length > 0) {
       result = result.filter(ex => activeFilters.category.includes(ex.category));
-    }
-    if (activeFilters.difficulty.length > 0) {
-      result = result.filter(ex => ex.difficulty && activeFilters.difficulty.includes(ex.difficulty));
     }
     // (Add goal filtering if eligibleGoals is reliably populated, usually implicit in category/exercise type)
 

@@ -89,8 +89,6 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
     return true
   }) || METRIC_PROFILE_OPTIONS[0]
 
-  const derivedResult = deriveMetricProfile(formData.category, formData.goal)
-
   const handleProfileChange = (virtualValue: string) => {
     const option = METRIC_PROFILE_OPTIONS.find(o => o.value === virtualValue)
     if (!option) return
@@ -98,35 +96,9 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
     setFormData(prev => ({
       ...prev,
       metricProfile: option.backendProfile,
-      isInterval: option.isInterval,
-      restSeconds: option.isInterval ? 0 : prev.restSeconds
+      isInterval: option.isInterval
     }))
   }
-
-  useEffect(() => {
-    if (!isAdvanced) {
-      const { option } = deriveMetricProfile(formData.category, formData.goal)
-      const needsUpdate = 
-        formData.metricProfile !== option.backendProfile || 
-        (option.isInterval !== undefined && !!formData.isInterval !== option.isInterval)
-
-      if (needsUpdate) {
-        setFormData(prev => ({ 
-          ...prev, 
-          metricProfile: option.backendProfile,
-          isInterval: option.isInterval ?? prev.isInterval 
-        }))
-      }
-    }
-  }, [formData.category, formData.goal, isAdvanced, formData.metricProfile, formData.isInterval])
-
-  const constraints = getConstraintForProfile(formData.metricProfile)
-
-  useEffect(() => {
-    if (!constraints.allowLoad && formData.loadTarget) {
-      setFormData(prev => ({ ...prev, loadTarget: undefined }))
-    }
-  }, [constraints.allowLoad, formData.loadTarget])
 
   useEffect(() => {
     if (!isAdvanced && formData.primaryMuscle && exerciseType === 'Strength') {
@@ -409,6 +381,42 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                         })}
                       </div>
                     </div>
+
+                    <div className="col-span-12 pt-6 border-t border-[var(--color-border)]">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({...formData, e1rmEligible: !formData.e1rmEligible})}
+                        className={cn(
+                          "w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-300 group",
+                          formData.e1rmEligible 
+                            ? "bg-[var(--color-primary-soft)] border-[var(--color-primary-border)] text-[var(--color-primary-strong)]" 
+                            : "bg-[var(--color-surface-subtle)] border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
+                        )}
+                      >
+                        <div className={cn(
+                          "p-2.5 rounded-xl transition-all duration-300",
+                          formData.e1rmEligible 
+                            ? "bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary-soft)]" 
+                            : "bg-[var(--color-surface)] text-[var(--color-text-subtle)] border border-[var(--color-border)]"
+                        )}>
+                          <Activity className="w-5 h-5" />
+                        </div>
+                        <div className="flex flex-col items-start text-left gap-0.5">
+                          <span className="font-black text-[11px] uppercase tracking-widest">E1RM Eligible</span>
+                          <span className="text-[10px] font-medium opacity-70 leading-tight">Enable strength estimation & max effort tracking</span>
+                        </div>
+                        <div className="ml-auto">
+                           <div className={cn(
+                            "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-300",
+                            formData.e1rmEligible 
+                              ? "bg-[var(--color-primary)] border-[var(--color-primary)] text-white rotate-0" 
+                              : "border-[var(--color-border-strong)] opacity-30"
+                          )}>
+                            <Check className={cn("w-3.5 h-3.5 stroke-[4px] transition-transform duration-300", formData.e1rmEligible ? "scale-100" : "scale-0")} />
+                          </div>
+                        </div>
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <div className="col-span-12 bg-[var(--color-primary-soft)]/50 border border-[var(--color-primary-border)] rounded-2xl p-5 flex items-center gap-5 group transition-all hover:bg-[var(--color-primary-soft)]">
@@ -495,163 +503,7 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
           </Card>
         </div>
 
-        {/* Right Column: Training Standards */}
-        <div className="col-span-12 lg:col-span-4 space-y-8">
-          
-          <Card className="sticky top-8 overflow-hidden">
-            <CardHeader className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] py-5 px-8">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-[var(--color-primary-soft)] rounded-lg text-[var(--color-primary)]">
-                    <Settings2 className="w-5 h-5" />
-                  </div>
-                  <CardTitle className="text-lg font-bold tracking-tight">Standards</CardTitle>
-                </div>
-                {formData.metricProfile === 'strength' && (
-                  <div className="flex items-center gap-2">
-                    <Checkbox 
-                      id="intervalMode" 
-                      checked={formData.isInterval || false} 
-                      onCheckedChange={(c) => setFormData({...formData, isInterval: c === true})}
-                    />
-                    <Label htmlFor="intervalMode" className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest cursor-pointer select-none">Interval</Label>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-8 space-y-8">
-              
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label className="block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">
-                    {formData.isInterval ? 'Intervals' : 'Default Sets'}
-                  </Label>
-                  <Input 
-                    type="number" 
-                    min="1"
-                    value={formData.sets || ''} 
-                    onChange={e => setFormData({...formData, sets: Number(e.target.value)})}
-                    className="text-center font-black text-2xl h-14"
-                  />
-                </div>
-
-                {formData.isInterval ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest text-center">Work (s)</Label>
-                      <Input 
-                        type="number"
-                        min="1"
-                        value={formData.intervalDuration || ''} 
-                        onChange={e => setFormData({...formData, intervalDuration: Number(e.target.value)})}
-                        className="text-center font-bold"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest text-center">Rest (s)</Label>
-                      <Input 
-                        type="number"
-                        min="0"
-                        value={formData.intervalRest || ''} 
-                        onChange={e => setFormData({...formData, intervalRest: Number(e.target.value)})}
-                        className="text-center font-bold"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {(constraints.requiresReps || (!constraints.requiresDuration && !formData.isInterval)) && (
-                      <div className="space-y-2">
-                        <Label className="block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">Rep Range</Label>
-                        <Input 
-                          value={formData.reps || ''} 
-                          onChange={e => setFormData({...formData, reps: e.target.value})} 
-                          placeholder="8-12"
-                          className="text-center font-bold h-12"
-                        />
-                      </div>
-                    )}
-
-                    {constraints.requiresDuration && (
-                      <div className="space-y-2">
-                        <Label className="block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">Duration (Min)</Label>
-                        <Input 
-                          type="number" 
-                          min="1"
-                          value={formData.durationMinutes || ''} 
-                          onChange={e => setFormData({...formData, durationMinutes: Number(e.target.value)})}
-                          className="text-center font-bold h-12"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest text-center">Target RPE</Label>
-                    <Input 
-                      type="number" 
-                      min="1" 
-                      max="10"
-                      value={formData.rpe || ''} 
-                      onChange={e => setFormData({...formData, rpe: Number(e.target.value)})}
-                      className="text-center font-bold text-lg"
-                    />
-                  </div>
-                  {!formData.isInterval && (
-                    <div className="space-y-2">
-                      <Label className="block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest text-center">Rest (s)</Label>
-                      <Input 
-                        type="number" 
-                        step="15"
-                        value={formData.restSeconds || ''} 
-                        onChange={e => setFormData({...formData, restSeconds: Number(e.target.value)})}
-                        className="text-center font-bold text-lg"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-6 border-t border-[var(--color-border)]">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({...formData, e1rmEligible: !formData.e1rmEligible})}
-                    className={cn(
-                      "w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-300 group",
-                      formData.e1rmEligible 
-                        ? "bg-[var(--color-primary-soft)] border-[var(--color-primary-border)] text-[var(--color-primary-strong)]" 
-                        : "bg-[var(--color-surface-subtle)] border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
-                    )}
-                  >
-                    <div className={cn(
-                      "p-2.5 rounded-xl transition-all duration-300",
-                      formData.e1rmEligible 
-                        ? "bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary-soft)]" 
-                        : "bg-[var(--color-surface)] text-[var(--color-text-subtle)] border border-[var(--color-border)]"
-                    )}>
-                      <Activity className="w-5 h-5" />
-                    </div>
-                    <div className="flex flex-col items-start text-left gap-0.5">
-                      <span className="font-black text-[11px] uppercase tracking-widest">E1RM Eligible</span>
-                      <span className="text-[10px] font-medium opacity-70 leading-tight">Enable strength estimation & max effort tracking</span>
-                    </div>
-                    <div className="ml-auto">
-                       <div className={cn(
-                        "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-300",
-                        formData.e1rmEligible 
-                          ? "bg-[var(--color-primary)] border-[var(--color-primary)] text-white rotate-0" 
-                          : "border-[var(--color-border-strong)] opacity-30"
-                      )}>
-                        <Check className={cn("w-3.5 h-3.5 stroke-[4px] transition-transform duration-300", formData.e1rmEligible ? "scale-100" : "scale-0")} />
-                      </div>
-                    </div>
-                  </button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Right Column was Standards, now empty/removed */}
       </div>
 
       {/* Sticky Action Bar */}

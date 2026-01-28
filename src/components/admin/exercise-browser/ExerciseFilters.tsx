@@ -10,12 +10,10 @@ interface ExerciseFiltersProps {
   setSearchQuery: (query: string) => void;
   activeFilters: {
     category: ExerciseCategory[];
-    difficulty: Difficulty[];
     goal: Goal[];
   };
   setActiveFilters: React.Dispatch<React.SetStateAction<{
     category: ExerciseCategory[];
-    difficulty: Difficulty[];
     goal: Goal[];
   }>>;
 }
@@ -41,7 +39,7 @@ export function ExerciseFilters({
   };
 
   const clearFilters = () => {
-    setActiveFilters({ category: [], difficulty: [], goal: [] });
+    setActiveFilters({ category: [], goal: [] });
     setSearchQuery('');
   };
 
@@ -77,26 +75,14 @@ export function ExerciseFilters({
         </div>
 
         {/* Categories */}
-        {(['Strength', 'Cardio', 'Mobility'] as ExerciseCategory[]).map(cat => (
+        {(['Strength'] as ExerciseCategory[]).map(cat => (
           <FilterButton 
             key={cat} 
             isActive={activeFilters.category.includes(cat)} 
             onClick={() => toggleFilter('category', cat)}
           >
-            {cat === 'Mobility' ? 'Yoga / Mobility' : cat}
+            {cat}
           </FilterButton>
-        ))}
-
-        <div className="w-px h-6 bg-border mx-1" />
-
-        {/* Difficulties */}
-        {(['beginner', 'intermediate', 'advanced'] as Difficulty[]).map(diff => (
-          <FilterChip 
-            key={diff}
-            label={diff}
-            isActive={activeFilters.difficulty.includes(diff)}
-            onClick={() => toggleFilter('difficulty', diff)}
-          />
         ))}
 
         {hasFilters && (
