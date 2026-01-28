@@ -53,13 +53,19 @@ async function run() {
       ex.primary_muscle === 'mobility'
     ) {
       category = 'Mobility';
-      goal = 'mobility';
+      goal = 'range_of_motion';
     } else if (
       ex.metric_profile === 'cardio_session' ||
       ex.category === 'Cardio' // if it already exists
     ) {
       category = 'Cardio';
-      goal = 'cardio';
+      goal = 'endurance';
+    }
+
+    // Clean up primary_muscle if it was 'cardio' or 'mobility'
+    let primaryMuscle = ex.primary_muscle;
+    if (primaryMuscle === 'cardio' || primaryMuscle === 'mobility') {
+      primaryMuscle = 'full_body';
     }
 
     // Clean up fields
@@ -77,7 +83,7 @@ async function run() {
       goal: goal,
       durationMinutes: ex.duration_minutes || 0,
       restSeconds: ex.rest_seconds || 60,
-      primaryMuscle: ex.primary_muscle,
+      primaryMuscle: primaryMuscle,
       secondaryMuscles: ex.secondary_muscles || [],
       instructions: ex.instructions || [],
       videoUrl: ex.video_url || ''

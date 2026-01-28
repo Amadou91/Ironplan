@@ -922,12 +922,12 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     ],
     "difficulty": "beginner",
     "eligibleGoals": [
-      "cardio"
+      "endurance"
     ],
-    "goal": "cardio",
+    "goal": "endurance",
     "durationMinutes": 10,
     "restSeconds": 45,
-    "primaryMuscle": "cardio",
+    "primaryMuscle": "full_body",
     "secondaryMuscles": [],
     "instructions": [],
     "videoUrl": ""
@@ -947,12 +947,12 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     ],
     "difficulty": "beginner",
     "eligibleGoals": [
-      "cardio"
+      "endurance"
     ],
-    "goal": "cardio",
+    "goal": "endurance",
     "durationMinutes": 20,
     "restSeconds": 60,
-    "primaryMuscle": "cardio",
+    "primaryMuscle": "full_body",
     "secondaryMuscles": [],
     "instructions": [],
     "videoUrl": ""
@@ -972,12 +972,12 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     ],
     "difficulty": "intermediate",
     "eligibleGoals": [
-      "cardio"
+      "endurance"
     ],
-    "goal": "cardio",
+    "goal": "endurance",
     "durationMinutes": 30,
     "restSeconds": 60,
-    "primaryMuscle": "cardio",
+    "primaryMuscle": "full_body",
     "secondaryMuscles": [],
     "instructions": [],
     "videoUrl": ""
