@@ -26,7 +26,7 @@ import {
   validateExercise 
 } from '@/lib/validation/exercise-validation'
 import { deriveMetricProfile, METRIC_PROFILE_OPTIONS } from '@/lib/metric-derivation'
-import type { Exercise, FocusArea, Goal, MetricProfile, EquipmentOption } from '@/types/domain'
+import type { Exercise, FocusArea, Goal, EquipmentOption } from '@/types/domain'
 
 type Props = {
   initialData?: Partial<Exercise>
@@ -63,17 +63,55 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
   const [errors, setErrors] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Derived state for metric profile logic
+  // -- Derived State & Helpers --
+
+  // 1. Identify Current Virtual Option
+  const currentOption = METRIC_PROFILE_OPTIONS.find(opt => {
+    // Match base profile
+    if (opt.backendProfile !== formData.metricProfile) return false
+    // Match interval flag if the option cares about it (undefined means it doesn't matter or default)
+    // But our virtual options are explicit.
+    if (opt.isInterval !== undefined) {
+      return opt.isInterval === !!formData.isInterval
+    }
+    return true
+  }) || METRIC_PROFILE_OPTIONS[0]
+
   const derivedResult = deriveMetricProfile(formData.category, formData.goal)
 
-  // Effect to auto-update metric profile
+  // 2. Handle Profile Changes (Virtual -> Real)
+  const handleProfileChange = (virtualValue: string) => {
+    const option = METRIC_PROFILE_OPTIONS.find(o => o.value === virtualValue)
+    if (!option) return
+
+    setFormData(prev => ({
+      ...prev,
+      metricProfile: option.backendProfile,
+      isInterval: option.isInterval,
+      // Reset incompatible fields if switching modes
+      restSeconds: option.isInterval ? 0 : prev.restSeconds
+    }))
+  }
+
+  // 3. Auto-Derivation Effect
   useEffect(() => {
     if (!isAdvanced) {
-      const { profile } = deriveMetricProfile(formData.category, formData.goal)
-      if (formData.metricProfile === profile) return
-      setFormData(prev => ({ ...prev, metricProfile: profile }))
+      const { option } = deriveMetricProfile(formData.category, formData.goal)
+      
+      // Check if we need to update
+      const needsUpdate = 
+        formData.metricProfile !== option.backendProfile || 
+        (option.isInterval !== undefined && !!formData.isInterval !== option.isInterval)
+
+      if (needsUpdate) {
+        setFormData(prev => ({ 
+          ...prev, 
+          metricProfile: option.backendProfile,
+          isInterval: option.isInterval ?? prev.isInterval 
+        }))
+      }
     }
-  }, [formData.category, formData.goal, isAdvanced, formData.metricProfile])
+  }, [formData.category, formData.goal, isAdvanced, formData.metricProfile, formData.isInterval])
 
   const constraints = getConstraintForProfile(formData.metricProfile)
 
@@ -238,10 +276,9 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
             <Label className="mb-2 block text-[var(--color-text-subtle)] uppercase text-xs font-bold tracking-wider">Tracking Style</Label>
             {isAdvanced ? (
                <Select 
-                value={formData.metricProfile || ''} 
-                onChange={e => setFormData({...formData, metricProfile: e.target.value as MetricProfile})}
+                value={currentOption.value} 
+                onChange={e => handleProfileChange(e.target.value)}
               >
-                <option value="">Select Profile...</option>
                 {METRIC_PROFILE_OPTIONS.map(p => (
                   <option key={p.value} value={p.value}>{p.label}</option>
                 ))}
@@ -249,17 +286,17 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
             ) : (
               <div className="h-12 px-4 flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
                 <span className="font-medium text-[var(--color-text)]">
-                  {METRIC_PROFILE_OPTIONS.find(p => p.value === formData.metricProfile)?.label || 'Auto-detected'}
+                  {currentOption.label || 'Auto-detected'}
                 </span>
-                {derivedResult.isAmbiguous && derivedResult.options && (
+                {derivedResult.isAmbiguous && derivedResult.alternatives && (
                    <div className="flex gap-1 bg-[var(--color-surface)] p-1 rounded-lg border border-[var(--color-border)]">
-                      {derivedResult.options.map(opt => (
+                      {derivedResult.alternatives.map(opt => (
                         <button
                           key={opt.value}
                           type="button"
-                          onClick={() => setFormData(prev => ({...prev, metricProfile: opt.value}))}
+                          onClick={() => handleProfileChange(opt.value)}
                           className={`text-xs px-2 py-1 rounded transition-colors ${
-                            formData.metricProfile === opt.value 
+                            currentOption.value === opt.value 
                             ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] font-bold' 
                             : 'hover:bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]'
                           }`}
@@ -326,18 +363,30 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
              </div>
           )}
 
-          <div className="col-span-12 pt-2">
-            <div className="flex items-center gap-3 p-4 border border-[var(--color-border)] rounded-xl bg-[var(--color-surface-subtle)] hover:border-[var(--color-border-strong)] transition-colors">
-              <Checkbox 
-                checked={formData.e1rmEligible || false} 
-                onCheckedChange={(c) => setFormData({...formData, e1rmEligible: c === true})}
-                id="e1rm"
-              />
-              <div className="space-y-0.5">
-                <Label htmlFor="e1rm" className="font-semibold cursor-pointer text-[var(--color-text)]">E1RM Eligible</Label>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Enable if this exercise is suitable for calculating a One-Rep Max (e.g., Squat, Deadlift).
-                </p>
+          {/* Secondary Muscles Scrollable - Relocated Here */}
+          <div className="col-span-12 pt-4 border-t border-[var(--color-border)] mt-2">
+            <Label className="mb-4 block text-[var(--color-text-subtle)] uppercase text-xs font-bold tracking-wider">Secondary Muscles</Label>
+            <div className="border border-[var(--color-border)] rounded-2xl h-[200px] overflow-y-auto p-4 bg-[var(--color-surface)] shadow-inner">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {muscleOptions.map(m => {
+                  const isSelected = formData.secondaryMuscles?.includes(m.slug)
+                  return (
+                    <button
+                      type="button"
+                      key={m.slug}
+                      onClick={() => handleSecondaryMuscleChange(m.slug)}
+                      className={`
+                        w-full flex items-center justify-between px-4 py-2 rounded-xl text-xs font-medium transition-all text-left border
+                        ${isSelected 
+                          ? 'bg-[var(--color-surface-elevated)] text-[var(--color-primary-strong)] shadow-sm border-[var(--color-primary-border)] ring-1 ring-[var(--color-primary-soft)]' 
+                          : 'bg-transparent border-transparent hover:bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]'}
+                      `}
+                    >
+                      {m.label}
+                      {isSelected && <Check className="w-3.5 h-3.5" />}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>
@@ -351,22 +400,6 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
             <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
               <Settings2 className="w-5 h-5 text-[var(--color-primary)]" />
               <CardTitle className="text-base text-[var(--color-text)]">Standards</CardTitle>
-            </div>
-            
-            <div className="flex items-center gap-2 bg-[var(--color-surface)] px-3 py-1.5 rounded-full border border-[var(--color-border)] shadow-sm">
-              <Checkbox 
-                id="isInterval"
-                checked={formData.isInterval || false} 
-                onCheckedChange={(c) => {
-                  const isInterval = c === true
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    isInterval,
-                    restSeconds: isInterval ? 0 : prev.restSeconds
-                  }))
-                }}
-              />
-              <Label htmlFor="isInterval" className="text-xs font-bold uppercase tracking-wider cursor-pointer select-none text-[var(--color-text)]">Interval Mode</Label>
             </div>
           </div>
         </CardHeader>
@@ -461,21 +494,36 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
               />
             </div>
           )}
+
+          {/* E1RM Toggle */}
+          <div className="col-span-12 pt-4 border-t border-[var(--color-border)] mt-2">
+             <div className="flex items-center gap-4">
+                <Checkbox 
+                  checked={formData.e1rmEligible || false} 
+                  onCheckedChange={(c) => setFormData({...formData, e1rmEligible: c === true})}
+                  id="e1rm"
+                  label="E1RM Eligible"
+                  className="w-auto border-none p-0 hover:bg-transparent"
+                />
+                <span className="text-xs text-[var(--color-text-muted)] mt-0.5 font-medium italic">
+                  (Enable for max-effort lifts)
+                </span>
+             </div>
+          </div>
         </CardContent>
       </Card>
 
-      {/* 3. Requirements Card */}
+      {/* 3. Requirements Card (Now Equipment Only) */}
       <Card>
         <CardHeader className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] pb-4">
           <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
             <Layers className="w-5 h-5 text-[var(--color-primary)]" />
-            <CardTitle className="text-base text-[var(--color-text)]">Requirements</CardTitle>
+            <CardTitle className="text-base text-[var(--color-text)]">Equipment</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="pt-8 space-y-8">
           {/* Equipment Pills */}
           <div>
-            <Label className="mb-4 block text-[var(--color-text-subtle)] uppercase text-xs font-bold tracking-wider">Required Equipment</Label>
             <div className="flex flex-wrap gap-2">
               {EQUIPMENT_KINDS.map(item => {
                 const isSelected = formData.equipment?.some(e => e.kind === item.value)
@@ -496,34 +544,6 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                   </button>
                 )
               })}
-            </div>
-          </div>
-
-          {/* Secondary Muscles Scrollable */}
-          <div>
-            <Label className="mb-4 block text-[var(--color-text-subtle)] uppercase text-xs font-bold tracking-wider">Secondary Muscles</Label>
-            <div className="border border-[var(--color-border)] rounded-2xl h-[300px] overflow-y-auto p-4 bg-[var(--color-surface-subtle)] shadow-inner">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                {muscleOptions.map(m => {
-                  const isSelected = formData.secondaryMuscles?.includes(m.slug)
-                  return (
-                    <button
-                      type="button"
-                      key={m.slug}
-                      onClick={() => handleSecondaryMuscleChange(m.slug)}
-                      className={`
-                        w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm transition-all text-left border
-                        ${isSelected 
-                          ? 'bg-[var(--color-surface)] text-[var(--color-primary-strong)] font-bold shadow-sm border-[var(--color-primary-border)] ring-1 ring-[var(--color-primary-soft)]' 
-                          : 'bg-transparent border-transparent hover:bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]'}
-                      `}
-                    >
-                      {m.label}
-                      {isSelected && <Check className="w-4 h-4" />}
-                    </button>
-                  )
-                })}
-              </div>
             </div>
           </div>
         </CardContent>
