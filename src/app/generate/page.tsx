@@ -10,7 +10,6 @@ import { formatWeightList, bandLabels, machineLabels } from '@/lib/equipment'
 import { getFlowCompletion, isEquipmentValid } from '@/lib/generationFlow'
 import { GoalSelector } from '@/components/generate/GoalSelector'
 import { EquipmentSelector, cardioMachineOptions, strengthMachineOptions } from '@/components/generate/EquipmentSelector'
-import { TimeConstraintSelector } from '@/components/generate/TimeConstraintSelector'
 import { MuscleGroupSelector } from '@/components/generate/MuscleGroupSelector'
 import { TemplateHistory } from '@/components/generate/TemplateHistory'
 import { GenerationSummary } from '@/components/generate/GenerationSummary'
@@ -178,23 +177,6 @@ export default function GeneratePage() {
                   }))
                 }
               />
-
-              <div className="surface-card-subtle p-5">
-                <div className="border-b border-[var(--color-border)] pb-3">
-                  <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-strong">Time Constraint</h3>
-                </div>
-                <div className="mt-4">
-                  <TimeConstraintSelector
-                    value={formData.time.minutesPerSession}
-                    onChange={(minutes) =>
-                      updateFormData((prev) => ({
-                        ...prev,
-                        time: { ...prev.time, minutesPerSession: minutes }
-                      }))
-                    }
-                  />
-                </div>
-              </div>
 
               {invalidEquipment && <p className="text-xs text-[var(--color-danger)]">Choose at least one equipment option.</p>}
             </section>

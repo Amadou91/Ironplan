@@ -384,19 +384,11 @@ export function EquipmentSelector({
               <p className="text-sm font-semibold text-strong">Bodyweight</p>
               <Checkbox
                 label="Bodyweight movements"
-                checked={inventory.bodyweight}
-                onCheckedChange={() =>
-                  onUpdateEquipment(prev => ({
-                    ...prev,
-                    preset: 'custom',
-                    inventory: {
-                      ...prev.inventory,
-                      bodyweight: !prev.inventory.bodyweight
-                    }
-                  }))
-                }
+                checked={true}
+                disabled={true}
+                onCheckedChange={() => {}}
               />
-              <p className="mt-2 text-xs text-subtle">Yoga / Mobility primarily uses bodyweight. Ensure this is checked.</p>
+              <p className="mt-2 text-xs text-subtle">Yoga / Mobility requires bodyweight movements.</p>
             </div>
           </div>
         </div>

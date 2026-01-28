@@ -136,11 +136,13 @@ export function useGenerationFlow() {
 
       const nextInventory = isCardio
         ? buildCardioInventory(prev.equipment.inventory)
-        : (wasCardio || wasMobility) && !isCardio && !isMobility
-          ? cloneInventory(lastStrengthInventoryRef.current ?? equipmentPresets.full_gym)
-          : prev.equipment.inventory
+        : isMobility
+          ? { ...prev.equipment.inventory, bodyweight: true }
+          : (wasCardio || wasMobility) && !isCardio && !isMobility
+            ? cloneInventory(lastStrengthInventoryRef.current ?? equipmentPresets.full_gym)
+            : prev.equipment.inventory
 
-      const nextPreset = isCardio
+      const nextPreset = isCardio || isMobility
         ? 'custom'
         : (wasCardio || wasMobility) && !isCardio && !isMobility
           ? lastStrengthPresetRef.current ?? 'full_gym'
