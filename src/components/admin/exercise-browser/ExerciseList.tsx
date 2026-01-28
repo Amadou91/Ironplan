@@ -135,7 +135,14 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
             )}>
               {exercise.name}
             </h4>
-            <CategoryBadge category={category} />
+            <div className="flex flex-wrap items-center gap-2">
+              <CategoryBadge category={category} />
+              {exercise.movementPattern && (
+                <span className="text-[10px] uppercase tracking-widest font-black px-2.5 py-1 rounded-lg border-2 border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)] text-[var(--color-text-strong)] shadow-sm">
+                  {exercise.movementPattern}
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex flex-col gap-2 pt-1">
              {exercise.equipment?.map((e, idx) => (
@@ -175,30 +182,42 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
       </div>
 
       {/* Footer Info */}
-      <div className="flex items-center justify-between pt-4 border-t border-border/50">
-        {exercise.primaryMuscle ? (
-             <div className="flex items-center gap-2">
-                <div className={cn(
-                  "w-1.5 h-1.5 rounded-full",
-                  category === 'Strength' ? 'bg-blue-500' : 
-                  category === 'Cardio' ? 'bg-rose-500' : 
-                  category === 'Mobility' ? 'bg-teal-500' : 'bg-primary'
-                )} />
-                <span className="text-[10px] text-strong uppercase tracking-[0.15em] font-black">
-                  Target: {exercise.primaryMuscle.replace('_', ' ')}
-                </span>
-             </div>
-        ) : <div />}
+      <div className="flex flex-col gap-4 pt-4 border-t border-border/50">
+        <div className="flex items-center justify-between gap-4">
+          {exercise.primaryMuscle && (
+               <div className="flex items-center gap-2 min-w-0">
+                  <div className={cn(
+                    "w-1.5 h-1.5 rounded-full shrink-0",
+                    category === 'Strength' ? 'bg-blue-500' : 
+                    category === 'Cardio' ? 'bg-rose-500' : 
+                    category === 'Mobility' ? 'bg-teal-500' : 'bg-primary'
+                  )} />
+                  <span className="text-[10px] text-strong uppercase tracking-[0.15em] font-black truncate">
+                    Primary: {exercise.primaryMuscle.replace('_', ' ')}
+                  </span>
+               </div>
+          )}
+          
+          {exercise.primaryMuscle !== 'full_body' && exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
+            <div className="flex items-center gap-2 opacity-70 ml-auto text-right min-w-0">
+              <span className="text-[9px] text-muted-foreground uppercase tracking-[0.12em] font-bold truncate">
+                Secondary: {exercise.secondaryMuscles.map(m => m.replace('_', ' ')).join(', ')}
+              </span>
+            </div>
+          )}
+        </div>
         
         {exercise.e1rmEligible && (
-          <span className={cn(
-            "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border",
-            category === 'Strength' ? 'text-blue-600 bg-blue-50 border-blue-100' : 
-            category === 'Cardio' ? 'text-rose-600 bg-rose-50 border-rose-100' : 
-            category === 'Mobility' ? 'text-teal-600 bg-teal-50 border-teal-100' : 'text-primary bg-primary/5 border-primary/10'
-          )}>
-            E1RM Enabled
-          </span>
+          <div className="flex justify-start">
+            <span className={cn(
+              "text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border",
+              category === 'Strength' ? 'text-blue-600 bg-blue-50 border-blue-100' : 
+              category === 'Cardio' ? 'text-rose-600 bg-rose-50 border-rose-100' : 
+              category === 'Mobility' ? 'text-teal-600 bg-teal-50 border-teal-100' : 'text-primary bg-primary/5 border-primary/10'
+            )}>
+              E1RM Enabled
+            </span>
+          </div>
         )}
       </div>
     </div>

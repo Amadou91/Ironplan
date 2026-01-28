@@ -71,8 +71,18 @@ export function SwapExerciseModal({
                   <span className="font-semibold text-strong group-hover:text-[var(--color-primary-strong)]">{suggestion.name}</span>
                   <span className="text-[10px] uppercase font-bold tracking-widest text-subtle">Match Score: {score}</span>
                 </div>
-                <div className="flex gap-2">
-                  <span className="text-[10px] font-medium text-muted uppercase tracking-wider">{toMuscleLabel(suggestion.primaryMuscle ?? '')}</span>
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{toMuscleLabel(suggestion.primaryMuscle ?? '')}</span>
+                  {suggestion.movementPattern && (
+                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-surface text-subtle border border-border">
+                      {suggestion.movementPattern}
+                    </span>
+                  )}
+                  {suggestion.secondaryMuscles && suggestion.secondaryMuscles.length > 0 && (
+                    <span className="text-[10px] font-medium text-subtle/60 uppercase tracking-wider">
+                      + {suggestion.secondaryMuscles.map(m => toMuscleLabel(m)).join(', ')}
+                    </span>
+                  )}
                 </div>
               </button>
             ))

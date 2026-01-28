@@ -69,7 +69,19 @@ export function AddExerciseModal({ onClose, onAdd, focus, style }: AddExerciseMo
               className="w-full text-left p-3 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]/30 transition-all"
             >
               <p className="font-semibold text-sm text-strong">{exercise.name}</p>
-              <p className="text-[10px] text-muted uppercase tracking-wider">{toMuscleLabel(exercise.primaryMuscle ?? '')}</p>
+              <div className="flex flex-wrap gap-2">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-wider">{toMuscleLabel(exercise.primaryMuscle ?? '')}</p>
+                {exercise.movementPattern && (
+                  <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-surface text-subtle border border-border">
+                    {exercise.movementPattern}
+                  </span>
+                )}
+                {exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
+                  <p className="text-[10px] font-medium text-subtle/60 uppercase tracking-wider">
+                    + {exercise.secondaryMuscles.map(m => toMuscleLabel(m)).join(', ')}
+                  </p>
+                )}
+              </div>
             </button>
           ))}
         </div>

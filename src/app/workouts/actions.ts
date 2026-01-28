@@ -29,6 +29,7 @@ async function insertExercises(supabase: any, exercises: Partial<Exercise>[]) {
     reps: ex.reps,
     rpe: ex.rpe,
     equipment: ex.equipment,
+    movement_pattern: ex.movementPattern,
     difficulty: ex.difficulty,
     eligible_goals: ex.eligibleGoals,
     goal: ex.goal,

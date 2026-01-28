@@ -205,9 +205,25 @@ export default function ActiveSession({
           <div key={exIdx} ref={el => { exerciseRefs.current[exIdx] = el; }} className="surface-card-muted p-4 md:p-6 scroll-mt-[220px]">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-strong">{exercise.name}</h3>
-                <div className="flex gap-2 mt-1">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-semibold text-strong">{exercise.name}</h3>
+                  {(exerciseLibraryByName.get(exercise.name.toLowerCase())?.movementPattern) && (
+                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-surface text-subtle border border-border">
+                      {exerciseLibraryByName.get(exercise.name.toLowerCase())?.movementPattern}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 mt-1">
                   <span className="badge-accent">{exercise.primaryMuscle}</span>
+                  {exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {exercise.secondaryMuscles.map((muscle, idx) => (
+                        <span key={idx} className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border border-border/50">
+                          {muscle}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {getExerciseTargetSummary(exercise) && <p className="mt-2 text-xs text-muted">Target: {getExerciseTargetSummary(exercise)}</p>}
               </div>

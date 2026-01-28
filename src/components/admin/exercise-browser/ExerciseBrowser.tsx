@@ -31,7 +31,8 @@ export function ExerciseBrowser({ initialExercises }: ExerciseBrowserProps) {
       result = result.filter(ex => 
         ex.name.toLowerCase().includes(q) ||
         ex.equipment.some(eq => eq.kind.toLowerCase().includes(q)) ||
-        ex.primaryMuscle?.toLowerCase().includes(q)
+        ex.primaryMuscle?.toLowerCase().includes(q) ||
+        ex.secondaryMuscles?.some(sm => sm.toLowerCase().includes(q))
       );
     }
 

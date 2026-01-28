@@ -6,24 +6,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Barbell Back Squat",
     "category": "Strength",
     "focus": "lower",
+    "movementPattern": "squat",
     "metricProfile": "reps_weight",
     "sets": 4,
     "reps": "5-8",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "barbell"
-      }
-    ],
+    "equipment": [{ "kind": "barbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "strength"
-    ],
+    "eligibleGoals": ["strength"],
     "goal": "strength",
     "durationMinutes": 12,
     "restSeconds": 120,
     "primaryMuscle": "quads",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["glutes", "hamstrings", "calves"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -31,24 +26,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Dumbbell Goblet Squat",
     "category": "Strength",
     "focus": "lower",
+    "movementPattern": "squat",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "dumbbell"
-      }
-    ],
+    "equipment": [{ "kind": "dumbbell" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 10,
     "restSeconds": 90,
     "primaryMuscle": "quads",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["glutes", "hamstrings"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -56,27 +46,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Romanian Deadlift",
     "category": "Strength",
     "focus": "lower",
+    "movementPattern": "hinge",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-10",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "barbell"
-      },
-      {
-        "kind": "dumbbell"
-      }
-    ],
+    "equipment": [{ "kind": "barbell" }, { "kind": "dumbbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 10,
     "restSeconds": 120,
     "primaryMuscle": "hamstrings",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["glutes", "back"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -84,24 +66,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Bench Press",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "push",
     "metricProfile": "reps_weight",
     "sets": 4,
     "reps": "5-8",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "barbell"
-      }
-    ],
+    "equipment": [{ "kind": "barbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "strength"
-    ],
+    "eligibleGoals": ["strength"],
     "goal": "strength",
     "durationMinutes": 12,
     "restSeconds": 120,
     "primaryMuscle": "chest",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["shoulders", "triceps"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -109,24 +86,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Dumbbell Bench Press",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "push",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "dumbbell"
-      }
-    ],
+    "equipment": [{ "kind": "dumbbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 10,
     "restSeconds": 90,
     "primaryMuscle": "chest",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["shoulders", "triceps"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -134,24 +106,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Incline Barbell Press",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "push",
     "metricProfile": "reps_weight",
     "sets": 4,
     "reps": "6-8",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "barbell"
-      }
-    ],
+    "equipment": [{ "kind": "barbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "strength"
-    ],
+    "eligibleGoals": ["strength"],
     "goal": "strength",
     "durationMinutes": 11,
     "restSeconds": 120,
     "primaryMuscle": "chest",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["shoulders", "triceps"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -159,24 +126,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Decline Bench Press",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "push",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "6-8",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "barbell"
-      }
-    ],
+    "equipment": [{ "kind": "barbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "strength"
-    ],
+    "eligibleGoals": ["strength"],
     "goal": "strength",
     "durationMinutes": 10,
     "restSeconds": 120,
     "primaryMuscle": "chest",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["shoulders", "triceps"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -184,24 +146,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Chest Dip",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "push",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-12",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "bodyweight"
-      }
-    ],
+    "equipment": [{ "kind": "bodyweight" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 9,
     "restSeconds": 90,
     "primaryMuscle": "chest",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["triceps", "shoulders"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -209,25 +166,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Cable Chest Fly",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "push",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "10-15",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "machine",
-        "machineType": "cable"
-      }
-    ],
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 8,
     "restSeconds": 75,
     "primaryMuscle": "chest",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["shoulders"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -235,24 +186,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Pec Deck Fly",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "push",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "10-15",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "machine"
-      }
-    ],
+    "equipment": [{ "kind": "machine" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 8,
     "restSeconds": 75,
     "primaryMuscle": "chest",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["shoulders"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -260,27 +206,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Floor Press",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "push",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "6-10",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "dumbbell"
-      },
-      {
-        "kind": "barbell"
-      }
-    ],
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "barbell" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "strength"
-    ],
+    "eligibleGoals": ["strength"],
     "goal": "strength",
     "durationMinutes": 9,
     "restSeconds": 90,
     "primaryMuscle": "chest",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["triceps", "shoulders"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -288,24 +226,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Dumbbell Row",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "dumbbell"
-      }
-    ],
+    "equipment": [{ "kind": "dumbbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 10,
     "restSeconds": 90,
     "primaryMuscle": "back",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["biceps", "forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -313,27 +246,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Overhead Press",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "push",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "6-10",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "barbell"
-      },
-      {
-        "kind": "dumbbell"
-      }
-    ],
+    "equipment": [{ "kind": "barbell" }, { "kind": "dumbbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "strength"
-    ],
+    "eligibleGoals": ["strength"],
     "goal": "strength",
     "durationMinutes": 10,
     "restSeconds": 120,
     "primaryMuscle": "shoulders",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["triceps", "core"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -341,27 +266,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Walking Lunge",
     "category": "Strength",
     "focus": "lower",
+    "movementPattern": "squat",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "10-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "dumbbell"
-      },
-      {
-        "kind": "bodyweight"
-      }
-    ],
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "bodyweight" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 9,
     "restSeconds": 75,
     "primaryMuscle": "quads",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["glutes", "hamstrings", "calves"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -369,27 +286,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Dumbbell Biceps Curl",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "10-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "dumbbell"
-      },
-      {
-        "kind": "band"
-      }
-    ],
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "band" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 8,
     "restSeconds": 60,
     "primaryMuscle": "biceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -397,27 +306,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Hammer Curl",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "dumbbell"
-      },
-      {
-        "kind": "kettlebell"
-      }
-    ],
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "kettlebell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 8,
     "restSeconds": 75,
     "primaryMuscle": "biceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -425,24 +326,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Barbell Curl",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 4,
     "reps": "6-8",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "barbell"
-      }
-    ],
+    "equipment": [{ "kind": "barbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "strength"
-    ],
+    "eligibleGoals": ["strength"],
     "goal": "strength",
     "durationMinutes": 9,
     "restSeconds": 90,
     "primaryMuscle": "biceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -450,24 +346,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Alternating Dumbbell Curl",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "6-10",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "dumbbell"
-      }
-    ],
+    "equipment": [{ "kind": "dumbbell" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "strength"
-    ],
+    "eligibleGoals": ["strength"],
     "goal": "strength",
     "durationMinutes": 8,
     "restSeconds": 75,
     "primaryMuscle": "biceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -475,24 +366,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Concentration Curl",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "10-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "dumbbell"
-      }
-    ],
+    "equipment": [{ "kind": "dumbbell" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 8,
     "restSeconds": 60,
     "primaryMuscle": "biceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -500,24 +386,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Zottman Curl",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "dumbbell"
-      }
-    ],
+    "equipment": [{ "kind": "dumbbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 8,
     "restSeconds": 75,
     "primaryMuscle": "biceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -525,27 +406,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Reverse Curl",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "6-10",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "barbell"
-      },
-      {
-        "kind": "dumbbell"
-      }
-    ],
+    "equipment": [{ "kind": "barbell" }, { "kind": "dumbbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "strength"
-    ],
+    "eligibleGoals": ["strength"],
     "goal": "strength",
     "durationMinutes": 8,
     "restSeconds": 90,
     "primaryMuscle": "biceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -553,25 +426,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Cable Biceps Curl",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "6-10",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "machine",
-        "machineType": "cable"
-      }
-    ],
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "strength"
-    ],
+    "eligibleGoals": ["strength"],
     "goal": "strength",
     "durationMinutes": 8,
     "restSeconds": 75,
     "primaryMuscle": "biceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -579,25 +446,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Cable Rope Hammer Curl",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "machine",
-        "machineType": "cable"
-      }
-    ],
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 8,
     "restSeconds": 75,
     "primaryMuscle": "biceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -605,24 +466,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Band Biceps Curl",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "band"
-      }
-    ],
+    "equipment": [{ "kind": "band" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "strength"
-    ],
+    "eligibleGoals": ["strength"],
     "goal": "strength",
     "durationMinutes": 7,
     "restSeconds": 60,
     "primaryMuscle": "biceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -630,24 +486,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Kettlebell Curl",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "10-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "kettlebell"
-      }
-    ],
+    "equipment": [{ "kind": "kettlebell" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 8,
     "restSeconds": 60,
     "primaryMuscle": "biceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -655,24 +506,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Drag Curl",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "6-8",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "barbell"
-      }
-    ],
+    "equipment": [{ "kind": "barbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "strength"
-    ],
+    "eligibleGoals": ["strength"],
     "goal": "strength",
     "durationMinutes": 8,
     "restSeconds": 90,
     "primaryMuscle": "biceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["forearms"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -680,27 +526,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Overhead Triceps Extension",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "push",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "10-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "dumbbell"
-      },
-      {
-        "kind": "band"
-      }
-    ],
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "band" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 8,
     "restSeconds": 60,
     "primaryMuscle": "triceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["shoulders"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -708,25 +546,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Triceps Rope Pushdown",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "push",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "10-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "machine",
-        "machineType": "cable"
-      }
-    ],
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 8,
     "restSeconds": 60,
     "primaryMuscle": "triceps",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["shoulders"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -734,24 +566,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Incline Dumbbell Press",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "push",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "dumbbell"
-      }
-    ],
+    "equipment": [{ "kind": "dumbbell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 9,
     "restSeconds": 90,
     "primaryMuscle": "chest",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["shoulders", "triceps"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -759,25 +586,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Lat Pulldown",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "machine",
-        "machineType": "cable"
-      }
-    ],
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 9,
     "restSeconds": 90,
     "primaryMuscle": "back",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["biceps", "shoulders"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -785,24 +606,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Resistance Band Pull-Apart",
     "category": "Strength",
     "focus": "upper",
+    "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "12-15",
     "rpe": 6,
-    "equipment": [
-      {
-        "kind": "band"
-      }
-    ],
+    "equipment": [{ "kind": "band" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 6,
     "restSeconds": 60,
     "primaryMuscle": "shoulders",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["back"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -810,25 +626,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Leg Press",
     "category": "Strength",
     "focus": "lower",
+    "movementPattern": "squat",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "10-12",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "machine",
-        "machineType": "leg_press"
-      }
-    ],
+    "equipment": [{ "kind": "machine", "machineType": "leg_press" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "hypertrophy"
-    ],
+    "eligibleGoals": ["hypertrophy"],
     "goal": "hypertrophy",
     "durationMinutes": 10,
     "restSeconds": 90,
     "primaryMuscle": "quads",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["glutes", "calves"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -836,24 +646,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Kettlebell Swing",
     "category": "Strength",
     "focus": "lower",
+    "movementPattern": "hinge",
     "metricProfile": "reps_weight",
     "sets": 4,
     "reps": "12-15",
     "rpe": 8,
-    "equipment": [
-      {
-        "kind": "kettlebell"
-      }
-    ],
+    "equipment": [{ "kind": "kettlebell" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "endurance"
-    ],
+    "eligibleGoals": ["endurance"],
     "goal": "endurance",
     "durationMinutes": 8,
     "restSeconds": 75,
     "primaryMuscle": "glutes",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["hamstrings", "back", "core"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -861,24 +666,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Plank Series",
     "category": "Strength",
     "focus": "core",
+    "movementPattern": "core",
     "metricProfile": "timed_strength",
     "sets": 3,
     "reps": "30-45 sec",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "bodyweight"
-      }
-    ],
+    "equipment": [{ "kind": "bodyweight" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "endurance"
-    ],
+    "eligibleGoals": ["endurance"],
     "goal": "endurance",
     "durationMinutes": 6,
     "restSeconds": 60,
     "primaryMuscle": "core",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["shoulders", "glutes"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -886,24 +686,19 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Dead Bug",
     "category": "Strength",
     "focus": "core",
+    "movementPattern": "core",
     "metricProfile": "reps_weight",
     "sets": 3,
     "reps": "8-12",
     "rpe": 6,
-    "equipment": [
-      {
-        "kind": "bodyweight"
-      }
-    ],
+    "equipment": [{ "kind": "bodyweight" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "endurance"
-    ],
+    "eligibleGoals": ["endurance"],
     "goal": "endurance",
     "durationMinutes": 6,
     "restSeconds": 60,
     "primaryMuscle": "core",
-    "secondaryMuscles": [],
+    "secondaryMuscles": ["hip_flexors"],
     "instructions": [],
     "videoUrl": ""
   },
@@ -911,19 +706,14 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Skipping",
     "category": "Cardio",
     "focus": "cardio",
+    "movementPattern": "cardio",
     "metricProfile": "cardio_session",
     "sets": 6,
     "reps": "45 sec on/15 sec off",
     "rpe": 7,
-    "equipment": [
-      {
-        "kind": "bodyweight"
-      }
-    ],
+    "equipment": [{ "kind": "bodyweight" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "endurance"
-    ],
+    "eligibleGoals": ["endurance"],
     "goal": "endurance",
     "durationMinutes": 10,
     "restSeconds": 45,
@@ -936,20 +726,14 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Indoor Ride",
     "category": "Cardio",
     "focus": "cardio",
+    "movementPattern": "cardio",
     "metricProfile": "cardio_session",
     "sets": 1,
     "reps": "20-30 min",
     "rpe": 6,
-    "equipment": [
-      {
-        "kind": "machine",
-        "machineType": "indoor_bicycle"
-      }
-    ],
+    "equipment": [{ "kind": "machine", "machineType": "indoor_bicycle" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "endurance"
-    ],
+    "eligibleGoals": ["endurance"],
     "goal": "endurance",
     "durationMinutes": 20,
     "restSeconds": 60,
@@ -962,19 +746,14 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Outdoor Ride",
     "category": "Cardio",
     "focus": "cardio",
+    "movementPattern": "cardio",
     "metricProfile": "cardio_session",
     "sets": 1,
     "reps": "30-45 min",
     "rpe": 6,
-    "equipment": [
-      {
-        "kind": "bodyweight"
-      }
-    ],
+    "equipment": [{ "kind": "bodyweight" }],
     "difficulty": "intermediate",
-    "eligibleGoals": [
-      "endurance"
-    ],
+    "eligibleGoals": ["endurance"],
     "goal": "endurance",
     "durationMinutes": 30,
     "restSeconds": 60,
@@ -987,19 +766,14 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Stretching",
     "category": "Mobility",
     "focus": "mobility",
+    "movementPattern": "mobility",
     "metricProfile": "mobility_session",
     "sets": 1,
     "reps": "10-15 min",
     "rpe": 3,
-    "equipment": [
-      {
-        "kind": "bodyweight"
-      }
-    ],
+    "equipment": [{ "kind": "bodyweight" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "range_of_motion"
-    ],
+    "eligibleGoals": ["range_of_motion"],
     "goal": "range_of_motion",
     "durationMinutes": 10,
     "restSeconds": 30,
@@ -1012,19 +786,14 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "name": "Yoga / Mobility",
     "category": "Mobility",
     "focus": "mobility",
+    "movementPattern": "mobility",
     "metricProfile": "mobility_session",
     "sets": 1,
     "reps": "15-20 min",
     "rpe": 5,
-    "equipment": [
-      {
-        "kind": "bodyweight"
-      }
-    ],
+    "equipment": [{ "kind": "bodyweight" }],
     "difficulty": "beginner",
-    "eligibleGoals": [
-      "range_of_motion"
-    ],
+    "eligibleGoals": ["range_of_motion"],
     "goal": "range_of_motion",
     "durationMinutes": 15,
     "restSeconds": 45,

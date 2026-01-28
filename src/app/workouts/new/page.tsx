@@ -33,6 +33,7 @@ export default function NewWorkoutPage() {
       reps: data.reps,
       rpe: data.rpe,
       equipment: data.equipment,
+      movement_pattern: data.movementPattern,
       difficulty: data.difficulty,
       duration_minutes: data.durationMinutes,
       rest_seconds: data.restSeconds,

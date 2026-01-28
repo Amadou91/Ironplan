@@ -76,14 +76,14 @@ const MOVEMENT_PATTERNS: { label: string; value: string }[] = [
 ]
 
 const MOVEMENT_PATTERN_MUSCLES: Record<string, string[]> = {
-  push: ['chest', 'shoulders', 'triceps', 'upper_body'],
-  pull: ['back', 'biceps', 'forearms', 'upper_body'],
-  squat: ['quads', 'glutes', 'adductors', 'lower_body', 'calves'],
-  hinge: ['hamstrings', 'glutes', 'lower_body', 'back'],
+  push: ['chest', 'shoulders', 'triceps'],
+  pull: ['back', 'biceps', 'forearms'],
+  squat: ['quads', 'glutes', 'adductors', 'calves'],
+  hinge: ['hamstrings', 'glutes', 'back'],
   carry: ['forearms', 'core', 'shoulders', 'full_body'],
   core: ['core'],
-  cardio: ['full_body', 'cardio'],
-  mobility: ['full_body', 'mobility']
+  cardio: ['full_body'],
+  mobility: ['full_body']
 }
 
 type ExerciseType = 'Strength' | 'Yoga' | 'Cardio'
@@ -106,9 +106,31 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
 
   // -- Derived State & Helpers --
 
-  const filteredMuscles = formData.movementPattern 
-    ? muscleOptions.filter(m => MOVEMENT_PATTERN_MUSCLES[formData.movementPattern as string]?.includes(m.slug))
-    : muscleOptions
+  // 1. Patterns that support the current primary muscle
+  const availablePatterns = MOVEMENT_PATTERNS.filter(p => {
+    if (!formData.primaryMuscle) return true;
+    return MOVEMENT_PATTERN_MUSCLES[p.value]?.includes(formData.primaryMuscle as string);
+  });
+
+  // 2. Primary muscles that belong to the current pattern
+  const availablePrimaryMuscles = muscleOptions.filter(m => {
+    if (!formData.movementPattern) return true;
+    return MOVEMENT_PATTERN_MUSCLES[formData.movementPattern as string]?.includes(m.slug);
+  });
+
+  // 3. Secondary muscles split into logical vs others
+  const logicalSecondaryMuscles = muscleOptions.filter(m => {
+    if (m.slug === formData.primaryMuscle) return false;
+    if (!formData.movementPattern) return true;
+    return MOVEMENT_PATTERN_MUSCLES[formData.movementPattern as string]?.includes(m.slug);
+  });
+
+  const otherSecondaryMuscles = muscleOptions.filter(m => {
+    if (m.slug === formData.primaryMuscle) return false;
+    if (!formData.movementPattern) return false; // Everything is logical if no pattern
+    return !MOVEMENT_PATTERN_MUSCLES[formData.movementPattern as string]?.includes(m.slug) && 
+           !['full_body', 'cardio', 'mobility'].includes(m.slug);
+  });
 
   const currentOption = METRIC_PROFILE_OPTIONS.find(opt => {
     if (opt.backendProfile !== formData.metricProfile) return false
@@ -140,25 +162,38 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
 
   const handleTypeChange = (type: ExerciseType) => {
     setExerciseType(type)
+    
+    // Define valid equipment for the new type to clean up state
+    const getValidEquipment = (currentEq: EquipmentOption[]) => {
+      return currentEq.filter(item => {
+        if (type === 'Cardio') return item.kind === 'machine';
+        if (type === 'Yoga') return ['block', 'bolster', 'strap', 'bodyweight'].includes(item.kind);
+        return !['block', 'bolster', 'strap'].includes(item.kind);
+      });
+    };
+
     if (type === 'Yoga') {
       setFormData(prev => ({
         ...prev,
         category: 'Mobility',
         focus: 'full_body',
-        primaryMuscle: 'full_body' 
+        primaryMuscle: 'full_body',
+        equipment: getValidEquipment(prev.equipment || [])
       }))
     } else if (type === 'Cardio') {
       setFormData(prev => ({
         ...prev,
         category: 'Cardio',
         focus: 'full_body',
-        primaryMuscle: 'full_body'
+        primaryMuscle: 'full_body',
+        equipment: getValidEquipment(prev.equipment || [])
       }))
     } else {
       setFormData(prev => ({
         ...prev,
         category: 'Strength',
         focus: prev.primaryMuscle ? getFocusAreaFromMuscle(prev.primaryMuscle) : undefined,
+        equipment: getValidEquipment(prev.equipment || [])
       }))
     }
   }
@@ -192,9 +227,10 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
     setFormData(prev => {
       const current = prev.secondaryMuscles || []
       const exists = current.includes(slug)
-      return exists
-        ? { ...prev, secondaryMuscles: current.filter(m => m !== slug) }
-        : { ...prev, secondaryMuscles: [...current, slug] }
+      const updated = exists
+        ? current.filter(m => m !== slug)
+        : [...current, slug]
+      return { ...prev, secondaryMuscles: updated }
     })
   }
 
@@ -284,8 +320,14 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                   </div>
                   <CardTitle className="text-lg font-bold tracking-tight">Identity</CardTitle>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="advMode" className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-[0.2em] cursor-pointer select-none">Advanced</Label>
+                <div className="flex items-center gap-4">
+                  {formData.movementPattern && (
+                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded bg-[var(--color-surface-muted)] text-[var(--color-text-subtle)] border border-[var(--color-border)]">
+                      {formData.movementPattern}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor="advMode" className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-[0.2em] cursor-pointer select-none">Advanced</Label>
                   <Checkbox 
                     id="advMode" 
                     checked={isAdvanced} 
@@ -294,12 +336,160 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                   />
                 </div>
               </div>
-            </CardHeader>
+            </div>
+          </CardHeader>
             <CardContent className="p-8 space-y-8">
               <div className="grid grid-cols-12 gap-8">
+                
+                {/* 1. MOVEMENT PATTERN (STRENGTH ONLY) */}
+                {exerciseType === 'Strength' && (
+                  <div className="col-span-12 space-y-8 animate-in fade-in duration-500">
+                    <div>
+                      <Label className="mb-3 block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-[0.2em]">Movement Pattern</Label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {MOVEMENT_PATTERNS.map(pattern => {
+                          const isSelected = formData.movementPattern === pattern.value
+                          const isAvailable = availablePatterns.some(p => p.value === pattern.value)
+                          
+                          return (
+                            <button
+                              key={pattern.value}
+                              type="button"
+                              onClick={() => {
+                                setFormData({
+                                  ...formData, 
+                                  movementPattern: isSelected ? undefined : pattern.value as any,
+                                });
+                              }}
+                              className={cn(
+                                "py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 min-h-[48px]",
+                                isSelected
+                                  ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md"
+                                  : isAvailable 
+                                    ? "bg-white/50 border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)]"
+                                    : "bg-white/10 border-dashed border-[var(--color-border)] text-[var(--color-text-subtle)] opacity-50 cursor-not-allowed"
+                              )}
+                            >
+                              {pattern.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 2. PRIMARY MUSCLE (STRENGTH ONLY) */}
+                    <div>
+                      <Label className="mb-3 block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-[0.2em]">Primary Muscle</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {availablePrimaryMuscles.map(m => {
+                          const isSelected = formData.primaryMuscle === m.slug;
+                          return (
+                            <button
+                              key={m.slug}
+                              type="button"
+                              onClick={() => {
+                                const val = isSelected ? undefined : m.slug;
+                                const updates: Partial<Exercise> = { primaryMuscle: val };
+                                
+                                if (val === 'full_body') {
+                                  // Selecting Full Body: auto-select everything else
+                                  updates.secondaryMuscles = muscleOptions
+                                    .map(mo => mo.slug)
+                                    .filter(s => s !== 'full_body');
+                                } else if (formData.primaryMuscle === 'full_body' && val !== 'full_body') {
+                                  // Switching AWAY from Full Body (to another muscle or deselecting): clear everything
+                                  updates.secondaryMuscles = [];
+                                } else if (val) {
+                                  // Selecting any other muscle: ensure it's removed from secondary list
+                                  if (formData.secondaryMuscles?.includes(val)) {
+                                    updates.secondaryMuscles = formData.secondaryMuscles.filter(sm => sm !== val);
+                                  }
+                                }
+                                
+                                setFormData({...formData, ...updates});
+                              }}
+                              className={cn(
+                                "px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border-2 min-h-[40px]",
+                                isSelected 
+                                  ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md" 
+                                  : "bg-white/30 border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)]"
+                              )}
+                            >
+                              {m.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 3. SECONDARY MUSCLES (STRENGTH ONLY, SYSTEMATIC) */}
+                    {formData.primaryMuscle !== 'full_body' && (
+                      <div className="space-y-6">
+                        <div className="space-y-4">
+                          <Label className="block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-[0.2em]">Secondary Muscles (Optional)</Label>
+                          
+                          {/* Suggested Muscles based on Pattern */}
+                          <div className="space-y-2">
+                            <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase">Logical to {formData.movementPattern || 'Selection'}</span>
+                            <div className="flex flex-wrap gap-2">
+                              {logicalSecondaryMuscles.map(m => {
+                                const isSelected = formData.secondaryMuscles?.includes(m.slug)
+                                return (
+                                  <button
+                                    type="button"
+                                    key={m.slug}
+                                    onClick={() => handleSecondaryMuscleChange(m.slug)}
+                                    className={cn(
+                                      "px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border-2 min-h-[40px]",
+                                      isSelected 
+                                        ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] border-[var(--color-primary-border)] shadow-sm" 
+                                        : "bg-white/30 border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)]"
+                                    )}
+                                  >
+                                    {m.label}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Other Muscles */}
+                          {otherSecondaryMuscles.length > 0 && (
+                            <div className="space-y-2 pt-2 border-t border-[var(--color-border)]/30">
+                              <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase">Other Muscles</span>
+                              <div className="flex flex-wrap gap-2">
+                                {otherSecondaryMuscles.map(m => {
+                                  const isSelected = formData.secondaryMuscles?.includes(m.slug)
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={m.slug}
+                                      onClick={() => handleSecondaryMuscleChange(m.slug)}
+                                      className={cn(
+                                        "px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all border border-[var(--color-border)] min-h-[36px]",
+                                        isSelected 
+                                          ? "bg-[var(--color-surface-muted)] text-[var(--color-text)] border-[var(--color-border-strong)]" 
+                                          : "bg-white/10 text-[var(--color-text-subtle)] hover:border-[var(--color-border-strong)]"
+                                      )}
+                                    >
+                                      {m.label}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 4. EXERCISE NAME */}
                 <div className={cn(
                   "col-span-12",
-                  isAdvanced ? "md:col-span-8" : "col-span-12"
+                  isAdvanced ? "md:col-span-8" : "col-span-12",
+                  exerciseType === 'Strength' && "pt-6 border-t border-[var(--color-border)]/50"
                 )}>
                   <Label className="mb-3 block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-[0.2em]">Exercise Name</Label>
                   <Input 
@@ -325,159 +515,69 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                   </div>
                 )}
 
-                {/* Primary Muscle - Below Name, ONLY for Strength */}
-                {exerciseType === 'Strength' && (
-                  <div className="col-span-12 animate-in slide-in-from-top-4 duration-300">
-                    <Label className="mb-3 block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-[0.2em]">Primary Muscle</Label>
-                    <Select 
-                      value={formData.primaryMuscle as string || ''} 
-                      onChange={e => {
-                        const val = e.target.value;
-                        const updates: Partial<Exercise> = { primaryMuscle: val };
-                        
-                        if (val === 'full_body') {
-                          // Auto-select all other muscles as secondary
-                          updates.secondaryMuscles = muscleOptions
-                            .map(m => m.slug)
-                            .filter(s => s !== 'full_body' && s !== 'upper_body' && s !== 'lower_body');
-                        } else if (formData.primaryMuscle === 'full_body') {
-                          // Clear if switching away from full body
-                          updates.secondaryMuscles = [];
-                        }
-                        
-                        setFormData({...formData, ...updates});
-                      }}
-                      className="h-14 font-medium bg-white/50"
-                    >
-                      <option value="">Select Muscle...</option>
-                      {filteredMuscles.map(m => (
-                        <option key={m.slug} value={m.slug}>{m.label}</option>
-                      ))}
-                    </Select>
-                  </div>
-                )}
-
-                {exerciseType === 'Strength' && (
-                  <div className="col-span-12 space-y-6 animate-in fade-in duration-500">
-                    <div>
-                      <Label className="mb-3 block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-[0.2em]">Movement Pattern</Label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {MOVEMENT_PATTERNS.map(pattern => {
-                          const isSelected = formData.movementPattern === pattern.value
-                          return (
-                            <button
-                              key={pattern.value}
-                              type="button"
-                              onClick={() => setFormData({...formData, movementPattern: pattern.value as any})}
-                              className={cn(
-                                "py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 min-h-[48px]",
-                                isSelected
-                                  ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md"
-                                  : "bg-white/50 border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)]"
-                              )}
-                            >
-                              {pattern.label}
-                            </button>
-                          )
-                        })}
-                      </div>
+                {/* 5. EQUIPMENT SELECTION */}
+                {(exerciseType !== 'Strength' || (formData.movementPattern && formData.primaryMuscle)) && (
+                  <div className="col-span-12 pt-6 border-t border-[var(--color-border)]/50 animate-in slide-in-from-top-4 duration-300">
+                    <Label className="block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-[0.2em] mb-4">Required Equipment</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {EQUIPMENT_KINDS.filter(item => {
+                        if (exerciseType === 'Cardio') return item.value === 'machine';
+                        if (exerciseType === 'Yoga') return ['block', 'bolster', 'strap', 'bodyweight'].includes(item.value);
+                        return !['block', 'bolster', 'strap'].includes(item.value);
+                      }).map(item => {
+                        const isSelected = formData.equipment?.some(e => e.kind === item.value)
+                        return (
+                          <button
+                            key={item.value}
+                            type="button"
+                            onClick={() => handleEquipmentChange(item.value)}
+                            className={cn(
+                              "flex items-center gap-2 px-5 py-3 rounded-xl border-2 text-[11px] font-black uppercase tracking-wider transition-all duration-200 min-h-[48px]",
+                              isSelected
+                                ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md"
+                                : "bg-white/30 text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]"
+                            )}
+                          >
+                            {item.label}
+                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[4px]" />}
+                          </button>
+                        )
+                      })}
                     </div>
-                  </div>
-                )}
 
-                {/* 2. Equipment Selection - Visible for ALL types */}
-                <div className="col-span-12 pt-6 border-t border-[var(--color-border)]/50">
-                  <Label className="block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-[0.2em] mb-4">Required Equipment</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {EQUIPMENT_KINDS.filter(item => {
-                      if (exerciseType === 'Cardio') return item.value === 'machine';
-                      if (exerciseType === 'Yoga') return ['block', 'bolster', 'strap', 'bodyweight'].includes(item.value);
-                      return !['block', 'bolster', 'strap'].includes(item.value);
-                    }).map(item => {
-                      const isSelected = formData.equipment?.some(e => e.kind === item.value)
-                      return (
-                        <button
-                          key={item.value}
-                          type="button"
-                          onClick={() => handleEquipmentChange(item.value)}
-                          className={cn(
-                            "flex items-center gap-2 px-5 py-3 rounded-xl border-2 text-[11px] font-black uppercase tracking-wider transition-all duration-200 min-h-[48px]",
-                            isSelected
-                              ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md"
-                              : "bg-white/30 text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]"
-                          )}
-                        >
-                          {item.label}
-                          {isSelected && <Check className="w-3.5 h-3.5 stroke-[4px]" />}
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  {/* Machine Type Sub-selector */}
-                  {machineOption && (
-                    <div className="pt-4 animate-in zoom-in-95 fade-in duration-500">
-                      <div className="p-6 bg-white/50 border border-[var(--color-border)] rounded-2xl space-y-5 shadow-inner">
-                        <Label className="block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest">Select Machine Type</Label>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                          {MACHINE_TYPES.map(m => {
-                            const isActive = machineOption.machineType === m.value
-                            return (
-                              <button
-                                key={m.value}
-                                type="button"
-                                onClick={() => handleEquipmentChange('machine', m.value)}
-                                className={cn(
-                                  "py-3.5 px-4 rounded-xl border-2 text-[11px] font-black transition-all min-h-[48px]",
-                                  isActive 
-                                    ? "bg-white text-[var(--color-primary)] border-[var(--color-primary)] shadow-md" 
-                                    : "bg-[var(--color-surface-muted)] border-transparent text-[var(--color-text-muted)] hover:bg-white"
-                                )}
-                              >
-                                {m.label}
-                              </button>
-                            )
-                          })}
+                    {/* Machine Type Sub-selector */}
+                    {machineOption && (
+                      <div className="pt-4 animate-in zoom-in-95 fade-in duration-500">
+                        <div className="p-6 bg-white/50 border border-[var(--color-border)] rounded-2xl space-y-5 shadow-inner">
+                          <Label className="block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest">Select Machine Type</Label>
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            {MACHINE_TYPES.map(m => {
+                              const isActive = machineOption.machineType === m.value
+                              return (
+                                <button
+                                  key={m.value}
+                                  type="button"
+                                  onClick={() => handleEquipmentChange('machine', m.value)}
+                                  className={cn(
+                                    "py-3.5 px-4 rounded-xl border-2 text-[11px] font-black transition-all min-h-[48px]",
+                                    isActive 
+                                      ? "bg-white text-[var(--color-primary)] border-[var(--color-primary)] shadow-md" 
+                                      : "bg-[var(--color-surface-muted)] border-transparent text-[var(--color-text-muted)] hover:bg-white"
+                                  )}
+                                >
+                                  {m.label}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Primary Muscle was here, moved up */}
+                    )}
+                  </div>
+                )}
 
                 {exerciseType === 'Strength' && (
                   <>
-                    <div className={cn(
-                      "col-span-12 pt-8 border-t border-[var(--color-border)]/50 transition-all duration-300",
-                      formData.primaryMuscle === 'full_body' ? "hidden" : "block"
-                    )}>
-                      <Label className="mb-4 block text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-[0.2em]">Secondary Muscles (Optional)</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {muscleOptions.map(m => {
-                          const isSelected = formData.secondaryMuscles?.includes(m.slug)
-                          const isPrimary = formData.primaryMuscle === m.slug
-                          if (isPrimary) return null
-                          
-                          return (
-                            <button
-                              type="button"
-                              key={m.slug}
-                              onClick={() => handleSecondaryMuscleChange(m.slug)}
-                              className={cn(
-                                "px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border-2 min-h-[40px]",
-                                isSelected 
-                                  ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] border-[var(--color-primary-border)] shadow-sm" 
-                                  : "bg-white/30 border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)]"
-                              )}
-                            >
-                              {m.label}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-
                     <div className="col-span-12 pt-8 border-t border-[var(--color-border)]">
                       <button
                         type="button"

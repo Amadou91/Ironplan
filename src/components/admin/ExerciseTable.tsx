@@ -171,12 +171,25 @@ export function ExerciseTable({ exercises }: ExerciseTableProps) {
                               return (
                                 <tr key={exercise.id || exercise.name} className="hover:bg-[var(--color-surface-subtle)] transition-colors group">
                                   
-                                  {/* Column 1: Identity */}
                                   <td className="px-8 py-6">
                                     <div className="flex flex-col gap-1.5">
-                                      <span className="text-lg font-bold text-[var(--color-text)] group-hover:text-[var(--color-primary)] transition-colors">
-                                         {exercise.name}
-                                      </span>
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-lg font-bold text-[var(--color-text)] group-hover:text-[var(--color-primary)] transition-colors">
+                                           {exercise.name}
+                                        </span>
+                                        {exercise.movementPattern && (
+                                          <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--color-surface-muted)] text-[var(--color-text-subtle)] border border-[var(--color-border)]">
+                                            {exercise.movementPattern}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {exercise.primaryMuscle !== 'full_body' && exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-subtle)] opacity-70">
+                                            Secondary: {exercise.secondaryMuscles.map(m => m.replace(/_/g, ' ')).join(', ')}
+                                          </span>
+                                        </div>
+                                      )}
                                       <div className="flex flex-col gap-1">
                                         {exercise.equipment?.map((e, idx) => (
                                           <EquipmentMiniBadge key={idx} kind={e.kind as EquipmentKind} machineType={e.kind === 'machine' ? e.machineType : undefined} />

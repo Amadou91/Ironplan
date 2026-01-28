@@ -62,14 +62,195 @@ const isMissingTableError = (error: unknown) => {
   return e?.code === '42P01' || e?.message?.includes('does not exist')
 }
 
+export async function seedExerciseCatalog(supabase: SupabaseClient): Promise<number> {
+  const exercises = [
+    // PUSH
+    {
+      name: 'Bench Press',
+      focus: 'upper',
+      movement_pattern: 'push',
+      difficulty: 'intermediate',
+      goal: 'strength',
+      primary_muscle: 'chest',
+      secondary_muscles: ['triceps', 'shoulders'],
+      equipment: [{ kind: 'barbell' }],
+      metric_profile: 'reps_weight',
+      sets: 3, reps: '8', rpe: 8, e1rm_eligible: true
+    },
+    {
+      name: 'Overhead Press',
+      focus: 'upper',
+      movement_pattern: 'push',
+      difficulty: 'intermediate',
+      goal: 'strength',
+      primary_muscle: 'shoulders',
+      secondary_muscles: ['triceps', 'core'],
+      equipment: [{ kind: 'barbell' }],
+      metric_profile: 'reps_weight',
+      sets: 3, reps: '10', rpe: 8, e1rm_eligible: true
+    },
+    {
+      name: 'Incline Dumbbell Press',
+      focus: 'upper',
+      movement_pattern: 'push',
+      difficulty: 'beginner',
+      goal: 'hypertrophy',
+      primary_muscle: 'chest',
+      secondary_muscles: ['shoulders', 'triceps'],
+      equipment: [{ kind: 'dumbbell' }],
+      metric_profile: 'reps_weight',
+      sets: 3, reps: '12', rpe: 7
+    },
+    // PULL
+    {
+      name: 'Barbell Row',
+      focus: 'upper',
+      movement_pattern: 'pull',
+      difficulty: 'intermediate',
+      goal: 'strength',
+      primary_muscle: 'back',
+      secondary_muscles: ['biceps', 'forearms', 'core'],
+      equipment: [{ kind: 'barbell' }],
+      metric_profile: 'reps_weight',
+      sets: 3, reps: '8', rpe: 8, e1rm_eligible: true
+    },
+    {
+      name: 'Lat Pulldown',
+      focus: 'upper',
+      movement_pattern: 'pull',
+      difficulty: 'beginner',
+      goal: 'hypertrophy',
+      primary_muscle: 'back',
+      secondary_muscles: ['biceps', 'shoulders'],
+      equipment: [{ kind: 'machine', machineType: 'cable' }],
+      metric_profile: 'reps_weight',
+      sets: 3, reps: '10', rpe: 7
+    },
+    {
+      name: 'Bicep Curl',
+      focus: 'upper',
+      movement_pattern: 'pull',
+      difficulty: 'beginner',
+      goal: 'hypertrophy',
+      primary_muscle: 'biceps',
+      secondary_muscles: ['forearms'],
+      equipment: [{ kind: 'dumbbell' }],
+      metric_profile: 'reps_weight',
+      sets: 3, reps: '12', rpe: 8
+    },
+    // SQUAT
+    {
+      name: 'Barbell Back Squat',
+      focus: 'lower',
+      movement_pattern: 'squat',
+      difficulty: 'intermediate',
+      goal: 'strength',
+      primary_muscle: 'quads',
+      secondary_muscles: ['glutes', 'hamstrings', 'core', 'calves'],
+      equipment: [{ kind: 'barbell' }],
+      metric_profile: 'reps_weight',
+      sets: 3, reps: '5', rpe: 8, e1rm_eligible: true
+    },
+    {
+      name: 'Leg Press',
+      focus: 'lower',
+      movement_pattern: 'squat',
+      difficulty: 'beginner',
+      goal: 'hypertrophy',
+      primary_muscle: 'quads',
+      secondary_muscles: ['glutes', 'calves'],
+      equipment: [{ kind: 'machine', machineType: 'leg_press' }],
+      metric_profile: 'reps_weight',
+      sets: 3, reps: '12', rpe: 8
+    },
+    // HINGE
+    {
+      name: 'Romanian Deadlift',
+      focus: 'lower',
+      movement_pattern: 'hinge',
+      difficulty: 'intermediate',
+      goal: 'hypertrophy',
+      primary_muscle: 'hamstrings',
+      secondary_muscles: ['glutes', 'back', 'core', 'forearms'],
+      equipment: [{ kind: 'barbell' }],
+      metric_profile: 'reps_weight',
+      sets: 3, reps: '10', rpe: 8, e1rm_eligible: true
+    },
+    {
+      name: 'Kettlebell Swing',
+      focus: 'lower',
+      movement_pattern: 'hinge',
+      difficulty: 'intermediate',
+      goal: 'endurance',
+      primary_muscle: 'glutes',
+      secondary_muscles: ['hamstrings', 'back', 'core', 'shoulders'],
+      equipment: [{ kind: 'kettlebell' }],
+      metric_profile: 'reps_weight',
+      sets: 4, reps: '15', rpe: 7
+    },
+    // CORE
+    {
+      name: 'Plank',
+      focus: 'core',
+      movement_pattern: 'core',
+      difficulty: 'beginner',
+      goal: 'endurance',
+      primary_muscle: 'core',
+      secondary_muscles: ['shoulders', 'glutes'],
+      equipment: [{ kind: 'bodyweight' }],
+      metric_profile: 'timed_strength',
+      sets: 3, reps: '60s', rpe: 7
+    },
+    // CARDIO / MOBILITY
+    {
+      name: 'Indoor Ride',
+      focus: 'cardio',
+      movement_pattern: 'cardio',
+      difficulty: 'beginner',
+      goal: 'endurance',
+      primary_muscle: 'full_body',
+      secondary_muscles: ['quads', 'calves'],
+      equipment: [{ kind: 'machine', machineType: 'indoor_bicycle' }],
+      metric_profile: 'cardio_session',
+      sets: 1, reps: '30m', rpe: 6
+    },
+    {
+      name: 'Yoga Flow',
+      focus: 'mobility',
+      movement_pattern: 'mobility',
+      difficulty: 'beginner',
+      goal: 'range_of_motion',
+      primary_muscle: 'full_body',
+      secondary_muscles: ['core', 'shoulders', 'hamstrings'],
+      equipment: [{ kind: 'bodyweight' }],
+      metric_profile: 'mobility_session',
+      sets: 1, reps: '30m', rpe: 5
+    }
+  ];
+
+  const { error } = await supabase
+    .from('exercise_catalog')
+    .upsert(exercises, { onConflict: 'name' });
+
+  if (error) {
+    console.error('Seed exercise catalog error:', error);
+    return 0;
+  }
+
+  return exercises.length;
+}
+
 export async function seedDevData(supabase: SupabaseClient, userId: string): Promise<SeedResult> {
   if (process.env.NODE_ENV === 'production') {
     console.warn('Dev seed operations are disabled in production.')
     return { templates: 0, sessions: 0, exercises: 0, sets: 0, readiness: 0 }
   }
 
-  // Saturday Jan 24, 2026 is "Today"
-  const todayStart = new Date('2026-01-24T00:00:00Z').getTime()
+  // 0. Seed Exercise Catalog first
+  await seedExerciseCatalog(supabase);
+
+  // Tuesday Jan 27, 2026 is "Today"
+  const todayStart = new Date('2026-01-27T00:00:00Z').getTime()
   const dayMs = 24 * 60 * 60 * 1000
 
   const fullGymInventory: EquipmentInventory = {
@@ -92,63 +273,63 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
 
   const templateSeeds = [
     {
-      title: `${DEV_TEMPLATE_PREFIX}Upper Strength`,
+      title: `${DEV_TEMPLATE_PREFIX}Push (Chest/Shoulders/Tri)`,
       focus: 'upper' as FocusArea,
-      style: 'strength' as Goal,
+      style: 'hypertrophy' as Goal,
       experience_level: 'intermediate',
       intensity: 'high',
       equipment: { preset: 'full_gym', inventory: fullGymInventory },
       template_inputs: normalizePlanInput({
         intent: { mode: 'body_part', bodyParts: ['upper'] },
+        goals: { primary: 'hypertrophy', priority: 'primary' },
+        experienceLevel: 'intermediate',
+        intensity: 'high',
+        equipment: { preset: 'full_gym', inventory: fullGymInventory },
+        time: { minutesPerSession: 60 }
+      })
+    },
+    {
+      title: `${DEV_TEMPLATE_PREFIX}Pull (Back/Biceps)`,
+      focus: 'upper' as FocusArea,
+      style: 'hypertrophy' as Goal,
+      experience_level: 'intermediate',
+      intensity: 'high',
+      equipment: { preset: 'full_gym', inventory: fullGymInventory },
+      template_inputs: normalizePlanInput({
+        intent: { mode: 'body_part', bodyParts: ['upper'] },
+        goals: { primary: 'hypertrophy', priority: 'primary' },
+        experienceLevel: 'intermediate',
+        intensity: 'high',
+        equipment: { preset: 'full_gym', inventory: fullGymInventory },
+        time: { minutesPerSession: 60 }
+      })
+    },
+    {
+      title: `${DEV_TEMPLATE_PREFIX}Legs (Quads/Hams/Glutes)`,
+      focus: 'lower' as FocusArea,
+      style: 'strength' as Goal,
+      experience_level: 'intermediate',
+      intensity: 'high',
+      equipment: { preset: 'full_gym', inventory: fullGymInventory },
+      template_inputs: normalizePlanInput({
+        intent: { mode: 'body_part', bodyParts: ['lower'] },
         goals: { primary: 'strength', priority: 'primary' },
         experienceLevel: 'intermediate',
         intensity: 'high',
         equipment: { preset: 'full_gym', inventory: fullGymInventory },
-        time: { minutesPerSession: 45 }
-      })
-    },
-    {
-      title: `${DEV_TEMPLATE_PREFIX}Lower Hypertrophy`,
-      focus: 'lower' as FocusArea,
-      style: 'hypertrophy' as Goal,
-      experience_level: 'beginner',
-      intensity: 'moderate',
-      equipment: { preset: 'full_gym', inventory: fullGymInventory },
-      template_inputs: normalizePlanInput({
-        intent: { mode: 'body_part', bodyParts: ['lower'] },
-        goals: { primary: 'hypertrophy', priority: 'primary' },
-        experienceLevel: 'beginner',
-        intensity: 'moderate',
-        equipment: { preset: 'full_gym', inventory: fullGymInventory },
-        time: { minutesPerSession: 45 }
-      })
-    },
-    {
-      title: `${DEV_TEMPLATE_PREFIX}Full Body Endurance`,
-      focus: 'full_body' as FocusArea,
-      style: 'endurance' as Goal,
-      experience_level: 'beginner',
-      intensity: 'low',
-      equipment: { preset: 'full_gym', inventory: fullGymInventory },
-      template_inputs: normalizePlanInput({
-        intent: { mode: 'body_part', bodyParts: ['full_body'] },
-        goals: { primary: 'endurance', priority: 'primary' },
-        experienceLevel: 'beginner',
-        intensity: 'low',
-        equipment: { preset: 'full_gym', inventory: fullGymInventory },
-        time: { minutesPerSession: 45 }
+        time: { minutesPerSession: 75 }
       })
     },
     {
       title: `${DEV_TEMPLATE_PREFIX}Yoga / Mobility Flow`,
       focus: 'mobility' as FocusArea,
-      style: 'general_fitness' as Goal,
+      style: 'range_of_motion' as Goal,
       experience_level: 'beginner',
       intensity: 'low',
       equipment: { preset: 'home_minimal', inventory: mobilityInventory },
       template_inputs: normalizePlanInput({
-        intent: { mode: 'style', style: 'general_fitness' },
-        goals: { primary: 'general_fitness', priority: 'primary' },
+        intent: { mode: 'style', style: 'range_of_motion' },
+        goals: { primary: 'range_of_motion', priority: 'primary' },
         experienceLevel: 'beginner',
         intensity: 'low',
         equipment: { preset: 'home_minimal', inventory: mobilityInventory },
@@ -158,13 +339,13 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     {
       title: `${DEV_TEMPLATE_PREFIX}Cardio Conditioning`,
       focus: 'cardio' as FocusArea,
-      style: 'cardio' as Goal,
+      style: 'endurance' as Goal,
       experience_level: 'intermediate',
       intensity: 'moderate',
       equipment: { preset: 'full_gym', inventory: fullGymInventory },
       template_inputs: normalizePlanInput({
-        intent: { mode: 'style', style: 'cardio' },
-        goals: { primary: 'cardio', priority: 'primary' },
+        intent: { mode: 'style', style: 'endurance' },
+        goals: { primary: 'endurance', priority: 'primary' },
         experienceLevel: 'intermediate',
         intensity: 'moderate',
         equipment: { preset: 'full_gym', inventory: fullGymInventory },
@@ -189,142 +370,126 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         name: 'Bench Press',
         primaryMuscle: 'chest',
         secondaryMuscles: ['triceps', 'shoulders'],
-        metricProfile: 'strength',
+        movementPattern: 'push',
+        metricProfile: 'reps_weight',
         sets: [
-          { reps: 5, weight: 185, weightUnit: 'lb', rpe: 8 },
-          { reps: 5, weight: 185, weightUnit: 'lb', rpe: 8.5 },
-          { reps: 5, weight: 185, weightUnit: 'lb', rpe: 9 }
+          { reps: 8, weight: 155, weightUnit: 'lb', rpe: 7 },
+          { reps: 8, weight: 155, weightUnit: 'lb', rpe: 8 },
+          { reps: 8, weight: 155, weightUnit: 'lb', rpe: 9 }
         ]
       },
       {
-        name: 'Dumbbell Row',
-        primaryMuscle: 'back',
-        secondaryMuscles: ['biceps'],
-        metricProfile: 'strength',
+        name: 'Overhead Press',
+        primaryMuscle: 'shoulders',
+        secondaryMuscles: ['triceps', 'core'],
+        movementPattern: 'push',
+        metricProfile: 'reps_weight',
         sets: [
-          { reps: 8, weight: 60, weightUnit: 'lb', rpe: 7.5 },
-          { reps: 8, weight: 60, weightUnit: 'lb', rpe: 8 },
-          { reps: 8, weight: 60, weightUnit: 'lb', rpe: 8.5 }
+          { reps: 10, weight: 95, weightUnit: 'lb', rpe: 8 },
+          { reps: 10, weight: 95, weightUnit: 'lb', rpe: 8 }
         ]
       }
     ],
     1: [
       {
-        name: 'Barbell Back Squat',
-        primaryMuscle: 'quads',
-        secondaryMuscles: ['glutes', 'hamstrings'],
-        metricProfile: 'strength',
+        name: 'Lat Pulldown',
+        primaryMuscle: 'back',
+        secondaryMuscles: ['biceps', 'forearms'],
+        movementPattern: 'pull',
+        metricProfile: 'reps_weight',
         sets: [
-          { reps: 8, weight: 225, weightUnit: 'lb', rpe: 8 },
-          { reps: 8, weight: 225, weightUnit: 'lb', rpe: 8.5 },
-          { reps: 8, weight: 225, weightUnit: 'lb', rpe: 9 }
+          { reps: 10, weight: 120, weightUnit: 'lb', rpe: 7 },
+          { reps: 10, weight: 120, weightUnit: 'lb', rpe: 8 },
+          { reps: 10, weight: 120, weightUnit: 'lb', rpe: 8 }
         ]
       },
       {
-        name: 'Romanian Deadlift',
-        primaryMuscle: 'hamstrings',
-        secondaryMuscles: ['glutes'],
-        metricProfile: 'strength',
+        name: 'Bicep Curl',
+        primaryMuscle: 'biceps',
+        secondaryMuscles: ['forearms'],
+        movementPattern: 'pull',
+        metricProfile: 'reps_weight',
         sets: [
-          { reps: 10, weight: 185, weightUnit: 'lb', rpe: 7.5 },
-          { reps: 10, weight: 185, weightUnit: 'lb', rpe: 8 },
-          { reps: 10, weight: 185, weightUnit: 'lb', rpe: 8.5 }
+          { reps: 12, weight: 30, weightUnit: 'lb', rpe: 8 },
+          { reps: 12, weight: 30, weightUnit: 'lb', rpe: 9 }
         ]
       }
     ],
     2: [
       {
-        name: 'Kettlebell Swing',
-        primaryMuscle: 'glutes',
-        secondaryMuscles: ['hamstrings', 'core', 'shoulders'],
-        metricProfile: 'strength',
+        name: 'Barbell Back Squat',
+        primaryMuscle: 'quads',
+        secondaryMuscles: ['glutes', 'hamstrings', 'core'],
+        movementPattern: 'squat',
+        metricProfile: 'reps_weight',
         sets: [
-          { reps: 15, weight: 35, weightUnit: 'lb', rpe: 7 },
-          { reps: 15, weight: 35, weightUnit: 'lb', rpe: 7.5 },
-          { reps: 15, weight: 35, weightUnit: 'lb', rpe: 8 }
+          { reps: 5, weight: 225, weightUnit: 'lb', rpe: 8 },
+          { reps: 5, weight: 225, weightUnit: 'lb', rpe: 8.5 },
+          { reps: 5, weight: 225, weightUnit: 'lb', rpe: 9 }
         ]
       },
       {
-        name: 'Plank',
-        primaryMuscle: 'core',
-        secondaryMuscles: ['shoulders', 'glutes'],
-        metricProfile: 'timed_strength',
+        name: 'Romanian Deadlift',
+        primaryMuscle: 'hamstrings',
+        secondaryMuscles: ['glutes', 'core', 'back'],
+        movementPattern: 'hinge',
+        metricProfile: 'reps_weight',
         sets: [
-          { reps: null, weight: 0, weightUnit: 'lb', rpe: 6, durationSeconds: 45 },
-          { reps: null, weight: 0, weightUnit: 'lb', rpe: 6.5, durationSeconds: 45 },
-          { reps: null, weight: 0, weightUnit: 'lb', rpe: 7, durationSeconds: 45 }
+          { reps: 10, weight: 185, weightUnit: 'lb', rpe: 7.5 },
+          { reps: 10, weight: 185, weightUnit: 'lb', rpe: 8 }
         ]
       }
     ],
     3: [
       {
-        name: 'Yoga / Mobility',
-        primaryMuscle: 'mobility',
-        secondaryMuscles: ['core', 'full_body'],
-        metricProfile: 'mobility_session',
-        sets: [
-          { reps: null, weight: null, weightUnit: 'lb', rpe: 6, durationSeconds: 900, extraMetrics: { style: 'Vinyasa', focus: 'Flow' } }
-        ]
-      },
-      {
-        name: 'Stretching',
+        name: 'Yoga Flow',
         primaryMuscle: 'full_body',
-        secondaryMuscles: ['core'],
+        secondaryMuscles: ['core', 'shoulders', 'hamstrings'],
+        movementPattern: 'mobility',
         metricProfile: 'mobility_session',
         sets: [
-          { reps: null, weight: null, weightUnit: 'lb', rpe: 4, durationSeconds: 600, extraMetrics: { target_area: 'Hips' } }
+          { reps: null, weight: null, weightUnit: 'lb', rpe: 5, durationSeconds: 1200, extraMetrics: { style: 'Vinyasa' } }
         ]
       }
     ],
     4: [
       {
-        name: 'Indoor Ride',
-        primaryMuscle: 'cardio',
+        name: 'Stationary Bike',
+        primaryMuscle: 'full_body',
+        secondaryMuscles: ['quads', 'calves'],
+        movementPattern: 'cardio',
         metricProfile: 'cardio_session',
         sets: [
-          { reps: null, weight: null, weightUnit: 'lb', rpe: 7, durationSeconds: 1800, extraMetrics: { machine: 'stationary bike' } }
-        ]
-      },
-      {
-        name: 'Skipping',
-        primaryMuscle: 'cardio',
-        metricProfile: 'cardio_session',
-        sets: [
-          { reps: null, weight: null, weightUnit: 'lb', rpe: 8, durationSeconds: 600, extraMetrics: { focus: 'intervals' } }
+          { reps: null, weight: null, weightUnit: 'lb', rpe: 7, durationSeconds: 2400, extraMetrics: { machine: 'bike' } }
         ]
       }
     ]
   }
 
   const sessionSeeds: SessionSeed[] = []
-  const totalSessions = 40
+  const totalSessions = 60
   for (let i = 0; i < totalSessions; i++) {
     const templateIndex = i % 5
-    // Most recent session is 1 day ago (Friday Jan 23), others spread back
-    const daysAgo = Math.max(1, Math.floor((totalSessions - 1 - i) * 1.8) + 1)
+    const daysAgo = Math.max(1, Math.floor((totalSessions - 1 - i) * 1.5) + 1)
     const baseExercises = exerciseTemplates[templateIndex]
 
-    const progressFactor = 0.85 + (1 - daysAgo / 72) * 0.25 // More progression range
+    const progressFactor = 0.8 + (1 - daysAgo / 100) * 0.4 
     const exercises = baseExercises.map((ex) => ({
       ...ex,
       sets: ex.sets.map((s) => {
         const setUpdate: SetSeed = {
           ...s,
           weight: typeof s.weight === 'number' && s.weight > 0 ? Math.max(1, Math.round((s.weight * progressFactor) / 5) * 5) : s.weight,
-          reps: typeof s.reps === 'number' ? s.reps + (Math.random() > 0.7 ? 1 : 0) : s.reps,
-          durationSeconds: typeof s.durationSeconds === 'number' ? Math.round(s.durationSeconds * (0.9 + Math.random() * 0.2)) : null
+          reps: typeof s.reps === 'number' ? s.reps + (Math.random() > 0.8 ? 1 : 0) : s.reps,
+          durationSeconds: typeof s.durationSeconds === 'number' ? Math.round(s.durationSeconds * (0.95 + Math.random() * 0.1)) : null
         };
 
         const isYogaOrCardio = ex.metricProfile === 'mobility_session' || ex.metricProfile === 'cardio_session';
 
         if (isYogaOrCardio) {
-          // Yoga/Cardio effort is 1-10, stored in RPE
-          setUpdate.rpe = Math.min(10, Math.max(1, Math.round((s.rpe || 6) + (Math.random() * 4 - 2))));
+          setUpdate.rpe = Math.min(10, Math.max(3, Math.round((s.rpe || 5) + (Math.random() * 4 - 2))));
           setUpdate.rir = null;
-        } else if (typeof s.rir === 'number') {
-          setUpdate.rir = Math.min(10, Math.max(1, Math.round(s.rir + (Math.random() * 2 - 1))));
-          setUpdate.rpe = null;
-        } else if (typeof s.rpe === 'number') {
+        } else {
           setUpdate.rpe = Math.min(10, Math.max(6, (s.rpe || 7) + (Math.random() * 2 - 0.5)));
           setUpdate.rir = null;
         }
@@ -337,22 +502,21 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       name: `${DEV_SESSION_PREFIX} ${templateSeeds[templateIndex].title.replace(DEV_TEMPLATE_PREFIX, '')} ${i + 1}`,
       templateIndex,
       daysAgo,
-      minutesAvailable: 45 + Math.floor(Math.random() * 15),
+      minutesAvailable: 45 + Math.floor(Math.random() * 30),
       exercises
     })
   }
 
-  const weightStartPoint = 184.2
+  const weightStartPoint = 192.5
   
-  // Helper to get weight for a specific time
   const getWeightAtTime = (daysAgo: number) => {
-    // Roughly 0.1lb loss per day
-    return Number((weightStartPoint - (30 - daysAgo) * 0.1 + (Math.random() * 0.4 - 0.2)).toFixed(1))
+    // Gradual loss with fluctuations
+    return Number((weightStartPoint - (100 - daysAgo) * 0.08 + (Math.random() * 0.6 - 0.3)).toFixed(1))
   }
 
   const sessionRows = sessionSeeds.map((seed) => {
-    const startedAt = new Date(todayStart - seed.daysAgo * dayMs - 45 * 60 * 1000)
-    const endedAt = new Date(todayStart - seed.daysAgo * dayMs - 15 * 60 * 1000)
+    const startedAt = new Date(todayStart - seed.daysAgo * dayMs - 60 * 60 * 1000)
+    const endedAt = new Date(todayStart - seed.daysAgo * dayMs - 10 * 60 * 1000)
     const sessionWeight = getWeightAtTime(seed.daysAgo)
     
     return {
@@ -363,7 +527,6 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       started_at: startedAt.toISOString(),
       ended_at: endedAt.toISOString(),
       minutes_available: seed.minutesAvailable,
-      generated_exercises: [],
       session_notes: DEV_SEED_MARKER,
       body_weight_lb: sessionWeight
     }
@@ -385,6 +548,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     exercise_name: string
     primary_muscle: string
     secondary_muscles: string[]
+    movement_pattern: string
     metric_profile: string
     order_index: number
   }> = []
@@ -398,6 +562,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         exercise_name: exercise.name,
         primary_muscle: exercise.primaryMuscle,
         secondary_muscles: exercise.secondaryMuscles ?? [],
+        movement_pattern: (exercise as any).movementPattern || 'push',
         metric_profile: exercise.metricProfile ?? 'reps_weight',
         order_index: index
       })

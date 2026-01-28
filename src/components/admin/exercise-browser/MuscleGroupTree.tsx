@@ -35,11 +35,12 @@ export function MuscleGroupTree({
   
   // 1. Build the Tree Structure based on filtered exercises to show relevant counts
   const treeData = React.useMemo(() => {
-    // Counts per muscle
+    // Counts per muscle (Primary only)
     const muscleCounts: Record<string, number> = {};
     filteredExercises.forEach(ex => {
-      const muscle = ex.primaryMuscle || 'other';
-      muscleCounts[muscle] = (muscleCounts[muscle] || 0) + 1;
+      if (ex.primaryMuscle) {
+        muscleCounts[ex.primaryMuscle] = (muscleCounts[ex.primaryMuscle] || 0) + 1;
+      }
     });
 
     const regions: Record<BodyRegion, {

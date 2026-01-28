@@ -59,6 +59,7 @@ export default function EditWorkoutPage() {
         name: data.name,
         category: category,
         focus: data.focus,
+        movementPattern: data.movement_pattern,
         metricProfile: metricProfile,
         sets: data.sets,
         reps: data.reps,

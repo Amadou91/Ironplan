@@ -82,9 +82,21 @@ export function ExerciseCatalogExplorer({ initialExercises, muscleOptions }: Pro
             ) : (
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="font-bold text-lg">{ex.name}</h3>
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-bold text-lg">{ex.name}</h3>
+                    {ex.movementPattern && (
+                      <span className="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
+                        {ex.movementPattern}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-sm text-muted flex flex-wrap gap-2 mt-1">
                     <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">{ex.primaryMuscle}</span>
+                    {ex.primaryMuscle !== 'full_body' && ex.secondaryMuscles && ex.secondaryMuscles.length > 0 && (
+                      <span className="bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-slate-500 text-[11px]">
+                        +{ex.secondaryMuscles.join(', ')}
+                      </span>
+                    )}
                     <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700">{ex.focus}</span>
                     {ex.goal && <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700">{ex.goal}</span>}
                     {ex.metricProfile && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100">{ex.metricProfile}</span>}
