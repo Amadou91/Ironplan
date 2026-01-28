@@ -6,6 +6,7 @@ import { Exercise } from '@/types/domain';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { MUSCLE_MAPPING } from '@/lib/muscle-mapping';
 
@@ -17,15 +18,46 @@ const muscleOptions = Object.entries(MUSCLE_MAPPING).map(([slug, data]) => ({
 export default function NewWorkoutPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const supabase = createClient();
 
   const handleSave = async (data: Exercise) => {
-    console.log('Saving new workout (exercise):', data);
-    // TODO: Implement actual save logic (e.g., to Supabase 'exercise_catalog' or 'workouts' table)
-    // const { error } = await supabase.from('exercise_catalog').insert({...})
+    // Map Domain fields to DB fields
+    const payload = {
+      name: data.name,
+      category: data.category || 'Strength',
+      focus: data.focus,
+      eligible_goals: data.eligibleGoals || [],
+      goal: data.goal,
+      metric_profile: data.metricProfile || 'strength',
+      sets: data.sets,
+      reps: data.reps,
+      rpe: data.rpe,
+      equipment: data.equipment,
+      difficulty: data.difficulty,
+      duration_minutes: data.durationMinutes,
+      rest_seconds: data.restSeconds,
+      primary_muscle: data.primaryMuscle,
+      secondary_muscles: data.secondaryMuscles || [],
+      instructions: data.instructions || [],
+      video_url: data.videoUrl,
+      e1rm_eligible: data.e1rmEligible || false,
+      is_interval: data.isInterval || false,
+      interval_duration: data.intervalDuration,
+      interval_rest: data.intervalRest
+    };
+
+    const { error } = await supabase
+      .from('exercise_catalog')
+      .insert(payload);
     
-    // Simulating success for now
-    toast('Workout created successfully!', 'success');
-    router.push('/workouts');
+    if (error) {
+      console.error('Error creating exercise:', error);
+      toast(`Failed to create exercise: ${error.message}`, 'error');
+    } else {
+      toast('Exercise created successfully!', 'success');
+      router.push('/workouts');
+      router.refresh(); // Refresh the list
+    }
   };
 
   return (
