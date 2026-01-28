@@ -75,13 +75,17 @@ export function ExerciseFilters({
         </div>
 
         {/* Categories */}
-        {(['Strength'] as ExerciseCategory[]).map(cat => (
+        {([
+          { value: 'Strength', label: 'Strength' },
+          { value: 'Cardio', label: 'Cardio' },
+          { value: 'Mobility', label: 'Yoga / Mobility' }
+        ] as { value: ExerciseCategory; label: string }[]).map(cat => (
           <FilterButton 
-            key={cat} 
-            isActive={activeFilters.category.includes(cat)} 
-            onClick={() => toggleFilter('category', cat)}
+            key={cat.value} 
+            isActive={activeFilters.category.includes(cat.value)} 
+            onClick={() => toggleFilter('category', cat.value)}
           >
-            {cat}
+            {cat.label}
           </FilterButton>
         ))}
 
