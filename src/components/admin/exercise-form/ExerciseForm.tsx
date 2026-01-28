@@ -51,7 +51,10 @@ const EQUIPMENT_KINDS: { label: string; value: EquipmentKind }[] = [
   { label: 'Dumbbell', value: 'dumbbell' },
   { label: 'Kettlebell', value: 'kettlebell' },
   { label: 'Band', value: 'band' },
-  { label: 'Machine', value: 'machine' }
+  { label: 'Machine', value: 'machine' },
+  { label: 'Block', value: 'block' },
+  { label: 'Bolster', value: 'bolster' },
+  { label: 'Strap', value: 'strap' }
 ]
 
 const MACHINE_TYPES: { label: string; value: MachineType }[] = [
@@ -102,13 +105,13 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
   }
 
   useEffect(() => {
-    if (!isAdvanced && formData.primaryMuscle && exerciseType === 'Strength') {
+    if (formData.primaryMuscle && exerciseType === 'Strength') {
       const derivedFocus = getFocusAreaFromMuscle(formData.primaryMuscle);
       if (derivedFocus && formData.focus !== derivedFocus) {
         setFormData(prev => ({ ...prev, focus: derivedFocus }));
       }
     }
-  }, [formData.primaryMuscle, isAdvanced, exerciseType, formData.focus])
+  }, [formData.primaryMuscle, exerciseType, formData.focus])
 
   const handleTypeChange = (type: ExerciseType) => {
     setExerciseType(type)
@@ -117,7 +120,6 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
         ...prev,
         category: 'Mobility',
         focus: 'full_body',
-        goal: 'range_of_motion',
         primaryMuscle: 'full_body' 
       }))
     } else if (type === 'Cardio') {
@@ -125,24 +127,16 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
         ...prev,
         category: 'Cardio',
         focus: 'full_body',
-        goal: 'endurance',
         primaryMuscle: 'full_body'
       }))
     } else {
       setFormData(prev => ({
         ...prev,
         category: 'Strength',
-        goal: (prev.goal === 'range_of_motion' || prev.goal === 'endurance') ? undefined : prev.goal,
-        focus: prev.focus === 'full_body' ? undefined : prev.focus,
+        focus: prev.primaryMuscle ? getFocusAreaFromMuscle(prev.primaryMuscle) : undefined,
       }))
     }
   }
-
-  const availableGoals = EXERCISE_GOALS.filter(g => {
-    if (exerciseType === 'Yoga') return g.value === 'range_of_motion'
-    if (exerciseType === 'Cardio') return g.value === 'endurance'
-    return ['strength', 'hypertrophy', 'endurance'].includes(g.value)
-  })
 
   const handleEquipmentChange = (kind: EquipmentKind, machineType?: MachineType) => {
     setFormData(prev => {
@@ -306,10 +300,7 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
 
                 {exerciseType === 'Strength' ? (
                   <>
-                    <div className={cn(
-                      "col-span-12",
-                      isAdvanced ? "md:col-span-4" : "md:col-span-6"
-                    )}>
+                    <div className="col-span-12 md:col-span-12">
                       <Label className="mb-2.5 block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">Primary Muscle</Label>
                       <Select 
                         value={formData.primaryMuscle as string || ''} 
@@ -323,59 +314,19 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                       </Select>
                     </div>
 
-                    {isAdvanced && (
-                      <div className="col-span-12 md:col-span-4">
-                        <Label className="mb-2.5 block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">Focus Area</Label>
-                        <Select 
-                          value={formData.focus || ''} 
-                          onChange={e => setFormData({...formData, focus: e.target.value as FocusArea})}
-                          className="h-12 font-medium"
-                        >
-                          <option value="">Select Focus...</option>
-                          {FOCUS_AREAS.map(f => (
-                            <option key={f.value} value={f.value}>{f.label}</option>
-                          ))}
-                        </Select>
-                      </div>
-                    )}
-
-                    <div className={cn(
-                      "col-span-12",
-                      isAdvanced ? "md:col-span-4" : "md:col-span-6"
-                    )}>
-                      <Label className="mb-2.5 block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">Primary Goal</Label>
-                      <Select 
-                        value={formData.goal || ''} 
-                        onChange={e => setFormData({...formData, goal: e.target.value as Goal})}
-                        className="h-12 font-medium"
-                      >
-                        <option value="">Select Goal...</option>
-                        {availableGoals.map(g => (
-                          <option key={g.value} value={g.value}>{g.label}</option>
-                        ))}
-                      </Select>
-                      <p className="mt-1.5 text-[10px] text-muted italic">Sets the default prescription baseline.</p>
-                    </div>
-
                     <div className="col-span-12 pt-4 border-t border-[var(--color-border)]/50">
-                      <Label className="mb-4 block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">Also Eligible For</Label>
+                      <Label className="mb-4 block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">Secondary Muscles</Label>
                       <div className="flex flex-wrap gap-2">
-                        {availableGoals.map(g => {
-                          const isSelected = formData.eligibleGoals?.includes(g.value)
-                          const isPrimary = formData.goal === g.value
+                        {muscleOptions.map(m => {
+                          const isSelected = formData.secondaryMuscles?.includes(m.slug)
+                          const isPrimary = formData.primaryMuscle === m.slug
                           if (isPrimary) return null
                           
                           return (
                             <button
                               type="button"
-                              key={g.value}
-                              onClick={() => {
-                                const current = formData.eligibleGoals || []
-                                const next = isSelected 
-                                  ? current.filter(v => v !== g.value)
-                                  : [...current, g.value]
-                                setFormData({ ...formData, eligibleGoals: next })
-                              }}
+                              key={m.slug}
+                              onClick={() => handleSecondaryMuscleChange(m.slug)}
                               className={cn(
                                 "px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all border-2",
                                 isSelected 
@@ -383,7 +334,7 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                                   : "bg-transparent border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-muted)]"
                               )}
                             >
-                              {g.label}
+                              {m.label}
                             </button>
                           )
                         })}
@@ -457,7 +408,11 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
               <div className="space-y-5">
                 <Label className="block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">Required Equipment</Label>
                 <div className="flex flex-nowrap gap-1.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
-                  {EQUIPMENT_KINDS.map(item => {
+                  {EQUIPMENT_KINDS.filter(item => {
+                    if (exerciseType === 'Cardio') return item.value === 'machine';
+                    if (exerciseType === 'Yoga') return ['block', 'bolster', 'strap', 'bodyweight'].includes(item.value);
+                    return !['block', 'bolster', 'strap'].includes(item.value);
+                  }).map(item => {
                     const isSelected = formData.equipment?.some(e => e.kind === item.value)
                     return (
                       <button

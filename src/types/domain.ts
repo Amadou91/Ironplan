@@ -29,7 +29,7 @@ export type MachineType = 'cable' | 'leg_press' | 'treadmill' | 'rower' | 'indoo
 
 export type EquipmentPreset = 'home_minimal' | 'full_gym' | 'hotel'
 
-export type EquipmentKind = 'bodyweight' | 'dumbbell' | 'kettlebell' | 'band' | 'barbell' | 'machine'
+export type EquipmentKind = 'bodyweight' | 'dumbbell' | 'kettlebell' | 'band' | 'barbell' | 'machine' | 'block' | 'bolster' | 'strap'
 
 export type EquipmentOption =
   | { kind: 'bodyweight' }
@@ -38,6 +38,9 @@ export type EquipmentOption =
   | { kind: 'band' }
   | { kind: 'barbell' }
   | { kind: 'machine'; machineType?: MachineType }
+  | { kind: 'block' }
+  | { kind: 'bolster' }
+  | { kind: 'strap' }
 
 export type WeightUnit = 'lb' | 'kg'
 export type DistanceUnit = 'm' | 'km' | 'miles'

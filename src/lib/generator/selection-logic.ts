@@ -144,10 +144,16 @@ export const scoreExercise = (
   if (family && !history.recentFamilies.has(family)) score += 0.5
   
   // Goal Alignment Bonus
-  const nativeGoal = exercise.goal
-  const isEligible = exercise.eligibleGoals?.includes(targetGoal) || nativeGoal === targetGoal
-  if (isEligible) score += 1
-  else if (nativeGoal === 'general_fitness') score += 0.5
+  // Strength exercises are versatile, so they get a baseline bonus for any strength-related goal.
+  if (exercise.category === 'Strength' && (targetGoal === 'strength' || targetGoal === 'hypertrophy' || targetGoal === 'endurance')) {
+    score += 1
+  } else if (exercise.category === 'Cardio' && targetGoal === 'endurance') {
+    score += 1
+  } else if (exercise.category === 'Mobility' && targetGoal === 'range_of_motion') {
+    score += 1
+  } else if (targetGoal === 'general_fitness') {
+    score += 0.5
+  }
 
   score += getExperienceScore(exercise, input.experienceLevel)
   score += getIntensityScore(exercise, input.intensity)

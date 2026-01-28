@@ -37,7 +37,7 @@ export function ExerciseBrowser({ initialExercises }: ExerciseBrowserProps) {
 
     // 2. Chip Filters
     if (activeFilters.category.length > 0) {
-      result = result.filter(ex => activeFilters.category.includes(ex.category));
+      result = result.filter(ex => ex.category && activeFilters.category.includes(ex.category));
     }
     // (Add goal filtering if eligibleGoals is reliably populated, usually implicit in category/exercise type)
 
@@ -56,6 +56,8 @@ export function ExerciseBrowser({ initialExercises }: ExerciseBrowserProps) {
     return filteredExercises;
   }, [filteredExercises, selectedMuscle]);
 
+  const isFilterActive = searchQuery.length > 0 || activeFilters.category.length > 0;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       {/* Sidebar: Filters & Tree */}
@@ -65,6 +67,7 @@ export function ExerciseBrowser({ initialExercises }: ExerciseBrowserProps) {
           filteredExercises={filteredExercises}
           selectedMuscle={selectedMuscle}
           onSelectMuscle={setSelectedMuscle}
+          isFilterActive={isFilterActive}
         />
       </aside>
 

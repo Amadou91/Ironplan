@@ -42,14 +42,6 @@ export function validateExercise(exercise: Partial<Exercise>): string[] {
     errors.push('Primary muscle is required')
   }
 
-  if (!exercise.focus) {
-    errors.push('Focus area is required')
-  }
-
-  if (!exercise.goal) {
-    errors.push('Goal is required')
-  }
-
   return errors
 }
 
