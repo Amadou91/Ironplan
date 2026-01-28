@@ -290,7 +290,6 @@ export const buildSessionExercises = (
     input.equipment.inventory,
     input.preferences.dislikedActivities,
     input.preferences.accessibilityConstraints,
-    input.preferences.cardioActivities,
     targetGoal
   )
   const secondaryPool = filterExercises(
@@ -299,7 +298,6 @@ export const buildSessionExercises = (
     input.equipment.inventory,
     input.preferences.dislikedActivities,
     input.preferences.accessibilityConstraints,
-    input.preferences.cardioActivities,
     targetGoal === 'general_fitness' ? targetGoal : undefined
   )
   if (focusConstraint && primaryPool.length === 0) {
@@ -311,8 +309,7 @@ export const buildSessionExercises = (
         baseFocus,
         input.equipment.inventory,
         input.preferences.dislikedActivities,
-        input.preferences.accessibilityConstraints,
-        input.preferences.cardioActivities
+        input.preferences.accessibilityConstraints
       )
     : []
 

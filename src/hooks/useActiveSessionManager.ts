@@ -181,13 +181,13 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
         .eq('id', activeSession.userId)
         .maybeSingle();
       setProfileWeightLb(data?.weight_lb ?? null);
-      if (!activeSession.weightUnit) {
+      if (!activeSession?.weightUnit) {
         const normalized = normalizePreferences(data?.preferences);
         updateSession({ weightUnit: normalized.settings?.units ?? 'lb' });
       }
     };
     loadProfile();
-  }, [activeSession?.userId, activeSession.weightUnit, updateSession, supabase]);
+  }, [activeSession?.userId, activeSession?.weightUnit, updateSession, supabase]);
 
   useEffect(() => {
     if (!activeSession?.userId) return;

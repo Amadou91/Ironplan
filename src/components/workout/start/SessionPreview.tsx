@@ -4,6 +4,7 @@ import React, { useMemo } from 'react'
 import { Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { toMuscleLabel } from '@/lib/muscle-utils'
+import { formatGoalLabel } from '@/lib/generator/utils'
 import type { FocusArea, Goal, EquipmentInventory } from '@/types/domain'
 
 interface SessionPreviewProps {
@@ -49,7 +50,7 @@ export function SessionPreview({
         </div>
         <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
           <p className="text-xs text-subtle">Style</p>
-          <p className="font-semibold text-strong">{style.replace('_', ' ')}</p>
+          <p className="font-semibold text-strong">{formatGoalLabel(style)}</p>
         </div>
         <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
           <p className="text-xs text-subtle">Session intensity</p>

@@ -85,6 +85,17 @@ export const isCompoundMovement = (exercise: Exercise) =>
 export const formatFocusLabel = (focus: FocusArea) =>
   focus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 
+export const formatGoalLabel = (goal: Goal | string) => {
+  const map: Record<string, string> = {
+    range_of_motion: 'Yoga / Mobility',
+    hypertrophy: 'Muscle Growth',
+    strength: 'Strength',
+    endurance: 'Endurance',
+    cardio: 'Cardio'
+  }
+  return map[goal] ?? goal.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 export const getPrimaryMuscleLabel = (exercise: Exercise) => {
   if (exercise.primaryBodyParts?.length) return exercise.primaryBodyParts[0]
   if (typeof exercise.primaryMuscle === 'string') return exercise.primaryMuscle

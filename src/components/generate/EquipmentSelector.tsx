@@ -78,20 +78,16 @@ const WeightRangeSelector = ({ field, label, ranges, selected, onToggleRange }: 
 
 interface EquipmentSelectorProps {
   equipment: PlanInput['equipment']
-  cardioActivities: string[]
   isCardioStyle: boolean
   isMobilityStyle: boolean
   onUpdateEquipment: (updater: (prev: PlanInput['equipment']) => PlanInput['equipment']) => void
-  onUpdateCardioActivities: (activities: string[]) => void
 }
 
 export function EquipmentSelector({
   equipment,
-  cardioActivities,
   isCardioStyle,
   isMobilityStyle,
-  onUpdateEquipment,
-  onUpdateCardioActivities
+  onUpdateEquipment
 }: EquipmentSelectorProps) {
   const { inventory } = equipment
 
@@ -348,27 +344,6 @@ export function EquipmentSelector({
                   ))}
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div className="surface-card-muted p-5">
-            <div className="border-b border-[var(--color-border)] pb-3">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-strong">Cardio activities</h3>
-            </div>
-            <div className="mt-4 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {CARDIO_ACTIVITY_OPTIONS.map((option) => (
-                  <Checkbox
-                    key={option.value}
-                    label={option.label}
-                    checked={cardioActivities.includes(option.value)}
-                    onCheckedChange={() =>
-                      onUpdateCardioActivities(toggleArrayValue(cardioActivities, option.value))
-                    }
-                  />
-                ))}
-              </div>
-              <p className="text-xs text-subtle">Leave blank to allow any cardio activity.</p>
             </div>
           </div>
         </>

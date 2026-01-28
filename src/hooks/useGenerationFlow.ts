@@ -89,7 +89,6 @@ export function useGenerationFlow() {
       preferences: {
         focusAreas: ['chest'],
         dislikedActivities: [],
-        cardioActivities: [],
         accessibilityConstraints: [],
         restPreference: 'balanced'
       }

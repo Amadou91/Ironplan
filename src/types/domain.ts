@@ -187,7 +187,7 @@ export interface PlanInput {
   preferences: {
     focusAreas: FocusArea[]
     dislikedActivities: string[]
-    cardioActivities: CardioActivity[]
+    cardioActivities?: CardioActivity[]
     accessibilityConstraints: string[]
     restPreference: RestPreference
   }

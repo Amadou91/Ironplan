@@ -18,6 +18,9 @@ import type { FocusArea, Goal, PlanInput, Exercise } from '@/types/domain'
 import { ReadinessCheck, READINESS_FIELDS } from '@/components/workout/start/ReadinessCheck'
 import { SessionPreview } from '@/components/workout/start/SessionPreview'
 import { mapCatalogRowToExercise } from '@/lib/generator/mappers'
+import { CARDIO_ACTIVITY_OPTIONS } from '@/lib/cardio-activities'
+import { isExerciseEquipmentAvailable } from '@/lib/equipment'
+import { Checkbox } from '@/components/ui/Checkbox'
 
 type WorkoutTemplate = {
   id: string
@@ -77,6 +80,23 @@ export default function WorkoutStartPage() {
   const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurveyDraft>({
     sleep: null, soreness: null, stress: null, motivation: null
   })
+  const [selectedCardioActivities, setSelectedCardioActivities] = useState<string[]>([])
+
+  const availableCardioOptions = useMemo(() => {
+    if (!template || template.focus !== 'cardio') return []
+    const inventory = template.template_inputs?.equipment?.inventory
+    if (!inventory) return CARDIO_ACTIVITY_OPTIONS
+
+    return CARDIO_ACTIVITY_OPTIONS.filter(option => {
+      // Find exercises in catalog that match this cardio option's keywords
+      const matchingExercises = catalog.filter(ex => 
+        ex.category === 'Cardio' && 
+        option.keywords.some(k => ex.name.toLowerCase().includes(k.toLowerCase()))
+      )
+      // Check if user has equipment for any of these exercises
+      return matchingExercises.some(ex => isExerciseEquipmentAvailable(inventory, ex.equipment))
+    })
+  }, [template, catalog])
 
   useEffect(() => {
     const init = async () => {
@@ -123,7 +143,8 @@ export default function WorkoutStartPage() {
         experienceLevel: shiftExperienceLevel(baseInput.experienceLevel ?? template.experience_level ?? 'intermediate', selectedIntensity.experienceDelta), 
         preferences: { 
           ...baseInput.preferences, 
-          restPreference: selectedIntensity.restPreference 
+          restPreference: selectedIntensity.restPreference,
+          cardioActivities: template.focus === 'cardio' ? (selectedCardioActivities as CardioActivity[]) : baseInput.preferences.cardioActivities
         } 
       }
       const history = await fetchTemplateHistory(supabase, template.id)
@@ -164,6 +185,30 @@ export default function WorkoutStartPage() {
                   <input type="range" min={20} max={120} step={5} value={minutesAvailable} onChange={(e) => setMinutesAvailable(Number(e.target.value))} className="mt-3 w-full" />
                   <div className="mt-3 flex flex-wrap gap-2">{[30, 45, 60, 75].map((v) => <Button key={v} size="sm" variant={minutesAvailable === v ? 'primary' : 'secondary'} onClick={() => setMinutesAvailable(v)}>{v} min</Button>)}</div>
                 </div>
+
+                {template.focus === 'cardio' && availableCardioOptions.length > 0 && (
+                  <div className="surface-card-muted p-5 rounded-xl border border-[var(--color-border)]">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-strong mb-4">Choose cardio activities</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {availableCardioOptions.map((option) => (
+                        <Checkbox
+                          key={option.value}
+                          label={option.label}
+                          checked={selectedCardioActivities.includes(option.value)}
+                          onCheckedChange={() => {
+                            setSelectedCardioActivities(prev => 
+                              prev.includes(option.value) 
+                                ? prev.filter(v => v !== option.value) 
+                                : [...prev, option.value]
+                            )
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <p className="mt-3 text-[10px] text-subtle italic">Leave blank to include any activity matching your equipment.</p>
+                  </div>
+                )}
+
                 <ReadinessCheck survey={readinessSurvey} onUpdateField={(f, v) => setReadinessSurvey(p => ({ ...p, [f]: v }))} score={readinessScore} level={readinessLevel} />
               </div>
             </Card>

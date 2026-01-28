@@ -36,7 +36,6 @@ export const filterExercises = (
   inventory: EquipmentInventory,
   disliked: string[],
   accessibility: string[],
-  cardioActivities: CardioActivity[],
   goal?: Goal
 ) => catalog.filter(exercise => {
   // 1. Focus Mapping (User Input -> DB Fields)
@@ -96,7 +95,8 @@ export const filterExercises = (
       matchesGoal = true
     }
     // If it's Mobility, it generally matches 'range_of_motion'
-    else if (exercise.category === 'Mobility' && goal === 'range_of_motion') {
+    // Also allow it to match if we are in a mobility focus session regardless of specific goal label
+    else if (exercise.category === 'Mobility' && (goal === 'range_of_motion' || focus === 'mobility')) {
       matchesGoal = true
     }
     else if (exercise.eligibleGoals && exercise.eligibleGoals.length > 0) {
@@ -107,9 +107,7 @@ export const filterExercises = (
     }
   }
 
-  const matchesCardio = focus === 'cardio' ? matchesCardioSelection(exercise.name, cardioActivities) : true
-
-  return matchesFocus && matchesGoal && matchesCardio && Boolean(option) && !isDisliked && !(lowImpact && isHighImpact)
+  return matchesFocus && matchesGoal && Boolean(option) && !isDisliked && !(lowImpact && isHighImpact)
 })
 
 /**

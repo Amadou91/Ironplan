@@ -997,9 +997,9 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     ],
     "difficulty": "beginner",
     "eligibleGoals": [
-      "mobility"
+      "range_of_motion"
     ],
-    "goal": "mobility",
+    "goal": "range_of_motion",
     "durationMinutes": 10,
     "restSeconds": 30,
     "primaryMuscle": "full_body",
@@ -1022,9 +1022,9 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     ],
     "difficulty": "beginner",
     "eligibleGoals": [
-      "mobility"
+      "range_of_motion"
     ],
-    "goal": "mobility",
+    "goal": "range_of_motion",
     "durationMinutes": 15,
     "restSeconds": 45,
     "primaryMuscle": "full_body",

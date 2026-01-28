@@ -158,22 +158,12 @@ export default function GeneratePage() {
 
               <EquipmentSelector
                 equipment={formData.equipment}
-                cardioActivities={formData.preferences.cardioActivities}
                 isCardioStyle={isCardioStyle}
                 isMobilityStyle={isMobilityStyle}
                 onUpdateEquipment={(updater) =>
                   updateFormData((prev) => ({
                     ...prev,
                     equipment: updater(prev.equipment)
-                  }))
-                }
-                onUpdateCardioActivities={(activities) =>
-                  updateFormData((prev) => ({
-                    ...prev,
-                    preferences: {
-                      ...prev.preferences,
-                      cardioActivities: activities as CardioActivity[]
-                    }
                   }))
                 }
               />
