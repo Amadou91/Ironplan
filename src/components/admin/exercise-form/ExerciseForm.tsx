@@ -58,7 +58,8 @@ const MACHINE_TYPES: { label: string; value: MachineType }[] = [
   { label: 'Cable', value: 'cable' },
   { label: 'Leg Press', value: 'leg_press' },
   { label: 'Treadmill', value: 'treadmill' },
-  { label: 'Rower', value: 'rower' }
+  { label: 'Rower', value: 'rower' },
+  { label: 'Indoor Bicycle', value: 'indoor_bicycle' }
 ]
 
 type ExerciseType = 'Strength' | 'Yoga' | 'Cardio'

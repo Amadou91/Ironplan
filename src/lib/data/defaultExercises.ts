@@ -942,7 +942,8 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "rpe": 6,
     "equipment": [
       {
-        "kind": "machine"
+        "kind": "machine",
+        "machineType": "indoor_bicycle"
       }
     ],
     "difficulty": "beginner",

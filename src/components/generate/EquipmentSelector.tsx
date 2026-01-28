@@ -45,7 +45,7 @@ const WEIGHT_RANGE_CONFIG: {
   }
 ]
 
-export const cardioMachineOptions: MachineType[] = ['treadmill', 'rower']
+export const cardioMachineOptions: MachineType[] = ['treadmill', 'rower', 'indoor_bicycle']
 export const strengthMachineOptions: MachineType[] = ['cable', 'leg_press']
 
 type WeightRangeSelectorProps = {

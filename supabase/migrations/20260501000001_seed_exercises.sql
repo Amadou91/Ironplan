@@ -45,7 +45,7 @@ insert into public.exercise_catalog (
 
 -- Cardio
 ('Skipping', 'cardio', 'cardio', 'beginner', 'cardio', 'cardio', '{}', 6, '45 sec on/15 sec off', 7, '[{"kind": "bodyweight"}]'::jsonb, 10, null, 45, 'distance_duration', false),
-('Indoor Ride', 'cardio', 'cardio', 'beginner', 'cardio', 'cardio', '{}', 1, '20-30 min', 6, '[{"kind": "machine"}]'::jsonb, 20, null, 60, 'distance_duration', false),
+('Indoor Ride', 'cardio', 'cardio', 'beginner', 'cardio', 'cardio', '{}', 1, '20-30 min', 6, '[{"kind": "machine", "machineType": "indoor_bicycle"}]'::jsonb, 20, null, 60, 'distance_duration', false),
 ('Outdoor Ride', 'cardio', 'cardio', 'intermediate', 'cardio', 'cardio', '{}', 1, '30-45 min', 6, '[{"kind": "bodyweight"}]'::jsonb, 30, null, 60, 'distance_duration', false),
 
 -- Yoga / Mobility
