@@ -52,6 +52,7 @@ export const focusMuscleMap: Record<
   triceps: { primaryMuscles: ['triceps'], baseFocus: 'upper' },
   chest: { primaryMuscles: ['chest'], baseFocus: 'upper' },
   back: { primaryMuscles: ['back'], baseFocus: 'upper' },
+  shoulders: { primaryMuscles: ['shoulders'], baseFocus: 'upper' },
   upper: {},
   lower: {},
   full_body: {},

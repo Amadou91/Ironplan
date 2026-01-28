@@ -87,24 +87,22 @@ export const filterExercises = (
   const lowImpact = accessibility.includes('low-impact')
   const isHighImpact = exercise.name.toLowerCase().includes('jump') || exercise.name.toLowerCase().includes('interval')
 
-  // 4. Goal Alignment
+  // 4. Goal Alignment (Softened for Option B)
   let matchesGoal = true
   if (goal) {
-    // If it's a cardio exercise, it matches Endurance/Cardio goals
-    if (exercise.category === 'Cardio' && (goal === 'endurance' || goal === 'cardio')) {
-      matchesGoal = true
+    // Fundamental Category Mismatches
+    if (exercise.category === 'Cardio' && (goal !== 'endurance' && goal !== 'cardio' && goal !== 'general_fitness')) {
+      matchesGoal = false
     }
-    // If it's Mobility, it generally matches 'range_of_motion'
-    // Also allow it to match if we are in a mobility focus session regardless of specific goal label
-    else if (exercise.category === 'Mobility' && (goal === 'range_of_motion' || focus === 'mobility')) {
-      matchesGoal = true
+    else if (exercise.category === 'Mobility' && (goal !== 'range_of_motion' && focus !== 'mobility')) {
+      matchesGoal = false
     }
-    else if (exercise.eligibleGoals && exercise.eligibleGoals.length > 0) {
-      matchesGoal = exercise.eligibleGoals.includes(goal)
-    } else {
-      // Fallback for migration/legacy data
-      matchesGoal = exercise.goal === goal || exercise.goal === 'general_fitness'
+    // Strength exercises are versatile and can be used for any strength/hypertrophy/endurance goal.
+    // We only hard-filter if it's explicitly NOT eligible (which is rare).
+    else if (exercise.category === 'Strength' && (goal === 'cardio' || goal === 'range_of_motion')) {
+      matchesGoal = false
     }
+    // Otherwise, we allow it but will score it based on alignment in scoreExercise
   }
 
   return matchesFocus && matchesGoal && Boolean(option) && !isDisliked && !(lowImpact && isHighImpact)
@@ -117,20 +115,24 @@ export const filterExercises = (
  * 1. Freshness: Penalizes exercises performed very recently (-3).
  * 2. Muscle/Pattern Variety: Penalizes repeating the same primary muscle or pattern (-1).
  * 3. Profile Match: Bonus for exercises matching user's experience and intensity level.
- * 4. Source Priority: Bonus for exercises that are 'primary' for the session focus.
+ * 4. Goal Alignment: Bonus for exercises that natively match the session goal.
+ * 5. Source Priority: Bonus for exercises that are 'primary' for the session focus.
  */
 export const scoreExercise = (
   exercise: Exercise,
   source: ExerciseSource,
-  input: Pick<PlanInput, 'experienceLevel' | 'intensity'>,
+  input: Pick<PlanInput, 'experienceLevel' | 'intensity' | 'goals'>,
   history: {
     recentNames: Set<string>
     recentPatterns: Set<string>
     recentPrimaryMuscles: Set<string>
     recentFamilies: Set<string | null>
-  }
+  },
+  goalOverride?: Goal
 ) => {
   let score = 0
+  const targetGoal = goalOverride ?? input.goals.primary
+
   const nameKey = normalizeExerciseKey(exercise.name)
   if (history.recentNames.has(nameKey)) score -= 3
   if (!history.recentNames.has(nameKey)) score += 2
@@ -140,6 +142,13 @@ export const scoreExercise = (
   const family = getMovementFamily(exercise)
   if (family && history.recentFamilies.has(family)) score -= 1
   if (family && !history.recentFamilies.has(family)) score += 0.5
+  
+  // Goal Alignment Bonus
+  const nativeGoal = exercise.goal
+  const isEligible = exercise.eligibleGoals?.includes(targetGoal) || nativeGoal === targetGoal
+  if (isEligible) score += 1
+  else if (nativeGoal === 'general_fitness') score += 0.5
+
   score += getExperienceScore(exercise, input.experienceLevel)
   score += getIntensityScore(exercise, input.intensity)
   if (source === 'primary') score += 1
@@ -152,19 +161,20 @@ export const scoreExercise = (
 export const orderPool = (
   pool: Exercise[],
   source: ExerciseSource,
-  input: Pick<PlanInput, 'experienceLevel' | 'intensity'>,
+  input: Pick<PlanInput, 'experienceLevel' | 'intensity' | 'goals'>,
   history: {
     recentNames: Set<string>
     recentPatterns: Set<string>
     recentPrimaryMuscles: Set<string>
     recentFamilies: Set<string | null>
   },
-  rng: () => number
+  rng: () => number,
+  goalOverride?: Goal
 ) =>
   pool
     .map((exercise) => ({
       exercise,
-      score: scoreExercise(exercise, source, input, history) + rng() * 0.2
+      score: scoreExercise(exercise, source, input, history, goalOverride) + rng() * 0.2
     }))
     .sort((a, b) => b.score - a.score)
     .map((item) => item.exercise)
@@ -180,13 +190,14 @@ export const orderPool = (
 export const reorderForVariety = (
   picks: PlannedExercise[],
   rng: () => number,
-  input: Pick<PlanInput, 'experienceLevel' | 'intensity'>,
+  input: Pick<PlanInput, 'experienceLevel' | 'intensity' | 'goals'>,
   history: {
     recentNames: Set<string>
     recentPatterns: Set<string>
     recentPrimaryMuscles: Set<string>
     recentFamilies: Set<string | null>
-  }
+  },
+  goalOverride?: Goal
 ) => {
   const remaining = [...picks]
   const ordered: PlannedExercise[] = []
@@ -224,7 +235,7 @@ export const reorderForVariety = (
     let best: PlannedExercise | null = null
     let bestScore = -Infinity
     pickPool.forEach((item) => {
-      const itemScore = scoreExercise(item.exercise, item.source, input, history) + rng() * 0.1
+      const itemScore = scoreExercise(item.exercise, item.source, input, history, goalOverride) + rng() * 0.1
       if (itemScore > bestScore) {
         bestScore = itemScore
         best = item

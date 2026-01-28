@@ -252,7 +252,7 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
       <div className="grid grid-cols-12 gap-8">
         
         {/* Left Column: Core Definition */}
-        <div className="col-span-12 lg:col-span-8 space-y-8">
+        <div className="col-span-12 lg:col-span-10 lg:col-start-2 space-y-8">
           
           {/* Section 1: Identity */}
           <Card className="overflow-hidden">
@@ -343,7 +343,7 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                       "col-span-12",
                       isAdvanced ? "md:col-span-4" : "md:col-span-6"
                     )}>
-                      <Label className="mb-2.5 block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">Goal</Label>
+                      <Label className="mb-2.5 block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">Primary Goal</Label>
                       <Select 
                         value={formData.goal || ''} 
                         onChange={e => setFormData({...formData, goal: e.target.value as Goal})}
@@ -354,6 +354,40 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                           <option key={g.value} value={g.value}>{g.label}</option>
                         ))}
                       </Select>
+                      <p className="mt-1.5 text-[10px] text-muted italic">Sets the default prescription baseline.</p>
+                    </div>
+
+                    <div className="col-span-12 pt-4 border-t border-[var(--color-border)]/50">
+                      <Label className="mb-4 block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">Also Eligible For</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {availableGoals.map(g => {
+                          const isSelected = formData.eligibleGoals?.includes(g.value)
+                          const isPrimary = formData.goal === g.value
+                          if (isPrimary) return null
+                          
+                          return (
+                            <button
+                              type="button"
+                              key={g.value}
+                              onClick={() => {
+                                const current = formData.eligibleGoals || []
+                                const next = isSelected 
+                                  ? current.filter(v => v !== g.value)
+                                  : [...current, g.value]
+                                setFormData({ ...formData, eligibleGoals: next })
+                              }}
+                              className={cn(
+                                "px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all border-2",
+                                isSelected 
+                                  ? "bg-[var(--color-surface)] text-[var(--color-primary)] border-[var(--color-primary-border)] shadow-sm" 
+                                  : "bg-transparent border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-muted)]"
+                              )}
+                            >
+                              {g.label}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
 
                     <div className="col-span-12 pt-4 border-t border-[var(--color-border)]/50">

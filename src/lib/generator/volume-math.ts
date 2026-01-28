@@ -18,6 +18,7 @@ import {
   adjustSets,
   adjustSetsForIntensity
 } from './scoring'
+import { adaptPrescription } from './adaptation'
 
 export const createPlannedExercise = (
   exercise: Exercise,
@@ -32,31 +33,31 @@ export const createPlannedExercise = (
 ): PlannedExercise | null => {
   const selectedOption = selectEquipmentOption(input.equipment.inventory, exercise.equipment)
   if (!selectedOption) return null
-  const baseSets = adjustSetsForIntensity(adjustSets(exercise.sets, input.experienceLevel), input.intensity)
+
+  const prescription = adaptPrescription(
+    exercise,
+    goal,
+    input.intensity,
+    input.experienceLevel,
+    { restModifier, repsOverride: reps }
+  )
+
   const isCardio = exercise.focus === 'cardio'
   const minSets = isCardio ? 1 : minSetCap
   const maxSets = isCardio ? Math.max(minSets, Math.min(4, maxSetCap)) : maxSetCap
-  let sets = clamp(baseSets, minSets, maxSets)
+  
+  // Ensure sets are within caps
+  prescription.sets = clamp(prescription.sets, minSets, maxSets)
+
   if (targetMinutes <= 35 && (source === 'accessory' || source === 'secondary')) {
-    sets = Math.max(minSets, sets - 1)
+    prescription.sets = Math.max(minSets, prescription.sets - 1)
   }
   if (targetMinutes >= 90 && source === 'primary') {
-    sets = Math.min(maxSets, sets + 1)
+    prescription.sets = Math.min(maxSets, prescription.sets + 1)
   }
-  const restSeconds = clamp(Math.round(exercise.restSeconds * restModifier), isCardio ? 30 : 45, 150)
-  
-  // Use catalog reps for non-strength goals (Cardio/Mobility)
-  const finalReps = (goal === 'cardio' || goal === 'range_of_motion' || exercise.category === 'Mobility' || exercise.category === 'Cardio') 
-    ? exercise.reps 
-    : reps
 
-  const prescription: ExercisePrescription = {
-    sets,
-    reps: finalReps,
-    rpe: adjustRpe(exercise.rpe, input.intensity),
-    restSeconds,
-    load: buildLoad(selectedOption, exercise.loadTarget, input.equipment.inventory)
-  }
+  prescription.load = buildLoad(selectedOption, exercise.loadTarget, input.equipment.inventory)
+
   const estimatedMinutes = estimateExerciseMinutes(exercise, prescription, selectedOption, goal)
   return {
     exercise,

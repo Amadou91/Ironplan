@@ -368,7 +368,8 @@ export const buildFocusDistribution = (schedule: PlanDay[]) => schedule.reduce<R
   biceps: 0,
   triceps: 0,
   chest: 0,
-  back: 0
+  back: 0,
+  shoulders: 0
 })
 
 export const calculateExerciseImpact = (exercises: Exercise[]): WorkoutImpact => {

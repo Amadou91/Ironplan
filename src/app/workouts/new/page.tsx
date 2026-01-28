@@ -29,7 +29,7 @@ export default function NewWorkoutPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 max-w-5xl">
+    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
       <div className="mb-10 flex flex-col items-center text-center">
         <h1 className="text-3xl font-black tracking-tight uppercase">Create New Exercise</h1>
         <p className="text-slate-500 mt-2 max-w-lg">Define a new exercise or workout template for the library.</p>
@@ -40,11 +40,15 @@ export default function NewWorkoutPage() {
         </div>
       </div>
       
-      <ExerciseForm 
-        onSubmit={handleSave} 
-        onCancel={() => router.back()}
-        muscleOptions={muscleOptions}
-      />
+      <div className="flex justify-center">
+        <div className="w-full">
+          <ExerciseForm 
+            onSubmit={handleSave} 
+            onCancel={() => router.back()}
+            muscleOptions={muscleOptions}
+          />
+        </div>
+      </div>
     </div>
   );
 }

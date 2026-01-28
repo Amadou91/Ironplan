@@ -112,7 +112,7 @@ export default function EditWorkoutPage() {
       secondary_muscles: data.secondaryMuscles,
       is_interval: data.isInterval,
       interval_duration: data.intervalDuration,
-      interval_rest: data.interval_rest,
+      interval_rest: data.intervalRest,
     };
 
     const { error } = await supabase

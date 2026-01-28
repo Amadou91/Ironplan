@@ -2,19 +2,23 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { Clock, AlertTriangle } from 'lucide-react'
+import { Clock, AlertTriangle, Target } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { normalizePlanInput } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
 import { fetchTemplateHistory } from '@/lib/session-history'
-import { toMuscleLabel } from '@/lib/muscle-utils'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
-import { computeReadinessScore, getReadinessIntensity, getReadinessLevel, type ReadinessSurvey } from '@/lib/training-metrics'
+import { 
+  computeReadinessScore, 
+  getReadinessIntensity, 
+  getReadinessLevel, 
+  type ReadinessSurvey 
+} from '@/lib/training-metrics'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import type { FocusArea, Goal, PlanInput, Exercise } from '@/types/domain'
+import type { FocusArea, Goal, PlanInput, Exercise, CardioActivity } from '@/types/domain'
 import { ReadinessCheck, READINESS_FIELDS } from '@/components/workout/start/ReadinessCheck'
 import { SessionPreview } from '@/components/workout/start/SessionPreview'
 import { mapCatalogRowToExercise } from '@/lib/generator/mappers'
@@ -55,6 +59,12 @@ const SESSION_INTENSITY_LEVELS: SessionIntensitySetting[] = [
   { value: 3, label: 'Push', intensity: 'high', experienceDelta: 1, restPreference: 'minimal_rest', helper: 'Higher intensity with shorter rest.' }
 ]
 
+const STYLE_OPTIONS: { value: Goal; label: string; description: string }[] = [
+  { value: 'strength', label: 'Strength', description: 'Power focus, low reps, high rest.' },
+  { value: 'hypertrophy', label: 'Hypertrophy', description: 'Growth focus, moderate reps, moderate rest.' },
+  { value: 'endurance', label: 'Endurance', description: 'Conditioning focus, high reps, low rest.' }
+]
+
 const shiftExperienceLevel = (base: PlanInput['experienceLevel'], delta: -1 | 0 | 1) => {
   const index = EXPERIENCE_LEVELS.indexOf(base)
   if (index === -1) return base
@@ -71,6 +81,7 @@ export default function WorkoutStartPage() {
   const startSession = useWorkoutStore((state) => state.startSession)
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const endSession = useWorkoutStore((state) => state.endSession)
+  
   const [template, setTemplate] = useState<WorkoutTemplate | null>(null)
   const [loading, setLoading] = useState(true)
   const [startingSession, setStartingSession] = useState(false)
@@ -91,22 +102,6 @@ export default function WorkoutStartPage() {
   })
   const [selectedCardioActivities, setSelectedCardioActivities] = useState<string[]>([])
 
-  const availableCardioOptions = useMemo(() => {
-    if (!template || template.focus !== 'cardio') return []
-    const inventory = template.template_inputs?.equipment?.inventory
-    if (!inventory) return CARDIO_ACTIVITY_OPTIONS
-
-    return CARDIO_ACTIVITY_OPTIONS.filter(option => {
-      // Find exercises in catalog that match this cardio option's keywords
-      const matchingExercises = catalog.filter(ex => 
-        ex.category === 'Cardio' && 
-        option.keywords.some(k => ex.name.toLowerCase().includes(k.toLowerCase()))
-      )
-      // Check if user has equipment for any of these exercises
-      return matchingExercises.some(ex => isExerciseEquipmentAvailable(inventory, ex.equipment))
-    })
-  }, [template, catalog])
-
   useEffect(() => {
     const init = async () => {
       const [templateRes, catalogRes] = await Promise.all([
@@ -119,6 +114,9 @@ export default function WorkoutStartPage() {
         if (!queryMinutes) {
           setMinutesAvailable(templateRes.data?.template_inputs?.time?.minutesPerSession ?? 45)
         }
+        if (!queryStyle) {
+          setOverrideStyle(templateRes.data?.style)
+        }
       }
       if (!catalogRes.error && catalogRes.data) {
         setCatalog(catalogRes.data.map(mapCatalogRowToExercise))
@@ -126,7 +124,21 @@ export default function WorkoutStartPage() {
       setLoading(false)
     }
     if (params.id) init()
-  }, [params.id, supabase, queryMinutes])
+  }, [params.id, supabase, queryMinutes, queryStyle])
+
+  const availableCardioOptions = useMemo(() => {
+    if (!template || template.focus !== 'cardio') return []
+    const inventory = template.template_inputs?.equipment?.inventory
+    if (!inventory) return CARDIO_ACTIVITY_OPTIONS
+
+    return CARDIO_ACTIVITY_OPTIONS.filter(option => {
+      const matchingExercises = catalog.filter(ex => 
+        ex.category === 'Cardio' && 
+        option.keywords.some(k => ex.name.toLowerCase().includes(k.toLowerCase()))
+      )
+      return matchingExercises.some(ex => isExerciseEquipmentAvailable(inventory, ex.equipment))
+    })
+  }, [template, catalog])
 
   const readinessComplete = useMemo(() => READINESS_FIELDS.every((f) => typeof readinessSurvey[f.key] === 'number'), [readinessSurvey])
   const readinessScore = useMemo(() => (readinessComplete ? computeReadinessScore(readinessSurvey as ReadinessSurvey) : null), [readinessComplete, readinessSurvey])
@@ -163,47 +175,157 @@ export default function WorkoutStartPage() {
       const sessionGoal = overrideStyle ?? template.style
       
       const { sessionId, startedAt, sessionName, exercises, impact, timezone, sessionNotes } = await createWorkoutSession({
-        supabase, userId: user.id, templateId: template.id, templateTitle: buildWorkoutDisplayName({ focus: template.focus, style: sessionGoal, intensity: template.intensity, fallback: template.title }),
-        focus: template.focus, goal: sessionGoal, input: tunedInputs, minutesAvailable, readiness: { survey: readinessSurvey as ReadinessSurvey, score: readinessScore, level: readinessLevel },
-        sessionNotes: { sessionIntensity: selectedIntensity.intensity, minutesAvailable, readiness: readinessLevel, readinessScore, readinessSurvey: readinessSurvey as ReadinessSurvey, source: 'workout_start' },
-        history, nameSuffix: '',
+        supabase, 
+        userId: user.id, 
+        templateId: template.id, 
+        templateTitle: buildWorkoutDisplayName({ 
+          focus: template.focus, 
+          style: sessionGoal, 
+          intensity: selectedIntensity.intensity, 
+          fallback: template.title 
+        }),
+        focus: template.focus, 
+        goal: sessionGoal, 
+        input: tunedInputs, 
+        minutesAvailable, 
+        readiness: { 
+          survey: readinessSurvey as ReadinessSurvey, 
+          score: readinessScore, 
+          level: readinessLevel 
+        },
+        sessionNotes: { 
+          sessionIntensity: selectedIntensity.intensity, 
+          minutesAvailable, 
+          readiness: readinessLevel, 
+          readinessScore, 
+          readinessSurvey: readinessSurvey as ReadinessSurvey, 
+          source: 'workout_start',
+          goal: sessionGoal
+        },
+        history, 
+        nameSuffix: '',
         catalog,
         bodyWeightLb: bodyWeightLb
       })
-      startSession({ id: sessionId, userId: user.id, templateId: template.id, name: sessionName, startedAt, status: 'in_progress', impact, exercises, timezone, sessionNotes })
+      
+      startSession({ 
+        id: sessionId, 
+        userId: user.id, 
+        templateId: template.id, 
+        name: sessionName, 
+        startedAt, 
+        status: 'in_progress', 
+        impact, 
+        exercises, 
+        timezone, 
+        sessionNotes 
+      })
       router.push(`/workouts/${template.id}/active?sessionId=${sessionId}&from=start`)
-    } catch { setStartError('Unable to start the session.') } finally { setStartingSession(false) }
+    } catch (err) { 
+      console.error(err)
+      setStartError('Unable to start the session.') 
+    } finally { 
+      setStartingSession(false) 
+    }
   }
 
-  if (loading) return <div className="page-shell p-10 text-center text-muted">Loading session setup...</div>
+  if (loading) return <div className="page-shell p-10 text-center text-muted font-medium">Loading session setup...</div>
   if (!template) return <div className="page-shell p-10 text-center text-muted">Template not found.</div>
 
-  const activeSessionLink = activeSession?.templateId ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=workouts` : '/dashboard'
+  const activeSessionLink = activeSession?.templateId 
+    ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=workouts` 
+    : '/dashboard'
 
   return (
     <div className="page-shell">
       <div className="w-full px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2">
-            <h1 className="font-display text-3xl font-semibold text-strong">Start {buildWorkoutDisplayName({ focus: template.focus, style: overrideStyle ?? template.style, intensity: template.intensity, fallback: template.title })}</h1>
+            <h1 className="font-display text-3xl font-semibold text-strong">
+              Start {buildWorkoutDisplayName({ 
+                focus: template.focus, 
+                style: overrideStyle ?? template.style, 
+                intensity: template.intensity, 
+                fallback: template.title 
+              })}
+            </h1>
             {template.description && <p className="text-sm text-muted">{template.description}</p>}
           </div>
         </div>
+
         {startError && <div className="alert-error p-4 text-sm mb-6">{startError}</div>}
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             <Card className="p-6">
-              <div className="flex items-center gap-2 mb-4"><Clock className="h-5 w-5 text-accent" /><h2 className="text-lg font-semibold text-strong">Session settings</h2></div>
-              <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold text-strong">Session settings</h2>
+              </div>
+              
+              <div className="space-y-8">
+                {/* Style Selector - Option B implementation */}
+                {template.focus !== 'mobility' && template.focus !== 'cardio' && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Target className="h-4 w-4 text-subtle" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-subtle">Session Intent</h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {STYLE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setOverrideStyle(opt.value)}
+                          className={`flex flex-col items-start p-3 rounded-xl border text-left transition-all ${
+                            overrideStyle === opt.value 
+                              ? 'border-accent bg-accent/5 ring-1 ring-accent' 
+                              : 'border-[var(--color-border)] hover:border-strong'
+                          }`}
+                        >
+                          <span className={`text-sm font-bold ${overrideStyle === opt.value ? 'text-accent' : 'text-strong'}`}>
+                            {opt.label}
+                          </span>
+                          <span className="text-[10px] text-muted leading-tight mt-1">{opt.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Time Selector */}
                 <div>
-                  <div className="flex items-center justify-between text-xs text-subtle"><span>Minutes available</span><span className="text-strong">{minutesAvailable} min</span></div>
-                  <input type="range" min={20} max={120} step={5} value={minutesAvailable} onChange={(e) => setMinutesAvailable(Number(e.target.value))} className="mt-3 w-full" />
-                  <div className="mt-3 flex flex-wrap gap-2">{[30, 45, 60, 75].map((v) => <Button key={v} size="sm" variant={minutesAvailable === v ? 'primary' : 'secondary'} onClick={() => setMinutesAvailable(v)}>{v} min</Button>)}</div>
+                  <div className="flex items-center justify-between text-xs text-subtle font-bold uppercase tracking-wider mb-3">
+                    <span>Minutes available</span>
+                    <span className="text-accent">{minutesAvailable} min</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min={20} 
+                    max={120} 
+                    step={5} 
+                    value={minutesAvailable} 
+                    onChange={(e) => setMinutesAvailable(Number(e.target.value))} 
+                    className="w-full accent-accent" 
+                  />
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {[30, 45, 60, 90].map((v) => (
+                      <Button 
+                        key={v} 
+                        size="sm" 
+                        variant={minutesAvailable === v ? 'primary' : 'secondary'} 
+                        onClick={() => setMinutesAvailable(v)}
+                        className="min-w-[60px]"
+                      >
+                        {v}m
+                      </Button>
+                    ))}
+                  </div>
                 </div>
 
+                {/* Cardio Selection */}
                 {template.focus === 'cardio' && availableCardioOptions.length > 0 && (
                   <div className="surface-card-muted p-5 rounded-xl border border-[var(--color-border)]">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-strong mb-4">Choose cardio activities</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-strong mb-4">Choose cardio activities</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {availableCardioOptions.map((option) => (
                         <Checkbox
@@ -224,113 +346,92 @@ export default function WorkoutStartPage() {
                   </div>
                 )}
 
-                <ReadinessCheck survey={readinessSurvey} onUpdateField={(f, v) => setReadinessSurvey(p => ({ ...p, [f]: v }))} score={readinessScore} level={readinessLevel} />
+                {/* Readiness Check */}
+                <ReadinessCheck 
+                  survey={readinessSurvey} 
+                  onUpdateField={(f, v) => setReadinessSurvey(p => ({ ...p, [f]: v }))} 
+                  score={readinessScore} 
+                  level={readinessLevel} 
+                />
               </div>
             </Card>
-            <SessionPreview focus={template.focus} style={overrideStyle ?? template.style} intensityLabel={readinessLevel ? selectedIntensity.label : 'Pending readiness'} equipmentInventory={template.template_inputs?.equipment?.inventory} />
+
+            <SessionPreview 
+              focus={template.focus} 
+              style={overrideStyle ?? template.style} 
+              intensityLabel={readinessLevel ? selectedIntensity.label : 'Pending readiness'} 
+              equipmentInventory={template.template_inputs?.equipment?.inventory} 
+            />
           </div>
+
           <div className="space-y-4">
-            <Card className="p-6">
+            <Card className="p-6 sticky top-6">
               <h2 className="text-lg font-semibold text-strong">Ready to train?</h2>
-              <p className="mt-2 text-sm text-muted">We will adapt this plan to your time, readiness, and equipment.</p>
-              <Button type="button" onClick={() => handleStartSession()} disabled={startingSession || !readinessComplete} className="mt-4 w-full justify-center">{startingSession ? 'Starting...' : 'Start Session'}</Button>
-              {activeSession && <p className="mt-3 text-center text-xs font-medium text-accent">Session in progress</p>}
-              <p className="mt-3 text-xs text-subtle">{readinessLevel ? `Readiness is ${readinessLevel}. Intensity set to ${selectedIntensity.label}.` : 'Complete readiness to set intensity.'}</p>
+              <p className="mt-2 text-sm text-muted leading-relaxed">
+                We will adapt this session to your {minutesAvailable}m time limit, {readinessLevel || 'current'} readiness, and chosen style.
+              </p>
+              
+              <Button 
+                type="button" 
+                onClick={() => handleStartSession()} 
+                disabled={startingSession || !readinessComplete} 
+                className="mt-6 w-full justify-center py-6 text-lg"
+              >
+                {startingSession ? 'Preparing...' : 'Start Session'}
+              </Button>
+              
+              {activeSession && (
+                <div className="mt-4 p-3 rounded-lg bg-accent/5 border border-accent/20 text-center">
+                  <p className="text-xs font-bold text-accent uppercase tracking-wider">Session in progress</p>
+                </div>
+              )}
+              
+              <div className="mt-6 space-y-3 pt-6 border-t border-[var(--color-border)]">
+                <div className="flex justify-between text-xs">
+                  <span className="text-subtle">Readiness</span>
+                  <span className={`font-bold capitalize ${
+                    readinessLevel === 'high' ? 'text-green-500' : 
+                    readinessLevel === 'steady' ? 'text-accent' : 
+                    'text-amber-500'
+                  }`}>
+                    {readinessLevel || 'Incomplete'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-subtle">Intensity</span>
+                  <span className="text-strong font-bold">{selectedIntensity.label}</span>
+                </div>
+              </div>
             </Card>
           </div>
         </div>
       </div>
+
       {showConflictModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="surface-elevated w-full max-w-md p-6 shadow-2xl border border-[var(--color-border-strong)]">
-            <div className="flex items-center gap-3 text-[var(--color-warning)] mb-4"><AlertTriangle size={24} /><h3 className="text-xl font-bold text-strong">Session in Progress</h3></div>
-            <p className="text-sm text-muted mb-6">You already have an active workout session. Would you like to continue it, or cancel it and start this new one?</p>
-            <div className="space-y-3">
-              <Button className="w-full justify-center py-6" onClick={() => router.push(activeSessionLink)}>Continue Current Session</Button>
-              <Button variant="ghost" className="w-full justify-center text-[var(--color-danger)]" onClick={() => handleStartSession(true)} disabled={startingSession}>{startingSession ? 'Starting...' : 'Cancel & Start New'}</Button>
-              <Button variant="secondary" className="w-full justify-center" onClick={() => setShowConflictModal(false)}>Go Back</Button>
+          <div className="surface-elevated w-full max-w-md p-6 shadow-2xl border border-[var(--color-border-strong)] rounded-2xl">
+            <div className="flex items-center gap-3 text-[var(--color-warning)] mb-4">
+              <AlertTriangle size={24} />
+              <h3 className="text-xl font-bold text-strong">Session in Progress</h3>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-  if (loading) return <div className="page-shell p-10 text-center text-muted">Loading session setup...</div>
-  if (!template) return <div className="page-shell p-10 text-center text-muted">Template not found.</div>
-
-  const activeSessionLink = activeSession?.templateId ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=workouts` : '/dashboard'
-
-  return (
-    <div className="page-shell">
-      <div className="w-full px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-2">
-            <h1 className="font-display text-3xl font-semibold text-strong">Start {buildWorkoutDisplayName({ focus: template.focus, style: template.style, intensity: template.intensity, fallback: template.title })}</h1>
-            {template.description && <p className="text-sm text-muted">{template.description}</p>}
-          </div>
-        </div>
-        {startError && <div className="alert-error p-4 text-sm mb-6">{startError}</div>}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
-            <Card className="p-6">
-              <div className="flex items-center gap-2 mb-4"><Clock className="h-5 w-5 text-accent" /><h2 className="text-lg font-semibold text-strong">Session settings</h2></div>
-              <div className="space-y-6">
-                <div>
-                  <div className="flex items-center justify-between text-xs text-subtle"><span>Minutes available</span><span className="text-strong">{minutesAvailable} min</span></div>
-                  <input type="range" min={20} max={120} step={5} value={minutesAvailable} onChange={(e) => setMinutesAvailable(Number(e.target.value))} className="mt-3 w-full" />
-                  <div className="mt-3 flex flex-wrap gap-2">{[30, 45, 60, 75].map((v) => <Button key={v} size="sm" variant={minutesAvailable === v ? 'primary' : 'secondary'} onClick={() => setMinutesAvailable(v)}>{v} min</Button>)}</div>
-                </div>
-
-                {template.focus === 'cardio' && availableCardioOptions.length > 0 && (
-                  <div className="surface-card-muted p-5 rounded-xl border border-[var(--color-border)]">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-strong mb-4">Choose cardio activities</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {availableCardioOptions.map((option) => (
-                        <Checkbox
-                          key={option.value}
-                          label={option.label}
-                          checked={selectedCardioActivities.includes(option.value)}
-                          onCheckedChange={() => {
-                            setSelectedCardioActivities(prev => 
-                              prev.includes(option.value) 
-                                ? prev.filter(v => v !== option.value) 
-                                : [...prev, option.value]
-                            )
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <p className="mt-3 text-[10px] text-subtle italic">Leave blank to include any activity matching your equipment.</p>
-                  </div>
-                )}
-
-                <ReadinessCheck survey={readinessSurvey} onUpdateField={(f, v) => setReadinessSurvey(p => ({ ...p, [f]: v }))} score={readinessScore} level={readinessLevel} />
-              </div>
-            </Card>
-            <SessionPreview focus={template.focus} style={template.style} intensityLabel={readinessLevel ? selectedIntensity.label : 'Pending readiness'} equipmentInventory={template.template_inputs?.equipment?.inventory} />
-          </div>
-          <div className="space-y-4">
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-strong">Ready to train?</h2>
-              <p className="mt-2 text-sm text-muted">We will adapt this plan to your time, readiness, and equipment.</p>
-              <Button type="button" onClick={() => handleStartSession()} disabled={startingSession || !readinessComplete} className="mt-4 w-full justify-center">{startingSession ? 'Starting...' : 'Start Session'}</Button>
-              {activeSession && <p className="mt-3 text-center text-xs font-medium text-accent">Session in progress</p>}
-              <p className="mt-3 text-xs text-subtle">{readinessLevel ? `Readiness is ${readinessLevel}. Intensity set to ${selectedIntensity.label}.` : 'Complete readiness to set intensity.'}</p>
-            </Card>
-          </div>
-        </div>
-      </div>
-      {showConflictModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="surface-elevated w-full max-w-md p-6 shadow-2xl border border-[var(--color-border-strong)]">
-            <div className="flex items-center gap-3 text-[var(--color-warning)] mb-4"><AlertTriangle size={24} /><h3 className="text-xl font-bold text-strong">Session in Progress</h3></div>
-            <p className="text-sm text-muted mb-6">You already have an active workout session. Would you like to continue it, or cancel it and start this new one?</p>
+            <p className="text-sm text-muted mb-6">
+              You already have an active workout session. Would you like to continue it, or cancel it and start this new one?
+            </p>
             <div className="space-y-3">
-              <Button className="w-full justify-center py-6" onClick={() => router.push(activeSessionLink)}>Continue Current Session</Button>
-              <Button variant="ghost" className="w-full justify-center text-[var(--color-danger)]" onClick={() => handleStartSession(true)} disabled={startingSession}>{startingSession ? 'Starting...' : 'Cancel & Start New'}</Button>
-              <Button variant="secondary" className="w-full justify-center" onClick={() => setShowConflictModal(false)}>Go Back</Button>
+              <Button className="w-full justify-center py-6" onClick={() => router.push(activeSessionLink)}>
+                Continue Current Session
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="w-full justify-center text-[var(--color-danger)]" 
+                onClick={() => handleStartSession(true)} 
+                disabled={startingSession}
+              >
+                {startingSession ? 'Starting...' : 'Cancel & Start New'}
+              </Button>
+              <Button variant="secondary" className="w-full justify-center" onClick={() => setShowConflictModal(false)}>
+                Go Back
+              </Button>
             </div>
           </div>
         </div>

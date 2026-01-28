@@ -75,8 +75,9 @@ export type FocusArea =
   | 'triceps'
   | 'chest'
   | 'back'
+  | 'shoulders'
 
-export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'range_of_motion'
+export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'range_of_motion' | 'cardio' | 'general_fitness'
 
 export type GoalPriority = 'primary' | 'secondary' | 'balanced'
 
@@ -101,6 +102,9 @@ export type MetricProfile =
   | 'timed_strength'
   | 'cardio_session'
   | 'mobility_session'
+  | 'reps_weight'
+  | 'reps_only'
+  | 'duration'
 
 export type ExerciseCategory = 'Strength' | 'Cardio' | 'Mobility'
 

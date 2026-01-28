@@ -8,10 +8,10 @@ export const METRIC_PROFILES: { label: string; value: MetricProfile; description
 ]
 
 export const EXERCISE_GOALS: { label: string; value: Goal; description: string }[] = [
-  { value: 'strength', label: 'Strength', description: 'Maximize force production' },
-  { value: 'hypertrophy', label: 'Hypertrophy', description: 'Muscle growth focus' },
-  { value: 'endurance', label: 'Endurance', description: 'Sustained effort' },
-  { value: 'range_of_motion', label: 'Range of Motion', description: 'Flexibility and mobility' }
+  { value: 'strength', label: 'Strength', description: 'Default for power/force focus (1-6 reps)' },
+  { value: 'hypertrophy', label: 'Hypertrophy', description: 'Default for muscle growth (8-12 reps)' },
+  { value: 'endurance', label: 'Endurance', description: 'Default for conditioning/high volume (15+ reps)' },
+  { value: 'range_of_motion', label: 'Range of Motion', description: 'Default for mobility/yoga' }
 ]
 
 export const FOCUS_AREAS = [
