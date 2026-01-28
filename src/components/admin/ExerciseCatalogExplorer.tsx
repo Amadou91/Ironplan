@@ -28,7 +28,6 @@ export function ExerciseCatalogExplorer({ initialExercises, muscleOptions }: Pro
     // Convert domain Exercise back to DB fields
     const updates = {
       name: updatedExercise.name,
-      focus: updatedExercise.focus,
       movement_pattern: updatedExercise.movementPattern,
       primary_muscle: updatedExercise.primaryMuscle,
       secondary_muscles: updatedExercise.secondaryMuscles,

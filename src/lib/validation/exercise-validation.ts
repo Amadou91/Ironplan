@@ -35,11 +35,23 @@ export function validateExercise(exercise: Partial<Exercise>): string[] {
   const errors: string[] = []
 
   if (!exercise.name?.trim()) {
-    errors.push('Name is required')
+    errors.push('Exercise name is required')
+  }
+
+  if (exercise.category === 'Strength' && !exercise.movementPattern) {
+    errors.push('Movement pattern is required for strength exercises')
   }
 
   if (!exercise.primaryMuscle) {
     errors.push('Primary muscle is required')
+  }
+
+  if (!exercise.equipment || exercise.equipment.length === 0) {
+    errors.push('At least one piece of equipment is required')
+  }
+
+  if (!exercise.metricProfile) {
+    errors.push('Tracking style (Metric Profile) is required')
   }
 
   return errors

@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { formatWeightList, bandLabels, machineLabels } from '@/lib/equipment'
 import { getFlowCompletion, isEquipmentValid } from '@/lib/generationFlow'
-import { GoalSelector } from '@/components/generate/GoalSelector'
 import { EquipmentSelector, cardioMachineOptions, strengthMachineOptions } from '@/components/generate/EquipmentSelector'
 import { MuscleGroupSelector } from '@/components/generate/MuscleGroupSelector'
 import { TemplateHistory } from '@/components/generate/TemplateHistory'
@@ -144,8 +143,6 @@ export default function GeneratePage() {
                 selectedFocus={formData.intent.bodyParts?.[0]}
                 onFocusChange={handleFocusChange}
               />
-
-              {!isCardioStyle && !isMobilityStyle && <GoalSelector value={formData.goals.primary} onChange={updatePrimaryStyle} />}
             </section>
 
             <section className="space-y-6">

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/Label';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { RPE_OPTIONS } from '@/constants/intensityOptions';
-import { Info } from 'lucide-react';
+import { validateExercise } from '@/lib/validation/exercise-validation';
 
 interface WorkoutEditorProps {
   initialData?: Partial<Exercise>;
@@ -135,8 +135,10 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.category || !formData.metricProfile) {
-      alert('Please fill in Name, Category, and Metric Profile.');
+    const validationErrors = validateExercise(formData);
+    
+    if (validationErrors.length > 0) {
+      alert(`Please fix the following errors:\n\n${validationErrors.join('\n')}`);
       return;
     }
     onSubmit(formData as Exercise);

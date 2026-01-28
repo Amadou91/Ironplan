@@ -31,8 +31,10 @@ const buildCardioInventory = (
   machines: {
     cable: false,
     leg_press: false,
-    treadmill: inventory.machines.treadmill,
-    rower: inventory.machines.rower
+    treadmill: true,
+    rower: true,
+    indoor_bicycle: true,
+    outdoor_bicycle: true
   }
 })
 
@@ -436,7 +438,6 @@ export function useGenerationFlow() {
     startingSessionKey,
     updateFormData,
     handleFocusChange,
-    updatePrimaryStyle,
     handleHistoryLoad,
     handleHistoryDelete,
     handleStartSession,

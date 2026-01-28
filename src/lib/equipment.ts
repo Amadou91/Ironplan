@@ -22,7 +22,9 @@ export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
       cable: false,
       leg_press: false,
       treadmill: false,
-      rower: false
+      rower: false,
+      indoor_bicycle: false,
+      outdoor_bicycle: false
     }
   },
   full_gym: {
@@ -35,7 +37,9 @@ export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
       cable: true,
       leg_press: true,
       treadmill: true,
-      rower: true
+      rower: true,
+      indoor_bicycle: true,
+      outdoor_bicycle: true
     }
   },
   hotel: {
@@ -48,7 +52,9 @@ export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
       cable: false,
       leg_press: false,
       treadmill: true,
-      rower: false
+      rower: false,
+      indoor_bicycle: false,
+      outdoor_bicycle: false
     }
   }
 }
@@ -65,13 +71,6 @@ export const cloneInventory = (inventory: EquipmentInventory): EquipmentInventor
   machines: { ...inventory.machines }
 })
 
-export const parseWeightList = (value: string) =>
-  value
-    .split(',')
-    .map(item => Number(item.trim()))
-    .filter(item => Number.isFinite(item) && item > 0)
-    .sort((a, b) => a - b)
-
 export const formatWeightList = (weights: number[]) => [...weights].sort((a, b) => a - b).join(', ')
 
 export const hasEquipment = (inventory: EquipmentInventory) =>
@@ -82,12 +81,20 @@ export const hasEquipment = (inventory: EquipmentInventory) =>
   inventory.barbell.available ||
   Object.values(inventory.machines).some(Boolean)
 
+export const parseWeightList = (value: string) =>
+  value
+    .split(',')
+    .map(item => Number(item.trim()))
+    .filter(item => Number.isFinite(item) && item > 0)
+    .sort((a, b) => a - b)
+
 export const machineLabels: Record<MachineType, string> = {
   cable: 'Cable Machine',
   leg_press: 'Leg Press',
   treadmill: 'Treadmill',
   rower: 'Rowing Machine',
-  indoor_bicycle: 'Indoor Bicycle'
+  indoor_bicycle: 'Indoor Bicycle',
+  outdoor_bicycle: 'Outdoor Bicycle'
 }
 
 export const bandLabels: Record<BandResistance, string> = {

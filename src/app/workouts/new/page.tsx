@@ -22,29 +22,18 @@ export default function NewWorkoutPage() {
 
   const handleSave = async (data: Exercise) => {
     // Map Domain fields to DB fields
+    // Note: 'focus' is now a generated column in the DB, so we don't send it.
+    // Many other columns were dropped in the latest migration (video_url, instructions, etc.)
     const payload = {
       name: data.name,
       category: data.category || 'Strength',
-      focus: data.focus,
-      eligible_goals: data.eligibleGoals || [],
-      goal: data.goal,
       metric_profile: data.metricProfile || 'reps_weight',
-      sets: data.sets,
-      reps: data.reps,
-      rpe: data.rpe,
       equipment: data.equipment,
       movement_pattern: data.movementPattern,
-      difficulty: data.difficulty,
-      duration_minutes: data.durationMinutes,
-      rest_seconds: data.restSeconds,
       primary_muscle: data.primaryMuscle,
       secondary_muscles: data.secondaryMuscles || [],
-      instructions: data.instructions || [],
-      video_url: data.videoUrl,
       e1rm_eligible: data.e1rmEligible || false,
-      is_interval: data.isInterval || false,
-      interval_duration: data.intervalDuration,
-      interval_rest: data.intervalRest
+      is_interval: data.isInterval || false
     };
 
     const { error } = await supabase

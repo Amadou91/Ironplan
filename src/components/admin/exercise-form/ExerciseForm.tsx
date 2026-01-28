@@ -19,12 +19,15 @@ import { Select } from '@/components/ui/Select'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { cn } from '@/lib/utils'
-import { 
+import {
   validateExercise 
 } from '@/lib/validation/exercise-validation'
-import { METRIC_PROFILE_OPTIONS } from '@/lib/metric-derivation'
+import {
+  METRIC_PROFILE_OPTIONS,
+  deriveMetricProfile
+} from '@/lib/metric-derivation'
 import { getFocusAreaFromMuscle } from '@/lib/muscle-utils'
-import type { 
+import type {
   Exercise, 
   EquipmentOption, 
   MachineType, 
@@ -56,7 +59,8 @@ const MACHINE_TYPES: { label: string; value: MachineType }[] = [
   { label: 'Leg Press', value: 'leg_press' },
   { label: 'Treadmill', value: 'treadmill' },
   { label: 'Rower', value: 'rower' },
-  { label: 'Indoor Bicycle', value: 'indoor_bicycle' }
+  { label: 'Indoor Bicycle', value: 'indoor_bicycle' },
+  { label: 'Outdoor Bicycle', value: 'outdoor_bicycle' }
 ]
 
 const MOVEMENT_PATTERNS: { label: string; value: string }[] = [
@@ -65,8 +69,7 @@ const MOVEMENT_PATTERNS: { label: string; value: string }[] = [
   { label: 'Squat', value: 'squat' },
   { label: 'Hinge', value: 'hinge' },
   { label: 'Carry', value: 'carry' },
-  { label: 'Core', value: 'core' },
-  { label: 'Cardio', value: 'cardio' }
+  { label: 'Core', value: 'core' }
 ]
 
 const MOVEMENT_PATTERN_MUSCLES: Record<string, string[]> = {
@@ -85,7 +88,8 @@ type ExerciseType = 'Strength' | 'Yoga' | 'Cardio'
 export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }: Props) {
   const [formData, setFormData] = useState<Partial<Exercise>>(initialData || {
     equipment: [],
-    secondaryMuscles: []
+    secondaryMuscles: [],
+    metricProfile: 'reps_weight'
   })
   
   const [exerciseType, setExerciseType] = useState<ExerciseType>(() => {
@@ -166,32 +170,46 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
       });
     };
 
+    const allSecondaryMuscles = muscleOptions
+      .map(m => m.slug)
+      .filter(s => s !== 'full_body')
+
     if (type === 'Yoga') {
+      const derived = deriveMetricProfile('Mobility', undefined)
       setFormData(prev => ({
         ...prev,
         category: 'Mobility',
         focus: 'full_body',
         primaryMuscle: 'full_body',
-        equipment: getValidEquipment(prev.equipment || [])
+        secondaryMuscles: allSecondaryMuscles,
+        equipment: getValidEquipment(prev.equipment || []),
+        metricProfile: derived.option.backendProfile,
+        isInterval: derived.option.isInterval
       }))
     } else if (type === 'Cardio') {
+      const derived = deriveMetricProfile('Cardio', undefined)
       setFormData(prev => ({
         ...prev,
         category: 'Cardio',
         focus: 'full_body',
         primaryMuscle: 'full_body',
-        equipment: getValidEquipment(prev.equipment || [])
+        secondaryMuscles: allSecondaryMuscles,
+        equipment: getValidEquipment(prev.equipment || []),
+        metricProfile: derived.option.backendProfile,
+        isInterval: derived.option.isInterval
       }))
     } else {
+      const derived = deriveMetricProfile('Strength', undefined)
       setFormData(prev => ({
         ...prev,
         category: 'Strength',
         focus: prev.primaryMuscle ? getFocusAreaFromMuscle(prev.primaryMuscle) : undefined,
-        equipment: getValidEquipment(prev.equipment || [])
+        equipment: getValidEquipment(prev.equipment || []),
+        metricProfile: derived.option.backendProfile,
+        isInterval: derived.option.isInterval
       }))
     }
   }
-
   const handleEquipmentChange = (kind: EquipmentKind, machineType?: MachineType) => {
     setFormData(prev => {
       const current = prev.equipment || []
@@ -315,7 +333,7 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                   <CardTitle className="text-lg font-bold tracking-tight">Identity</CardTitle>
                 </div>
                 <div className="flex items-center gap-4">
-                  {formData.movementPattern && (
+                  {exerciseType === 'Strength' && formData.movementPattern && (
                     <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded bg-[var(--color-surface-muted)] text-[var(--color-text-subtle)] border border-[var(--color-border)]">
                       {formData.movementPattern}
                     </span>

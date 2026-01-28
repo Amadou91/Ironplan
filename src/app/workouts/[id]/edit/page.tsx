@@ -83,7 +83,6 @@ export default function EditWorkoutPage() {
     const updates = {
       name: data.name,
       category: data.category,
-      focus: data.focus,
       metric_profile: data.metricProfile,
       equipment: data.equipment,
       primary_muscle: data.primaryMuscle,

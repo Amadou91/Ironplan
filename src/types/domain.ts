@@ -23,7 +23,7 @@ export type MuscleGroup =
 
 export type BandResistance = 'light' | 'medium' | 'heavy'
 
-export type MachineType = 'cable' | 'leg_press' | 'treadmill' | 'rower' | 'indoor_bicycle'
+export type MachineType = 'cable' | 'leg_press' | 'treadmill' | 'rower' | 'indoor_bicycle' | 'outdoor_bicycle'
 
 export type EquipmentPreset = 'home_minimal' | 'full_gym' | 'hotel'
 

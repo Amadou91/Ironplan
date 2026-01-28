@@ -6,6 +6,10 @@ import { revalidatePath } from 'next/cache'
 import type { Exercise } from '@/types/domain'
 import { SupabaseClient } from '@supabase/supabase-js'
 
+import { MUSCLE_MAPPING } from '@/lib/muscle-mapping'
+
+const ALL_MUSCLE_SLUGS = Object.keys(MUSCLE_MAPPING).filter(slug => slug !== 'full_body')
+
 // Helper to clear catalog
 async function clearCatalog(supabase: SupabaseClient) {
   // RLS policy for DELETE must be enabled.
@@ -17,21 +21,26 @@ async function clearCatalog(supabase: SupabaseClient) {
 
 // Helper to insert exercises
 async function insertExercises(supabase: SupabaseClient, exercises: Partial<Exercise>[]) {
-  const toInsert = exercises.map(ex => ({
-    // If ID is preserved in export, we should try to keep it, but insert might fail on conflict if not handled.
-    // Ideally, for a full restore, we might want to keep IDs to preserve history if tables were linked.
-    // However, the prompt says "completely replace". If we drop all, we can re-insert with same IDs.
-    // Let's check if 'id' is in the input.
-    ...(ex.id ? { id: ex.id } : {}),
-    name: ex.name,
-    category: ex.category ?? 'Strength',
-    metric_profile: ex.metricProfile,
-    equipment: ex.equipment,
-    movement_pattern: ex.movementPattern,
-    primary_muscle: ex.primaryMuscle,
-    secondary_muscles: ex.secondaryMuscles,
-    is_interval: ex.isInterval ?? false
-  }))
+  const toInsert = exercises.map(ex => {
+    let secondaryMuscles = ex.secondaryMuscles || []
+    
+    // Auto-expand Full Body to all muscles if not already done
+    if (ex.primaryMuscle === 'full_body' && secondaryMuscles.length === 0) {
+      secondaryMuscles = ALL_MUSCLE_SLUGS
+    }
+
+    return {
+      ...(ex.id ? { id: ex.id } : {}),
+      name: ex.name,
+      category: ex.category ?? 'Strength',
+      metric_profile: ex.metricProfile,
+      equipment: ex.equipment,
+      movement_pattern: ex.movementPattern,
+      primary_muscle: ex.primaryMuscle,
+      secondary_muscles: secondaryMuscles,
+      is_interval: ex.isInterval ?? false
+    }
+  })
 
   return await supabase
     .from('exercise_catalog')
