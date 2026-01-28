@@ -7,12 +7,16 @@ type SessionHistory = {
   recentPrimaryMuscles?: string[]
 }
 
-type SessionHistoryRow = {
-  generated_exercises: Array<{
-    name?: string
-    movementPattern?: string | null
-    primaryMuscle?: string | null
-  }> | null
+type SessionRow = {
+  id: string
+  started_at: string
+  session_exercises: Array<{
+    exercise_name: string
+    primary_muscle: string
+    exercise_catalog: {
+      movement_pattern: string | null
+    } | null
+  }>
 }
 
 export const fetchTemplateHistory = async (
@@ -20,9 +24,20 @@ export const fetchTemplateHistory = async (
   templateId: string,
   limit = 3
 ): Promise<SessionHistory> => {
+  // Query sessions for this template, and join their exercises
   const { data, error } = await supabase
     .from('sessions')
-    .select('generated_exercises')
+    .select(`
+      id,
+      started_at,
+      session_exercises (
+        exercise_name,
+        primary_muscle,
+        exercise_catalog (
+          movement_pattern
+        )
+      )
+    `)
     .eq('template_id', templateId)
     .order('started_at', { ascending: false })
     .limit(limit)
@@ -36,19 +51,22 @@ export const fetchTemplateHistory = async (
   const recentMovementPatterns: MovementPattern[] = []
   const recentPrimaryMuscles: string[] = []
 
-  ;(data as SessionHistoryRow[] | null)?.forEach((row) => {
-    const generated = Array.isArray(row.generated_exercises) ? row.generated_exercises : []
-    generated.forEach((exercise) => {
-      if (exercise.name) recentExerciseNames.push(exercise.name)
-      if (exercise.movementPattern) recentMovementPatterns.push(exercise.movementPattern as MovementPattern)
-      if (exercise.primaryMuscle) recentPrimaryMuscles.push(exercise.primaryMuscle)
+  const sessions = (data as unknown) as SessionRow[]
+
+  sessions?.forEach((session) => {
+    session.session_exercises?.forEach((ex) => {
+      if (ex.exercise_name) recentExerciseNames.push(ex.exercise_name)
+      if (ex.primary_muscle) recentPrimaryMuscles.push(ex.primary_muscle)
+      if (ex.exercise_catalog?.movement_pattern) {
+        recentMovementPatterns.push(ex.exercise_catalog.movement_pattern as MovementPattern)
+      }
     })
   })
 
   return {
-    recentExerciseNames,
-    recentMovementPatterns,
-    recentPrimaryMuscles
+    recentExerciseNames: Array.from(new Set(recentExerciseNames)),
+    recentMovementPatterns: Array.from(new Set(recentMovementPatterns)),
+    recentPrimaryMuscles: Array.from(new Set(recentPrimaryMuscles))
   }
 }
 

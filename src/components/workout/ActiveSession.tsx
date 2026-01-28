@@ -31,13 +31,6 @@ type ActiveSessionProps = {
   style?: Goal | null;
 };
 
-const formatRestTime = (seconds: number) => {
-  const safe = Math.max(0, Math.floor(seconds));
-  const minutes = Math.floor(safe / 60);
-  const remaining = safe % 60;
-  return `${minutes}:${remaining.toString().padStart(2, '0')}`;
-};
-
 export default function ActiveSession({ 
   sessionId, 
   equipmentInventory, 
@@ -58,8 +51,6 @@ export default function ActiveSession({
     togglePreferredUnit,
     profileWeightLb,
     exerciseTargets,
-    restTimer,
-    clearRestTimer,
     handleSetUpdate,
     addSet,
     removeSet,
@@ -194,8 +185,6 @@ export default function ActiveSession({
         onToggleUnit={togglePreferredUnit}
         onCancel={onCancel}
         errorMessage={errorMessage}
-        restTimer={restTimer}
-        onClearRestTimer={clearRestTimer}
       />
 
       <ExerciseNavigator exercises={activeSession.exercises} currentIndex={currentIndex} onSelect={handleExerciseSelect} />

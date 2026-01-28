@@ -1,4 +1,11 @@
-import type { Exercise, EquipmentOption, ExerciseCategory } from '@/types/domain'
+import type { 
+  Exercise, 
+  EquipmentOption, 
+  ExerciseCategory, 
+  FocusArea, 
+  MetricProfile, 
+  MovementPattern 
+} from '@/types/domain'
 
 type ExerciseRow = {
   id: string;
@@ -6,7 +13,7 @@ type ExerciseRow = {
   category: string;
   focus: string;
   metric_profile: string;
-  equipment: any;
+  equipment: EquipmentOption[];
   movement_pattern: string;
   primary_muscle: string;
   secondary_muscles: string[];
@@ -37,10 +44,10 @@ export function mapCatalogRowToExercise(row: ExerciseRow): Exercise {
     id: row.id,
     name: row.name,
     category: inferCategory(row),
-    focus: row.focus as any,
-    metricProfile: row.metric_profile as any,
-    equipment: row.equipment as EquipmentOption[],
-    movementPattern: row.movement_pattern as any,
+    focus: row.focus as FocusArea,
+    metricProfile: row.metric_profile as MetricProfile,
+    equipment: row.equipment,
+    movementPattern: row.movement_pattern as MovementPattern,
     primaryMuscle: row.primary_muscle,
     secondaryMuscles: row.secondary_muscles,
     e1rmEligible: row.e1rm_eligible,

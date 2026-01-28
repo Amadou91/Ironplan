@@ -180,38 +180,6 @@ export function useGenerationFlow() {
     })
   }
 
-  const updatePrimaryStyle = (style: Goal) => {
-    updateFormData((prev) => {
-      // Style change shouldn't trigger Cardio/Mobility mode unless implied?
-      // But we removed Cardio/Mobility from Goal. 
-      // So changing style to 'endurance' doesn't necessarily mean Cardio mode (could be high rep strength).
-      // We rely on Focus for mode.
-      const currentFocus = prev.intent.bodyParts?.[0]
-      
-      return {
-        ...prev,
-        intent: {
-          ...prev.intent,
-          style,
-        },
-        goals: {
-          ...prev.goals,
-          primary: style
-        },
-        schedule: {
-          ...prev.schedule,
-          weeklyLayout: [
-            {
-              sessionIndex: 0,
-              style,
-              focus: currentFocus ?? 'chest'
-            }
-          ]
-        }
-      }
-    })
-  }
-
   const handleHistoryLoad = (entry: WorkoutHistoryEntry) => {
     updateFormData(() => {
       const normalized = normalizePlanInput(entry.template.inputs)

@@ -22,12 +22,6 @@ interface SessionHeaderProps {
   onToggleUnit?: () => void;
   onCancel?: () => void;
   errorMessage?: string | null;
-  restTimer?: {
-    remaining: number;
-    total: number;
-    label: string;
-  } | null;
-  onClearRestTimer: () => void;
 }
 
 export function SessionHeader({
@@ -43,8 +37,6 @@ export function SessionHeader({
   onToggleUnit,
   onCancel,
   errorMessage,
-  restTimer,
-  onClearRestTimer,
 }: SessionHeaderProps) {
   const [duration, setDuration] = useState<string>('00:00');
 
@@ -65,15 +57,6 @@ export function SessionHeader({
     }, 1000);
     return () => clearInterval(interval);
   }, [startedAt]);
-
-  const restProgress = restTimer ? Math.round((restTimer.remaining / restTimer.total) * 100) : 0;
-
-  const formatRestTime = (seconds: number) => {
-    const safe = Math.max(0, Math.floor(seconds));
-    const minutes = Math.floor(safe / 60);
-    const remaining = safe % 60;
-    return `${minutes}:${remaining.toString().padStart(2, '0')}`;
-  };
 
   return (
     <div className="sticky top-0 z-20 surface-elevated p-4 backdrop-blur-md border-b border-[var(--color-border)]">
@@ -148,30 +131,6 @@ export function SessionHeader({
           </div>
         )}
       </div>
-
-      {restTimer && (
-        <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs text-muted shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-strong flex items-center gap-1.5">
-              <Info size={12} className="text-accent" />
-              Rest · {restTimer.label}
-            </span>
-            <button type="button" onClick={onClearRestTimer} className="text-xs font-bold text-accent hover:text-accent-strong">
-              SKIP
-            </button>
-          </div>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-lg font-mono font-bold text-strong">{formatRestTime(restTimer.remaining)}</span>
-            <span className="text-[10px] text-subtle uppercase font-medium">{restTimer.total}s TOTAL</span>
-          </div>
-          <div className="mt-2 h-1.5 rounded-full bg-[var(--color-surface-muted)] overflow-hidden">
-            <div
-              className="h-full bg-[var(--color-primary)] transition-all duration-1000 linear"
-              style={{ width: `${restProgress}%` }}
-            />
-          </div>
-        </div>
-      )}
 
       {errorMessage && (
         <div className="mt-3 alert-error px-3 py-2 text-xs flex items-center gap-2 animate-in fade-in slide-in-from-top-1">

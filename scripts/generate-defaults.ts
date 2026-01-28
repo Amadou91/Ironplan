@@ -8,7 +8,7 @@ const envPath = path.resolve(process.cwd(), '.env.local');
 let envContent = '';
 try {
   envContent = fs.readFileSync(envPath, 'utf-8');
-} catch (_e) {
+} catch {
   // ignore
 }
 
@@ -34,7 +34,7 @@ type ExerciseRow = {
   category: string;
   focus: string;
   metric_profile: string;
-  equipment: any;
+  equipment: Record<string, unknown> | Record<string, unknown>[];
   primary_muscle: string;
   secondary_muscles: string[];
   e1rm_eligible: boolean;

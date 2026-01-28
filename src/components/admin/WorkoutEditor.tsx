@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Exercise, Goal, Difficulty, MetricProfile, MuscleGroup, ExerciseCategory } from '@/types/domain';
+import { Exercise, Difficulty, MetricProfile, MuscleGroup, ExerciseCategory } from '@/types/domain';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Label } from '@/components/ui/Label';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
-import { RPE_OPTIONS } from '@/constants/intensityOptions';
 import { validateExercise } from '@/lib/validation/exercise-validation';
 
 interface WorkoutEditorProps {
@@ -20,12 +19,6 @@ const CATEGORIES: { value: ExerciseCategory; label: string }[] = [
   { value: 'Strength', label: 'Strength' },
   { value: 'Cardio', label: 'Cardio' },
   { value: 'Mobility', label: 'Yoga / Mobility' },
-];
-
-const DIFFICULTIES: { value: Difficulty; label: string }[] = [
-  { value: 'beginner', label: 'Beginner' },
-  { value: 'intermediate', label: 'Intermediate' },
-  { value: 'advanced', label: 'Advanced' },
 ];
 
 const METRIC_PROFILES: { value: MetricProfile; label: string }[] = [
@@ -46,7 +39,7 @@ const DEFAULT_EXERCISE: Partial<Exercise> = {
   category: 'Strength',
   metricProfile: 'reps_weight',
   equipment: [{ kind: 'bodyweight' }],
-  primaryMuscle: 'full_body',
+  primaryMuscle: 'chest',
 };
 
 // --- Helper Components ---
@@ -73,44 +66,6 @@ function SegmentedControl<T extends string>({
               isSelected
                 ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm ring-1 ring-[var(--color-border)]'
                 : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-            }`}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function MultiSelectChips<T extends string>({
-  options,
-  selected,
-  onChange
-}: {
-  options: { value: T; label: string }[];
-  selected: T[];
-  onChange: (value: T[]) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((option) => {
-        const isSelected = selected.includes(option.value);
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => {
-              if (isSelected) {
-                onChange(selected.filter((v) => v !== option.value));
-              } else {
-                onChange([...selected, option.value]);
-              }
-            }}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-              isSelected
-                ? 'bg-[var(--color-text)] text-[var(--color-bg)] border-[var(--color-text)]'
-                : 'bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:bg-[var(--color-surface-muted)]'
             }`}
           >
             {option.label}
@@ -155,6 +110,7 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
     const updates: Partial<Exercise> = { category: cat };
     if (cat === 'Strength') {
       updates.metricProfile = 'reps_weight';
+      updates.primaryMuscle = 'chest';
     } else if (cat === 'Cardio') {
       updates.metricProfile = 'cardio_session';
       updates.primaryMuscle = 'full_body';
@@ -223,7 +179,7 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
                   value={formData.primaryMuscle as string}
                   onChange={(e) => handleChange('primaryMuscle', e.target.value)}
                 >
-                  {MUSCLE_GROUPS.map((m) => (
+                  {MUSCLE_GROUPS.filter(m => m !== 'full_body').map((m) => (
                     <option key={m} value={m}>{m.replace('_', ' ').toUpperCase()}</option>
                   ))}
                 </Select>

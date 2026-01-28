@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { createClient } from '@/lib/supabase/client';
 import { equipmentPresets } from '@/lib/equipment';
@@ -84,10 +84,8 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
   const preferredUnit = activeSession?.weightUnit ?? 'lb';
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistoryPoint[]>([]);
   const [exerciseTargets] = useState<Record<string, GeneratedExerciseTarget>>({});
-  const [restTimer, setRestTimer] = useState<{ remaining: number; total: number; label: string } | null>(null);
   const [sessionBodyWeight, setSessionBodyWeight] = useState<string>('');
   
-  const restIntervalRef = useRef<number | null>(null);
   const supabase = createClient();
   const { catalog } = useExerciseCatalog();
 
@@ -198,30 +196,6 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     loadHistory();
   }, [activeSession?.userId, supabase]);
 
-  const clearRestTimer = useCallback(() => {
-    if (restIntervalRef.current) {
-      window.clearInterval(restIntervalRef.current);
-      restIntervalRef.current = null;
-    }
-    setRestTimer(null);
-  }, []);
-
-  const startRestTimer = useCallback((seconds: number, label: string) => {
-    if (!Number.isFinite(seconds) || seconds <= 0) return;
-    clearRestTimer();
-    setRestTimer({ remaining: seconds, total: seconds, label });
-    restIntervalRef.current = window.setInterval(() => {
-      setRestTimer((prev) => {
-        if (!prev) return prev;
-        if (prev.remaining <= 1) {
-          clearRestTimer();
-          return null;
-        }
-        return { ...prev, remaining: prev.remaining - 1 };
-      });
-    }, 1000);
-  }, [clearRestTimer]);
-
   const persistSet = useCallback(async (exercise: SessionExercise, set: WorkoutSet, exerciseIndex: number) => {
     if (!exercise.id) return;
     const payload = {
@@ -236,9 +210,9 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
       weight_unit: set.weightUnit ?? 'lb',
       duration_seconds: set.durationSeconds ?? null,
       distance: set.distance ?? null,
-      distance_unit: set.distanceUnit ?? null,
+      distance_unit: set.distance_unit ?? null,
       extras: set.extras ?? {},
-      extra_metrics: set.extraMetrics ?? {}
+      extra_metrics: set.extra_metrics ?? {}
     };
 
     if (set.id && !set.id.startsWith('temp-')) {
@@ -258,11 +232,6 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     const currentSet = exercise.sets[setIdx];
     
     updateSet(exIdx, setIdx, field, value);
-
-    if (field === 'completed' && value === true) {
-      const restSeconds = 90; // Default or from targets
-      startRestTimer(restSeconds, exercise.name);
-    }
 
     const nextSet = { ...currentSet, [field]: value };
     await persistSet(exercise, nextSet, exIdx);
@@ -292,8 +261,6 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     profileWeightLb,
     exerciseHistory,
     exerciseTargets,
-    restTimer,
-    clearRestTimer,
     handleSetUpdate,
     addSet,
     removeSet,

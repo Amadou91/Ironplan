@@ -110,7 +110,7 @@ export async function getExerciseBackupAction() {
     name: string;
     category: string;
     metric_profile: string;
-    equipment: any;
+    equipment: Record<string, unknown> | Record<string, unknown>[];
     movement_pattern: string;
     primary_muscle: string;
     secondary_muscles: string[];

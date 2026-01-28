@@ -31,7 +31,6 @@ export default function GeneratePage() {
     startingSessionKey,
     updateFormData,
     handleFocusChange,
-    updatePrimaryStyle,
     handleHistoryLoad,
     handleHistoryDelete,
     handleStartSession,

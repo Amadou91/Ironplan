@@ -112,12 +112,14 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
 
   // 2. Primary muscles that belong to the current pattern
   const availablePrimaryMuscles = muscleOptions.filter(m => {
+    if (exerciseType === 'Strength' && m.slug === 'full_body') return false;
     if (!formData.movementPattern) return true;
     return MOVEMENT_PATTERN_MUSCLES[formData.movementPattern as string]?.includes(m.slug);
   });
 
   // 3. Secondary muscles split into logical vs others
   const logicalSecondaryMuscles = muscleOptions.filter(m => {
+    if (exerciseType === 'Strength' && m.slug === 'full_body') return false;
     if (m.slug === formData.primaryMuscle) return false;
     if (!formData.movementPattern) return true;
     return MOVEMENT_PATTERN_MUSCLES[formData.movementPattern as string]?.includes(m.slug);

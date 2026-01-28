@@ -8,7 +8,7 @@ const envPath = path.resolve(process.cwd(), '.env.local');
 let envContent = '';
 try {
   envContent = fs.readFileSync(envPath, 'utf-8');
-} catch (_e) {
+} catch {
   // ignore
 }
 

@@ -101,7 +101,7 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
         alert('Failed to delete: ' + res.error);
         setIsDeleting(false);
       }
-    } catch (_e) {
+    } catch {
       alert('Error deleting exercise');
       setIsDeleting(false);
     }

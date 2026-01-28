@@ -5,6 +5,7 @@ import { RIR_OPTIONS, RPE_OPTIONS } from '@/constants/intensityOptions';
 import type { WeightOption } from '@/lib/equipment';
 import { mapRirToRpe } from '@/lib/session-metrics';
 import { useSetEditor } from '@/hooks/useSetEditor';
+import { cn } from '@/lib/utils';
 
 interface SetLoggerProps {
   set: WorkoutSet;

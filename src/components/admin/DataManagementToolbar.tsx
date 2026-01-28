@@ -37,7 +37,7 @@ export function DataManagementToolbar() {
       } else {
         alert(`Error: ${res.error}`)
       }
-    } catch (_e) {
+    } catch {
       alert('An unexpected error occurred.')
     } finally {
       setIsLoading(false)
@@ -63,7 +63,7 @@ export function DataManagementToolbar() {
       } else {
         alert('Failed to export data: ' + res.error)
       }
-    } catch (_e) {
+    } catch {
       alert('Export failed unexpectedly.')
     }
   }
@@ -99,7 +99,7 @@ export function DataManagementToolbar() {
         } else {
             alert(`Import failed: ${res.error}`)
         }
-      } catch (_err) {
+      } catch {
         alert('Failed to parse JSON file.')
       } finally {
         setImportLoading(false)
