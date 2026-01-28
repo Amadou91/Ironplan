@@ -50,12 +50,12 @@ export default function Sidebar() {
 
   if (!hasMounted) {
     return (
-      <aside className="group hidden sticky top-0 h-screen w-72 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] lg:flex z-40" />
+      <aside className="group hidden sticky top-0 h-screen w-72 flex-col border-r border-[var(--color-border)] nav-surface lg:flex z-40" />
     );
   }
 
   return (
-    <aside className={`group hidden sticky top-0 h-screen flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] text-strong transition-all duration-300 ease-in-out lg:flex z-40 ${isCollapsed ? 'w-20' : 'w-72'}`}>
+    <aside className={`group hidden sticky top-0 h-screen flex-col nav-surface text-strong transition-all duration-300 ease-in-out lg:flex z-40 ${isCollapsed ? 'w-20' : 'w-72'}`}>
       {/* Header section */}
       <div className={`flex h-20 shrink-0 items-center border-b border-[var(--color-border)] px-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
         <Link href="/dashboard" className={`flex items-center gap-3 transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>
@@ -171,7 +171,7 @@ export default function Sidebar() {
         ) : user ? (
           <div className="space-y-3">
             {!isCollapsed && (
-              <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-sm transition-all hover:shadow-md">
+              <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 shadow-sm transition-all hover:shadow-md">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-muted transition-colors hover:text-strong">
                   <UserRound className="h-5 w-5" />
                 </div>

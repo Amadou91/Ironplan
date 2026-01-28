@@ -32,16 +32,14 @@ export function ExerciseFilters({
     { value: 'Mobility', label: 'Yoga / Mobility', icon: Activity }
   ] as { value: ExerciseCategory; label: string; icon: React.ElementType }[];
 
-  const toggleFilter = <K extends keyof typeof activeFilters>(
-    type: K, 
-    value: typeof activeFilters[K][number]
-  ) => {
+  const selectCategory = (value: ExerciseCategory) => {
     setActiveFilters(prev => {
-      const current = prev[type] as string[];
-      const next = current.includes(value as string)
-        ? current.filter(item => item !== value)
-        : [...current, value];
-      return { ...prev, [type]: next };
+      // Single select logic: if already selected, clear it. Otherwise set it as the only one.
+      const isSelected = prev.category.includes(value);
+      return { 
+        ...prev, 
+        category: isSelected ? [] : [value] 
+      };
     });
   };
 
@@ -54,18 +52,18 @@ export function ExerciseFilters({
     Object.values(activeFilters).some(arr => arr.length > 0);
 
   return (
-    <div className="space-y-5 mb-6">
+    <div className="space-y-5 mb-8">
       {/* Search Bar */}
-      <div className="rounded-2xl bg-[var(--color-surface-subtle)] border border-[var(--color-border)] shadow-sm transition-all p-4 sm:p-5">
+      <div className="rounded-2xl bg-[var(--color-surface-muted)]/30 border border-[var(--color-border)] p-4 sm:p-5 shadow-sm">
         <div className="relative">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary)] flex items-center justify-center shadow-sm">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary)] flex items-center justify-center">
             <Search className="h-5 w-5" />
           </div>
           <Input 
-            placeholder="Search exercises by name, equipment, or muscle..." 
+            placeholder="Search exercises..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-14 pr-12 h-14 text-base font-semibold bg-[var(--color-surface)] text-[var(--color-text)] rounded-2xl border border-[var(--color-border)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary-soft)] focus-visible:border-[var(--color-border-strong)]"
+            className="pl-14 pr-12 h-14 text-base font-semibold bg-[var(--color-surface-subtle)] text-[var(--color-text)] rounded-2xl border border-[var(--color-border)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary-soft)] focus-visible:border-[var(--color-border-strong)]"
           />
           {searchQuery && (
             <button 
@@ -81,11 +79,11 @@ export function ExerciseFilters({
       </div>
 
       {/* Chip Filters */}
-      <div className="rounded-2xl bg-[var(--color-surface-subtle)] border border-[var(--color-border)] shadow-sm transition-all p-4 sm:p-5">
+      <div className="rounded-2xl bg-[var(--color-surface-muted)]/30 border border-[var(--color-border)] p-4 sm:p-5 shadow-sm">
         <div className="flex flex-wrap items-center gap-5">
-          <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-primary)] bg-[var(--color-primary-soft)] px-3 py-2 rounded-xl shadow-sm">
-            <Filter className="w-4 h-4" />
-            <span>Filters</span>
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--color-text-muted)] border-r border-[var(--color-border)] pr-5">
+            <Filter className="w-3.5 h-3.5" />
+            <span>Category</span>
           </div>
 
           {/* Categories */}
@@ -95,16 +93,16 @@ export function ExerciseFilters({
               const isActive = activeFilters.category.includes(cat.value);
               
               const activeColors: Record<string, string> = {
-                Strength: 'bg-blue-600 border-blue-600 text-white shadow-blue-200',
-                Cardio: 'bg-rose-600 border-rose-600 text-white shadow-rose-200',
-                Mobility: 'bg-teal-600 border-teal-600 text-white shadow-teal-200',
+                Strength: 'bg-blue-500/10 text-blue-600 border-blue-200 shadow-none',
+                Cardio: 'bg-rose-500/10 text-rose-600 border-rose-200 shadow-none',
+                Mobility: 'bg-teal-500/10 text-teal-600 border-teal-200 shadow-none',
               };
 
               return (
                 <FilterButton 
                   key={cat.value} 
                   isActive={isActive} 
-                  onClick={() => toggleFilter('category', cat.value)}
+                  onClick={() => selectCategory(cat.value)}
                   activeClassName={activeColors[cat.value]}
                 >
                   <Icon className="w-4 h-4" />
@@ -118,9 +116,9 @@ export function ExerciseFilters({
             <button 
               type="button"
               onClick={clearFilters}
-              className="ml-auto text-sm font-semibold text-[var(--color-danger)] hover:underline transition-colors"
+              className="ml-auto text-[10px] font-black uppercase tracking-widest text-[var(--color-danger)] hover:text-[var(--color-danger-strong)] transition-colors"
             >
-              Clear all
+              Reset
             </button>
           )}
         </div>
@@ -146,10 +144,10 @@ function FilterButton({
       onClick={onClick}
       aria-pressed={isActive}
       className={cn(
-        "inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 border min-h-[44px]",
+        "inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all duration-300 border min-h-[44px]",
         isActive 
-          ? (activeClassName || "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md shadow-[var(--color-primary-soft)]") 
-          : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:bg-[var(--color-surface-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+          ? (activeClassName || "bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] border-[var(--color-primary-border)] shadow-sm") 
+          : "bg-[var(--color-bg)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:bg-[var(--color-surface-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
       )}
     >
       {children}

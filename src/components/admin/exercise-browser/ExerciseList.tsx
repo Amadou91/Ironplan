@@ -1,13 +1,55 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Exercise } from '@/types/domain';
+import { Exercise, EquipmentKind } from '@/types/domain';
 import { Badge } from '@/components/ui/Badge'; 
-import { Dumbbell, Clock, Signal, Pencil, Trash2, Loader2, Layers } from 'lucide-react';
+import { 
+  Dumbbell, 
+  Clock, 
+  Signal, 
+  Pencil, 
+  Trash2, 
+  Loader2, 
+  Layers, 
+  User, 
+  Zap, 
+  Settings, 
+  Box, 
+  Circle, 
+  Link as LinkIcon 
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { deleteExerciseAction } from '@/app/workouts/actions';
 import { cn } from '@/lib/utils';
+
+const EQUIPMENT_ICONS: Record<EquipmentKind, React.ElementType> = {
+  bodyweight: User,
+  dumbbell: Dumbbell,
+  kettlebell: Dumbbell, // Often same icon category
+  barbell: Dumbbell,
+  machine: Settings,
+  band: Zap,
+  block: Box,
+  bolster: Circle,
+  strap: LinkIcon
+};
+
+function EquipmentBadge({ kind, machineType }: { kind: EquipmentKind, machineType?: string }) {
+  const Icon = EQUIPMENT_ICONS[kind] || Dumbbell;
+  const label = kind === 'machine' ? (machineType || 'Machine') : kind;
+  
+  return (
+    <div className="flex items-center gap-2.5 px-3 py-1.5 bg-muted/40 rounded-lg group/eq transition-all hover:bg-muted/60">
+      <div className="p-1 bg-surface/50 rounded-md shadow-sm text-foreground/70 group-hover/eq:text-primary transition-colors">
+        <Icon className="w-3 h-3" />
+      </div>
+      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover/eq:text-foreground transition-colors">
+        {label.replace(/_/g, ' ')}
+      </span>
+    </div>
+  );
+}
 
 function CategoryBadge({ category }: { category: string }) {
   const colors: Record<string, string> = {
@@ -95,15 +137,10 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
             </h4>
             <CategoryBadge category={category} />
           </div>
-          <div className="flex flex-wrap items-center gap-4 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-             {exercise.equipment && exercise.equipment.length > 0 && (
-                <span className="flex items-center gap-2">
-                   <div className="p-1.5 bg-muted rounded-lg text-foreground/70">
-                      <Dumbbell className="w-3.5 h-3.5" />
-                   </div>
-                   {exercise.equipment.map(e => e.kind === 'machine' ? (e.machineType || 'Machine') : e.kind).join(', ')}
-                </span>
-             )}
+          <div className="flex flex-col gap-2 pt-1">
+             {exercise.equipment?.map((e, idx) => (
+                <EquipmentBadge key={idx} kind={e.kind} machineType={e.kind === 'machine' ? e.machineType : undefined} />
+             ))}
           </div>
         </div>
         
@@ -134,72 +171,6 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
           >
               {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
           </Button>
-        </div>
-      </div>
-
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className={cn(
-          "bg-surface-subtle border border-border/50 rounded-2xl p-4 flex flex-col items-center justify-center text-center group/metric transition-colors",
-          category === 'Strength' ? 'hover:border-blue-500/20' : 
-          category === 'Cardio' ? 'hover:border-rose-500/20' : 
-          category === 'Mobility' ? 'hover:border-teal-500/20' : 'hover:border-primary/20'
-        )}>
-            <div className={cn(
-              "flex items-center gap-2 mb-2 text-muted-foreground transition-colors",
-              category === 'Strength' ? 'group-hover/metric:text-blue-500' : 
-              category === 'Cardio' ? 'group-hover/metric:text-rose-500' : 
-              category === 'Mobility' ? 'group-hover/metric:text-teal-500' : 'group-hover/metric:text-primary'
-            )}>
-                <Layers className="w-3.5 h-3.5" />
-                <span className="text-[10px] uppercase tracking-[0.2em] font-black">
-                    {exercise.isInterval ? 'Intervals' : 'Sets'}
-                </span>
-            </div>
-            <span className="text-lg font-black tabular-nums text-foreground">
-                {exercise.isInterval 
-                    ? `${exercise.sets} × ${exercise.intervalDuration}s` 
-                    : `${exercise.sets} × ${exercise.reps}`
-                }
-            </span>
-        </div>
-
-        <div className={cn(
-          "bg-surface-subtle border border-border/50 rounded-2xl p-4 flex flex-col items-center justify-center text-center group/metric transition-colors",
-          category === 'Strength' ? 'hover:border-blue-500/20' : 
-          category === 'Cardio' ? 'hover:border-rose-500/20' : 
-          category === 'Mobility' ? 'hover:border-teal-500/20' : 'hover:border-primary/20'
-        )}>
-            <div className="flex items-center gap-2 mb-2 text-muted-foreground group-hover/metric:text-amber-500 transition-colors">
-                <Signal className="w-3.5 h-3.5" />
-                <span className="text-[10px] uppercase tracking-[0.2em] font-black">RPE</span>
-            </div>
-            <span className="text-lg font-black tabular-nums text-foreground">{exercise.rpe || 8}</span>
-        </div>
-        
-        <div className={cn(
-          "bg-surface-subtle border border-border/50 rounded-2xl p-4 flex flex-col items-center justify-center text-center group/metric transition-colors",
-          category === 'Strength' ? 'hover:border-blue-500/20' : 
-          category === 'Cardio' ? 'hover:border-rose-500/20' : 
-          category === 'Mobility' ? 'hover:border-teal-500/20' : 'hover:border-primary/20'
-        )}>
-            {exercise.isInterval ? (
-              <>
-                <div className="flex items-center gap-2 mb-2 text-muted-foreground group-hover/metric:text-blue-500 transition-colors">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span className="text-[10px] uppercase tracking-[0.2em] font-black">Rest</span>
-                </div>
-                <span className="text-lg font-black tabular-nums text-foreground">{exercise.intervalRest}s</span>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 mb-2 text-muted-foreground group-hover/metric:text-blue-500 transition-colors">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span className="text-[10px] uppercase tracking-[0.2em] font-black">Rest</span>
-                </div>
-                <span className="text-lg font-black tabular-nums text-foreground">{exercise.restSeconds}s</span>
-              </>
-            )}
         </div>
       </div>
 

@@ -4,10 +4,10 @@
   /* Base - Clean, warm paper texture, less yellow than before */
   --color-bg: oklch(98% 0.01 85);
   --color-bg-accent: oklch(97% 0.01 85);
-  --color-surface: oklch(100% 0 0);
+  --color-surface: oklch(99.5% 0.005 85);
   --color-surface-muted: oklch(96% 0.01 85);
   --color-surface-subtle: oklch(97.5% 0.005 85);
-  --color-surface-elevated: oklch(100% 0 0);
+  --color-surface-elevated: oklch(99.5% 0.005 85);
   
   /* Primary - High Energy Orange */
   --color-primary: oklch(65% 0.22 35);
@@ -16,9 +16,9 @@
   --color-primary-border: oklch(85% 0.1 35);
   
   /* Border & Accents */
-  --color-border: oklch(90% 0.01 85);
-  --color-border-strong: oklch(80% 0.02 85);
-  --color-ring: oklch(65% 0.22 35 / 0.3);
+  --color-border: oklch(92% 0.01 85);
+  --color-border-strong: oklch(85% 0.02 85);
+  --color-ring: oklch(65% 0.22 35 / 0.2);
   
   /* Status */
   --color-danger: oklch(60% 0.2 25);
@@ -30,15 +30,15 @@
   --color-success-border: oklch(90% 0.1 150);
   --color-warning: oklch(75% 0.15 75);
   
-  /* Text */
-  --color-text: oklch(20% 0.02 85);
+  /* Text - Softer than pure black */
+  --color-text: oklch(25% 0.02 85);
   --color-text-muted: oklch(55% 0.02 85);
   --color-text-subtle: oklch(70% 0.01 85);
   --color-text-inverse: oklch(98% 0 0);
   
   /* Inputs */
-  --color-input-bg: oklch(100% 0 0);
-  --color-input-text: oklch(20% 0.02 85);
+  --color-input-bg: oklch(99.5% 0.005 85);
+  --color-input-text: oklch(25% 0.02 85);
   --color-input-placeholder: oklch(70% 0.01 85);
   --color-input-muted: oklch(96% 0.01 85);
   
@@ -58,42 +58,42 @@
   --font-size-3xl: 1.875rem;
   --font-size-4xl: 2.25rem;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
 
   color-scheme: light;
 }
 
 .dark {
-  /* Base - Deep Charcoal, not pure black */
-  --color-bg: oklch(15% 0.02 260);
-  --color-bg-accent: oklch(17% 0.02 260);
-  --color-surface: oklch(20% 0.02 260);
-  --color-surface-muted: oklch(18% 0.02 260);
-  --color-surface-subtle: oklch(22% 0.02 260);
-  --color-surface-elevated: oklch(24% 0.02 260);
+  /* Base - Deep Charcoal, more nuanced than pure black */
+  --color-bg: oklch(22% 0.02 260);
+  --color-bg-accent: oklch(24% 0.02 260);
+  --color-surface: oklch(26% 0.02 260);
+  --color-surface-muted: oklch(24% 0.02 260);
+  --color-surface-subtle: oklch(28% 0.02 260);
+  --color-surface-elevated: oklch(30% 0.02 260);
 
   /* Primary - Shifted slightly lighter for dark mode contrast */
   --color-primary: oklch(70% 0.22 35);
   --color-primary-strong: oklch(75% 0.22 35);
-  --color-primary-soft: oklch(30% 0.1 35);
-  --color-primary-border: oklch(40% 0.15 35);
+  --color-primary-soft: oklch(35% 0.1 35);
+  --color-primary-border: oklch(45% 0.15 35);
   
   /* Border & Accents */
-  --color-border: oklch(25% 0.02 260);
-  --color-border-strong: oklch(35% 0.02 260);
-  --color-ring: oklch(70% 0.22 35 / 0.4);
+  --color-border: oklch(32% 0.02 260);
+  --color-border-strong: oklch(40% 0.02 260);
+  --color-ring: oklch(70% 0.22 35 / 0.3);
 
-  /* Text */
-  --color-text: oklch(98% 0 0);
-  --color-text-muted: oklch(70% 0.01 260);
-  --color-text-subtle: oklch(50% 0.01 260);
+  /* Text - Softer off-white to reduce "blasting" effect */
+  --color-text: oklch(92% 0.01 260);
+  --color-text-muted: oklch(75% 0.01 260);
+  --color-text-subtle: oklch(60% 0.01 260);
   
   /* Inputs */
-  --color-input-bg: oklch(18% 0.02 260);
-  --color-input-text: oklch(98% 0 0);
-  --color-input-placeholder: oklch(50% 0.01 260);
-  --color-input-muted: oklch(16% 0.02 260);
+  --color-input-bg: oklch(24% 0.02 260);
+  --color-input-text: oklch(92% 0.01 260);
+  --color-input-placeholder: oklch(60% 0.01 260);
+  --color-input-muted: oklch(22% 0.02 260);
 
   color-scheme: dark;
 }
@@ -106,19 +106,25 @@
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.7);
+  background: color-mix(in oklch, var(--color-surface), transparent 30%);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--color-border);
   box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.8); /* Top highlight */
+    var(--shadow-sm),
+    inset 0 1px 0 0 color-mix(in oklch, var(--color-surface), white 20%);
+}
+
+.nav-surface {
+  background: color-mix(in oklch, var(--color-bg), transparent 50%);
+  backdrop-filter: blur(16px);
+  border-right: 1px solid var(--color-border);
 }
 
 .dark .glass-panel {
-  background: rgba(21, 28, 38, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
-  inset: 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  background: color-mix(in oklch, var(--color-surface), transparent 40%);
+  border: 1px solid color-mix(in oklch, white, transparent 90%);
+  box-shadow: var(--shadow-md);
+  inset: 0 1px 0 0 color-mix(in oklch, white, transparent 95%);
 }
 
 body {
