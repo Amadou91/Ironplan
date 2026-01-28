@@ -82,6 +82,7 @@ export const adjustSetsForIntensity = (sets: number, intensity: Intensity) => {
 export const deriveReps = (goal: Goal, intensity: Intensity) => {
   if (goal === 'strength') return intensity === 'high' ? '3-6' : '4-6'
   if (goal === 'endurance') return intensity === 'high' ? '15-20' : '12-15'
+  if (goal === 'range_of_motion' || goal === 'cardio') return null // Use catalog baseline
   return intensity === 'high' ? '8-10' : '8-12'
 }
 

@@ -44,9 +44,15 @@ export const createPlannedExercise = (
     sets = Math.min(maxSets, sets + 1)
   }
   const restSeconds = clamp(Math.round(exercise.restSeconds * restModifier), isCardio ? 30 : 45, 150)
+  
+  // Use catalog reps for non-strength goals (Cardio/Mobility)
+  const finalReps = (goal === 'cardio' || goal === 'range_of_motion' || exercise.category === 'Mobility' || exercise.category === 'Cardio') 
+    ? exercise.reps 
+    : reps
+
   const prescription: ExercisePrescription = {
     sets,
-    reps: exercise.focus === 'cardio' ? exercise.reps : reps,
+    reps: finalReps,
     rpe: adjustRpe(exercise.rpe, input.intensity),
     restSeconds,
     load: buildLoad(selectedOption, exercise.loadTarget, input.equipment.inventory)

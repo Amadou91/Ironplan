@@ -8,7 +8,7 @@ import ActiveSession from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { createClient } from '@/lib/supabase/client'
-import { calculateSessionImpactFromSets } from '@/lib/workout-metrics'
+import { calculateSessionImpactFromSets, formatFocusLabel, formatGoalLabel } from '@/lib/workout-metrics'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
@@ -178,7 +178,7 @@ function WorkoutActiveContent() {
             <h1 className="font-display text-2xl font-semibold text-strong">{sessionTitle}</h1>
             {template && (
               <p className="text-sm text-muted">
-                {toTitleCase(template.style.replace('_', ' '))} focus · {toTitleCase(template.focus.replace('_', ' '))}
+                {formatGoalLabel(template.style)} focus · {formatFocusLabel(template.focus)}
               </p>
             )}
           </div>

@@ -82,42 +82,56 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
     onUpdate
   });
 
-  const inputClassName = (hasError?: boolean) => `input-base input-compact text-center ${!isEditing ? 'input-muted' : ''} ${hasError ? 'border-[var(--color-danger)] ring-1 ring-[var(--color-danger)]' : ''}`;
+  const inputClassName = (hasError?: boolean) => cn(
+    "input-base h-12 text-lg font-bold transition-all duration-200",
+    "bg-[var(--color-surface)] border-2 border-[var(--color-border-strong)]",
+    "focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]",
+    !isEditing && "opacity-60 grayscale-[0.5] cursor-not-allowed bg-[var(--color-surface-muted)] border-transparent",
+    hasError && "border-[var(--color-danger)] ring-2 ring-[var(--color-danger-soft)]"
+  );
+
+  const labelStyle = "mb-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--color-text-subtle)] text-center";
 
   const renderCompletionControl = () => (
-    <div className="flex justify-end mt-4">
+    <div className="flex justify-end mt-6 pt-4 border-t border-[var(--color-border)]/50">
        <button
         onClick={onToggleComplete}
-        className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all ${
+        className={cn(
+          "flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all duration-300",
           set.completed 
-            ? 'bg-[var(--color-success)] text-white shadow-sm hover:bg-[var(--color-success-strong)]' 
-            : 'bg-[var(--color-surface-muted)] text-subtle border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:text-strong'
-        }`}
-        style={{ minHeight: '44px', minWidth: '140px', justifyContent: 'center' }}
+            ? "bg-[var(--color-success)] text-white shadow-lg shadow-[var(--color-success-soft)] scale-[0.98]" 
+            : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-2 border-[var(--color-border-strong)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary-strong)] active:scale-[0.97]"
+        )}
+        style={{ minHeight: '48px', minWidth: '160px', justifyContent: 'center' }}
       >
         {set.completed ? (
           <>
-            <Check size={18} strokeWidth={3} />
-            <span>Completed</span>
+            <Check size={20} strokeWidth={4} />
+            <span className="uppercase tracking-tight text-sm">Log Entry</span>
           </>
         ) : (
-          <span>Mark Complete</span>
+          <span className="uppercase tracking-tight text-sm text-[var(--color-text)]">Mark Complete</span>
         )}
       </button>
     </div>
   );
 
   const renderHeader = () => (
-     <div className="flex items-center gap-2 mb-3">
-        <div className="w-8 text-center font-semibold text-muted">{set.setNumber}</div>
-        <div className="text-[10px] uppercase tracking-wider text-subtle">{timeLabel}</div>
+     <div className="flex items-center gap-3 mb-5">
+        <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--color-surface-muted)] font-black text-[var(--color-text)] border border-[var(--color-border)] shadow-inner">
+          {set.setNumber}
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">Entry Time</span>
+          <span className="text-xs font-bold text-[var(--color-text-muted)]">{timeLabel}</span>
+        </div>
         <div className="ml-auto">
            <button
             onClick={onDelete}
-            className="p-2 text-subtle transition-colors hover:text-[var(--color-danger)]"
+            className="p-2.5 rounded-lg text-[var(--color-text-subtle)] transition-all hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)] active:scale-90"
             title="Delete set"
           >
-            <Trash2 size={16} />
+            <Trash2 size={18} />
           </button>
         </div>
       </div>
@@ -125,37 +139,36 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
 
   if (effectiveProfile === 'mobility_session') {
     return (
-      <div className={`grid grid-cols-[1fr_auto_auto] gap-2 px-4 py-3 items-center ${isEditing ? 'bg-surface-muted/30' : ''}`}>
+      <div className={cn(
+        "flex flex-col mb-4 rounded-2xl border-2 p-5 transition-all duration-300",
+        set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
+      )}>
         {renderHeader()}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-5 grid-cols-1 sm:grid-cols-3">
           <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Duration (min)</label>
+            <label className={labelStyle}>Duration (min)</label>
             <NumericInput placeholder="0" value={durationMinutes} onChange={handleDurationChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
           </div>
           <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Effort (1-10)</label>
+            <label className={labelStyle}>Effort (1-10)</label>
             <select value={rirValue} onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
-              <option value="">Select effort</option>
+              <option value="">--</option>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((val) => (
                 <option key={val} value={val}>{val}</option>
               ))}
             </select>
           </div>
            <div className="flex flex-col">
-             <label className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-subtle">Category</label>
+             <label className={labelStyle}>Category</label>
              <select value={(getExtra('style') as string) ?? ''} onChange={(e) => updateExtra('style', e.target.value)} className={inputClassName()} disabled={!isEditing}>
                 <option value="">Select style</option>
                 <option value="Flow">Flow</option>
                 <option value="Power">Power</option>
                 <option value="Restorative">Restorative</option>
                 <option value="Yin">Yin</option>
-                <option value="Mobility">Yoga / Mobility</option>
+                <option value="Mobility">Mobility</option>
                 <option value="Breathwork">Breathwork</option>
              </select>
-           </div>
-           <div className="flex flex-col">
-             <label className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-subtle">Focus (Optional)</label>
-             <input type="text" placeholder="e.g. Hips" value={(getExtra('focus') as string) ?? ''} onChange={(e) => updateExtra('focus', e.target.value)} className={`${inputClassName()} text-left px-2`} disabled={!isEditing} readOnly={!isEditing} />
            </div>
         </div>
         {renderCompletionControl()}
@@ -165,24 +178,27 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
 
   if (effectiveProfile === 'cardio_session') {
     return (
-      <div className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+      <div className={cn(
+        "flex flex-col mb-4 rounded-2xl border-2 p-5 transition-all duration-300",
+        set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
+      )}>
         {renderHeader()}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-5 grid-cols-1 sm:grid-cols-3">
           <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Duration (min)</label>
+            <label className={labelStyle}>Duration (min)</label>
             <NumericInput placeholder="0" value={durationMinutes} onChange={handleDurationChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
           </div>
           <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Effort (1-10)</label>
+            <label className={labelStyle}>Effort (1-10)</label>
             <select value={rirValue} onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
-              <option value="">Select effort</option>
+              <option value="">--</option>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((val) => (
                 <option key={val} value={val}>{val}</option>
               ))}
             </select>
           </div>
           <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Distance (km)</label>
+            <label className={labelStyle}>Distance (km)</label>
              <NumericInput placeholder="0.0" value={(getExtra('distance_km') as string) ?? set.distance ?? ''} onChange={(val) => { validateAndUpdate('distance', val); const num = val === '' ? null : Number(val); if (!isNaN(num as number)) updateExtra('distance_km', num); }} inputClassName={inputClassName()} isEditing={isEditing} />
           </div>
         </div>
@@ -191,45 +207,20 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
     );
   }
 
-  if (effectiveProfile === 'mobility_session') {
-    return (
-      <div className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
-        {renderHeader()}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Duration (min)</label>
-            <NumericInput placeholder="0" value={durationMinutes} onChange={handleDurationChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
-          </div>
-           <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Effort (1-10)</label>
-            <select value={rirValue} onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
-              <option value="">Select effort</option>
-              {Array.from({ length: 10 }, (_, i) => i + 1).map((val) => (
-                <option key={val} value={val}>{val}</option>
-              ))}
-            </select>
-          </div>
-           <div className="flex flex-col col-span-2">
-             <label className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-subtle">Target Area (Optional)</label>
-             <input type="text" placeholder="e.g. Hips" value={(getExtra('target_area') as string) ?? ''} onChange={(e) => updateExtra('target_area', e.target.value)} className={`${inputClassName()} text-left px-2`} disabled={!isEditing} readOnly={!isEditing} />
-           </div>
-        </div>
-        {renderCompletionControl()}
-      </div>
-    );
-  }
-
   if (effectiveProfile === 'timed_strength') {
     return (
-      <div className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+      <div className={cn(
+        "flex flex-col mb-4 rounded-2xl border-2 p-5 transition-all duration-300",
+        set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
+      )}>
         {renderHeader()}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-5 grid-cols-1 sm:grid-cols-2">
           <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Duration (min)</label>
+            <label className={labelStyle}>Duration (min)</label>
             <NumericInput placeholder="0" value={durationMinutes} onChange={handleDurationChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
           </div>
           <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Weight</label>
+            <label className={labelStyle}>Weight ({set.weightUnit ?? 'lb'})</label>
             {weightChoices.length > 0 ? (
               <select value={typeof set.weight === 'number' ? String(set.weight) : ''} onChange={(e) => { const v = e.target.value === '' ? '' : Number(e.target.value); onUpdate('weight', v); const opt = weightChoices.find(c => c.value === v); if (opt?.unit) onUpdate('weightUnit', opt.unit); }} className={inputClassName()} disabled={!isEditing}>
                 <option value="">Select weight</option>
@@ -238,19 +229,18 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
             ) : (
               <NumericInput placeholder="0" value={set.weight ?? ''} onChange={(val) => validateAndUpdate('weight', val)} hasError={weightError} inputClassName={inputClassName(weightError)} isEditing={isEditing} />
             )}
-            <div className="mt-1 text-center text-[10px] text-subtle">{set.weightUnit ?? 'lb'}</div>
           </div>
           <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Intensity (RPE)</label>
+            <label className={labelStyle}>Intensity (RPE)</label>
             <select value={typeof set.rpe === 'number' ? String(set.rpe) : ''} onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
-              <option value="">Select effort</option>
+              <option value="">--</option>
               {RPE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label} ({opt.value})</option>)}
             </select>
           </div>
           <div className="flex flex-col">
-            <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Reserve</label>
+            <label className={labelStyle}>Reserve (RIR)</label>
             <select value={typeof set.rir === 'number' ? String(set.rir) : ''} onChange={(e) => onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
-              <option value="">Select reserve</option>
+              <option value="">--</option>
               {RIR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
           </div>
@@ -264,36 +254,36 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
   const derivedRpeLabel = RPE_OPTIONS.find((opt) => opt.value === derivedRpe)?.label ?? null;
 
   return (
-    <div className={`flex flex-col mb-2 rounded-xl border p-4 transition-colors ${set.completed ? 'border-[var(--color-success-border)] bg-[var(--color-success-soft)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+    <div className={cn(
+      "flex flex-col mb-4 rounded-2xl border-2 p-5 transition-all duration-300",
+      set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
+    )}>
       {renderHeader()}
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-5 grid-cols-1 sm:grid-cols-3">
         <div className="flex flex-col">
-          <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">Weight</label>
+          <label className={labelStyle}>Weight ({set.weightUnit ?? 'lb'})</label>
           {weightChoices.length > 0 ? (
             <select value={typeof set.weight === 'number' ? String(set.weight) : ''} onChange={(e) => { const v = e.target.value === '' ? '' : Number(e.target.value); onUpdate('weight', v); const opt = weightChoices.find(c => c.value === v); if (opt?.unit) onUpdate('weightUnit', opt.unit); }} className={inputClassName()} disabled={!isEditing}>
-              <option value="">Select weight</option>
+              <option value="">--</option>
               {weightChoices.map(opt => <option key={`${opt.label}-${opt.value}`} value={opt.value}>{opt.label}</option>)}
             </select>
           ) : (
             <NumericInput placeholder="0" value={set.weight ?? ''} onChange={(v) => validateAndUpdate('weight', v)} hasError={weightError} inputClassName={inputClassName(weightError)} isEditing={isEditing} />
           )}
-          <div className="mt-1 text-[10px] text-subtle">Unit: {set.weightUnit ?? 'lb'}</div>
         </div>
         <div className="flex flex-col">
-          <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">{repsLabel}</label>
+          <label className={labelStyle}>{repsLabel}</label>
           <NumericInput placeholder={repsLabel === 'Reps' ? '0' : '--'} value={set.reps ?? ''} onChange={(v) => validateAndUpdate('reps', v)} hasError={repsError} mode={repsLabel === 'Reps' ? 'numeric' : 'decimal'} inputClassName={inputClassName(repsError)} isEditing={isEditing} />
         </div>
         <div className="flex flex-col">
-          <label className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-subtle">RIR</label>
+          <label className={labelStyle}>Reserve (RIR)</label>
           <select value={typeof set.rir === 'number' ? String(set.rir) : ''} onChange={(e) => { onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value)); onUpdate('rpe', ''); }} className={inputClassName()} disabled={!isEditing}>
-            <option value="">Select reps left</option>
+            <option value="">--</option>
             {RIR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </select>
-          <p className="mt-1 text-[10px] text-subtle">{RIR_HELPER_TEXT}</p>
-          <p className="mt-1 text-[10px] text-muted">Derived RPE: {derivedRpe ?? '--'}{derivedRpeLabel ? ` · ${derivedRpeLabel}` : ''}</p>
+          {derivedRpe && <p className="mt-2 text-[10px] font-bold text-center text-[var(--color-text-subtle)] uppercase tracking-tighter italic">RPE {derivedRpe}{derivedRpeLabel ? ` · ${derivedRpeLabel}` : ''}</p>}
         </div>
       </div>
-      <p className="text-[10px] text-subtle">{INTENSITY_RECOMMENDATION}</p>
       {renderCompletionControl()}
     </div>
   );

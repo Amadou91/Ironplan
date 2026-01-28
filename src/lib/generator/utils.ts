@@ -82,16 +82,31 @@ export const getMovementFamily = (exercise: Exercise) =>
 export const isCompoundMovement = (exercise: Exercise) =>
   ['squat', 'hinge', 'push', 'pull', 'carry'].includes(exercise.movementPattern ?? '')
 
-export const formatFocusLabel = (focus: FocusArea) =>
-  focus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+export const formatFocusLabel = (focus: FocusArea) => {
+  const map: Record<string, string> = {
+    upper: 'Upper Body',
+    lower: 'Lower Body',
+    full_body: 'Full Body',
+    core: 'Core',
+    cardio: 'Conditioning',
+    mobility: 'Yoga / Mobility',
+    arms: 'Arms',
+    legs: 'Legs',
+    biceps: 'Biceps',
+    triceps: 'Triceps',
+    chest: 'Chest',
+    back: 'Back'
+  }
+  return map[focus] ?? focus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+}
 
 export const formatGoalLabel = (goal: Goal | string) => {
   const map: Record<string, string> = {
-    range_of_motion: 'Yoga / Mobility',
+    range_of_motion: 'Mobility & Flexibility',
     hypertrophy: 'Muscle Growth',
     strength: 'Strength',
     endurance: 'Endurance',
-    cardio: 'Cardio'
+    cardio: 'Conditioning'
   }
   return map[goal] ?? goal.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
@@ -279,7 +294,8 @@ export const estimateExerciseMinutes = (
 }
 
 export const buildSessionName = (focus: FocusArea, exercises: Exercise[], goal: Goal) => {
-  const goalLabel = goal.replace('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+  const goalLabel = formatGoalLabel(goal)
+  const focusLabel = formatFocusLabel(focus)
   const movementCounts = exercises.reduce<Record<string, number>>((acc, exercise) => {
     if (exercise.movementPattern) {
       acc[exercise.movementPattern] = (acc[exercise.movementPattern] ?? 0) + 1
@@ -287,39 +303,45 @@ export const buildSessionName = (focus: FocusArea, exercises: Exercise[], goal: 
     return acc
   }, {})
 
+  // Special cases for distinct naming
+  if (focus === 'mobility' || goal === 'range_of_motion') {
+    return 'Yoga / Mobility Flow'
+  }
+
+  if (focus === 'cardio' || goal === 'endurance' || goal === 'cardio') {
+    return 'Conditioning Circuit'
+  }
+
   if (focus === 'upper') {
     const pushCount = movementCounts.push ?? 0
     const pullCount = movementCounts.pull ?? 0
-    if (pushCount > pullCount) return 'Push - Chest & Tris'
-    if (pullCount > pushCount) return 'Pull - Back & Biceps'
-    return `Upper Body - ${goalLabel} Focus`
+    if (pushCount > pullCount) return 'Upper Body - Push Focus'
+    if (pullCount > pushCount) return 'Upper Body - Pull Focus'
+    return `Upper Body - ${goalLabel}`
   }
 
   if (focus === 'lower') {
     const squatCount = movementCounts.squat ?? 0
     const hingeCount = movementCounts.hinge ?? 0
-    if (squatCount > hingeCount) return 'Legs - Squat Focus'
-    if (hingeCount > squatCount) return 'Legs - Hinge Focus'
-    return `Lower Body - ${goalLabel} Focus`
+    if (squatCount > hingeCount) return 'Lower Body - Squat Focus'
+    if (hingeCount > squatCount) return 'Lower Body - Hinge Focus'
+    return `Lower Body - ${goalLabel}`
   }
 
   if (focus === 'full_body') {
-    return `Full Body - ${goalLabel} Flow`
+    return `Full Body - ${goalLabel}`
   }
 
   if (focus === 'core') {
     return 'Core - Stability Focus'
   }
 
-  if (focus === 'cardio') {
-    return `Conditioning - ${goalLabel} Circuit`
+  // Prevent redundant labels like "Chest Chest"
+  if (focusLabel.toLowerCase().includes(goalLabel.toLowerCase())) {
+    return focusLabel
   }
 
-  if (focus === 'mobility') {
-    return 'Mobility - Recovery Flow'
-  }
-
-  return `${formatFocusLabel(focus)} - ${goalLabel} Focus`
+  return `${focusLabel} - ${goalLabel}`
 }
 
 export const buildPlanTitle = (focus: FocusArea, goal: Goal, intensity?: PlanInput['intensity'], minutes?: number) =>
@@ -454,5 +476,8 @@ export const buildRationale = (
     : restPreference === 'minimal_rest'
       ? 'Sessions are designed for minimal rest between workouts.'
       : 'Recovery is balanced across the rotation.'
-  return `${duration} minute ${style.replace('_', ' ')} session focused on ${formatFocusLabel(focus)}. ${recoveryNote}`
+  const goalLabel = formatGoalLabel(style)
+  const focusLabel = formatFocusLabel(focus)
+  
+  return `${duration} minute ${goalLabel} session focused on ${focusLabel}. ${recoveryNote}`
 }

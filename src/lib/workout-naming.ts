@@ -27,9 +27,9 @@ export const buildWorkoutDisplayName = ({
   const styleLabel = formatGoalLabel(style)
   
   // Special cases for Yoga and Cardio to avoid redundancy
-  if (style === 'mobility') {
+  if (style === 'mobility' || style === 'range_of_motion') {
      parts.push('Yoga / Mobility')
-  } else if (style === 'cardio') {
+  } else if (style === 'cardio' || style === 'endurance') {
      if (cardioExerciseName) {
        parts.push(`Cardio ${cardioExerciseName}`)
      } else {
@@ -39,8 +39,17 @@ export const buildWorkoutDisplayName = ({
     // Standard format: "[Focus] [Style]"
     const focusLabel = focus ? formatFocusLabel(focus) : null
     const nameParts = []
+    
     if (focusLabel) nameParts.push(focusLabel)
-    if (styleLabel && styleLabel !== focusLabel) nameParts.push(styleLabel)
+    
+    // Only add style if it's not redundant with the focus
+    if (styleLabel && 
+        styleLabel !== focusLabel && 
+        !focusLabel?.toLowerCase().includes(styleLabel.toLowerCase()) &&
+        !styleLabel.toLowerCase().includes(focusLabel?.toLowerCase() || '')) {
+      nameParts.push(styleLabel)
+    }
+    
     if (nameParts.length > 0) parts.push(nameParts.join(' '))
   }
   

@@ -382,7 +382,7 @@ export const buildWorkoutTemplate = (
     normalized.intensity,
     normalized.time.minutesPerSession
   )
-  const description = `${formatFocusLabel(focus)} focus · ${normalized.goals.primary.replace('_', ' ')} goal.`
+  const description = `${formatFocusLabel(focus)} focus · ${formatGoalLabel(normalized.goals.primary)} goal.`
 
   return {
     template: {
@@ -452,7 +452,7 @@ export const generateWorkoutPlan = (
       description,
       goal: normalized.goals.primary,
       level: normalized.experienceLevel,
-      tags: [formatFocusLabel(focus), normalized.goals.primary.replace('_', ' ')],
+      tags: [formatFocusLabel(focus), formatGoalLabel(normalized.goals.primary)],
       schedule,
       inputs: normalized,
       summary: {

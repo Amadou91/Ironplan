@@ -152,7 +152,7 @@ export default function WorkoutStartPage() {
         supabase, userId: user.id, templateId: template.id, templateTitle: buildWorkoutDisplayName({ focus: template.focus, style: template.style, intensity: template.intensity, fallback: template.title }),
         focus: template.focus, goal: template.style, input: tunedInputs, minutesAvailable, readiness: { survey: readinessSurvey as ReadinessSurvey, score: readinessScore, level: readinessLevel },
         sessionNotes: { sessionIntensity: selectedIntensity.intensity, minutesAvailable, readiness: readinessLevel, readinessScore, readinessSurvey: readinessSurvey as ReadinessSurvey, source: 'workout_start' },
-        history, nameSuffix: `${toMuscleLabel(template.focus)} ${template.style.replace('_', ' ')}`,
+        history, nameSuffix: '',
         catalog
       })
       startSession({ id: sessionId, userId: user.id, templateId: template.id, name: sessionName, startedAt, status: 'in_progress', impact, exercises, timezone, sessionNotes })
