@@ -390,33 +390,6 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                       </div>
                     </div>
 
-                    <div className="col-span-12 pt-4 border-t border-[var(--color-border)]/50">
-                      <Label className="mb-4 block text-[var(--color-text-subtle)] uppercase text-[11px] font-black tracking-[0.15em]">Secondary Muscles Involved</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {muscleOptions.map(m => {
-                          const isSelected = formData.secondaryMuscles?.includes(m.slug)
-                          const isPrimary = formData.primaryMuscle === m.slug
-                          if (isPrimary) return null
-                          
-                          return (
-                            <button
-                              type="button"
-                              key={m.slug}
-                              onClick={() => handleSecondaryMuscleChange(m.slug)}
-                              className={cn(
-                                "px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all border-2",
-                                isSelected 
-                                  ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] border-[var(--color-primary-border)] shadow-sm" 
-                                  : "bg-transparent border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-muted)]"
-                              )}
-                            >
-                              {m.label}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-
                     <div className="col-span-12 pt-6 border-t border-[var(--color-border)]">
                       <button
                         type="button"

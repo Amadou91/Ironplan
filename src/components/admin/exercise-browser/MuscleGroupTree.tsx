@@ -51,6 +51,7 @@ export function MuscleGroupTree({
     // Populate structure
     Object.entries(MUSCLE_MAPPING).forEach(([key, mapping]) => {
       if (!mapping) return;
+      if (key === 'cardio' || key === 'mobility') return; // Exclude from tree filter
       const { region } = mapping;
       
       // Ensure region exists (safe guard)

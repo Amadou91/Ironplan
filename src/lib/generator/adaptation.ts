@@ -30,41 +30,49 @@ export function adaptPrescription(
   } = {}
 ): ExercisePrescription {
   const { restModifier = 1.0, repsOverride } = options
+  const profile = exercise.metricProfile || 'strength'
 
-  // 1. Determine Rep Range based on Style
+  // 1. Determine Rep Range / Duration based on Style and Profile
   let reps = repsOverride ?? exercise.reps
   
   if (!repsOverride) {
-    if (style === 'strength') {
-      reps = intensity === 'high' ? '3-6' : '4-6'
-    } else if (style === 'endurance') {
-      reps = intensity === 'high' ? '15-20' : '12-15'
-    } else if (style === 'hypertrophy') {
-      reps = intensity === 'high' ? '8-10' : '8-12'
+    const isStrengthMove = profile === 'strength' || profile === 'reps_weight' || profile === 'reps_only'
+    
+    if (isStrengthMove) {
+      if (style === 'strength') {
+        reps = intensity === 'high' ? '3-6' : '4-6'
+      } else if (style === 'endurance') {
+        reps = intensity === 'high' ? '15-20' : '12-15'
+      } else if (style === 'hypertrophy') {
+        reps = intensity === 'high' ? '8-10' : '8-12'
+      }
+    } else {
+      // For Timed Strength, Cardio, Mobility:
+      // We mostly preserve the catalog reps (which represent duration or intervals)
+      // but we could scale them if we had a duration scalar.
+      reps = exercise.reps
     }
-    // If range_of_motion or cardio, we typically keep the catalog baseline 
-    // unless it's fundamentally a strength move being used for endurance.
   }
 
   // 2. Adjust Sets based on Experience and Intensity
-  // Base sets from catalog are adjusted for experience (+/- 1) and intensity (+/- 1)
   const baseSets = adjustSetsForIntensity(
-    adjustSets(exercise.sets, experience), 
+    adjustSets(exercise.sets || 3, experience), 
     intensity
   )
 
   // 3. Adjust RPE
-  const rpe = adjustRpe(exercise.rpe, intensity)
+  const rpe = adjustRpe(exercise.rpe || 7, intensity)
 
   // 4. Adjust Rest Period
   // Strength needs more rest, Endurance needs less.
   let styleRestModifier = 1.0
   if (style === 'strength') styleRestModifier = 1.2
   if (style === 'endurance') styleRestModifier = 0.7
+  if (style === 'range_of_motion') styleRestModifier = 0.5
   
-  const isCardio = exercise.category === 'Cardio' || exercise.focus === 'cardio'
+  const isCardio = exercise.category === 'Cardio' || exercise.focus === 'cardio' || profile === 'cardio_session'
   const restSeconds = clamp(
-    Math.round(exercise.restSeconds * restModifier * styleRestModifier), 
+    Math.round((exercise.restSeconds || 60) * restModifier * styleRestModifier), 
     isCardio ? 30 : 45, 
     180
   )
