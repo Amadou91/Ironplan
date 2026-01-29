@@ -147,6 +147,26 @@ export async function seedExerciseCatalog(supabase: SupabaseClient): Promise<num
       metric_profile: 'reps_weight',
       sets: 3, reps: '12', rpe: 8
     },
+    {
+      name: 'Bulgarian Split Squats',
+      focus: 'lower',
+      movement_pattern: 'squat',
+      primary_muscle: 'quads',
+      secondary_muscles: ['glutes', 'hamstrings', 'calves'],
+      equipment: [{ kind: 'dumbbell' }, { kind: 'bodyweight' }],
+      metric_profile: 'reps_weight',
+      sets: 3, reps: '8', rpe: 8
+    },
+    {
+      name: 'Step Ups',
+      focus: 'lower',
+      movement_pattern: 'squat',
+      primary_muscle: 'quads',
+      secondary_muscles: ['glutes', 'hamstrings', 'calves'],
+      equipment: [{ kind: 'dumbbell' }, { kind: 'bodyweight' }],
+      metric_profile: 'reps_weight',
+      sets: 3, reps: '10', rpe: 7
+    },
     // HINGE
     {
       name: 'Romanian Deadlift',
@@ -157,6 +177,16 @@ export async function seedExerciseCatalog(supabase: SupabaseClient): Promise<num
       equipment: [{ kind: 'barbell' }],
       metric_profile: 'reps_weight',
       sets: 3, reps: '10', rpe: 8, e1rm_eligible: true
+    },
+    {
+      name: 'Hip Thrusts',
+      focus: 'lower',
+      movement_pattern: 'hinge',
+      primary_muscle: 'glutes',
+      secondary_muscles: ['hamstrings', 'core'],
+      equipment: [{ kind: 'barbell' }],
+      metric_profile: 'reps_weight',
+      sets: 3, reps: '10', rpe: 8
     },
     {
       name: 'Kettlebell Swing',

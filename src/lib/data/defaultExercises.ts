@@ -31,6 +31,15 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "secondaryMuscles": ["glutes", "back"]
   },
   {
+    "name": "Hip Thrusts",
+    "category": "Strength",
+    "movementPattern": "hinge",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "barbell" }],
+    "primaryMuscle": "glutes",
+    "secondaryMuscles": ["hamstrings", "core"]
+  },
+  {
     "name": "Bench Press",
     "category": "Strength",
     "movementPattern": "push",
@@ -124,6 +133,24 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
   },
   {
     "name": "Walking Lunge",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "bodyweight" }],
+    "primaryMuscle": "quads",
+    "secondaryMuscles": ["glutes", "hamstrings", "calves"]
+  },
+  {
+    "name": "Bulgarian Split Squats",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "bodyweight" }],
+    "primaryMuscle": "quads",
+    "secondaryMuscles": ["glutes", "hamstrings", "calves"]
+  },
+  {
+    "name": "Step Ups",
     "category": "Strength",
     "movementPattern": "squat",
     "metricProfile": "reps_weight",
