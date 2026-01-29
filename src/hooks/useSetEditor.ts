@@ -95,6 +95,17 @@ export function useSetEditor({
     onUpdate('durationSeconds', val === '' ? '' : Number(val) * 60)
   }
 
+  const restMinutes = useMemo(() => {
+    if (typeof set.restSecondsActual === 'number' && set.restSecondsActual > 0) {
+      return Math.round(set.restSecondsActual / 60)
+    }
+    return ''
+  }, [set.restSecondsActual])
+
+  const handleRestChange = (val: string) => {
+    onUpdate('restSecondsActual', val === '' ? null : Number(val) * 60)
+  }
+
   const rirValue = (['cardio_session', 'mobility_session'].includes(effectiveProfile))
     ? (typeof set.rpe === 'number' ? String(set.rpe) : '')
     : (typeof set.rir === 'number' ? String(set.rir) : '')
@@ -111,6 +122,8 @@ export function useSetEditor({
     weightChoices,
     durationMinutes,
     handleDurationChange,
+    restMinutes,
+    handleRestChange,
     rirValue
   }
 }

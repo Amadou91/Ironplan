@@ -49,6 +49,7 @@ type SessionDetail = {
       performed_at: string | null
       weight_unit: WeightUnit | null
       duration_seconds: number | null
+      rest_seconds_actual: number | null
     }>
   }>
 }
@@ -121,7 +122,7 @@ function WorkoutSummaryContent() {
       setLoading(true)
       const { data, error: fetchError } = await supabase
         .from('sessions')
-        .select('id, name, started_at, ended_at, status, session_notes, session_goal, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds))')
+        .select('id, name, started_at, ended_at, status, session_notes, session_goal, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, rest_seconds_actual))')
         .eq('id', sessionId).single()
       if (fetchError) setError('Unable to load session summary.')
       else setSession(data as unknown as SessionDetail)
@@ -144,6 +145,7 @@ function WorkoutSummaryContent() {
         weightUnit: set.weight_unit ?? null,
         rpe: typeof set.rpe === 'number' ? set.rpe : null, rir: typeof set.rir === 'number' ? set.rir : null,
         performedAt: set.performed_at ?? null, completed: set.completed, durationSeconds: set.duration_seconds ?? null,
+        restSecondsActual: set.rest_seconds_actual ?? null,
         metricProfile: exercise.metric_profile ?? undefined, sessionGoal, isEligible
       }))
     })

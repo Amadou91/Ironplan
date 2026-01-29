@@ -33,6 +33,7 @@ type SetPayload = {
   duration_seconds: number | null;
   distance: number | null;
   distance_unit: string | null;
+  rest_seconds_actual: number | null;
   extras: Record<string, unknown> | null;
   extra_metrics: Record<string, unknown> | null;
 }
@@ -151,6 +152,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
               durationSeconds: set.duration_seconds ?? undefined,
               distance: set.distance ?? undefined,
               distanceUnit: set.distance_unit ?? undefined,
+              restSecondsActual: set.rest_seconds_actual ?? undefined,
               extras: set.extras as Record<string, string | null> ?? undefined,
               extraMetrics: set.extra_metrics ?? undefined
             }))
@@ -163,7 +165,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     const fetchSession = async () => {
       const { data, error } = await supabase
         .from('sessions')
-        .select('id, user_id, name, template_id, started_at, ended_at, status, body_weight_lb, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit, extras, extra_metrics))')
+        .select('id, user_id, name, template_id, started_at, ended_at, status, body_weight_lb, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit, rest_seconds_actual, extras, extra_metrics))')
         .eq('id', sessionId)
         .single();
 
@@ -223,6 +225,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
       duration_seconds: set.durationSeconds ?? null,
       distance: set.distance ?? null,
       distance_unit: set.distance_unit ?? null,
+      rest_seconds_actual: typeof set.restSecondsActual === 'number' ? set.restSecondsActual : null,
       extras: set.extras ?? {},
       extra_metrics: set.extra_metrics ?? {}
     };

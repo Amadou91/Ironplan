@@ -75,6 +75,8 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
     weightChoices,
     durationMinutes,
     handleDurationChange,
+    restMinutes,
+    handleRestChange,
     rirValue
   } = useSetEditor({
     set,
@@ -304,6 +306,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
               {RIR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
           </div>
+          <div className="flex flex-col">
+            <label className={labelStyle}>Rest (min)</label>
+            <NumericInput placeholder="0" value={restMinutes} onChange={handleRestChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
+          </div>
         </div>
         <div className="mt-5 flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 px-4 py-3">
           <span className={totalLabelStyle}>Total Weight</span>
@@ -323,7 +329,7 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
       set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
     )}>
       {renderHeader()}
-      <div className={cn("grid gap-5 grid-cols-1", isDumbbell ? "sm:grid-cols-4" : "sm:grid-cols-3")}>
+      <div className={cn("grid gap-5 grid-cols-1", isDumbbell ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
         {isDumbbell && (
           <div className="flex flex-col">
             <label className={labelStyle}>Dumbbells</label>
@@ -378,12 +384,8 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
           </select>
           {derivedRpe && <p className="mt-2 text-[10px] font-bold text-center text-[var(--color-text-subtle)] uppercase tracking-tighter italic">RPE {derivedRpe}{derivedRpeLabel ? ` · ${derivedRpeLabel}` : ''}</p>}
         </div>
-      </div>
-      <div className="mt-5 flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 px-4 py-3">
-        <span className={totalLabelStyle}>Total Weight</span>
-        <span className={totalValueStyle}>{totalWeightLabel ?? '—'}</span>
-      </div>
-      {renderCompletionControl()}
-    </div>
-  );
+        <div className="flex flex-col">
+          <label className={labelStyle}>Rest (min)</label>
+          <NumericInput placeholder="0" value={restMinutes} onChange={handleRestChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
+        </div>
 };
