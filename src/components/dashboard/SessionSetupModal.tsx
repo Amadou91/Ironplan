@@ -2,10 +2,11 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Clock, Dumbbell, Scale, X, Play, AlertTriangle, Loader2 } from 'lucide-react'
+import { Clock, Dumbbell, Scale, X, Play, AlertTriangle, Loader2, Heart, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { createClient } from '@/lib/supabase/client'
 import { normalizePlanInput } from '@/lib/generator'
 import { createWorkoutSession } from '@/lib/session-creation'
@@ -109,6 +110,8 @@ export function SessionSetupModal({
   const [startingSession, setStartingSession] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [showConflictModal, setShowConflictModal] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [cancelingSession, setCancelingSession] = useState(false)
 
   // Load exercise catalog when modal opens
   useEffect(() => {
@@ -275,6 +278,31 @@ export function SessionSetupModal({
     setReadinessSurvey(prev => ({ ...prev, [field]: value }))
   }
 
+  const handleCancelActiveSession = async () => {
+    if (!activeSession?.id) return
+    setCancelingSession(true)
+    try {
+      await supabase.from('sessions').update({ 
+        status: 'cancelled', 
+        ended_at: new Date().toISOString() 
+      }).eq('id', activeSession.id)
+      endSession()
+      setShowCancelConfirm(false)
+    } catch (err) {
+      console.error('Failed to cancel session:', err)
+    } finally {
+      setCancelingSession(false)
+    }
+  }
+
+  // Determine the focus label for non-selectable workout types
+  const getAutoFocusLabel = () => {
+    if (templateFocus === 'cardio') return 'Cardio'
+    if (templateFocus === 'mobility') return 'Mobility'
+    return null
+  }
+  const autoFocusLabel = getAutoFocusLabel()
+
   if (!isOpen) return null
 
   const activeSessionLink = activeSession?.templateId 
@@ -393,8 +421,8 @@ export function SessionSetupModal({
             </div>
           </div>
 
-          {/* Training Style - only show for non-mobility/cardio */}
-          {showStyleSelector && (
+          {/* Training Style - only show for strength-based workouts */}
+          {showStyleSelector ? (
             <div className="space-y-3">
               <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest">
                 <Dumbbell className="w-3.5 h-3.5" /> Training Style
@@ -414,6 +442,19 @@ export function SessionSetupModal({
                     {s.label}
                   </button>
                 ))}
+              </div>
+            </div>
+          ) : (
+            /* Show auto-set focus for cardio/mobility workouts */
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest">
+                {templateFocus === 'cardio' ? <Heart className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />} Session Focus
+              </Label>
+              <div className="p-3 rounded-xl bg-[var(--color-primary-soft)] border border-[var(--color-primary-border)] text-center">
+                <span className="text-sm font-bold text-[var(--color-primary-strong)]">
+                  {autoFocusLabel}
+                </span>
+                <p className="text-[10px] text-muted mt-1">Automatically set based on workout type</p>
               </div>
             </div>
           )}
@@ -491,6 +532,12 @@ export function SessionSetupModal({
                 <span className="text-strong font-bold">{minutes} min</span>
               </div>
               <div className="flex justify-between text-xs">
+                <span className="text-subtle">Focus</span>
+                <span className="text-strong font-bold">
+                  {autoFocusLabel ?? (style === 'strength' ? 'Strength' : style === 'hypertrophy' ? 'Hypertrophy' : 'Endurance')}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
                 <span className="text-subtle">Intensity</span>
                 <span className="text-strong font-bold">{selectedIntensity.label}</span>
               </div>
@@ -503,6 +550,40 @@ export function SessionSetupModal({
                 }`}>
                   {readinessLevel}
                 </span>
+              </div>
+            </div>
+          )}
+
+          {/* Active Session Warning with Cancel Option */}
+          {activeSession && (
+            <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 space-y-3">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-sm font-bold">Active Session</span>
+              </div>
+              <p className="text-xs text-amber-600 dark:text-amber-500">
+                You have an active workout: <strong>{activeSession.name}</strong>
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    onClose()
+                    router.push(activeSessionLink)
+                  }}
+                  className="flex-1 text-xs"
+                >
+                  Resume
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCancelConfirm(true)}
+                  className="flex-1 text-xs text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
+                >
+                  Cancel Session
+                </Button>
               </div>
             </div>
           )}
@@ -536,6 +617,19 @@ export function SessionSetupModal({
           </Button>
         </div>
       </div>
+
+      {/* Cancel Active Session Confirmation */}
+      <ConfirmDialog
+        isOpen={showCancelConfirm}
+        onClose={() => setShowCancelConfirm(false)}
+        onConfirm={handleCancelActiveSession}
+        title="Cancel Active Session?"
+        description={`Are you sure you want to cancel your current workout "${activeSession?.name ?? 'Untitled'}"? This action cannot be undone and all unsaved progress will be lost.`}
+        confirmText="Cancel Session"
+        cancelText="Keep Session"
+        variant="danger"
+        isLoading={cancelingSession}
+      />
     </div>
   )
 }
