@@ -147,18 +147,77 @@ const DEFAULT_BODYWEIGHT_FACTOR = 0.7
 const DEFAULT_USER_WEIGHT_LBS = 170
 
 /**
+ * Virtual weight multipliers for bodyweight exercises.
+ * Based on biomechanical research:
+ * - Push-ups/Dips: ~66% of bodyweight (horizontal pushing, legs supported)
+ * - Pull-ups/Chin-ups: ~90% of bodyweight (vertical pulling, minimal support)
+ */
+const VIRTUAL_WEIGHT_MULTIPLIERS = {
+  push: 0.66,   // Push-ups, dips, etc.
+  pull: 0.90,   // Pull-ups, chin-ups, etc.
+  default: 0.70 // Generic bodyweight exercises
+} as const
+
+export type BodyweightExerciseType = 'push' | 'pull' | 'default'
+
+/**
+ * Determines the bodyweight exercise type from exercise name.
+ * Used for calculating virtual weight for tonnage tracking.
+ */
+export const getBodyweightExerciseType = (exerciseName?: string | null): BodyweightExerciseType => {
+  if (!exerciseName) return 'default'
+  const lower = exerciseName.toLowerCase()
+  
+  // Pull exercises (vertical pulling - higher % of bodyweight)
+  if (lower.includes('pull-up') || lower.includes('pullup') || 
+      lower.includes('chin-up') || lower.includes('chinup') ||
+      lower.includes('muscle-up') || lower.includes('muscleup')) {
+    return 'pull'
+  }
+  
+  // Push exercises (horizontal pushing - lower % of bodyweight)
+  if (lower.includes('push-up') || lower.includes('pushup') ||
+      lower.includes('dip') || lower.includes('pike press')) {
+    return 'push'
+  }
+  
+  return 'default'
+}
+
+/**
+ * Returns the effective "virtual weight" for bodyweight exercises.
+ * This allows tonnage tracking for exercises without external load.
+ * 
+ * @param userWeightLbs - User's bodyweight in pounds
+ * @param exerciseName - Name of the exercise (optional, for type detection)
+ * @returns Virtual weight in pounds representing the effective load
+ */
+export const getVirtualBodyweight = (
+  userWeightLbs: number,
+  exerciseName?: string | null
+): number => {
+  const exerciseType = getBodyweightExerciseType(exerciseName)
+  const multiplier = VIRTUAL_WEIGHT_MULTIPLIERS[exerciseType]
+  return userWeightLbs * multiplier
+}
+
+/**
  * Calculates Volume Load in Pounds.
  * Formula: Reps * Weight(lb)
- * For bodyweight exercises without weight, uses a placeholder estimation.
+ * For bodyweight exercises without weight, uses virtual bodyweight estimation.
  */
-export const computeSetTonnage = (set: MetricsSet, userWeightLbs?: number): number => {
+export const computeSetTonnage = (
+  set: MetricsSet,
+  userWeightLbs?: number,
+  exerciseName?: string | null
+): number => {
   if (!isValidNumber(set.reps) || set.reps <= 0) return 0
   
   // Handle bodyweight exercises with no weight recorded
   if (!isValidNumber(set.weight) || set.weight <= 0) {
-    // If no weight but we have reps, this might be a bodyweight exercise
-    // Use a placeholder to avoid breaking volume graphs
-    const effectiveWeight = (userWeightLbs ?? DEFAULT_USER_WEIGHT_LBS) * DEFAULT_BODYWEIGHT_FACTOR
+    // Use virtual bodyweight based on exercise type
+    const baseWeight = userWeightLbs ?? DEFAULT_USER_WEIGHT_LBS
+    const effectiveWeight = getVirtualBodyweight(baseWeight, exerciseName)
     return effectiveWeight * set.reps
   }
   

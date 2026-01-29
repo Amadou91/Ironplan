@@ -73,6 +73,25 @@ export type LoadType = 'total' | 'per_implement'
 
 export type GroupType = 'superset' | 'circuit' | 'giant_set' | 'dropset'
 
+/**
+ * Type of set within an exercise prescription.
+ * - working: Standard working sets
+ * - warmup: Preparatory sets with reduced load
+ * - backoff: Post-working sets with reduced intensity
+ * - dropset: Immediate reduction in weight
+ */
+export type SetType = 'working' | 'warmup' | 'backoff' | 'dropset'
+
+/**
+ * Represents a warm-up set configuration for exercise generation.
+ */
+export type WarmupSet = {
+  setType: 'warmup'
+  loadPercentage: number  // e.g., 0.5 for 50% of working weight
+  reps: number
+  rpe: number
+}
+
 export type ExerciseVariation = {
   grip?: string
   stance?: string
@@ -384,17 +403,13 @@ export type ExerciseSource = 'primary' | 'secondary' | 'accessory'
 
 
 export type ExercisePrescription = {
-
   sets: number
-
   reps: string | number
-
   rpe: number
-
   restSeconds: number
-
   load?: ExerciseLoad
-
+  setType?: SetType
+  warmupSets?: WarmupSet[]
 }
 
 

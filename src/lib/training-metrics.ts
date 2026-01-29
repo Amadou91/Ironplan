@@ -1,4 +1,5 @@
 import type { Intensity } from '@/types/domain'
+import { defaultRpeBaselines, type CustomRpeBaselines } from '@/lib/preferences'
 import {
   computeSetIntensity,
   computeSetLoad,
@@ -27,6 +28,12 @@ export type SessionMetrics = {
   avgIntensity: number | null
   avgRestSeconds: number | null
   durationMinutes: number | null
+  /**
+   * Active training duration in seconds.
+   * Calculated as (Reps * 3s execution time) + Rest timer.
+   * More accurate than wall-clock duration as it excludes long pauses.
+   */
+  activeDurationSeconds: number | null
   density: number | null
   workload: number
   sessionRpe: number | null
@@ -58,27 +65,29 @@ type TrainingLoadSummary = {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
-export type IntensityBaselines = {
-  low: number
-  moderate: number
-  high: number
-}
+/**
+ * @deprecated Use CustomRpeBaselines from preferences.ts instead
+ */
+export type IntensityBaselines = CustomRpeBaselines
 
-const DEFAULT_INTENSITY_BASELINES: IntensityBaselines = {
-  low: 6,
-  moderate: 7,
-  high: 8.5
-}
+/**
+ * @deprecated Use defaultRpeBaselines from preferences.ts instead
+ */
+const DEFAULT_INTENSITY_BASELINES: IntensityBaselines = { ...defaultRpeBaselines }
 
 /**
  * Returns RPE baseline for a given intensity level.
- * Accepts optional user-derived baselines from training history.
+ * Accepts optional user-derived baselines from training history or preferences.
+ * 
+ * @param intensity - The intensity level ('low', 'moderate', 'high')
+ * @param customBaselines - Optional custom RPE baselines from user preferences
+ * @returns The RPE value for the given intensity
  */
 export const getIntensityBaseline = (
   intensity?: Intensity | null,
-  customBaselines?: Partial<IntensityBaselines>
+  customBaselines?: Partial<CustomRpeBaselines>
 ): number => {
-  const baselines = { ...DEFAULT_INTENSITY_BASELINES, ...customBaselines }
+  const baselines = { ...defaultRpeBaselines, ...customBaselines }
   if (intensity === 'low') return baselines.low
   if (intensity === 'high') return baselines.high
   return baselines.moderate
@@ -170,6 +179,26 @@ export const computeSessionMetrics = ({
     activeWeights
   )
 
+  // Calculate active duration in seconds: (Reps * 3s execution time) + RestTimer
+  // This is more accurate than wall-clock as it excludes long pauses (bathroom breaks, etc.)
+  const SECONDS_PER_REP = 3 // Average time per rep including eccentric/concentric
+  const activeDurationSeconds = sets.reduce((total, set, index) => {
+    // Add rep execution time: reps * 3 seconds
+    const repTime = typeof set.reps === 'number' && set.reps > 0 
+      ? set.reps * SECONDS_PER_REP 
+      : (set.durationSeconds ?? ESTIMATED_SET_TIME_SECONDS)
+    
+    // Add rest time (except for last set)
+    const isLastSet = index === sets.length - 1
+    const restTime = isLastSet ? 0 : (
+      typeof set.restSecondsActual === 'number' && set.restSecondsActual > 0
+        ? set.restSecondsActual
+        : DEFAULT_REST_SECONDS
+    )
+    
+    return total + repTime + restTime
+  }, 0)
+
   // Use active duration for density calculations to avoid penalizing for pauses
   const activeDurationMinutes = getActiveDurationMinutes(sets)
   // Use wall-clock for general session duration display
@@ -198,6 +227,7 @@ export const computeSessionMetrics = ({
     avgIntensity: avgIntensity ? Number(avgIntensity.toFixed(2)) : null,
     avgRestSeconds: avgRestSeconds ? Number(avgRestSeconds.toFixed(0)) : null,
     durationMinutes: durationMinutes ? Math.round(durationMinutes) : null,
+    activeDurationSeconds: activeDurationSeconds > 0 ? Math.round(activeDurationSeconds) : null,
     density: density ? Number(density.toFixed(1)) : null,
     workload: Math.round(workload),
     sessionRpe: sessionRpe ? Number(sessionRpe.toFixed(1)) : null,

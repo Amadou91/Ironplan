@@ -4,7 +4,9 @@ import type {
   PlanInput,
   PlannedExercise,
   ExerciseSource,
-  EquipmentInventory
+  EquipmentInventory,
+  WarmupSet,
+  ExercisePrescription
 } from '@/types/domain'
 import {
   clamp,
@@ -13,6 +15,108 @@ import {
   estimateExerciseMinutes
 } from './utils'
 import { adaptPrescription } from './adaptation'
+
+/**
+ * Default warm-up set configuration for primary exercises.
+ * Two sets at 50% load with reduced reps and low RPE.
+ */
+const DEFAULT_WARMUP_SETS: WarmupSet[] = [
+  { setType: 'warmup', loadPercentage: 0.5, reps: 8, rpe: 4 },
+  { setType: 'warmup', loadPercentage: 0.5, reps: 6, rpe: 5 }
+]
+
+/**
+ * Generates warm-up sets for a primary exercise.
+ * Returns 2 warm-up sets with 50% load and low intensity.
+ * These sets are marked type: 'warmup' so they don't skew average intensity stats.
+ */
+export const generateWarmupSets = (
+  workingReps: string | number,
+  workingRpe: number
+): WarmupSet[] => {
+  // Parse the minimum reps from a range like "8-12" or use the number directly
+  const baseReps = typeof workingReps === 'string'
+    ? parseInt(workingReps.split('-')[0], 10) || 8
+    : workingReps || 8
+  
+  return [
+    { setType: 'warmup', loadPercentage: 0.5, reps: Math.min(baseReps, 8), rpe: Math.max(4, workingRpe - 3) },
+    { setType: 'warmup', loadPercentage: 0.5, reps: Math.min(baseReps - 2, 6), rpe: Math.max(5, workingRpe - 2) }
+  ]
+}
+
+/**
+ * Superset pairing structure for paired exercises.
+ */
+export type SupersetPair = {
+  exerciseA: PlannedExercise
+  exerciseB: PlannedExercise
+  groupId: string
+  estimatedMinutes: number
+}
+
+/**
+ * Pairs two exercises into a superset structure.
+ * Typically used for push/pull or agonist/antagonist pairings.
+ * 
+ * Time estimation for supersets:
+ * Normal: (SetA + Rest) + (SetB + Rest) = SetA + SetB + 2*Rest
+ * Superset: (SetA + SetB + Rest) = SetA + SetB + Rest (saves one rest period)
+ * 
+ * @param push - The first exercise (typically a push movement)
+ * @param pull - The second exercise (typically a pull movement)
+ * @param groupId - Unique identifier for this superset pairing
+ * @returns SupersetPair with combined time estimation
+ */
+export const pairExercises = (
+  push: PlannedExercise,
+  pull: PlannedExercise,
+  groupId: string
+): SupersetPair => {
+  // Calculate superset time: SetA + SetB + shared rest (instead of individual rests)
+  const setTimeA = push.estimatedMinutes / Math.max(1, push.prescription.sets)
+  const setTimeB = pull.estimatedMinutes / Math.max(1, pull.prescription.sets)
+  
+  // Estimate rest time (typically ~2 min per exercise, now shared)
+  const restMinutesPerSet = 2
+  const maxSets = Math.max(push.prescription.sets, pull.prescription.sets)
+  
+  // Superset saves one rest period per set cycle
+  // Old: (setA + rest) + (setB + rest) = total sets * (setTimeA + setTimeB + 2*rest)
+  // New: (setA + setB + rest) = total sets * (setTimeA + setTimeB + rest)
+  const normalTime = push.estimatedMinutes + pull.estimatedMinutes
+  const savedRest = maxSets * restMinutesPerSet
+  const supersetTime = Math.max(normalTime - savedRest, (setTimeA + setTimeB + restMinutesPerSet) * maxSets)
+  
+  return {
+    exerciseA: push,
+    exerciseB: pull,
+    groupId,
+    estimatedMinutes: supersetTime
+  }
+}
+
+/**
+ * Estimates combined time for a superset pair.
+ * Time = (SetA + SetB + Rest) instead of (SetA + Rest) + (SetB + Rest)
+ */
+export const estimateSupersetTime = (
+  exerciseA: PlannedExercise,
+  exerciseB: PlannedExercise,
+  restSeconds: number = 90
+): number => {
+  const setsA = exerciseA.prescription.sets
+  const setsB = exerciseB.prescription.sets
+  const maxSets = Math.max(setsA, setsB)
+  
+  // Time per set (execution only, ~30-45 seconds average)
+  const execTimePerSetA = 0.5 // minutes
+  const execTimePerSetB = 0.5 // minutes
+  const restMinutes = restSeconds / 60
+  
+  // Superset: (execA + execB + rest) * sets
+  return (execTimePerSetA + execTimePerSetB + restMinutes) * maxSets
+}
 
 export const createPlannedExercise = (
   exercise: Exercise,
@@ -51,13 +155,24 @@ export const createPlannedExercise = (
   }
 
   prescription.load = buildLoad(selectedOption, exercise.loadTarget, input.equipment.inventory)
+  
+  // Add warm-up sets for primary exercises (strength/hypertrophy focus)
+  // Warm-up sets are marked type: 'warmup' so they don't skew average intensity stats
+  if (source === 'primary' && (goal === 'strength' || goal === 'hypertrophy')) {
+    prescription.setType = 'working'
+    prescription.warmupSets = generateWarmupSets(prescription.reps, prescription.rpe)
+  }
 
   const estimatedMinutes = estimateExerciseMinutes(exercise, prescription, selectedOption, goal)
+  
+  // Add warm-up time to estimate for primary exercises (~3 min for 2 warmup sets)
+  const warmupTimeMinutes = prescription.warmupSets ? prescription.warmupSets.length * 1.5 : 0
+  
   return {
     exercise,
     source,
     prescription,
-    estimatedMinutes,
+    estimatedMinutes: estimatedMinutes + warmupTimeMinutes,
     minSets,
     maxSets
   }
