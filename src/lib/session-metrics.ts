@@ -1,5 +1,15 @@
 import type { SessionGoal, GroupType, WeightUnit, MetricProfile, LoadType } from '@/types/domain'
 import { toKg, toLbs, normalizeIntensity, convertWeight } from '@/lib/units'
+import { clamp, isValidNumber } from '@/lib/math'
+import { getWeekKey } from '@/lib/date-utils'
+import {
+  DEFAULT_USER_WEIGHT_LB,
+  DEFAULT_BODYWEIGHT_FACTOR,
+  VIRTUAL_WEIGHT_MULTIPLIERS
+} from '@/constants/training'
+
+// Re-export getWeekKey for backwards compatibility
+export { getWeekKey }
 
 export const E1RM_FORMULA_VERSION = 'epley_v1'
 
@@ -68,16 +78,7 @@ export const getE1rmConfidence = (set: MetricsSet): number => {
   return clamp(effectiveRpe / 10, 0.5, 1.0)
 }
 
-export const getWeekKey = (value: string) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  const temp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const day = temp.getUTCDay() || 7
-  temp.setUTCDate(temp.getUTCDate() + 4 - day)
-  const yearStart = new Date(Date.UTC(temp.getUTCFullYear(), 0, 1))
-  const week = Math.ceil(((temp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
-  return `${temp.getUTCFullYear()}-W${week}`
-}
+// getWeekKey imported from @/lib/date-utils and re-exported above
 
 export const toWeightInPounds = (weight: number, unit?: WeightUnit | null) =>
   convertWeight(weight, unit === 'kg' ? 'kg' : 'lb', 'lb')
@@ -85,10 +86,7 @@ export const toWeightInPounds = (weight: number, unit?: WeightUnit | null) =>
 export const toWeightInUnit = (weight: number, fromUnit: WeightUnit, toUnit: WeightUnit) =>
   convertWeight(weight, fromUnit, toUnit)
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
-
-const isValidNumber = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value)
+// clamp and isValidNumber imported from @/lib/math
 
 export const getTotalWeight = (
   weight: number | null | undefined,
@@ -142,21 +140,8 @@ export const mapRpeToRir = (rpe: number) => {
   return 10 - rpe
 }
 
-// Default bodyweight placeholder in lbs (average user weight * 0.7 for push-ups, etc.)
-const DEFAULT_BODYWEIGHT_FACTOR = 0.7
-const DEFAULT_USER_WEIGHT_LBS = 170
-
-/**
- * Virtual weight multipliers for bodyweight exercises.
- * Based on biomechanical research:
- * - Push-ups/Dips: ~66% of bodyweight (horizontal pushing, legs supported)
- * - Pull-ups/Chin-ups: ~90% of bodyweight (vertical pulling, minimal support)
- */
-const VIRTUAL_WEIGHT_MULTIPLIERS = {
-  push: 0.66,   // Push-ups, dips, etc.
-  pull: 0.90,   // Pull-ups, chin-ups, etc.
-  default: 0.70 // Generic bodyweight exercises
-} as const
+// Constants imported from @/constants/training:
+// DEFAULT_BODYWEIGHT_FACTOR, DEFAULT_USER_WEIGHT_LB, VIRTUAL_WEIGHT_MULTIPLIERS
 
 export type BodyweightExerciseType = 'push' | 'pull' | 'default'
 
@@ -215,7 +200,7 @@ export const computeSetTonnage = (
 ): number => {
   if (!isValidNumber(set.reps) || set.reps <= 0) return 0
   
-  const baseWeight = userWeightLbs ?? DEFAULT_USER_WEIGHT_LBS
+  const baseWeight = userWeightLbs ?? DEFAULT_USER_WEIGHT_LB
   const hasExternalWeight = isValidNumber(set.weight) && set.weight > 0
   
   // Detect if this is a bodyweight exercise by name or explicit flag

@@ -1,5 +1,6 @@
 import type { Intensity } from '@/types/domain'
 import { defaultRpeBaselines, type CustomRpeBaselines } from '@/lib/preferences'
+import { clamp, weightedAverage } from '@/lib/math'
 import {
   computeSetIntensity,
   computeSetLoad,
@@ -63,7 +64,7 @@ type TrainingLoadSummary = {
   weeklyLoadTrend: Array<{ week: string; load: number }>
 }
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+// clamp imported from @/lib/math
 
 /**
  * @deprecated Use CustomRpeBaselines from preferences.ts instead
@@ -93,22 +94,14 @@ export const getIntensityBaseline = (
   return baselines.moderate
 }
 
-const weightedAverage = (values: Array<number | null>, weights: number[]) => {
-  let total = 0
-  let weightSum = 0
-  values.forEach((value, index) => {
-    if (typeof value !== 'number' || !Number.isFinite(value)) return
-    const weight = Number.isFinite(weights[index]) && weights[index] > 0 ? weights[index] : 1
-    total += value * weight
-    weightSum += weight
-  })
-  if (!weightSum) return null
-  return total / weightSum
-}
+// weightedAverage imported from @/lib/math
 
-// Estimated time per set in seconds (including execution)
-const ESTIMATED_SET_TIME_SECONDS = 45
-const DEFAULT_REST_SECONDS = 90
+// Constants imported from @/constants/training
+import {
+  DEFAULT_REST_SECONDS,
+  ESTIMATED_SET_TIME_SECONDS,
+  SECONDS_PER_REP
+} from '@/constants/training'
 
 /**
  * Calculates wall-clock duration from timestamps (may include long pauses).
@@ -181,7 +174,7 @@ export const computeSessionMetrics = ({
 
   // Calculate active duration in seconds: (Reps * 3s execution time) + RestTimer
   // This is more accurate than wall-clock as it excludes long pauses (bathroom breaks, etc.)
-  const SECONDS_PER_REP = 3 // Average time per rep including eccentric/concentric
+  // SECONDS_PER_REP imported from @/constants/training
   const activeDurationSeconds = sets.reduce((total, set, index) => {
     // Add rep execution time: reps * 3 seconds
     const repTime = typeof set.reps === 'number' && set.reps > 0 

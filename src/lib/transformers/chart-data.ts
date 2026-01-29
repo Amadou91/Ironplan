@@ -1,6 +1,16 @@
 import { computeSetLoad, computeSetTonnage, getWeekKey, getEffortScore, computeSetE1rm } from '@/lib/session-metrics'
 import { toMuscleSlug, toMuscleLabel, PRESET_MAPPINGS } from '@/lib/muscle-utils'
+import {
+  formatDate,
+  formatDateTime,
+  formatDuration,
+  formatChartDate,
+  formatDateForInput
+} from '@/lib/date-utils'
 import type { MetricProfile } from '@/types/domain'
+
+// Re-export date utilities for backwards compatibility
+export { formatDate, formatDateTime, formatDuration, formatChartDate, formatDateForInput }
 
 export interface VolumeTrendPoint {
   label: string
@@ -67,50 +77,7 @@ export type AnalyzedSet = {
   secondaryMuscles?: string[] | null
 }
 
-export const formatDate = (value: string) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value) || value.endsWith('T00:00:00.000Z') || value.endsWith('T00:00:00Z')) {
-    const [year, month, day] = value.split('T')[0].split('-').map(Number)
-    const localDate = new Date(year, month - 1, day)
-    return localDate.toLocaleDateString()
-  }
-  return date.toLocaleDateString()
-}
-
-export const formatDateTime = (value: string) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value) || value.endsWith('T00:00:00.000Z') || value.endsWith('T00:00:00Z')) {
-    const [year, month, day] = value.split('T')[0].split('-').map(Number)
-    const localDate = new Date(year, month - 1, day)
-    return localDate.toLocaleDateString([], { dateStyle: 'medium' })
-  }
-  return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-export const formatDuration = (start?: string | null, end?: string | null) => {
-  if (!start || !end) return 'N/A'
-  const startDate = new Date(start)
-  const endDate = new Date(end)
-  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return 'N/A'
-  const diff = Math.max(0, endDate.getTime() - startDate.getTime())
-  const minutes = Math.round(diff / 60000)
-  return `${minutes} min`
-}
-
-export const formatChartDate = (value: string | number) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value)
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
-
-export const formatDateForInput = (value: Date) => {
-  const year = value.getFullYear()
-  const month = String(value.getMonth() + 1).padStart(2, '0')
-  const day = String(value.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+// Date formatting functions imported from @/lib/date-utils and re-exported above
 
 const MUSCLE_TARGET_DISTRIBUTION: Record<string, number> = {
   chest: 12,
