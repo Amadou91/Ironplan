@@ -124,7 +124,8 @@ export function useRecoveryMetrics(options: {
         weightUnit: (s.weight_unit as WeightUnit) ?? null,
         rpe: typeof s.rpe === 'number' ? s.rpe : null,
         rir: typeof s.rir === 'number' ? s.rir : null,
-        performedAt: s.performed_at ?? null
+        performedAt: s.performed_at ?? null,
+        restSecondsActual: s.rest_seconds_actual ?? null
       })))
       const metrics = computeSessionMetrics({ startedAt: session.started_at, endedAt: session.ended_at, sets: metricSets })
       return { readiness: entry.readiness_score, effort: metrics.avgEffort, workload: metrics.workload }

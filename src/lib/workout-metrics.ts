@@ -228,6 +228,8 @@ export const calculateSessionImpactFromSets = (
 
       durationSeconds: isNumber(set.durationSeconds) ? set.durationSeconds : null,
 
+      restSecondsActual: isNumber(set.restSecondsActual) ? set.restSecondsActual : null,
+
       metricProfile: set.metricProfile
 
     }))

@@ -38,6 +38,7 @@ export type SessionRow = {
       performed_at: string | null
       weight_unit: string | null
       duration_seconds?: number | null
+      rest_seconds_actual?: number | null
     }>
   }>
 }
@@ -59,7 +60,8 @@ export function calculateTrainingStatus(sessions: SessionRow[]) {
           rpe: typeof set.rpe === 'number' ? set.rpe : null,
           rir: typeof set.rir === 'number' ? set.rir : null,
           performedAt: set.performed_at ?? null,
-          durationSeconds: set.duration_seconds ?? null
+          durationSeconds: set.duration_seconds ?? null,
+          restSecondsActual: set.rest_seconds_actual ?? null
         }))
     })
   }))
