@@ -1,4 +1,19 @@
+/**
+ * @deprecated This script is obsolete after migration 20260530000000_refactor_exercise_catalog.sql
+ * The columns it references (reps, sets, rest_seconds, interval_duration, interval_rest) 
+ * have been removed from the exercise_catalog table.
+ * 
+ * Interval exercises are now identified only by the is_interval boolean flag.
+ * Set-level interval data is stored in the workout_sets table.
+ */
 
+console.error('This script is deprecated. The exercise_catalog schema has been refactored.');
+console.error('Columns like reps, sets, interval_duration, interval_rest no longer exist.');
+console.error('See migration 20260530000000_refactor_exercise_catalog.sql for details.');
+process.exit(1);
+
+// Original code kept for reference:
+/*
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
@@ -116,3 +131,4 @@ async function run() {
 }
 
 run();
+*/

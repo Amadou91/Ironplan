@@ -233,16 +233,29 @@ export async function seedExerciseCatalog(supabase: SupabaseClient): Promise<num
     }
   ];
 
+  // Map to only columns that exist in the database after migration 20260530000000
+  // Removed columns: focus (now generated), sets, reps, rpe, duration_minutes, rest_seconds, load_target, video_url, instructions, interval_duration, interval_rest
+  const toInsert = exercises.map(({ name, movement_pattern, primary_muscle, secondary_muscles, equipment, metric_profile, e1rm_eligible }) => ({
+    name,
+    movement_pattern,
+    primary_muscle,
+    secondary_muscles,
+    equipment,
+    metric_profile,
+    e1rm_eligible: e1rm_eligible ?? false,
+    is_interval: false
+  }));
+
   const { error } = await supabase
     .from('exercise_catalog')
-    .upsert(exercises, { onConflict: 'name' });
+    .upsert(toInsert, { onConflict: 'name' });
 
   if (error) {
     console.error('Seed exercise catalog error:', error);
     return 0;
   }
 
-  return exercises.length;
+  return toInsert.length;
 }
 
 export async function seedDevData(supabase: SupabaseClient, userId: string): Promise<SeedResult> {

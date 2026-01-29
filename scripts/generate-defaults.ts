@@ -28,17 +28,22 @@ if (!url || !key) {
 
 const supabase = createClient(url, key);
 
+// Type for exercise_catalog rows after migration 20260530000000
+// Removed columns: sets, reps, rpe, duration_minutes, rest_seconds, load_target, video_url, instructions, interval_duration, interval_rest
+// focus is now a generated column computed from primary_muscle
 type ExerciseRow = {
   id: string;
   name: string;
   category: string;
-  focus: string;
+  focus: string; // generated column
+  movement_pattern: string | null;
   metric_profile: string;
   equipment: Record<string, unknown> | Record<string, unknown>[];
   primary_muscle: string;
   secondary_muscles: string[];
   e1rm_eligible: boolean;
   is_interval: boolean;
+  or_group: string | null;
 };
 
 async function run() {
