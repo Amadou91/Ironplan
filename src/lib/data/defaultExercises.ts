@@ -394,5 +394,403 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "metricProfile": "mobility_session",
     "equipment": [{ "kind": "bodyweight" }],
     "primaryMuscle": "full_body"
+  },
+  {
+    "name": "Standing Calf Raise",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "bodyweight" }, { "kind": "dumbbell" }],
+    "primaryMuscle": "calves",
+    "secondaryMuscles": ["quads", "glutes"]
+  },
+  {
+    "name": "Seated Calf Raise",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "bodyweight" }],
+    "primaryMuscle": "calves",
+    "secondaryMuscles": ["hamstrings"]
+  },
+  {
+    "name": "Single-Leg Calf Raise",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "bodyweight" }, { "kind": "dumbbell" }],
+    "primaryMuscle": "calves",
+    "secondaryMuscles": ["core", "glutes"]
+  },
+  {
+    "name": "Leg Press Calf Press",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "machine", "machineType": "leg_press" }],
+    "primaryMuscle": "calves",
+    "secondaryMuscles": ["quads"]
+  },
+  {
+    "name": "Cable Hip Flexion",
+    "category": "Strength",
+    "movementPattern": "core",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
+    "primaryMuscle": "hip_flexors",
+    "secondaryMuscles": ["core", "quads"]
+  },
+  {
+    "name": "Banded Hip Flexor March",
+    "category": "Strength",
+    "movementPattern": "core",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "band" }],
+    "primaryMuscle": "hip_flexors",
+    "secondaryMuscles": ["core", "quads"]
+  },
+  {
+    "name": "Hanging Knee Raise",
+    "category": "Strength",
+    "movementPattern": "core",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "bodyweight" }],
+    "primaryMuscle": "hip_flexors",
+    "secondaryMuscles": ["core"]
+  },
+  {
+    "name": "L-Sit Hold",
+    "category": "Strength",
+    "movementPattern": "core",
+    "metricProfile": "timed_strength",
+    "equipment": [{ "kind": "bodyweight" }],
+    "primaryMuscle": "hip_flexors",
+    "secondaryMuscles": ["core", "triceps"]
+  },
+  {
+    "name": "Wrist Curls",
+    "category": "Strength",
+    "movementPattern": "pull",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "barbell" }],
+    "primaryMuscle": "forearms",
+    "secondaryMuscles": ["biceps"]
+  },
+  {
+    "name": "Reverse Wrist Curls",
+    "category": "Strength",
+    "movementPattern": "pull",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "barbell" }],
+    "primaryMuscle": "forearms",
+    "secondaryMuscles": ["biceps"]
+  },
+  {
+    "name": "Towel Dead Hang",
+    "category": "Strength",
+    "movementPattern": "pull",
+    "metricProfile": "timed_strength",
+    "equipment": [{ "kind": "bodyweight" }],
+    "primaryMuscle": "forearms",
+    "secondaryMuscles": ["back", "shoulders"]
+  },
+  {
+    "name": "Farmer's Carry",
+    "category": "Strength",
+    "movementPattern": "carry",
+    "metricProfile": "timed_strength",
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "kettlebell" }],
+    "primaryMuscle": "forearms",
+    "secondaryMuscles": ["core", "shoulders"]
+  },
+  {
+    "name": "Sumo Dumbbell Squat",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "kettlebell" }],
+    "primaryMuscle": "adductors",
+    "secondaryMuscles": ["glutes", "quads", "core"]
+  },
+  {
+    "name": "Cable Hip Adduction",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
+    "primaryMuscle": "adductors",
+    "secondaryMuscles": ["glutes", "core"]
+  },
+  {
+    "name": "Banded Standing Hip Adduction",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "band" }],
+    "primaryMuscle": "adductors",
+    "secondaryMuscles": ["glutes", "core"]
+  },
+  {
+    "name": "Copenhagen Plank",
+    "category": "Strength",
+    "movementPattern": "core",
+    "metricProfile": "timed_strength",
+    "equipment": [{ "kind": "bodyweight" }],
+    "primaryMuscle": "adductors",
+    "secondaryMuscles": ["core", "glutes"]
+  },
+  {
+    "name": "Cable Hip Abduction",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
+    "primaryMuscle": "abductors",
+    "secondaryMuscles": ["glutes", "core"]
+  },
+  {
+    "name": "Banded Lateral Walk",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "timed_strength",
+    "equipment": [{ "kind": "band" }],
+    "primaryMuscle": "abductors",
+    "secondaryMuscles": ["glutes", "core"]
+  },
+  {
+    "name": "Side-Lying Hip Abduction",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "bodyweight" }],
+    "primaryMuscle": "abductors",
+    "secondaryMuscles": ["glutes"]
+  },
+  {
+    "name": "Banded Clamshells",
+    "category": "Strength",
+    "movementPattern": "squat",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "band" }],
+    "primaryMuscle": "abductors",
+    "secondaryMuscles": ["glutes", "core"]
+  },
+  {
+    "name": "Barbell Glute Bridge",
+    "category": "Strength",
+    "movementPattern": "hinge",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "barbell", "requires": ["bench_press"] }],
+    "primaryMuscle": "glutes",
+    "secondaryMuscles": ["hamstrings", "core"]
+  },
+  {
+    "name": "Cable Glute Kickback",
+    "category": "Strength",
+    "movementPattern": "hinge",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
+    "primaryMuscle": "glutes",
+    "secondaryMuscles": ["hamstrings", "core"]
+  },
+  {
+    "name": "Sumo Deadlift",
+    "category": "Strength",
+    "movementPattern": "hinge",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "barbell" }],
+    "primaryMuscle": "glutes",
+    "secondaryMuscles": ["hamstrings", "quads", "core"],
+    "e1rmEligible": true
+  },
+  {
+    "name": "Single-Leg Romanian Deadlift",
+    "category": "Strength",
+    "movementPattern": "hinge",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "kettlebell" }],
+    "primaryMuscle": "glutes",
+    "secondaryMuscles": ["hamstrings", "core"]
+  },
+  {
+    "name": "Good Mornings",
+    "category": "Strength",
+    "movementPattern": "hinge",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "barbell" }],
+    "primaryMuscle": "hamstrings",
+    "secondaryMuscles": ["glutes", "back"]
+  },
+  {
+    "name": "Stiff-Leg Deadlift",
+    "category": "Strength",
+    "movementPattern": "hinge",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "barbell" }, { "kind": "dumbbell" }],
+    "primaryMuscle": "hamstrings",
+    "secondaryMuscles": ["glutes", "back"]
+  },
+  {
+    "name": "Lying Hamstring Curl",
+    "category": "Strength",
+    "movementPattern": "hinge",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "machine" }],
+    "primaryMuscle": "hamstrings",
+    "secondaryMuscles": ["calves"]
+  },
+  {
+    "name": "Nordic Hamstring Curl",
+    "category": "Strength",
+    "movementPattern": "hinge",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "bodyweight" }],
+    "primaryMuscle": "hamstrings",
+    "secondaryMuscles": ["glutes", "core"]
+  },
+  {
+    "name": "Barbell Bent-Over Row",
+    "category": "Strength",
+    "movementPattern": "pull",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "barbell" }],
+    "primaryMuscle": "back",
+    "secondaryMuscles": ["biceps", "forearms", "core"]
+  },
+  {
+    "name": "Chest-Supported Dumbbell Row",
+    "category": "Strength",
+    "movementPattern": "pull",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "dumbbell", "requires": ["bench_press"] }],
+    "primaryMuscle": "back",
+    "secondaryMuscles": ["biceps", "forearms"]
+  },
+  {
+    "name": "Seated Cable Row",
+    "category": "Strength",
+    "movementPattern": "pull",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
+    "primaryMuscle": "back",
+    "secondaryMuscles": ["biceps", "forearms"]
+  },
+  {
+    "name": "Pull-Ups",
+    "category": "Strength",
+    "movementPattern": "pull",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "bodyweight" }],
+    "primaryMuscle": "back",
+    "secondaryMuscles": ["biceps", "forearms"]
+  },
+  {
+    "name": "Arnold Press",
+    "category": "Strength",
+    "movementPattern": "push",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "dumbbell" }],
+    "primaryMuscle": "shoulders",
+    "secondaryMuscles": ["triceps", "core"]
+  },
+  {
+    "name": "Dumbbell Lateral Raise",
+    "category": "Strength",
+    "movementPattern": "push",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "dumbbell" }],
+    "primaryMuscle": "shoulders",
+    "secondaryMuscles": ["forearms"]
+  },
+  {
+    "name": "Rear Delt Fly",
+    "category": "Strength",
+    "movementPattern": "pull",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "dumbbell", "requires": ["bench_press"] }],
+    "primaryMuscle": "shoulders",
+    "secondaryMuscles": ["back"]
+  },
+  {
+    "name": "Face Pull",
+    "category": "Strength",
+    "movementPattern": "pull",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
+    "primaryMuscle": "shoulders",
+    "secondaryMuscles": ["back"]
+  },
+  {
+    "name": "Close-Grip Bench Press",
+    "category": "Strength",
+    "movementPattern": "push",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "barbell", "requires": ["bench_press"] }],
+    "primaryMuscle": "triceps",
+    "secondaryMuscles": ["chest", "shoulders"],
+    "e1rmEligible": true
+  },
+  {
+    "name": "Skull Crushers",
+    "category": "Strength",
+    "movementPattern": "push",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "barbell", "requires": ["bench_press"] }, { "kind": "dumbbell", "requires": ["bench_press"] }],
+    "primaryMuscle": "triceps",
+    "secondaryMuscles": ["chest"]
+  },
+  {
+    "name": "Diamond Push-Ups",
+    "category": "Strength",
+    "movementPattern": "push",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "bodyweight" }],
+    "primaryMuscle": "triceps",
+    "secondaryMuscles": ["chest", "shoulders", "core"]
+  },
+  {
+    "name": "Cable Triceps Pushdown (Straight Bar)",
+    "category": "Strength",
+    "movementPattern": "push",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
+    "primaryMuscle": "triceps",
+    "secondaryMuscles": ["shoulders"]
+  },
+  {
+    "name": "Hanging Leg Raise",
+    "category": "Strength",
+    "movementPattern": "core",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "bodyweight" }],
+    "primaryMuscle": "core",
+    "secondaryMuscles": ["hip_flexors"]
+  },
+  {
+    "name": "Side Plank",
+    "category": "Strength",
+    "movementPattern": "core",
+    "metricProfile": "timed_strength",
+    "equipment": [{ "kind": "bodyweight" }],
+    "primaryMuscle": "core",
+    "secondaryMuscles": ["shoulders", "glutes"]
+  },
+  {
+    "name": "Cable Pallof Press",
+    "category": "Strength",
+    "movementPattern": "core",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "machine", "machineType": "cable" }],
+    "primaryMuscle": "core",
+    "secondaryMuscles": ["shoulders"]
+  },
+  {
+    "name": "Russian Twist",
+    "category": "Strength",
+    "movementPattern": "core",
+    "metricProfile": "reps_weight",
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "kettlebell" }],
+    "primaryMuscle": "core",
+    "secondaryMuscles": ["hip_flexors"]
   }
 ];

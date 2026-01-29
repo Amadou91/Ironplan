@@ -107,7 +107,7 @@ export function useDashboardData() {
         ])
 
       if (sessionError) {
-        console.error('Failed to load sessions', sessionError)
+        console.error('Failed to load sessions', JSON.stringify(sessionError, null, 2))
         setError('Unable to load today overview. Please try again.')
       }
       setSessions((sessionRows as SessionRow[]) ?? [])
