@@ -5,10 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { computeSetE1rm, computeSetTonnage } from '@/lib/session-metrics'
 import { computeSessionMetrics, type ReadinessSurvey } from '@/lib/training-metrics'
-import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { useUser } from '@/hooks/useUser'
+import { useUIStore } from '@/store/uiStore'
 import { Button } from '@/components/ui/Button'
-import type { FocusArea, Goal, Intensity, PlanInput, WeightUnit, MetricProfile, Exercise } from '@/types/domain'
+import type { FocusArea, Goal, Intensity, WeightUnit, MetricProfile, Exercise } from '@/types/domain'
 import { SummaryHeader } from '@/components/workout/SummaryHeader'
 import { SessionHighlights } from '@/components/workout/SessionHighlights'
 import { ExerciseHighlights } from '@/components/workout/ExerciseHighlights'
@@ -21,6 +21,7 @@ type SessionDetail = {
   ended_at: string | null
   status: string | null
   session_notes: string | null
+  session_goal?: Goal | null
   body_weight_lb: number | null
   impact: {
     score?: number
@@ -48,14 +49,6 @@ type SessionDetail = {
       duration_seconds: number | null
     }>
   }>
-  template?: {
-    id: string
-    title: string
-    focus: FocusArea
-    style: PlanInput['goals']['primary']
-    intensity: PlanInput['intensity']
-    template_inputs: PlanInput | null
-  } | null
 }
 
 type SessionNotes = {
@@ -64,6 +57,8 @@ type SessionNotes = {
   readinessScore?: number
   readinessSurvey?: ReadinessSurvey
   minutesAvailable?: number
+  goal?: Goal
+  focus?: FocusArea
 }
 
 const formatDateTime = (value: string) => {
@@ -106,6 +101,7 @@ export default function WorkoutSummaryPage() {
   const searchParams = useSearchParams()
   const supabase = createClient()
   const { user } = useUser()
+  const displayUnit = useUIStore((state) => state.displayUnit)
   const sessionId = searchParams.get('sessionId')
   const [session, setSession] = useState<SessionDetail | null>(null)
   const [loading, setLoading] = useState(Boolean(sessionId))
@@ -115,23 +111,7 @@ export default function WorkoutSummaryPage() {
   const parsedNotes = useMemo(() => parseSessionNotes(session?.session_notes ?? null), [session?.session_notes])
   const intensityLabel = formatSessionIntensity(getSessionIntensity(parsedNotes))
 
-  const minutesAvailable = parsedNotes?.minutesAvailable
-  const template = session?.template
-  const sessionName = session?.name
-  const firstExerciseName = session?.session_exercises?.[0]?.exercise_name
-  const style = template?.style
-
-  const sessionTitle = useMemo(() => {
-    if (!sessionName) return ''
-    return buildWorkoutDisplayName({
-      focus: template?.focus ?? null,
-      style: template?.style ?? null,
-      intensity: template?.intensity ?? null,
-      minutes: minutesAvailable,
-      fallback: sessionName,
-      cardioExerciseName: style === 'cardio' && firstExerciseName ? firstExerciseName : null
-    })
-  }, [minutesAvailable, template, sessionName, firstExerciseName, style])
+  const sessionTitle = session?.name ?? ''
 
   useEffect(() => {
     if (!sessionId) return
@@ -140,7 +120,7 @@ export default function WorkoutSummaryPage() {
       const [sessionRes, catalogRes] = await Promise.all([
         supabase
           .from('sessions')
-          .select('id, name, started_at, ended_at, status, session_notes, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds)), template:workout_templates(id, title, focus, style, intensity, template_inputs)')
+          .select('id, name, started_at, ended_at, status, session_notes, session_goal, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds))')
           .eq('id', sessionId).single(),
         supabase.from('exercise_catalog').select('*')
       ])
@@ -158,7 +138,7 @@ export default function WorkoutSummaryPage() {
 
   const sessionMetrics = useMemo(() => {
     if (!session) return null
-    const sessionGoal = session.template?.style as Goal | undefined
+    const sessionGoal = (session.session_goal ?? parsedNotes?.goal ?? null) as Goal | undefined
     const exerciseLibraryByName = new Map(catalog.map(ex => [ex.name.toLowerCase(), ex]))
     const metricSets = session.session_exercises.flatMap(exercise => {
       const isEligible = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())?.e1rmEligible
@@ -222,7 +202,7 @@ export default function WorkoutSummaryPage() {
           title={sessionTitle} dateLabel={formatDateTime(session.started_at)} durationLabel={formatDuration(session.started_at, session.ended_at)}
           bodyWeight={session.body_weight_lb} onBodyWeightUpdate={handleBodyWeightUpdate}
           intensityLabel={intensityLabel} minutesPlanned={parsedNotes?.minutesAvailable} readinessScore={parsedNotes?.readinessScore}
-          isLb={session.template?.template_inputs?.equipment?.inventory?.barbell?.available ?? true}
+          isLb={displayUnit === 'lb'}
         />
         {error && <div className="alert-error p-4 text-sm mb-6">{error}</div>}
         <div className="space-y-6">

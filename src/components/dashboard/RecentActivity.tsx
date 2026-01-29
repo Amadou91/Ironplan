@@ -4,16 +4,14 @@ import Link from 'next/link'
 import { ArrowRight, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { formatDateTime, formatDuration } from '@/lib/transformers/chart-data'
-import type { SessionRow, TemplateRow } from '@/hooks/useDashboardData'
+import type { SessionRow } from '@/hooks/useDashboardData'
 
 interface RecentActivityProps {
   recentSessions: SessionRow[]
-  templateById: Map<string, TemplateRow>
 }
 
-export function RecentActivity({ recentSessions, templateById }: RecentActivityProps) {
+export function RecentActivity({ recentSessions }: RecentActivityProps) {
   return (
     <Card className="p-8 md:p-10 lg:p-12">
       <div className="flex items-center gap-4 mb-10">
@@ -33,22 +31,7 @@ export function RecentActivity({ recentSessions, templateById }: RecentActivityP
           </div>
         ) : (
           recentSessions.map((session) => {
-            const template = session.template_id ? templateById.get(session.template_id) : null
-            const sessionTitle =
-              template && session.name === template.title
-                ? buildWorkoutDisplayName({
-                    focus: template.focus,
-                    style: template.style,
-                    intensity: template.intensity,
-                    minutes: typeof session.minutes_available === 'number' ? session.minutes_available : null,
-                    fallback: session.name,
-                    cardioExerciseName:
-                      template.style === 'cardio' && session.session_exercises?.[0]?.exercise_name
-                        ? session.session_exercises[0].exercise_name
-                        : null
-                  })
-                : session.name
-
+            const sessionTitle = session.name
             return (
               <div
                 key={session.id}

@@ -9,6 +9,9 @@ export type SessionRow = {
   id: string
   name: string
   template_id: string | null
+  session_focus?: string | null
+  session_goal?: string | null
+  session_intensity?: string | null
   started_at: string
   ended_at: string | null
   status: string | null

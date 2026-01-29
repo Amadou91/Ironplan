@@ -200,7 +200,9 @@ export default function WorkoutStartPage() {
           readinessScore, 
           readinessSurvey: readinessSurvey as ReadinessSurvey, 
           source: 'workout_start',
-          goal: sessionGoal
+          goal: sessionGoal,
+          focus: template.focus,
+          equipmentInventory: tunedInputs.equipment?.inventory ?? null
         },
         history, 
         nameSuffix: '',
@@ -213,6 +215,9 @@ export default function WorkoutStartPage() {
         userId: user.id, 
         templateId: template.id, 
         name: sessionName, 
+        sessionFocus: template.focus,
+        sessionGoal: sessionGoal,
+        sessionIntensity: selectedIntensity.intensity,
         startedAt, 
         status: 'in_progress', 
         impact, 

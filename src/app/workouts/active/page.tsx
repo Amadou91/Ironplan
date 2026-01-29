@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle2, X } from 'lucide-react'
@@ -9,19 +9,10 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { createClient } from '@/lib/supabase/client'
-import { calculateSessionImpactFromSets } from '@/lib/workout-metrics'
-import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { calculateSessionImpactFromSets, formatFocusLabel, formatGoalLabel } from '@/lib/workout-metrics'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
-import type { FocusArea, PlanInput } from '@/types/domain'
-
-type WorkoutTemplate = {
-  id: string
-  title: string
-  focus: FocusArea
-  style: PlanInput['goals']['primary']
-  template_inputs: PlanInput | null
-}
+import type { Goal } from '@/types/domain'
 
 type ConfirmAction = {
   type: 'finish' | 'cancel'
@@ -39,7 +30,6 @@ function WorkoutActiveContent() {
   const { user } = useUser()
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const endSession = useWorkoutStore((state) => state.endSession)
-  const [template, setTemplate] = useState<WorkoutTemplate | null>(null)
   const [finishError, setFinishError] = useState<string | null>(null)
   const [finishingSession, setFinishingSession] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
@@ -49,36 +39,13 @@ function WorkoutActiveContent() {
 
   const sessionId = searchParams.get('sessionId')
   const currentSessionId = activeSession?.id ?? sessionId
-  const sessionNotes = activeSession?.sessionNotes ? (typeof activeSession.sessionNotes === 'string' ? JSON.parse(activeSession.sessionNotes) : activeSession.sessionNotes) : null;
-  const minutesAvailable = sessionNotes?.minutesAvailable;
-
-  const sessionTitle = buildWorkoutDisplayName({
-    focus: template?.focus ?? null,
-    style: template?.style ?? null,
-    intensity: template?.template_inputs?.intensity ?? null,
-    minutes: typeof minutesAvailable === 'number' ? minutesAvailable : null,
-    fallback: activeSession?.name ?? template?.title ?? 'Active session',
-    cardioExerciseName: template?.style === 'cardio' && activeSession?.exercises?.[0]?.name ? activeSession.exercises[0].name : null
-  })
-
-  useEffect(() => {
-    const fetchTemplate = async () => {
-      if (!params.id) return;
-      const { data, error } = await supabase
-        .from('workout_templates')
-        .select('id, title, focus, style, template_inputs')
-        .eq('id', params.id)
-        .single()
-
-      if (error) {
-        console.error('Error fetching template:', error)
-      } else {
-        setTemplate(data)
-      }
-    }
-
-    fetchTemplate()
-  }, [params.id, supabase])
+  const sessionNotes = activeSession?.sessionNotes
+    ? (typeof activeSession.sessionNotes === 'string' ? JSON.parse(activeSession.sessionNotes) : activeSession.sessionNotes)
+    : null
+  const sessionGoal = (activeSession?.sessionGoal ?? sessionNotes?.goal ?? null) as Goal | null
+  const sessionFocus = activeSession?.sessionFocus ?? sessionNotes?.focus ?? null
+  const equipmentInventory = sessionNotes?.equipmentInventory ?? null
+  const sessionTitle = activeSession?.name ?? 'Active session'
 
   const requestFinish = () => {
     setConfirmAction({
@@ -130,7 +97,7 @@ function WorkoutActiveContent() {
         : null
 
       let finalName = activeSession?.name;
-      if (template?.style === 'cardio' && activeSession?.exercises?.length) {
+      if (sessionGoal === 'cardio' && activeSession?.exercises?.length) {
         const firstExName = activeSession.exercises[0].name;
         // Only append if it's not already in the name
         if (!finalName?.includes(firstExName)) {
@@ -220,9 +187,9 @@ function WorkoutActiveContent() {
               <span className="text-subtle">Active</span>
             </div>
             <h1 className="font-display text-2xl font-semibold text-strong">{sessionTitle}</h1>
-            {template && (
+            {sessionGoal && sessionFocus && (
               <p className="text-sm text-muted">
-                {toTitleCase(template.style.replace('_', ' '))} focus · {toTitleCase(template.focus.replace('_', ' '))}
+                {formatGoalLabel(sessionGoal)} focus · {formatFocusLabel(sessionFocus)}
               </p>
             )}
           </div>
@@ -237,13 +204,13 @@ function WorkoutActiveContent() {
           <div>
             <ActiveSession
               sessionId={currentSessionId}
-              equipmentInventory={template?.template_inputs?.equipment?.inventory ?? null}
+              equipmentInventory={equipmentInventory}
               onBodyWeightChange={(weight) => (bodyWeightRef.current = weight)}
               onFinish={requestFinish}
               onCancel={requestCancel}
               isFinishing={finishingSession}
-              focus={template?.focus}
-              style={template?.style}
+              focus={sessionFocus}
+              style={sessionGoal}
             />
           </div>
 
@@ -309,9 +276,3 @@ export default function WorkoutActivePage() {
     </Suspense>
   )
 }
-
-const toTitleCase = (value: string) =>
-  value
-    .split(' ')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')

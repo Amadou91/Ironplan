@@ -24,7 +24,6 @@ export default function DashboardPage() {
     loading,
     error,
     deletingWorkoutIds,
-    templateById,
     trainingLoadSummary,
     recommendedTemplateId,
     handleDeleteTemplate
@@ -120,7 +119,7 @@ export default function DashboardPage() {
             deletingWorkoutIds={deletingWorkoutIds}
           />
 
-          <RecentActivity recentSessions={recentSessions} templateById={templateById} />
+          <RecentActivity recentSessions={recentSessions} />
         </div>
       </div>
     </div>

@@ -21,20 +21,10 @@ import {
 import { useUIStore } from '@/store/uiStore'
 import { KG_PER_LB, convertWeight } from '@/lib/units'
 import type { SessionRow } from '@/lib/transformers/progress-data'
-import type { Goal, Exercise, FocusArea, PlanInput, WeightUnit } from '@/types/domain'
-
-export type TemplateRow = {
-  id: string
-  title: string
-  focus: FocusArea
-  style: PlanInput['goals']['primary']
-  intensity: PlanInput['intensity']
-  template_inputs: PlanInput | null
-}
+import type { Exercise, WeightUnit } from '@/types/domain'
 
 interface SessionHistoryListProps {
   sessions: SessionRow[]
-  templateById: Map<string, TemplateRow>
   exerciseLibraryByName: Map<string, Exercise>
   getSessionTitle: (session: SessionRow) => string
   hasMore: boolean
@@ -46,7 +36,6 @@ interface SessionHistoryListProps {
 
 export function SessionHistoryList({
   sessions,
-  templateById,
   exerciseLibraryByName,
   getSessionTitle,
   hasMore,
@@ -96,8 +85,6 @@ export function SessionHistoryList({
       bestE1rm: 0,
       workload: 0
     }
-    const template = session.template_id ? templateById.get(session.template_id) : null
-    const sessionGoal = template?.style as Goal | undefined
 
     session.session_exercises.forEach((exercise) => {
       const isEligible = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())?.e1rmEligible
@@ -143,7 +130,7 @@ export function SessionHistoryList({
             rir: typeof set.rir === 'number' ? set.rir : null,
             completed: set.completed
           },
-          sessionGoal,
+          null,
           isEligible
         )
         if (e1rm) totals.bestE1rm = Math.max(totals.bestE1rm, e1rm)

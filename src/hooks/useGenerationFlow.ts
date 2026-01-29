@@ -206,8 +206,13 @@ export function useGenerationFlow() {
 
   const handleHistoryDelete = async (entry: WorkoutHistoryEntry) => {
     if (!user) return
+    if (entry.remoteId && activeSession?.templateId === entry.remoteId) {
+      setHistoryError('This template cannot be deleted until the active session is completed or cancelled.')
+      return
+    }
     setHistoryError(null)
     setDeletingHistoryIds((prev) => ({ ...prev, [entry.id]: true }))
+    let shouldRemoveLocal = true
 
     try {
       if (entry.remoteId) {
@@ -218,18 +223,25 @@ export function useGenerationFlow() {
           .eq('user_id', user.id)
 
         if (error) {
-          console.error('Failed to delete workout history entry from server', error)
-          setHistoryError('Removed locally, but unable to delete the saved workout on the server.')
+          if (error.code === 'P0001') {
+            setHistoryError('This template cannot be deleted until the active session is completed or cancelled.')
+            shouldRemoveLocal = false
+          } else {
+            console.error('Failed to delete workout history entry from server', error)
+            setHistoryError('Removed locally, but unable to delete the saved workout on the server.')
+          }
         }
       }
     } catch (error) {
       console.error('Failed to delete workout history entry', error)
       setHistoryError('Removed locally, but unable to delete the saved workout on the server.')
     } finally {
-      if (typeof window !== 'undefined') {
-        removeWorkoutHistoryEntry(entry.id, window.localStorage)
+      if (shouldRemoveLocal) {
+        if (typeof window !== 'undefined') {
+          removeWorkoutHistoryEntry(entry.id, window.localStorage)
+        }
+        setHistoryEntries((prev) => prev.filter((item) => item.id !== entry.id))
       }
-      setHistoryEntries((prev) => prev.filter((item) => item.id !== entry.id))
       setDeletingHistoryIds((prev) => ({ ...prev, [entry.id]: false }))
     }
   }

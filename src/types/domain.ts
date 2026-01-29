@@ -247,6 +247,9 @@ export interface WorkoutSession {
   planId?: string
   templateId?: string
   name: string
+  sessionFocus?: FocusArea | null
+  sessionGoal?: Goal | null
+  sessionIntensity?: Intensity | null
   startedAt: string
   endedAt?: string
   status?: 'in_progress' | 'completed' | 'cancelled' | 'initializing'

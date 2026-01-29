@@ -1,6 +1,6 @@
 import { computeSetLoad, computeSetTonnage, getWeekKey, getEffortScore, computeSetE1rm } from '@/lib/session-metrics'
 import { toMuscleSlug, toMuscleLabel, PRESET_MAPPINGS } from '@/lib/muscle-utils'
-import type { Goal, MetricProfile } from '@/types/domain'
+import type { MetricProfile } from '@/types/domain'
 
 export interface VolumeTrendPoint {
   label: string
@@ -222,8 +222,6 @@ export function transformSessionsToEffortTrend(allSets: AnalyzedSet[]): EffortTr
 
 export function transformSessionsToExerciseTrend(
   allSets: AnalyzedSet[],
-  sessions: { id: string; template_id: string | null }[],
-  templateById: Map<string, { style: Goal }>,
   exerciseLibraryByName: Map<string, { e1rmEligible?: boolean }>,
   selectedExercise: string
 ): ExerciseTrendPoint[] {
@@ -232,16 +230,13 @@ export function transformSessionsToExerciseTrend(
     if (selectedExercise !== 'all' && set.exerciseName !== selectedExercise) return
     if (!set.exerciseName) return
 
-    const session = sessions.find((s) => s.id === set.sessionId)
-    const template = session?.template_id ? templateById.get(session.template_id) : null
-    const sessionGoal = template?.style
     const isEligible = exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible
 
     const e1rm = computeSetE1rm({
       ...set,
       metricProfile: set.metricProfile as MetricProfile,
       weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null
-    }, sessionGoal, isEligible)
+    }, null, isEligible)
     if (!e1rm) return
     const date = set.performed_at ?? set.startedAt
     if (!date) return
@@ -467,4 +462,3 @@ export function transformSessionsToReadinessTrend(
     })
     .sort((a, b) => a.timestamp - b.timestamp)
 }
-

@@ -12,6 +12,9 @@ export type SessionRow = {
   id: string
   name: string
   template_id: string | null
+  session_focus?: string | null
+  session_goal?: string | null
+  session_intensity?: string | null
   started_at: string
   ended_at: string | null
   status: string | null
@@ -90,7 +93,7 @@ export function useDashboardData() {
           supabase
             .from('sessions')
             .select(
-              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds))'
+              'id, name, template_id, session_focus, session_goal, session_intensity, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds))'
             )
             .eq('user_id', user.id)
             .order('started_at', { ascending: false })
@@ -137,8 +140,6 @@ export function useDashboardData() {
     refreshStatus()
   }, [activeSession, endSession, supabase, user])
 
-  const templateById = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates])
-
   const focusByTemplateId = useMemo(() => {
     const map = new Map<string, string>()
     templates.forEach((template) => {
@@ -177,8 +178,7 @@ export function useDashboardData() {
 
     const focusStats = new Map<string, { count: number; sets: number }>()
     sessions.forEach((session) => {
-      if (!session.template_id) return
-      const focus = focusByTemplateId.get(session.template_id)
+      const focus = session.session_focus ?? (session.template_id ? focusByTemplateId.get(session.template_id) : null)
       if (!focus) return
       const completedAt = session.ended_at ?? session.started_at
       const completedTime = completedAt ? new Date(completedAt).getTime() : 0
@@ -239,14 +239,36 @@ export function useDashboardData() {
 
   const handleDeleteTemplate = async (template: TemplateRow) => {
     if (!user) return
+    const hasActiveSession =
+      activeSession?.templateId === template.id ||
+      sessions.some(
+        (session) =>
+          session.template_id === template.id &&
+          (session.status === 'initializing' ||
+            session.status === 'in_progress' ||
+            (!session.status && !session.ended_at))
+      )
+
+    if (hasActiveSession) {
+      setError('This template cannot be deleted until the active session is completed or cancelled.')
+      return
+    }
+
     setDeletingWorkoutIds((prev) => ({ ...prev, [template.id]: true }))
+    setError(null)
     try {
       const { error: deleteError } = await supabase
         .from('workout_templates')
         .delete()
         .eq('id', template.id)
         .eq('user_id', user.id)
-      if (deleteError) throw deleteError
+      if (deleteError) {
+        if (deleteError.code === 'P0001') {
+          setError('This template cannot be deleted until the active session is completed or cancelled.')
+          return
+        }
+        throw deleteError
+      }
       setTemplates((prev) => prev.filter((item) => item.id !== template.id))
     } catch {
       setError('Unable to delete this template. Please try again.')
@@ -263,7 +285,6 @@ export function useDashboardData() {
     loading,
     error,
     deletingWorkoutIds,
-    templateById,
     trainingLoadSummary,
     recommendedTemplateId,
     handleDeleteTemplate

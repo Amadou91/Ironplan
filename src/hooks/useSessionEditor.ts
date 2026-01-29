@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { equipmentPresets } from '@/lib/equipment'
-import type { WeightUnit, WorkoutSet, EquipmentInventory, FocusArea, Goal, MetricProfile } from '@/types/domain'
+import type { WeightUnit, WorkoutSet, EquipmentInventory, MetricProfile } from '@/types/domain'
 
 export type EditableExercise = {
   id: string
@@ -66,11 +66,6 @@ type ReadinessRow = {
   motivation: number
 }
 
-type TemplateRow = {
-  focus: FocusArea
-  style: Goal
-}
-
 type SessionQueryResult = {
   id: string
   user_id: string | null
@@ -82,13 +77,11 @@ type SessionQueryResult = {
   body_weight_lb: number | null
   session_readiness: ReadinessRow[]
   session_exercises: ExerciseRow[]
-  template: TemplateRow | null
 }
 
 export function useSessionEditor(sessionId?: string) {
   const supabase = createClient()
   const [session, setSession] = useState<EditableSession | null>(null)
-  const [template, setTemplate] = useState<{ focus: FocusArea; style: Goal } | null>(null)
   const [initialSnapshot, setInitialSnapshot] = useState('')
   const [deletedSetIds, setDeletedSetIds] = useState<string[]>([])
   const [deletedExerciseIds, setDeletedExerciseIds] = useState<string[]>([])
@@ -149,19 +142,17 @@ export function useSessionEditor(sessionId?: string) {
     setLoading(true)
     const { data, error } = await supabase
       .from('sessions')
-      .select('id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_readiness(sleep_quality, muscle_soreness, stress_level, motivation), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance)), template:workout_templates(focus, style)')
+      .select('id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_readiness(sleep_quality, muscle_soreness, stress_level, motivation), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance))')
       .eq('id', sessionId)
       .single()
 
     if (error) {
       setErrorMessage('Unable to load session details.')
     } else if (data) {
-      // Cast data to SessionQueryResult because the 'template' alias might not be inferred correctly
-      // and nested joins are tricky for automatic inference without generated types.
+      // Cast data to SessionQueryResult because nested joins are tricky for automatic inference without generated types.
       const typedData = data as unknown as SessionQueryResult
       const mapped = mapSession(typedData)
       setSession(mapped)
-      if (typedData.template) setTemplate(typedData.template)
       setInitialSnapshot(JSON.stringify(mapped))
     }
     setLoading(false)
@@ -206,7 +197,6 @@ export function useSessionEditor(sessionId?: string) {
   return {
     session,
     setSession,
-    template,
     loading,
     saving,
     errorMessage,

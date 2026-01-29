@@ -16,7 +16,7 @@ export default function ProgressPage() {
   const supabase = createClient()
   const {
     user, userLoading, loading, error, setError, sessions, setSessions, filteredSessions,
-    templateById, exerciseOptions, startDate, setStartDate, endDate, setEndDate,
+    exerciseOptions, startDate, setStartDate, endDate, setEndDate,
     selectedMuscle, setSelectedMuscle, selectedExercise, setSelectedExercise,
     hasMoreSessions, setSessionPage, trainingLoadSummary, aggregateMetrics,
     prMetrics, readinessAverages, readinessSeries, readinessComponents,
@@ -129,7 +129,6 @@ export default function ProgressPage() {
             </div>
             <SessionHistoryList 
               sessions={filteredSessions} 
-              templateById={templateById} 
               exerciseLibraryByName={exerciseLibraryByName} 
               getSessionTitle={getSessionTitle} 
               hasMore={hasMoreSessions} 

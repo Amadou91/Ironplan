@@ -14,7 +14,6 @@ import {
   type SessionRow 
 } from '@/lib/transformers/progress-data'
 import { isMuscleMatch } from '@/lib/muscle-utils'
-import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import {
   aggregateHardSets,
@@ -25,18 +24,9 @@ import {
   getWeekKey,
   toWeightInPounds
 } from '@/lib/session-metrics'
-import type { FocusArea, PlanInput, WeightUnit, MetricProfile } from '@/types/domain'
+import type { WeightUnit, MetricProfile } from '@/types/domain'
 
 const SESSION_PAGE_SIZE = 50
-
-export type TemplateRow = {
-  id: string
-  title: string
-  focus: FocusArea
-  style: PlanInput['goals']['primary']
-  intensity: PlanInput['intensity']
-  template_inputs: PlanInput | null
-}
 
 export function useStrengthMetrics(options: { 
   startDate?: string; 
@@ -50,13 +40,11 @@ export function useStrengthMetrics(options: {
   const setUser = useAuthStore((state) => state.setUser)
   
   const [sessions, setSessions] = useState<SessionRow[]>([])
-  const [templates, setTemplates] = useState<TemplateRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sessionPage, setSessionPage] = useState(0)
   const [hasMoreSessions, setHasMoreSessions] = useState(true)
 
-  const templateById = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates])
   const { catalog } = useExerciseCatalog()
   const exerciseLibraryByName = useMemo(
     () =>
@@ -76,19 +64,7 @@ export function useStrengthMetrics(options: {
     return data.session
   }, [setUser, supabase])
 
-  const getSessionTitle = useCallback(
-    (session: SessionRow) => {
-      const template = session.template_id ? templateById.get(session.template_id) : null
-      return buildWorkoutDisplayName({
-        focus: template?.focus ?? null,
-        style: template?.style ?? null,
-        intensity: template?.intensity ?? null,
-        minutes: session.minutes_available ?? template?.template_inputs?.time?.minutesPerSession ?? null,
-        fallback: session.name
-      })
-    },
-    [templateById]
-  )
+  const getSessionTitle = useCallback((session: SessionRow) => session.name, [])
 
   useEffect(() => {
     if (userLoading || !user) return
@@ -119,14 +95,7 @@ export function useStrengthMetrics(options: {
         query = query.range(from, to)
       }
 
-      const [{ data: sessionData, error: fetchError }, { data: templateData }] =
-        await Promise.all([
-          query,
-          supabase
-            .from('workout_templates')
-            .select('id, title, focus, style, intensity, template_inputs')
-            .eq('user_id', user.id)
-        ])
+      const { data: sessionData, error: fetchError } = await query
 
       if (fetchError) {
         setError('Unable to load sessions. Please try again.')
@@ -138,9 +107,6 @@ export function useStrengthMetrics(options: {
           setSessions(nextSessions)
         }
         setHasMoreSessions(!startDate && nextSessions.length === SESSION_PAGE_SIZE)
-      }
-      if (templateData) {
-        setTemplates((templateData as TemplateRow[]) ?? [])
       }
       setLoading(false)
     }
@@ -203,8 +169,7 @@ export function useStrengthMetrics(options: {
 
     let bestE1rmValue = 0, bestE1rmExercise = ''
     allSets.forEach(set => {
-      const template = sessions.find(s => s.id === set.sessionId)?.template_id ? templateById.get(sessions.find(s => s.id === set.sessionId)!.template_id!) : null
-      const e1rm = computeSetE1rm(set, template?.style, exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible)
+      const e1rm = computeSetE1rm(set, null, exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible)
       if (e1rm && e1rm > bestE1rmValue) { bestE1rmValue = e1rm; bestE1rmExercise = set.exerciseName }
     })
 
@@ -226,7 +191,7 @@ export function useStrengthMetrics(options: {
       avgWorkload,
       avgEffort: effortTotals.count ? Number((effortTotals.total / effortTotals.count).toFixed(1)) : null
     }
-  }, [allSets, sessions, templateById, exerciseLibraryByName])
+  }, [allSets, exerciseLibraryByName])
 
   const prMetrics = useMemo(() => {
     let maxWeight = 0, bestE1rm = 0, bestReps = 0
@@ -263,11 +228,11 @@ export function useStrengthMetrics(options: {
   return {
     user, userLoading,
     loading, error, setError, sessions, setSessions, filteredSessions, aggregateMetrics, prMetrics,
-    trainingLoadSummary, sessionsPerWeek, templateById, exerciseOptions,
+    trainingLoadSummary, sessionsPerWeek, exerciseOptions,
     sessionPage, setSessionPage, getSessionTitle, ensureSession, exerciseLibraryByName,
     volumeTrend: useMemo(() => processWeeklyData(allSets, filteredSessions, { startDate, endDate }), [allSets, filteredSessions, startDate, endDate]),
     effortTrend: useMemo(() => transformSessionsToEffortTrend(allSets), [allSets]),
-    exerciseTrend: useMemo(() => transformSessionsToExerciseTrend(allSets, sessions, templateById, exerciseLibraryByName, selectedExercise), [allSets, selectedExercise, sessions, templateById, exerciseLibraryByName]),
+    exerciseTrend: useMemo(() => transformSessionsToExerciseTrend(allSets, exerciseLibraryByName, selectedExercise), [allSets, selectedExercise, exerciseLibraryByName]),
     muscleBreakdown: useMemo(() => transformSetsToMuscleBreakdown(allSets, selectedMuscle), [allSets, selectedMuscle]),
     hasMoreSessions
   }

@@ -99,6 +99,9 @@ export const createWorkoutSession = async ({
     .insert({
       user_id: userId,
       template_id: templateId,
+      session_focus: focus,
+      session_goal: goal,
+      session_intensity: input.intensity,
       name: sessionName,
       started_at: startedAt,
       status: 'initializing',
