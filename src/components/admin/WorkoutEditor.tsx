@@ -139,7 +139,13 @@ export function WorkoutEditor({ initialData, onSubmit, isLoading = false }: Work
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleChange('name', e.target.value)}
-                placeholder="e.g. Barbell Squat"
+                placeholder={
+                  formData.category === 'Cardio' 
+                    ? "e.g. 5k Run" 
+                    : formData.category === 'Mobility' 
+                      ? "e.g. Sun Salutation" 
+                      : "e.g. Barbell Squat"
+                }
                 className="text-lg font-semibold"
               />
             </div>

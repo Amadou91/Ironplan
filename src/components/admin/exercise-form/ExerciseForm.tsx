@@ -509,7 +509,13 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                   <Input 
                     value={formData.name || ''} 
                     onChange={e => setFormData({...formData, name: e.target.value})} 
-                    placeholder={exerciseType === 'Cardio' ? "e.g. 5k Run" : "e.g. Barbell Bench Press"}
+                    placeholder={
+                      exerciseType === 'Cardio' 
+                        ? "e.g. 5k Run" 
+                        : exerciseType === 'Yoga' 
+                          ? "e.g. Sun Salutation" 
+                          : "e.g. Barbell Bench Press"
+                    }
                     className="font-bold text-xl h-14 bg-white/50"
                   />
                 </div>
