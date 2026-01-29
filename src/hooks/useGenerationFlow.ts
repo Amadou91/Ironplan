@@ -205,13 +205,6 @@ export function useGenerationFlow() {
   }
 
   const handleHistoryDelete = async (entry: WorkoutHistoryEntry) => {
-    const entryTitle = buildWorkoutDisplayName({
-      focus: entry.template.focus,
-      style: entry.template.style,
-      intensity: entry.template.inputs.intensity,
-      fallback: entry.title
-    })
-    if (!confirm(`Delete "${entryTitle}" from your saved templates? This cannot be undone.`)) return
     if (!user) return
     setHistoryError(null)
     setDeletingHistoryIds((prev) => ({ ...prev, [entry.id]: true }))

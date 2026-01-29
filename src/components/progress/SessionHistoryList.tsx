@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { 
   formatDateTime, 
   formatDuration 
@@ -59,9 +60,11 @@ export function SessionHistoryList({
   const isKg = displayUnit === 'kg'
   const [deletingSessionIds, setDeletingSessionIds] = useState<Record<string, boolean>>({})
   const [expandedSessions, setExpandedSessions] = useState<Record<string, boolean>>({})
+  const [sessionToDelete, setSessionToDelete] = useState<SessionRow | null>(null)
 
-  const handleDeleteSession = async (sessionId: string) => {
-    if (!confirm('Delete this session? This cannot be undone.')) return
+  const executeDeleteSession = async () => {
+    if (!sessionToDelete) return
+    const sessionId = sessionToDelete.id
     setDeletingSessionIds((prev) => ({ ...prev, [sessionId]: true }))
     try {
       const { error: deleteError } = await supabase
@@ -75,6 +78,7 @@ export function SessionHistoryList({
       onError('Unable to delete the session. Please try again.')
     } finally {
       setDeletingSessionIds((prev) => ({ ...prev, [sessionId]: false }))
+      setSessionToDelete(null)
     }
   }
 
@@ -149,124 +153,137 @@ export function SessionHistoryList({
   }
 
   return (
-    <Card className="glass-panel">
-      <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-5">
-        <div>
-          <h2 className="text-xl font-black text-strong tracking-tight uppercase">Session Logs</h2>
-          <p className="text-[11px] font-bold text-subtle uppercase tracking-widest mt-1">Review your historical data</p>
+    <>
+      <Card className="glass-panel">
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-5">
+          <div>
+            <h2 className="text-xl font-black text-strong tracking-tight uppercase">Session Logs</h2>
+            <p className="text-[11px] font-bold text-subtle uppercase tracking-widest mt-1">Review your historical data</p>
+          </div>
+          <span className="text-[10px] font-black text-subtle/60 uppercase tracking-widest bg-[var(--color-surface-muted)] px-3 py-1 rounded-lg border border-[var(--color-border)]">{sessions.length} session(s)</span>
         </div>
-        <span className="text-[10px] font-black text-subtle/60 uppercase tracking-widest bg-[var(--color-surface-muted)] px-3 py-1 rounded-lg border border-[var(--color-border)]">{sessions.length} session(s)</span>
-      </div>
-      <div className="divide-y divide-[var(--color-border)]/50">
-        {sessions.length === 0 ? (
-          <div className="p-10 text-center text-sm text-muted font-medium italic">No sessions logged for this range yet.</div>
-        ) : (
-          sessions.map((session) => {
-            const totals = getSessionTotals(session)
-            const isExpanded = Boolean(expandedSessions[session.id])
-            return (
-              <div key={session.id} className="space-y-5 p-6 transition-all hover:bg-[var(--color-surface-subtle)]/40 group">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="space-y-1.5">
-                    <p className="text-base font-black text-strong tracking-tight group-hover:text-[var(--color-primary)] transition-colors">{getSessionTitle(session)}</p>
-                    <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-bold text-subtle uppercase tracking-wider">
-                      <span className="text-strong opacity-80">{formatDateTime(session.started_at)}</span>
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-border-strong)] opacity-30" />
-                      <span>{formatDuration(session.started_at, session.ended_at)}</span>
-                      {session.body_weight_lb && (
-                        <>
-                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-border-strong)] opacity-30" />
-                          <span>{isKg ? Math.round(session.body_weight_lb * KG_PER_LB * 10) / 10 : session.body_weight_lb} {displayUnit} BW</span>
-                        </>
-                      )}
+        <div className="divide-y divide-[var(--color-border)]/50">
+          {sessions.length === 0 ? (
+            <div className="p-10 text-center text-sm text-muted font-medium italic">No sessions logged for this range yet.</div>
+          ) : (
+            sessions.map((session) => {
+              const totals = getSessionTotals(session)
+              const isExpanded = Boolean(expandedSessions[session.id])
+              return (
+                <div key={session.id} className="space-y-5 p-6 transition-all hover:bg-[var(--color-surface-subtle)]/40 group">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="space-y-1.5">
+                      <p className="text-base font-black text-strong tracking-tight group-hover:text-[var(--color-primary)] transition-colors">{getSessionTitle(session)}</p>
+                      <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-bold text-subtle uppercase tracking-wider">
+                        <span className="text-strong opacity-80">{formatDateTime(session.started_at)}</span>
+                        <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-border-strong)] opacity-30" />
+                        <span>{formatDuration(session.started_at, session.ended_at)}</span>
+                        {session.body_weight_lb && (
+                          <>
+                            <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-border-strong)] opacity-30" />
+                            <span>{isKg ? Math.round(session.body_weight_lb * KG_PER_LB * 10) / 10 : session.body_weight_lb} {displayUnit} BW</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center rounded-lg bg-[var(--color-bg)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)] shadow-sm">{totals.exercises} exercises</span>
+                      <span className="inline-flex items-center rounded-lg bg-[var(--color-bg)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)] shadow-sm">{totals.sets} sets</span>
+                      <span className="inline-flex items-center rounded-lg bg-[var(--color-bg)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)] shadow-sm">{Math.round(isKg ? totals.volume * KG_PER_LB : totals.volume).toLocaleString()} {displayUnit} vol</span>
+                      <span className="inline-flex items-center rounded-lg bg-[var(--color-primary-soft)]/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--color-primary-strong)] border border-[var(--color-primary-border)]/30 shadow-sm">{Math.round(totals.workload).toLocaleString()} load</span>
+                      <span className="inline-flex items-center rounded-lg bg-[var(--color-success-soft)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--color-success-strong)] border border-[var(--color-success-border)] shadow-sm">{totals.hardSets} hard sets</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Link href={`/sessions/${session.id}/edit`}>
+                        <Button variant="outline" className="h-10 px-4 text-[11px] font-black uppercase tracking-widest border-2">Edit</Button>
+                      </Link>
+                      <Button
+                        type="button"
+                        onClick={() => handleToggleSession(session.id)}
+                        className="h-10 px-4 text-[11px] font-black uppercase tracking-widest"
+                        variant="secondary"
+                      >
+                        {isExpanded ? 'Hide' : 'Details'}
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => setSessionToDelete(session)}
+                        className="h-10 w-10 p-0 border-2 border-[var(--color-danger-border)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
+                        variant="outline"
+                        disabled={Boolean(deletingSessionIds[session.id])}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center rounded-lg bg-[var(--color-bg)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)] shadow-sm">{totals.exercises} exercises</span>
-                    <span className="inline-flex items-center rounded-lg bg-[var(--color-bg)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)] shadow-sm">{totals.sets} sets</span>
-                    <span className="inline-flex items-center rounded-lg bg-[var(--color-bg)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)] shadow-sm">{Math.round(isKg ? totals.volume * KG_PER_LB : totals.volume).toLocaleString()} {displayUnit} vol</span>
-                    <span className="inline-flex items-center rounded-lg bg-[var(--color-primary-soft)]/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--color-primary-strong)] border border-[var(--color-primary-border)]/30 shadow-sm">{Math.round(totals.workload).toLocaleString()} load</span>
-                    <span className="inline-flex items-center rounded-lg bg-[var(--color-success-soft)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--color-success-strong)] border border-[var(--color-success-border)] shadow-sm">{totals.hardSets} hard sets</span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Link href={`/sessions/${session.id}/edit`}>
-                      <Button variant="outline" className="h-10 px-4 text-[11px] font-black uppercase tracking-widest border-2">Edit</Button>
-                    </Link>
-                    <Button
-                      type="button"
-                      onClick={() => handleToggleSession(session.id)}
-                      className="h-10 px-4 text-[11px] font-black uppercase tracking-widest"
-                      variant="secondary"
-                    >
-                      {isExpanded ? 'Hide' : 'Details'}
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => handleDeleteSession(session.id)}
-                      className="h-10 w-10 p-0 border-2 border-[var(--color-danger-border)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
-                      variant="outline"
-                      disabled={Boolean(deletingSessionIds[session.id])}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                {isExpanded && (
-                  <div className="space-y-4 pt-4 border-t border-[var(--color-border)]/30 animate-in slide-in-from-top-4 duration-300">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {session.session_exercises.map((exercise) => (
-                        <div key={exercise.id} className="surface-card-muted p-5 rounded-2xl border border-[var(--color-border)] transition-all hover:bg-[var(--color-surface-muted)]/50">
-                          <p className="text-sm font-black text-strong uppercase tracking-tight mb-3">{exercise.exercise_name}</p>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 text-[10px] font-bold uppercase tracking-widest text-subtle/70">
-                            <p>Primary: <span className="text-strong">{exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'N/A'}</span></p>
-                            {exercise.secondary_muscles && exercise.secondary_muscles.length > 0 && (
-                              <p>Secondary: <span className="text-strong">{exercise.secondary_muscles.map((muscle: string) => toMuscleLabel(muscle)).join(', ')}</span></p>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            {(exercise.sets ?? []).map((set) => {
-                              const weightVal = set.weight ?? 0;
-                              const fromUnit = (set.weight_unit as WeightUnit) || 'lb';
-                              const displayWeight = Math.round(convertWeight(weightVal, fromUnit, displayUnit) * 10) / 10;
-                              
-                              return (
-                                <div key={set.id} className="rounded-xl border border-[var(--color-border)]/50 bg-[var(--color-surface-subtle)]/50 px-3 py-2.5 transition-colors hover:border-[var(--color-border-strong)]">
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-subtle/60">Set {set.set_number ?? 'N/A'}</span>
-                                    <div className="text-xs font-black text-strong">
-                                      {set.weight ? `${displayWeight} ${displayUnit}` : 'N/A'} <span className="text-[var(--color-border-strong)] font-normal mx-1">×</span> {set.reps ?? 'N/A'}
-                                      <span className="ml-2 text-[10px] text-subtle tracking-normal">
-                                        {typeof set.rpe === 'number' ? ` RPE ${set.rpe}` : ''}
-                                        {typeof set.rir === 'number' ? ` RIR ${set.rir}` : ''}
-                                      </span>
+                  {isExpanded && (
+                    <div className="space-y-4 pt-4 border-t border-[var(--color-border)]/30 animate-in slide-in-from-top-4 duration-300">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {session.session_exercises.map((exercise) => (
+                          <div key={exercise.id} className="surface-card-muted p-5 rounded-2xl border border-[var(--color-border)] transition-all hover:bg-[var(--color-surface-muted)]/50">
+                            <p className="text-sm font-black text-strong uppercase tracking-tight mb-3">{exercise.exercise_name}</p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 text-[10px] font-bold uppercase tracking-widest text-subtle/70">
+                              <p>Primary: <span className="text-strong">{exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'N/A'}</span></p>
+                              {exercise.secondary_muscles && exercise.secondary_muscles.length > 0 && (
+                                <p>Secondary: <span className="text-strong">{exercise.secondary_muscles.map((muscle: string) => toMuscleLabel(muscle)).join(', ')}</span></p>
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              {(exercise.sets ?? []).map((set) => {
+                                const weightVal = set.weight ?? 0;
+                                const fromUnit = (set.weight_unit as WeightUnit) || 'lb';
+                                const displayWeight = Math.round(convertWeight(weightVal, fromUnit, displayUnit) * 10) / 10;
+                                
+                                return (
+                                  <div key={set.id} className="rounded-xl border border-[var(--color-border)]/50 bg-[var(--color-surface-subtle)]/50 px-3 py-2.5 transition-colors hover:border-[var(--color-border-strong)]">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-subtle/60">Set {set.set_number ?? 'N/A'}</span>
+                                      <div className="text-xs font-black text-strong">
+                                        {set.weight ? `${displayWeight} ${displayUnit}` : 'N/A'} <span className="text-[var(--color-border-strong)] font-normal mx-1">×</span> {set.reps ?? 'N/A'}
+                                        <span className="ml-2 text-[10px] text-subtle tracking-normal">
+                                          {typeof set.rpe === 'number' ? ` RPE ${set.rpe}` : ''}
+                                          {typeof set.rir === 'number' ? ` RIR ${set.rir}` : ''}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )
-          })
-        )}
-      </div>
-      {hasMore && (
-        <div className="border-t border-[var(--color-border)] px-6 py-6 text-center">
-          <Button
-            variant="secondary"
-            onClick={onLoadMore}
-            disabled={loading}
-            className="h-12 px-10 text-[11px] font-black uppercase tracking-widest shadow-sm transition-all active:scale-95"
-          >
-            {loading ? 'Loading...' : 'Load more sessions'}
-          </Button>
+                  )}
+                </div>
+              )
+            })
+          )}
         </div>
-      )}
-    </Card>
+        {hasMore && (
+          <div className="border-t border-[var(--color-border)] px-6 py-6 text-center">
+            <Button
+              variant="secondary"
+              onClick={onLoadMore}
+              disabled={loading}
+              className="h-12 px-10 text-[11px] font-black uppercase tracking-widest shadow-sm transition-all active:scale-95"
+            >
+              {loading ? 'Loading...' : 'Load more sessions'}
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      <ConfirmDialog
+        isOpen={Boolean(sessionToDelete)}
+        onClose={() => setSessionToDelete(null)}
+        onConfirm={executeDeleteSession}
+        title="Delete Session"
+        description="Are you sure you want to delete this session? This will remove all associated sets and metrics. This cannot be undone."
+        confirmText="Delete Session"
+        variant="danger"
+        isLoading={sessionToDelete ? Boolean(deletingSessionIds[sessionToDelete.id]) : false}
+      />
+    </>
   )
 }

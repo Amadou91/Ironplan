@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import type { TemplateRow } from '@/hooks/useDashboardData'
 import type { Goal } from '@/types/domain'
 
@@ -26,6 +27,7 @@ export function TemplateInventory({
 }: TemplateInventoryProps) {
   const router = useRouter()
   const [activeTemplate, setActiveTemplate] = useState<TemplateRow | null>(null)
+  const [templateToDelete, setTemplateToDelete] = useState<TemplateRow | null>(null)
 
   const handleStartClick = (template: TemplateRow) => {
     setActiveTemplate(template)
@@ -42,6 +44,12 @@ export function TemplateInventory({
     
     router.push(`/workouts/${activeTemplate.id}/start?${params.toString()}`)
     setActiveTemplate(null)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!templateToDelete) return
+    await onDeleteTemplate(templateToDelete)
+    setTemplateToDelete(null)
   }
 
   return (
@@ -116,7 +124,7 @@ export function TemplateInventory({
                       variant="ghost"
                       size="sm"
                       className="h-10 w-10 p-0 text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
-                      onClick={() => onDeleteTemplate(template)}
+                      onClick={() => setTemplateToDelete(template)}
                       disabled={Boolean(deletingWorkoutIds[template.id])}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -134,6 +142,17 @@ export function TemplateInventory({
         onClose={() => setActiveTemplate(null)}
         onConfirm={handleConfirm}
         initialCategory={activeTemplate?.focus}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(templateToDelete)}
+        onClose={() => setTemplateToDelete(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Template"
+        description={`Are you sure you want to delete "${templateToDelete?.title ?? 'this template'}"? This action cannot be undone.`}
+        confirmText="Delete Forever"
+        variant="danger"
+        isLoading={templateToDelete ? Boolean(deletingWorkoutIds[templateToDelete.id]) : false}
       />
     </>
   )

@@ -259,7 +259,6 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
   }
 
   const handleDeleteManualWeight = async (id: string) => {
-    if (!confirm('Remove this weight entry?')) return
     setManualDeletingId(id)
     const { error } = await supabase.from('body_measurements').delete().eq('id', id)
     if (!error) {

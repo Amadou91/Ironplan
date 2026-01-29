@@ -7,6 +7,7 @@ import { CheckCircle2, X } from 'lucide-react'
 import ActiveSession from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { createClient } from '@/lib/supabase/client'
 import { calculateSessionImpactFromSets } from '@/lib/workout-metrics'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
@@ -22,6 +23,14 @@ type WorkoutTemplate = {
   template_inputs: PlanInput | null
 }
 
+type ConfirmAction = {
+  type: 'finish' | 'cancel'
+  title: string
+  description: string
+  confirmText: string
+  variant: 'danger' | 'info' | 'warning'
+}
+
 function WorkoutActiveContent() {
   const params = useParams()
   const router = useRouter()
@@ -35,6 +44,7 @@ function WorkoutActiveContent() {
   const [finishingSession, setFinishingSession] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
   const [cancelingSession, setCancelingSession] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const bodyWeightRef = useRef<number | null>(null)
 
   const sessionId = searchParams.get('sessionId')
@@ -70,9 +80,35 @@ function WorkoutActiveContent() {
     fetchTemplate()
   }, [params.id, supabase])
 
-  const handleFinishSession = async () => {
+  const requestFinish = () => {
+    setConfirmAction({
+      type: 'finish',
+      title: 'Finish Workout',
+      description: 'Are you sure you want to finish this workout? Make sure you have logged all your sets.',
+      confirmText: 'Finish',
+      variant: 'info'
+    })
+  }
+
+  const requestCancel = () => {
+    setConfirmAction({
+      type: 'cancel',
+      title: 'Cancel Workout',
+      description: 'Are you sure you want to cancel this session? Any progress will be discarded.',
+      confirmText: 'Cancel Session',
+      variant: 'danger'
+    })
+  }
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return
+    if (confirmAction.type === 'finish') await executeFinish()
+    if (confirmAction.type === 'cancel') await executeCancel()
+    setConfirmAction(null)
+  }
+
+  const executeFinish = async () => {
     if (!currentSessionId) return
-    if (!confirm('Are you sure you want to finish this workout?')) return
     setFinishError(null)
     setFinishingSession(true)
     try {
@@ -129,9 +165,8 @@ function WorkoutActiveContent() {
     }
   }
 
-  const handleCancelSession = async () => {
+  const executeCancel = async () => {
     if (!currentSessionId) return
-    if (!confirm('Cancel this session and discard any logged sets?')) return
     setCancelError(null)
     setCancelingSession(true)
     try {
@@ -204,6 +239,9 @@ function WorkoutActiveContent() {
               sessionId={currentSessionId}
               equipmentInventory={template?.template_inputs?.equipment?.inventory ?? null}
               onBodyWeightChange={(weight) => (bodyWeightRef.current = weight)}
+              onFinish={requestFinish}
+              onCancel={requestCancel}
+              isFinishing={finishingSession}
               focus={template?.focus}
               style={template?.style}
             />
@@ -222,7 +260,7 @@ function WorkoutActiveContent() {
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={handleFinishSession}
+                  onClick={requestFinish}
                   disabled={finishingSession}
                   className="w-full justify-center"
                 >
@@ -231,7 +269,7 @@ function WorkoutActiveContent() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={handleCancelSession}
+                  onClick={requestCancel}
                   disabled={cancelingSession}
                   className="w-full justify-center text-[var(--color-danger)] hover:text-[var(--color-danger)]"
                 >
@@ -249,6 +287,17 @@ function WorkoutActiveContent() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog 
+        isOpen={Boolean(confirmAction)}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleConfirmAction}
+        title={confirmAction?.title ?? ''}
+        description={confirmAction?.description ?? ''}
+        confirmText={confirmAction?.confirmText}
+        variant={confirmAction?.variant}
+        isLoading={finishingSession || cancelingSession}
+      />
     </div>
   )
 }

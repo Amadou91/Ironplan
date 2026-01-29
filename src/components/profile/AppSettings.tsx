@@ -7,6 +7,7 @@ import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { defaultPreferences, normalizePreferences, type SettingsPreferences } from '@/lib/preferences'
 import { seedDevData, clearDevData } from '@/lib/dev-seed'
 import { useUIStore } from '@/store/uiStore'
@@ -15,6 +16,12 @@ interface AppSettingsProps {
   devToolsEnabled: boolean
   onSuccess?: (msg: string) => void
   onError?: (msg: string) => void
+}
+
+type DevAction = {
+  type: 'seed' | 'clear'
+  title: string
+  description: string
 }
 
 export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettingsProps) {
@@ -30,6 +37,7 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
 
   const [devActionState, setDevActionState] = useState<'idle' | 'seeding' | 'clearing'>('idle')
   const [devActionMessage, setDevActionMessage] = useState<string | null>(null)
+  const [confirmDevAction, setConfirmDevAction] = useState<DevAction | null>(null)
   const isDevMode = process.env.NODE_ENV !== 'production'
 
   useEffect(() => {
@@ -98,12 +106,8 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
     })
   }
 
-  const handleSeedData = async () => {
+  const executeSeedData = async () => {
     if (!user || devActionState !== 'idle') return
-    const confirmed = window.confirm(
-      'This will insert a batch of simulated workout data for your account. Run "Clear seeded data" to remove it later.'
-    )
-    if (!confirmed) return
     setDevActionState('seeding')
     setDevActionMessage(null)
     try {
@@ -121,12 +125,8 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
     }
   }
 
-  const handleClearSeededData = async () => {
+  const executeClearSeededData = async () => {
     if (!user || devActionState !== 'idle') return
-    const confirmed = window.confirm(
-      'This will delete all seeded workout templates and sessions for your account. This cannot be undone.'
-    )
-    if (!confirmed) return
     setDevActionState('clearing')
     setDevActionMessage(null)
     try {
@@ -143,6 +143,13 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
     } finally {
       setDevActionState('idle')
     }
+  }
+
+  const handleConfirmAction = async () => {
+    if (!confirmDevAction) return
+    if (confirmDevAction.type === 'seed') await executeSeedData()
+    if (confirmDevAction.type === 'clear') await executeClearSeededData()
+    setConfirmDevAction(null)
   }
 
   return (
@@ -215,7 +222,11 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
             <Button
               type="button"
               size="sm"
-              onClick={handleSeedData}
+              onClick={() => setConfirmDevAction({
+                type: 'seed',
+                title: 'Seed Dev Data',
+                description: 'This will insert a batch of simulated workout data for your account. You can clear it later.'
+              })}
               disabled={devActionState !== 'idle'}
             >
               {devActionState === 'seeding' ? 'Seeding...' : 'Seed dev data'}
@@ -224,7 +235,11 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
               type="button"
               size="sm"
               variant="outline"
-              onClick={handleClearSeededData}
+              onClick={() => setConfirmDevAction({
+                type: 'clear',
+                title: 'Clear Dev Data',
+                description: 'This will delete all seeded workout templates and sessions for your account. This cannot be undone.'
+              })}
               disabled={devActionState !== 'idle'}
             >
               {devActionState === 'clearing' ? 'Clearing...' : 'Clear seeded data'}
@@ -232,6 +247,17 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
           </div>
         </Card>
       )}
+
+      <ConfirmDialog 
+        isOpen={Boolean(confirmDevAction)}
+        onClose={() => setConfirmDevAction(null)}
+        onConfirm={handleConfirmAction}
+        title={confirmDevAction?.title ?? ''}
+        description={confirmDevAction?.description ?? ''}
+        confirmText={confirmDevAction?.type === 'seed' ? 'Seed Data' : 'Clear Data'}
+        variant={confirmDevAction?.type === 'clear' ? 'danger' : 'info'}
+        isLoading={devActionState !== 'idle'}
+      />
     </div>
   )
 }

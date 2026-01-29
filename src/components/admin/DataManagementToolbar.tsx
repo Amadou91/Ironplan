@@ -3,6 +3,8 @@
 import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useToast } from '@/components/ui/Toast'
 import { 
   AlertTriangle, 
   Loader2, 
@@ -16,10 +18,12 @@ import {
 } from '@/app/workouts/actions'
 
 export function DataManagementToolbar() {
+  const { toast } = useToast()
   const [isResetOpen, setIsResetOpen] = useState(false)
   const [confirmText, setConfirmText] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [importLoading, setImportLoading] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // --- Reset Logic ---
@@ -32,13 +36,12 @@ export function DataManagementToolbar() {
       if (res.success) {
         setIsResetOpen(false)
         setConfirmText('')
-        // Ideally use a toast here
-        alert(`Success! Reset ${res.count} exercises.`)
+        toast(`Success! Reset ${res.count} exercises.`, 'success')
       } else {
-        alert(`Error: ${res.error}`)
+        toast(`Error: ${res.error}`, 'error')
       }
     } catch {
-      alert('An unexpected error occurred.')
+      toast('An unexpected error occurred.', 'error')
     } finally {
       setIsLoading(false)
     }
@@ -60,11 +63,12 @@ export function DataManagementToolbar() {
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
+        toast('Backup download started.', 'success')
       } else {
-        alert('Failed to export data: ' + res.error)
+        toast('Failed to export data: ' + res.error, 'error')
       }
     } catch {
-      alert('Export failed unexpectedly.')
+      toast('Export failed unexpectedly.', 'error')
     }
   }
 
@@ -73,14 +77,15 @@ export function DataManagementToolbar() {
     fileInputRef.current?.click()
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
-
-    if (!confirm('This will completely REPLACE all existing exercises with the data from the file. Are you sure?')) {
-      e.target.value = '' // Reset
-      return
+    if (file) {
+      setPendingFile(file)
     }
+  }
+
+  const executeImport = async () => {
+    if (!pendingFile) return
 
     setImportLoading(true)
     const reader = new FileReader()
@@ -88,25 +93,32 @@ export function DataManagementToolbar() {
       try {
         const json = JSON.parse(event.target?.result as string)
         if (!Array.isArray(json)) {
-            alert('Invalid JSON: Root must be an array of exercises.')
+            toast('Invalid JSON: Root must be an array of exercises.', 'error')
             setImportLoading(false)
+            setPendingFile(null)
             return
         }
         
         const res = await importExercisesAction(json)
         if (res.success) {
-            alert(`Successfully imported ${res.count} exercises.`)
+            toast(`Successfully imported ${res.count} exercises.`, 'success')
         } else {
-            alert(`Import failed: ${res.error}`)
+            toast(`Import failed: ${res.error}`, 'error')
         }
       } catch {
-        alert('Failed to parse JSON file.')
+        toast('Failed to parse JSON file.', 'error')
       } finally {
         setImportLoading(false)
+        setPendingFile(null)
         if (fileInputRef.current) fileInputRef.current.value = ''
       }
     }
-    reader.readAsText(file)
+    reader.readAsText(pendingFile)
+  }
+
+  const cancelImport = () => {
+    setPendingFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   return (
@@ -147,7 +159,7 @@ export function DataManagementToolbar() {
         Reset
       </Button>
 
-      {/* Reset Modal */}
+      {/* Reset Modal (Custom implementation kept as requested structure was unique) */}
       {isResetOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
           <div className="w-full max-w-md rounded-xl bg-background p-6 shadow-2xl border border-border">
@@ -194,6 +206,17 @@ export function DataManagementToolbar() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingFile)}
+        onClose={cancelImport}
+        onConfirm={executeImport}
+        title="Restore Backup"
+        description="This will completely REPLACE all existing exercises with the data from the selected file. This action cannot be undone. Are you sure you want to proceed?"
+        confirmText="Restore Data"
+        variant="danger"
+        isLoading={importLoading}
+      />
     </div>
   )
 }
