@@ -5,12 +5,11 @@ import { exerciseCatalogRowSchema, safeParseArray } from '@/lib/validation/schem
 import type { Exercise } from '@/types/domain'
 
 // Explicit column selection for exercise catalog queries
+// Note: Many columns were removed in migration 20260530000000_refactor_exercise_catalog
 const EXERCISE_CATALOG_COLUMNS = `
   id, name, category, focus, movement_pattern, metric_profile,
-  sets, reps, rpe, duration_minutes, rest_seconds, load_target,
-  primary_muscle, secondary_muscles, instructions, video_url,
-  equipment, e1rm_eligible, is_interval, interval_duration,
-  interval_rest, or_group
+  primary_muscle, secondary_muscles, equipment,
+  e1rm_eligible, is_interval, or_group
 `
 
 export function useExerciseCatalog() {

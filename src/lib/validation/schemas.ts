@@ -133,6 +133,7 @@ const equipmentOptionSchema = z.object({
 })
 
 // Exercise catalog row schema
+// Note: Many columns were removed in migration 20260530000000_refactor_exercise_catalog
 export const exerciseCatalogRowSchema = z.object({
   id: uuidSchema,
   name: z.string(),
@@ -140,21 +141,11 @@ export const exerciseCatalogRowSchema = z.object({
   focus: nullableString,
   movement_pattern: nullableString,
   metric_profile: nullableString,
-  sets: nullableNumber,
-  reps: nullableString,
-  rpe: nullableNumber,
-  duration_minutes: nullableNumber,
-  rest_seconds: nullableNumber,
-  load_target: nullableNumber,
   primary_muscle: nullableString,
   secondary_muscles: z.array(z.string()).default([]),
-  instructions: z.array(z.string()).default([]),
-  video_url: nullableString,
   equipment: z.array(equipmentOptionSchema).default([]),
   e1rm_eligible: nullableBoolean.default(false),
   is_interval: z.boolean().default(false),
-  interval_duration: nullableNumber,
-  interval_rest: nullableNumber,
   or_group: nullableString
 })
 export type ExerciseCatalogRowValidated = z.infer<typeof exerciseCatalogRowSchema>
