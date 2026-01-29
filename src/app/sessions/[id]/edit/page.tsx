@@ -100,14 +100,35 @@ export default function SessionEditPage() {
         <Card className="p-6">
           <label className="text-xs text-subtle">Session name</label>
           <input type="text" value={session.name} onChange={e => setSession({...session, name: e.target.value})} className="input-base mt-2" />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label className="text-xs text-subtle">Started at</label>
               <input type="datetime-local" value={toDateTimeInputValue(session.startedAt)} onChange={e => setSession({...session, startedAt: new Date(e.target.value).toISOString()})} className="input-base mt-2" />
             </div>
             <div>
+              <label className="text-xs text-subtle">Ended at</label>
+              <input type="datetime-local" value={toDateTimeInputValue(session.endedAt)} onChange={e => setSession({...session, endedAt: new Date(e.target.value).toISOString()})} className="input-base mt-2" />
+            </div>
+            <div>
+              <label className="text-xs text-subtle">Duration (min)</label>
+              <input 
+                type="number" 
+                min={1}
+                value={session.startedAt && session.endedAt ? Math.round((new Date(session.endedAt).getTime() - new Date(session.startedAt).getTime()) / 60000) : ''} 
+                onChange={e => {
+                  const minutes = parseInt(e.target.value, 10)
+                  if (!Number.isNaN(minutes) && minutes > 0) {
+                    const startTime = new Date(session.startedAt).getTime()
+                    setSession({...session, endedAt: new Date(startTime + minutes * 60000).toISOString()})
+                  }
+                }} 
+                className="input-base mt-2" 
+                placeholder="--"
+              />
+            </div>
+            <div>
               <label className="text-xs text-subtle">Body weight (lb)</label>
-              <input type="text" value={session.bodyWeightLb ?? ''} onChange={e => setSession({...session, bodyWeightLb: parseFloat(e.target.value) || null})} className="input-base" />
+              <input type="text" value={session.bodyWeightLb ?? ''} onChange={e => setSession({...session, bodyWeightLb: parseFloat(e.target.value) || null})} className="input-base mt-2" />
             </div>
           </div>
         </Card>
