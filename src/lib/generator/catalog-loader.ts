@@ -19,11 +19,11 @@ export async function fetchExerciseCatalog(): Promise<Exercise[]> {
     .select(EXERCISE_CATALOG_COLUMNS)
   
   if (error) {
-    console.error('Error fetching exercise catalog:', error)
+    console.error('Error fetching exercise catalog:', error.message, error.code)
     return []
   }
 
-  if (!data) return []
+  if (!data || data.length === 0) return []
 
   return data.map(mapCatalogRowToExercise)
 }
