@@ -181,8 +181,8 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
             <NumericInput placeholder="0" value={durationMinutes} onChange={handleDurationChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
           </div>
           <div className="flex flex-col">
-            <label className={labelStyle}>Effort (1-10)</label>
-            <select value={rirValue} onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
+            <label className={labelStyle}>Intensity</label>
+            <select value={set.rpe ?? ''} onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
               <option value="">--</option>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((val) => (
                 <option key={val} value={val}>{val}</option>
@@ -220,8 +220,8 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
             <NumericInput placeholder="0" value={durationMinutes} onChange={handleDurationChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
           </div>
           <div className="flex flex-col">
-            <label className={labelStyle}>Effort (1-10)</label>
-            <select value={rirValue} onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
+            <label className={labelStyle}>Intensity</label>
+            <select value={set.rpe ?? ''} onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
               <option value="">--</option>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((val) => (
                 <option key={val} value={val}>{val}</option>
