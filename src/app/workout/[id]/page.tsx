@@ -38,7 +38,11 @@ export default function WorkoutDetailPage() {
     const fetchTemplate = async () => {
       const { data, error } = await supabase
         .from('workout_templates')
-        .select('*')
+        .select(`
+          id, user_id, title, description, focus, style, 
+          experience_level, intensity, equipment, preferences, 
+          template_inputs, created_at
+        `)
         .eq('id', params.id)
         .single()
 
@@ -56,7 +60,7 @@ export default function WorkoutDetailPage() {
   const equipmentSummary = useMemo(() => {
     const inventory = template?.template_inputs?.equipment?.inventory
     if (!inventory) return []
-    const labels = [] as string[]
+    const labels: string[] = []
     if (inventory.bodyweight) labels.push('Bodyweight')
     if (inventory.benchPress) labels.push('Bench Press')
     if (inventory.dumbbells?.length) labels.push(`Dumbbells (${inventory.dumbbells.join(', ')} lb)`)

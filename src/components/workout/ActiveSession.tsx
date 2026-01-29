@@ -106,6 +106,8 @@ export default function ActiveSession({
 
     handleSetUpdate,
 
+    handleBodyWeightUpdate,
+
     addSet,
 
     removeSet,
@@ -160,7 +162,7 @@ export default function ActiveSession({
 
 
 
-  const handleBodyWeightUpdate = (value: string) => {
+  const handleBodyWeightChange = (value: string) => {
 
     setSessionBodyWeight(value);
 
@@ -178,9 +180,11 @@ export default function ActiveSession({
 
     onBodyWeightChange?.(lbWeight);
 
-    if (validWeight !== null) {
+    // Use the hook's handleBodyWeightUpdate which has proper error handling
 
-      supabase.from('sessions').update({ body_weight_lb: lbWeight }).eq('id', activeSession.id).then();
+    if (lbWeight !== null) {
+
+      handleBodyWeightUpdate(lbWeight);
 
     }
 
@@ -383,7 +387,7 @@ export default function ActiveSession({
 
         preferredUnit={preferredUnit}
 
-        onBodyWeightUpdate={handleBodyWeightUpdate}
+        onBodyWeightUpdate={handleBodyWeightChange}
 
         onToggleUnit={togglePreferredUnit}
 

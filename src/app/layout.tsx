@@ -3,6 +3,7 @@ import { JetBrains_Mono, Source_Sans_3, Space_Grotesk } from "next/font/google";
 import AuthProvider from "@/components/auth/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/ui/Toast";
+import { RouteErrorBoundary } from "@/components/ui/ErrorBoundary";
 import AppShell from "@/components/layout/AppShell";
 import "./globals.css";
 
@@ -42,7 +43,9 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
             <ToastProvider>
-              <AppShell>{children}</AppShell>
+              <RouteErrorBoundary>
+                <AppShell>{children}</AppShell>
+              </RouteErrorBoundary>
             </ToastProvider>
           </AuthProvider>
         </ThemeProvider>

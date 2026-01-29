@@ -125,7 +125,13 @@ export default function WorkoutSummaryPage() {
           .from('sessions')
           .select('id, name, started_at, ended_at, status, session_notes, session_goal, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, rest_seconds_actual))')
           .eq('id', sessionId).single(),
-        supabase.from('exercise_catalog').select('*')
+        supabase.from('exercise_catalog').select(`
+          id, name, category, focus, movement_pattern, metric_profile,
+          sets, reps, rpe, duration_minutes, rest_seconds, load_target,
+          primary_muscle, secondary_muscles, instructions, video_url,
+          equipment, e1rm_eligible, is_interval, interval_duration,
+          interval_rest, or_group
+        `)
       ])
       
       if (sessionRes.error) setError('Unable to load session summary.')

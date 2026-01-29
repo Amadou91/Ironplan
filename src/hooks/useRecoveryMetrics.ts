@@ -43,7 +43,10 @@ export function useRecoveryMetrics(options: {
       const sessionIds = sessions.map(s => s.id)
       const { data, error } = await supabase
         .from('session_readiness')
-        .select('*')
+        .select(`
+          id, session_id, recorded_at, sleep_quality, muscle_soreness,
+          stress_level, motivation, readiness_score, readiness_level
+        `)
         .in('session_id', sessionIds)
         .order('recorded_at', { ascending: false })
 

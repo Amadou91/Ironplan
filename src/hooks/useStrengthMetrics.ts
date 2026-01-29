@@ -25,9 +25,9 @@ import {
   toWeightInPounds,
   getTotalWeight
 } from '@/lib/session-metrics'
+import { SESSION_PAGE_SIZE, CHRONIC_LOAD_WINDOW_DAYS, MS_PER_DAY } from '@/constants/training'
+import { safeParseArray, sessionRowSchema } from '@/lib/validation/schemas'
 import type { WeightUnit, MetricProfile } from '@/types/domain'
-
-const SESSION_PAGE_SIZE = 50
 
 export function useStrengthMetrics(options: { 
   startDate?: string; 
@@ -84,13 +84,27 @@ export function useStrengthMetrics(options: {
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
 
+      // Apply date filters at the database level for efficiency
       if (startDate) {
         const start = new Date(startDate)
         if (!Number.isNaN(start.getTime())) {
-          const chronicStart = new Date(start.getTime() - 28 * 86400000)
+          // Include extra days for chronic load calculation
+          const chronicStart = new Date(start.getTime() - CHRONIC_LOAD_WINDOW_DAYS * MS_PER_DAY)
           query = query.gte('started_at', chronicStart.toISOString())
         }
-      } else {
+      }
+      
+      if (endDate) {
+        const end = new Date(endDate)
+        if (!Number.isNaN(end.getTime())) {
+          // End of the endDate day (23:59:59.999)
+          const endOfDay = new Date(end.getTime() + MS_PER_DAY - 1)
+          query = query.lte('started_at', endOfDay.toISOString())
+        }
+      }
+      
+      // Only use pagination when no date filters are applied
+      if (!startDate && !endDate) {
         const from = sessionPage * SESSION_PAGE_SIZE
         const to = from + SESSION_PAGE_SIZE - 1
         query = query.range(from, to)
@@ -101,19 +115,22 @@ export function useStrengthMetrics(options: {
       if (fetchError) {
         setError('Unable to load sessions. Please try again.')
       } else {
-        const nextSessions = (sessionData as SessionRow[]) ?? []
+        // Validate response data with Zod schema
+        const validatedSessions = safeParseArray(sessionRowSchema, sessionData ?? [], 'useStrengthMetrics.sessions')
+        const nextSessions = validatedSessions as SessionRow[]
         if (sessionPage > 0) {
           setSessions(prev => [...prev, ...nextSessions])
         } else {
           setSessions(nextSessions)
         }
-        setHasMoreSessions(!startDate && nextSessions.length === SESSION_PAGE_SIZE)
+        // Only show "load more" when using pagination (no date filters)
+        setHasMoreSessions(!startDate && !endDate && nextSessions.length === SESSION_PAGE_SIZE)
       }
       setLoading(false)
     }
 
     loadSessions()
-  }, [ensureSession, supabase, user, userLoading, startDate, sessionPage])
+  }, [ensureSession, supabase, user, userLoading, startDate, endDate, sessionPage])
 
   const filteredSessions = useMemo(() => {
     const seenIds = new Set<string>()

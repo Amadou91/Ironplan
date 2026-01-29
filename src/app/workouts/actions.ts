@@ -100,7 +100,10 @@ export async function getExerciseBackupAction() {
   
   const { data, error } = await supabase
     .from('exercise_catalog')
-    .select('*')
+    .select(`
+      id, name, category, metric_profile, equipment, movement_pattern,
+      primary_muscle, secondary_muscles, is_interval
+    `)
   
   if (error) return { success: false, error: error.message }
   

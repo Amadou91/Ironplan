@@ -6,6 +6,7 @@ import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { summarizeTrainingLoad } from '@/lib/training-metrics'
+import { safeParseArray, sessionRowSchema, templateRowSchema } from '@/lib/validation/schemas'
 import type { FocusArea, PlanInput, MetricProfile } from '@/types/domain'
 
 export type SessionRow = {
@@ -111,8 +112,13 @@ export function useDashboardData() {
         console.error('Failed to load sessions', JSON.stringify(sessionError, null, 2))
         setError('Unable to load today overview. Please try again.')
       }
-      setSessions((sessionRows as SessionRow[]) ?? [])
-      setTemplates((templateRows as TemplateRow[]) ?? [])
+      
+      // Validate response data with Zod schemas
+      const validatedSessions = safeParseArray(sessionRowSchema, sessionRows ?? [], 'useDashboardData.sessions')
+      const validatedTemplates = safeParseArray(templateRowSchema, templateRows ?? [], 'useDashboardData.templates')
+      
+      setSessions(validatedSessions as SessionRow[])
+      setTemplates(validatedTemplates as TemplateRow[])
       setLoading(false)
     }
 

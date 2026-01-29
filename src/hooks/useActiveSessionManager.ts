@@ -6,47 +6,20 @@ import { createClient } from '@/lib/supabase/client';
 import { equipmentPresets } from '@/lib/equipment';
 import { normalizePreferences } from '@/lib/preferences';
 import { convertWeight, roundWeight } from '@/lib/units';
-import { fetchExerciseHistory, type ExerciseHistoryPoint } from '@/lib/session-history';
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog';
+import { useSetPersistence } from '@/hooks/useSetPersistence';
 import { enhanceExerciseData, toMuscleLabel } from '@/lib/muscle-utils';
+import { fetchExerciseHistory, type ExerciseHistoryPoint } from '@/lib/session-history';
+import { sessionQueryResultSchema, safeParseSingle } from '@/lib/validation/schemas';
 import type { 
   WeightUnit, 
   WorkoutSession, 
   WorkoutSet, 
   EquipmentInventory, 
   SessionExercise,
-  MetricProfile
+  MetricProfile,
+  LoadType
 } from '@/types/domain';
-
-type SetPayload = {
-  id: string;
-  set_number: number | null;
-  reps: number | null;
-  weight: number | null;
-  implement_count: number | null;
-  load_type: string | null;
-  rpe: number | null;
-  rir: number | null;
-  completed: boolean | null;
-  performed_at: string | null;
-  weight_unit: string | null;
-  duration_seconds: number | null;
-  distance: number | null;
-  distance_unit: string | null;
-  rest_seconds_actual: number | null;
-  extras: Record<string, unknown> | null;
-  extra_metrics: Record<string, unknown> | null;
-}
-
-type SessionExercisePayload = {
-  id: string;
-  exercise_name: string;
-  primary_muscle: string | null;
-  secondary_muscles: string[] | null;
-  metric_profile: string | null;
-  order_index: number | null;
-  sets: SetPayload[];
-}
 
 type SessionPayload = {
   id: string;
@@ -61,7 +34,33 @@ type SessionPayload = {
   status: string | null;
   body_weight_lb?: number | null;
   session_notes?: string | null;
-  session_exercises: SessionExercisePayload[];
+  session_exercises: Array<{
+    id: string;
+    exercise_name: string;
+    primary_muscle: string | null;
+    secondary_muscles: string[] | null;
+    metric_profile: string | null;
+    order_index: number | null;
+    sets: Array<{
+      id: string;
+      set_number: number | null;
+      reps: number | null;
+      weight: number | null;
+      implement_count: number | null;
+      load_type: string | null;
+      rpe: number | null;
+      rir: number | null;
+      completed: boolean | null;
+      performed_at: string | null;
+      weight_unit: string | null;
+      duration_seconds: number | null;
+      distance: number | null;
+      distance_unit: string | null;
+      rest_seconds_actual: number | null;
+      extras: Record<string, unknown> | null;
+      extra_metrics: Record<string, unknown> | null;
+    }>;
+  }>;
 };
 
 type GeneratedExerciseTarget = {
@@ -72,6 +71,10 @@ type GeneratedExerciseTarget = {
   restSeconds?: number;
 };
 
+/**
+ * Manages active workout session state, persistence, and synchronization.
+ * Uses extracted hooks for separation of concerns.
+ */
 export function useActiveSessionManager(sessionId?: string | null, equipmentInventory?: EquipmentInventory | null) {
   const { 
     activeSession, 
@@ -85,17 +88,27 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     addSessionExercise 
   } = useWorkoutStore();
 
+  // State
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null);
-  const preferredUnit = activeSession?.weightUnit ?? 'lb';
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistoryPoint[]>([]);
   const [exerciseTargets] = useState<Record<string, GeneratedExerciseTarget>>({});
   const [sessionBodyWeight, setSessionBodyWeight] = useState<string>('');
+  const [isUpdating, setIsUpdating] = useState(false);
   
+  // Hooks
   const supabase = createClient();
   const { catalog } = useExerciseCatalog();
+  const { persistSet, persistSessionBodyWeight, isPersisting } = useSetPersistence();
+  
+  const preferredUnit = activeSession?.weightUnit ?? 'lb';
 
-  const exerciseLibrary = useMemo(() => catalog.map((exercise) => enhanceExerciseData(exercise)), [catalog]);
+  // Exercise library with memoization
+  const exerciseLibrary = useMemo(
+    () => catalog.map((exercise) => enhanceExerciseData(exercise)), 
+    [catalog]
+  );
+  
   const exerciseLibraryByName = useMemo(
     () => new Map(exerciseLibrary.map((exercise) => [exercise.name.toLowerCase(), exercise])),
     [exerciseLibrary]
@@ -106,6 +119,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     [equipmentInventory]
   );
 
+  // Map database payload to domain model
   const mapSession = useCallback((payload: SessionPayload): WorkoutSession => {
     if (payload.body_weight_lb) {
       const displayWeight = preferredUnit === 'kg' 
@@ -143,7 +157,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
               reps: set.reps ?? '',
               weight: set.weight ?? '',
               implementCount: set.implement_count ?? '',
-              loadType: set.load_type ?? '',
+              loadType: (set.load_type as LoadType | null) ?? '',
               rpe: set.rpe ?? '',
               rir: set.rir ?? '',
               performedAt: set.performed_at ?? undefined,
@@ -160,98 +174,143 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     };
   }, [preferredUnit]);
 
+  // Fetch session on mount
   useEffect(() => {
     if (activeSession || !sessionId) return;
+    
     const fetchSession = async () => {
       const { data, error } = await supabase
         .from('sessions')
-        .select('id, user_id, name, template_id, started_at, ended_at, status, body_weight_lb, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit, rest_seconds_actual, extras, extra_metrics))')
+        .select(`
+          id, user_id, name, template_id, started_at, ended_at, status, 
+          body_weight_lb, session_notes, 
+          session_exercises(
+            id, exercise_name, primary_muscle, secondary_muscles, 
+            metric_profile, order_index, 
+            sets(
+              id, set_number, reps, weight, implement_count, load_type, 
+              rpe, rir, completed, performed_at, weight_unit, 
+              duration_seconds, distance, distance_unit, rest_seconds_actual, 
+              extras, extra_metrics
+            )
+          )
+        `)
         .eq('id', sessionId)
         .single();
 
       if (error) {
         setErrorMessage('Unable to load the active session.');
-      } else if (data) {
-        if (data.status && data.status !== 'in_progress') {
-          setErrorMessage('This session is no longer active.');
-          return;
-        }
-        startSession(mapSession(data as SessionPayload));
+        return;
       }
+
+      // Validate response schema
+      const validated = safeParseSingle(sessionQueryResultSchema, data, 'session fetch');
+      if (!validated) {
+        setErrorMessage('Session data format is invalid.');
+        return;
+      }
+
+      if (validated.status && validated.status !== 'in_progress') {
+        setErrorMessage('This session is no longer active.');
+        return;
+      }
+      
+      startSession(mapSession(validated as SessionPayload));
     };
+    
     fetchSession();
   }, [activeSession, mapSession, sessionId, startSession, supabase]);
 
+  // Load profile preferences
   useEffect(() => {
     if (!activeSession?.userId) return;
+    
     const loadProfile = async () => {
       const { data } = await supabase
         .from('profiles')
         .select('weight_lb, preferences')
         .eq('id', activeSession.userId)
         .maybeSingle();
+      
       setProfileWeightLb(data?.weight_lb ?? null);
+      
       if (!activeSession?.weightUnit) {
         const normalized = normalizePreferences(data?.preferences);
         updateSession({ weightUnit: normalized.settings?.units ?? 'lb' });
       }
     };
+    
     loadProfile();
   }, [activeSession?.userId, activeSession?.weightUnit, updateSession, supabase]);
 
+  // Load exercise history
   useEffect(() => {
     if (!activeSession?.userId) return;
+    
     const loadHistory = async () => {
       const history = await fetchExerciseHistory(supabase, activeSession.userId);
       setExerciseHistory(history);
     };
+    
     loadHistory();
   }, [activeSession?.userId, supabase]);
 
-  const persistSet = useCallback(async (exercise: SessionExercise, set: WorkoutSet, exerciseIndex: number) => {
-    if (!exercise.id) return;
-    const payload = {
-      session_exercise_id: exercise.id,
-      set_number: set.setNumber,
-      reps: set.reps === '' ? null : Number(set.reps),
-      weight: set.weight === '' ? null : Number(set.weight),
-      implement_count: set.implementCount === '' ? null : (typeof set.implementCount === 'number' ? set.implementCount : null),
-      load_type: set.loadType === 'per_implement' ? 'per_implement' : 'total',
-      rpe: set.rpe === '' ? null : Number(set.rpe),
-      rir: set.rir === '' ? null : Number(set.rir),
-      completed: set.completed,
-      performed_at: set.performedAt ?? new Date().toISOString(),
-      weight_unit: set.weightUnit ?? 'lb',
-      duration_seconds: set.durationSeconds ?? null,
-      distance: set.distance ?? null,
-      distance_unit: set.distance_unit ?? null,
-      rest_seconds_actual: typeof set.restSecondsActual === 'number' ? set.restSecondsActual : null,
-      extras: set.extras ?? {},
-      extra_metrics: set.extra_metrics ?? {}
-    };
-
-    if (set.id && !set.id.startsWith('temp-')) {
-      await supabase.from('sets').update(payload).eq('id', set.id);
-    } else {
-      const { data } = await supabase.from('sets').insert(payload).select('id, performed_at').single();
-      if (data?.id) {
-        updateSet(exerciseIndex, set.setNumber - 1, 'id', data.id);
-        updateSet(exerciseIndex, set.setNumber - 1, 'performedAt', data.performed_at);
-      }
-    }
-  }, [supabase, updateSet]);
-
-  const handleSetUpdate = async (exIdx: number, setIdx: number, field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => {
+  /**
+   * Update a set field with optimistic update and rollback on failure.
+   * This is the key fix for issue #4 - proper rollback on persistence failure.
+   */
+  const handleSetUpdate = useCallback(async (
+    exIdx: number, 
+    setIdx: number, 
+    field: keyof WorkoutSet, 
+    value: WorkoutSet[keyof WorkoutSet]
+  ) => {
     if (!activeSession) return;
-    const exercise = activeSession.exercises[exIdx];
-    const currentSet = exercise.sets[setIdx];
     
+    const exercise = activeSession.exercises[exIdx];
+    if (!exercise) return;
+    
+    const currentSet = exercise.sets[setIdx];
+    if (!currentSet) return;
+    
+    // Store previous value for potential rollback
+    const previousValue = currentSet[field];
+    
+    // Optimistic update
     updateSet(exIdx, setIdx, field, value);
+    setIsUpdating(true);
 
-    const nextSet = { ...currentSet, [field]: value };
-    await persistSet(exercise, nextSet, exIdx);
-  };
+    try {
+      const nextSet = { ...currentSet, [field]: value };
+      const result = await persistSet(exercise, nextSet);
+      
+      if (!result.success) {
+        // Rollback on failure
+        updateSet(exIdx, setIdx, field, previousValue);
+        setErrorMessage(result.error ?? 'Failed to save changes. Please try again.');
+        return;
+      }
+      
+      // Update with server-generated values if this was a new set
+      if (result.id && currentSet.id.startsWith('temp-')) {
+        updateSet(exIdx, setIdx, 'id', result.id);
+      }
+      if (result.performedAt) {
+        updateSet(exIdx, setIdx, 'performedAt', result.performedAt);
+      }
+    } catch (error) {
+      // Rollback on unexpected error
+      updateSet(exIdx, setIdx, field, previousValue);
+      setErrorMessage('An unexpected error occurred. Please try again.');
+      console.error('handleSetUpdate error:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [activeSession, persistSet, updateSet]);
 
+  /**
+   * Toggle preferred weight unit with body weight conversion.
+   */
   const togglePreferredUnit = useCallback(() => {
     const nextUnit = preferredUnit === 'lb' ? 'kg' : 'lb';
     updateSession({ weightUnit: nextUnit });
@@ -265,7 +324,22 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     }
   }, [preferredUnit, sessionBodyWeight, updateSession]);
 
+  /**
+   * Update session body weight with proper error handling.
+   * This is the fix for issue #3 - fire-and-forget mutations.
+   */
+  const handleBodyWeightUpdate = useCallback(async (weightValue: number | null) => {
+    if (!activeSession) return;
+    
+    const result = await persistSessionBodyWeight(activeSession.id, weightValue);
+    
+    if (!result.success) {
+      setErrorMessage(result.error ?? 'Failed to update body weight.');
+    }
+  }, [activeSession, persistSessionBodyWeight]);
+
   return {
+    // Session state
     activeSession,
     errorMessage,
     setErrorMessage,
@@ -276,16 +350,28 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     profileWeightLb,
     exerciseHistory,
     exerciseTargets,
+    
+    // Set operations with proper persistence
     handleSetUpdate,
+    handleBodyWeightUpdate,
     addSet,
     removeSet,
     updateSet,
+    
+    // Exercise operations
     replaceSessionExercise,
     removeSessionExercise,
     addSessionExercise,
+    
+    // Exercise library
     resolvedInventory,
     exerciseLibrary,
     exerciseLibraryByName,
+    
+    // Loading states
+    isUpdating: isUpdating || isPersisting,
+    
+    // Supabase client (for components that need direct access)
     supabase
   };
 }

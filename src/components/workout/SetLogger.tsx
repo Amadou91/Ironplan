@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, memo } from 'react';
 import { WorkoutSet, MetricProfile } from '@/types/domain';
 import { Trash2, Check } from 'lucide-react';
 import { RIR_OPTIONS, RPE_OPTIONS } from '@/constants/intensityOptions';
@@ -21,7 +21,7 @@ interface SetLoggerProps {
   isDumbbell?: boolean;
 }
 
-const NumericInput = ({ 
+const NumericInput = memo(function NumericInput({ 
   value, 
   onChange, 
   placeholder, 
@@ -36,20 +36,26 @@ const NumericInput = ({
   mode?: "decimal" | "numeric";
   inputClassName: string;
   isEditing: boolean;
-}) => (
-  <input
-    type="text"
-    inputMode={mode}
-    placeholder={placeholder}
-    value={value ?? ''}
-    onChange={(e) => onChange(e.target.value)}
-    className={inputClassName}
-    disabled={!isEditing}
-    readOnly={!isEditing}
-  />
-);
+}) {
+  return (
+    <input
+      type="text"
+      inputMode={mode}
+      placeholder={placeholder}
+      value={value ?? ''}
+      onChange={(e) => onChange(e.target.value)}
+      className={inputClassName}
+      disabled={!isEditing}
+      readOnly={!isEditing}
+    />
+  );
+});
 
-export const SetLogger: React.FC<SetLoggerProps> = ({
+/**
+ * SetLogger component for logging individual workout sets.
+ * Memoized to prevent unnecessary re-renders when parent state changes.
+ */
+const SetLoggerComponent: React.FC<SetLoggerProps> = ({
   set,
   weightOptions,
   onUpdate,
@@ -388,4 +394,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
           <label className={labelStyle}>Rest (min)</label>
           <NumericInput placeholder="0" value={restMinutes} onChange={handleRestChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
         </div>
+      </div>
+    </div>
+  );
 };
+
+// Export memoized component to prevent unnecessary re-renders
+export const SetLogger = memo(SetLoggerComponent);
