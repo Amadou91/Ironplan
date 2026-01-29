@@ -44,11 +44,28 @@ export const isSetE1rmEligible = (
   const rpe = typeof set.rpe === 'number' ? set.rpe : null
   const rir = typeof set.rir === 'number' ? set.rir : null
 
-  if (rpe !== null && rpe < 8) return false
-  if (rir !== null && rir > 2) return false
+  // Relaxed filtering: allow RPE >= 6 (instead of 8) for broader E1RM data
+  // Lower RPE sets will have reduced confidence but still contribute
+  if (rpe !== null && rpe < 6) return false
+  if (rir !== null && rir > 4) return false
   if (rpe === null && rir === null) return false
 
   return true
+}
+
+/**
+ * Returns a confidence factor for E1RM calculations based on RPE.
+ * Higher RPE = higher confidence in the E1RM estimate.
+ */
+export const getE1rmConfidence = (set: MetricsSet): number => {
+  const rpe = typeof set.rpe === 'number' ? set.rpe : null
+  const rir = typeof set.rir === 'number' ? set.rir : null
+  
+  const effectiveRpe = rpe ?? (rir !== null ? mapRirToRpe(rir) : null)
+  if (effectiveRpe === null) return 0.5
+  
+  // RPE 10 = 1.0 confidence, RPE 6 = 0.6 confidence
+  return clamp(effectiveRpe / 10, 0.5, 1.0)
 }
 
 export const getWeekKey = (value: string) => {
@@ -125,13 +142,26 @@ export const mapRpeToRir = (rpe: number) => {
   return 10 - rpe
 }
 
+// Default bodyweight placeholder in lbs (average user weight * 0.7 for push-ups, etc.)
+const DEFAULT_BODYWEIGHT_FACTOR = 0.7
+const DEFAULT_USER_WEIGHT_LBS = 170
+
 /**
  * Calculates Volume Load in Pounds.
  * Formula: Reps * Weight(lb)
+ * For bodyweight exercises without weight, uses a placeholder estimation.
  */
-export const computeSetTonnage = (set: MetricsSet): number => {
+export const computeSetTonnage = (set: MetricsSet, userWeightLbs?: number): number => {
   if (!isValidNumber(set.reps) || set.reps <= 0) return 0
-  if (!isValidNumber(set.weight)) return 0
+  
+  // Handle bodyweight exercises with no weight recorded
+  if (!isValidNumber(set.weight) || set.weight <= 0) {
+    // If no weight but we have reps, this might be a bodyweight exercise
+    // Use a placeholder to avoid breaking volume graphs
+    const effectiveWeight = (userWeightLbs ?? DEFAULT_USER_WEIGHT_LBS) * DEFAULT_BODYWEIGHT_FACTOR
+    return effectiveWeight * set.reps
+  }
+  
   const totalWeight = getTotalWeight(set.weight, set.loadType, set.implementCount)
   if (!Number.isFinite(totalWeight) || totalWeight <= 0) return 0
   return toLbs(totalWeight, set.weightUnit) * set.reps
@@ -202,9 +232,9 @@ export const computeSetLoad = (set: MetricsSet): number => {
 
   // Strategy 2: Duration-based (Cardio/Mobility/Timed Bodyweight)
   // Normalize minutes to be comparable to Tonnage.
-  // CONSTANT: 450 scales ~60min moderate Cardio to ~7700 Load, 
-  // comparable to a moderate lifting session (~9000-10000 Load).
-  const TIME_LOAD_FACTOR = 450
+  // CONSTANT: 215 scales ~60min cardio @ RPE 7 to ~7,500 Load,
+  // comparable to a moderate lifting session.
+  const TIME_LOAD_FACTOR = 215
 
   if (typeof set.durationSeconds === 'number' && set.durationSeconds > 0) {
     const minutes = set.durationSeconds / 60

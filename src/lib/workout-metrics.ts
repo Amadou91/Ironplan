@@ -67,6 +67,24 @@ const parseReps = (reps: ExerciseMetricsInput['reps']): number => {
   return Math.round(numbers.reduce((sum, value) => sum + value, 0) / numbers.length)
 }
 
+// Default weights for preview calculations when actual weight is unknown
+const DEFAULT_BARBELL_WEIGHT_LBS = 135
+const DEFAULT_DUMBBELL_WEIGHT_LBS = 15
+const DEFAULT_WEIGHT_LBS = 45 // Generic fallback for other equipment
+
+/**
+ * Returns a sensible default weight for preview impact calculations.
+ * Better than 0 which would show no impact for exercises without loadTarget.
+ */
+const getDefaultPreviewWeight = (metricProfile?: MetricProfile): number => {
+  // For cardio/mobility, weight doesn't apply
+  if (metricProfile === 'cardio_session' || metricProfile === 'mobility_session') {
+    return 0
+  }
+  // Default to barbell weight for standard strength exercises
+  return DEFAULT_BARBELL_WEIGHT_LBS
+}
+
 /**
 
  * Predicts the impact of an exercise based on its prescription.
@@ -82,8 +100,9 @@ export const computeExerciseMetrics = (exercise: ExerciseMetricsInput) => {
   const setsCount = exercise.sets ?? 3
 
   // Keep loadTarget as LBS (internal standard for library data)
+  // Use sensible defaults for preview instead of 0
 
-  const weightLbs = exercise.loadTarget ?? 0
+  const weightLbs = exercise.loadTarget ?? getDefaultPreviewWeight(exercise.metricProfile)
 
   
 

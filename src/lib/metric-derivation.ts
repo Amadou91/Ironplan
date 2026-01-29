@@ -44,50 +44,98 @@ export const METRIC_PROFILE_OPTIONS: MetricProfileOption[] = [
   }
 ];
 
+export type MetricProfileResult = {
+  option: MetricProfileOption;
+  isAmbiguous: boolean;
+  isHybrid: boolean;
+  compatibleProfiles: MetricProfileOption[];
+  alternatives?: MetricProfileOption[];
+};
+
 /**
  * Derives the appropriate MetricProfile based on Category and potentially Goal.
- * Returns the derived profile option (virtual).
+ * Returns the derived profile option with hybrid support for flexible validation.
  */
 export function deriveMetricProfile(
   category: ExerciseCategory | undefined,
   goal: Goal | undefined
-): { option: MetricProfileOption; isAmbiguous: boolean; alternatives?: MetricProfileOption[] } {
+): MetricProfileResult {
   
   // Helper to find option
   const findOpt = (val: string) => METRIC_PROFILE_OPTIONS.find(o => o.value === val) || METRIC_PROFILE_OPTIONS[0];
 
   if (!category) {
-    return { option: findOpt('strength'), isAmbiguous: false };
+    const opt = findOpt('strength');
+    return { 
+      option: opt, 
+      isAmbiguous: false, 
+      isHybrid: false,
+      compatibleProfiles: [opt]
+    };
   }
 
   // 1. Deterministic Cases
   if (category === 'Cardio') {
-    return { option: findOpt('cardio_session'), isAmbiguous: false };
+    const opt = findOpt('cardio_session');
+    return { 
+      option: opt, 
+      isAmbiguous: false, 
+      isHybrid: false,
+      compatibleProfiles: [opt]
+    };
   }
 
   if (category === 'Mobility') {
-    return { option: findOpt('mobility_session'), isAmbiguous: false };
+    const opt = findOpt('mobility_session');
+    return { 
+      option: opt, 
+      isAmbiguous: false, 
+      isHybrid: false,
+      compatibleProfiles: [opt]
+    };
   }
 
   // 2. Strength Category Logic
   if (category === 'Strength') {
+    const strengthOpt = findOpt('strength');
+    const timedStrengthOpt = findOpt('timed_strength');
     
     // Ambiguity: Endurance goal could be high reps OR intervals OR isometrics
     if (goal === 'endurance') {
        return { 
-         option: findOpt('strength'), // Default to standard reps
+         option: strengthOpt,
          isAmbiguous: true,
-         alternatives: [
-           findOpt('strength'),
-           findOpt('timed_strength')
-         ]
+         isHybrid: true,
+         compatibleProfiles: [strengthOpt, timedStrengthOpt],
+         alternatives: [strengthOpt, timedStrengthOpt]
        };
     }
+    
+    // Strength goal can also support timed_strength (isometrics, etc.)
+    if (goal === 'strength') {
+      return {
+        option: strengthOpt,
+        isAmbiguous: false,
+        isHybrid: true,
+        compatibleProfiles: [strengthOpt, timedStrengthOpt]
+      };
+    }
 
-    // Default Strength
-    return { option: findOpt('strength'), isAmbiguous: false };
+    // Default Strength (hypertrophy, etc.)
+    return { 
+      option: strengthOpt, 
+      isAmbiguous: false, 
+      isHybrid: false,
+      compatibleProfiles: [strengthOpt]
+    };
   }
 
   // Fallback
-  return { option: findOpt('strength'), isAmbiguous: false };
+  const fallbackOpt = findOpt('strength');
+  return { 
+    option: fallbackOpt, 
+    isAmbiguous: false, 
+    isHybrid: false,
+    compatibleProfiles: [fallbackOpt]
+  };
 }

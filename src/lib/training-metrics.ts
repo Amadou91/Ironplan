@@ -58,10 +58,30 @@ type TrainingLoadSummary = {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
-const getIntensityBaseline = (intensity?: Intensity | null) => {
-  if (intensity === 'low') return 6
-  if (intensity === 'high') return 8.5
-  return 7
+export type IntensityBaselines = {
+  low: number
+  moderate: number
+  high: number
+}
+
+const DEFAULT_INTENSITY_BASELINES: IntensityBaselines = {
+  low: 6,
+  moderate: 7,
+  high: 8.5
+}
+
+/**
+ * Returns RPE baseline for a given intensity level.
+ * Accepts optional user-derived baselines from training history.
+ */
+export const getIntensityBaseline = (
+  intensity?: Intensity | null,
+  customBaselines?: Partial<IntensityBaselines>
+): number => {
+  const baselines = { ...DEFAULT_INTENSITY_BASELINES, ...customBaselines }
+  if (intensity === 'low') return baselines.low
+  if (intensity === 'high') return baselines.high
+  return baselines.moderate
 }
 
 const weightedAverage = (values: Array<number | null>, weights: number[]) => {
@@ -77,7 +97,14 @@ const weightedAverage = (values: Array<number | null>, weights: number[]) => {
   return total / weightSum
 }
 
-const getPerformedAtWindowMinutes = (sets: MetricsSet[]) => {
+// Estimated time per set in seconds (including execution)
+const ESTIMATED_SET_TIME_SECONDS = 45
+const DEFAULT_REST_SECONDS = 90
+
+/**
+ * Calculates wall-clock duration from timestamps (may include long pauses).
+ */
+const getWallClockMinutes = (sets: MetricsSet[]) => {
   const timestamps = sets
     .map((set) => (set.performedAt ? new Date(set.performedAt).getTime() : NaN))
     .filter((value) => Number.isFinite(value))
@@ -86,6 +113,33 @@ const getPerformedAtWindowMinutes = (sets: MetricsSet[]) => {
   const maxTime = Math.max(...timestamps)
   const minutes = (maxTime - minTime) / 60000
   return minutes > 0 ? minutes : null
+}
+
+/**
+ * Calculates active training duration by summing estimated set time + rest time.
+ * This avoids penalizing density for long pauses (bathroom breaks, etc.).
+ */
+const getActiveDurationMinutes = (sets: MetricsSet[]) => {
+  if (sets.length === 0) return null
+  
+  let totalSeconds = 0
+  sets.forEach((set) => {
+    // Add estimated time for the set itself
+    totalSeconds += ESTIMATED_SET_TIME_SECONDS
+    // Add rest time (use actual if available, otherwise default)
+    const restSeconds = typeof set.restSecondsActual === 'number' && set.restSecondsActual > 0
+      ? set.restSecondsActual
+      : DEFAULT_REST_SECONDS
+    totalSeconds += restSeconds
+  })
+  
+  // Subtract rest from last set (no rest needed after final set)
+  const lastSetRest = typeof sets[sets.length - 1]?.restSecondsActual === 'number'
+    ? sets[sets.length - 1].restSecondsActual!
+    : DEFAULT_REST_SECONDS
+  totalSeconds -= lastSetRest
+  
+  return totalSeconds > 0 ? totalSeconds / 60 : null
 }
 
 export const computeSessionMetrics = ({
@@ -116,8 +170,11 @@ export const computeSessionMetrics = ({
     activeWeights
   )
 
-  const performedMinutes = getPerformedAtWindowMinutes(sets)
-  const durationMinutes = performedMinutes ?? (() => {
+  // Use active duration for density calculations to avoid penalizing for pauses
+  const activeDurationMinutes = getActiveDurationMinutes(sets)
+  // Use wall-clock for general session duration display
+  const wallClockMinutes = getWallClockMinutes(sets)
+  const durationMinutes = wallClockMinutes ?? (() => {
     if (!startedAt || !endedAt) return null
     const start = new Date(startedAt).getTime()
     const end = new Date(endedAt).getTime()
@@ -126,7 +183,9 @@ export const computeSessionMetrics = ({
     return minutes > 0 ? minutes : null
   })()
 
-  const density = durationMinutes ? tonnage / durationMinutes : null
+  // Density uses active duration (not wall-clock) to avoid long pause penalties
+  const densityDuration = activeDurationMinutes ?? durationMinutes
+  const density = densityDuration ? tonnage / densityDuration : null
   const sessionRpe = avgEffort ?? (sets.length ? getIntensityBaseline(intensity) : null)
   const sRpeLoad = sessionRpe && durationMinutes ? sessionRpe * durationMinutes : null
 

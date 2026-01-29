@@ -1,4 +1,5 @@
 import type {
+  Exercise,
   Intensity,
   Goal,
   RestPreference,
@@ -41,12 +42,15 @@ export const adjustSets = (baseSets: number, experience: PlanInput['experienceLe
 }
 
 /**
- * Adjusts set counts inversely with intensity to maintain manageable workload.
- * Higher intensity sessions typically have fewer sets per exercise.
+ * Adjusts set counts based on intensity to maintain volume load.
+ * High intensity lowers reps, so we keep sets standard or higher to compensate.
+ * This prevents volume load from crashing when intensity is high.
  */
 export const adjustSetsForIntensity = (sets: number, intensity: Intensity) => {
   if (intensity === 'low') return Math.max(2, sets + 1)
-  if (intensity === 'high') return Math.max(2, sets - 1)
+  // Fix: High intensity should NOT reduce sets, as reps are already lower.
+  // Keeping sets standard or higher compensates for reduced reps.
+  if (intensity === 'high') return sets // Keep sets unchanged (was: sets - 1)
   return sets
 }
 
