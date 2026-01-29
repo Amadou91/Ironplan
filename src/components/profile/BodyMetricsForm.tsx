@@ -3,6 +3,8 @@
 import React from 'react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { formatHeightFromInches } from '@/lib/body-metrics'
 import { useUIStore } from '@/store/uiStore'
 import { KG_PER_LB } from '@/lib/units'
@@ -79,7 +81,7 @@ export function BodyMetricsForm({
         <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2">
           <div className="flex flex-col">
             <label className="text-xs text-subtle">Weight ({displayUnit})</label>
-            <input
+            <Input
               type="text"
               inputMode="decimal"
               value={draft.weightLb}
@@ -87,7 +89,7 @@ export function BodyMetricsForm({
                 const val = e.target.value
                 if (val === '' || /^\d*\.?\d*$/.test(val)) onChange('weightLb', val)
               }}
-              className="input-base mt-1"
+              className="mt-1"
               disabled={loading || saving}
             />
           </div>
@@ -95,7 +97,7 @@ export function BodyMetricsForm({
             <label className="text-xs text-subtle">Height</label>
             <div className="mt-1 grid grid-cols-2 gap-2 text-[10px]">
               <label className="flex flex-col gap-1">
-                <input
+                <Input
                   type="text"
                   inputMode="decimal"
                   placeholder="ft"
@@ -104,13 +106,12 @@ export function BodyMetricsForm({
                     const val = e.target.value
                     if (val === '' || /^\d*\.?\d*$/.test(val)) onChange('heightFeet', val)
                   }}
-                  className="input-base"
                   disabled={loading || saving}
                 />
                 <span className="text-subtle">Feet</span>
               </label>
               <label className="flex flex-col gap-1">
-                <input
+                <Input
                   type="text"
                   inputMode="decimal"
                   placeholder="in"
@@ -119,7 +120,6 @@ export function BodyMetricsForm({
                     const val = e.target.value
                     if (val === '' || /^\d*\.?\d*$/.test(val)) onChange('heightInches', val)
                   }}
-                  className="input-base"
                   disabled={loading || saving}
                 />
                 <span className="text-subtle">Inches</span>
@@ -128,7 +128,7 @@ export function BodyMetricsForm({
           </div>
           <div className="flex flex-col">
             <label className="text-xs text-subtle">Body fat %</label>
-            <input
+            <Input
               type="text"
               inputMode="decimal"
               value={draft.bodyFatPercent}
@@ -136,33 +136,33 @@ export function BodyMetricsForm({
                 const val = e.target.value
                 if (val === '' || /^\d*\.?\d*$/.test(val)) onChange('bodyFatPercent', val)
               }}
-              className="input-base mt-1"
+              className="mt-1"
               disabled={loading || saving}
             />
           </div>
           <div className="flex flex-col">
             <label className="text-xs text-subtle">Birthdate</label>
-            <input
+            <Input
               type="date"
               value={draft.birthdate}
               onChange={(e) => onChange('birthdate', e.target.value)}
-              className="input-base mt-1"
+              className="mt-1"
               disabled={loading || saving}
             />
           </div>
           <div className="flex flex-col sm:col-span-2">
             <label className="text-xs text-subtle">Sex (for BMR)</label>
-            <select
+            <Select
               value={draft.sex}
               onChange={(e) => onChange('sex', e.target.value)}
-              className="input-base mt-1"
+              className="mt-1"
               disabled={loading || saving}
             >
               <option value="">Prefer not to say</option>
               <option value="female">Female</option>
               <option value="male">Male</option>
               <option value="non_binary">Non-binary</option>
-            </select>
+            </Select>
           </div>
         </div>
 

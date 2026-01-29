@@ -69,7 +69,7 @@ export default function ProfilePage() {
 
   return (
     <div className="page-shell">
-      <div className="w-full space-y-12 px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
+      <div className="w-full space-y-10 py-4">
         <ProfileHeader 
           user={user} 
           onToggleDevTools={toggleDevTools} 

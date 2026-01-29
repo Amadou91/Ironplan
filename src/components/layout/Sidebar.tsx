@@ -179,7 +179,6 @@ export default function Sidebar() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-strong tracking-tight">{user.email?.split('@')[0] ?? 'Member'}</p>
-                  <p className="text-[10px] font-bold text-subtle uppercase tracking-widest mt-0.5">Free Member</p>
                 </div>
               </div>
             )}
