@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { deleteExerciseAction } from '@/app/workouts/actions';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { cn } from '@/lib/utils';
 
 const EQUIPMENT_ICONS: Record<EquipmentKind, React.ElementType> = {
