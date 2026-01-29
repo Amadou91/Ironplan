@@ -379,6 +379,8 @@ export default function ActiveSession({
 
         startedAt={activeSession.startedAt}
 
+        sessionGoal={activeSession.sessionGoal}
+
         progressSummary={{
 
           totalExercises: activeSession.exercises.length,
