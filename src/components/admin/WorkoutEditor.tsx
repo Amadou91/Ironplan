@@ -31,7 +31,7 @@ const METRIC_PROFILES: { value: MetricProfile; label: string }[] = [
 const MUSCLE_GROUPS: MuscleGroup[] = [
   'chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'core', 
   'glutes', 'quads', 'hamstrings', 'calves', 'hip_flexors', 'adductors', 'abductors', 
-  'full_body', 'upper_body', 'lower_body'
+  'full_body', 'upper_body', 'lower_body', 'cardio', 'mobility'
 ];
 
 const DEFAULT_EXERCISE: Partial<Exercise> = {

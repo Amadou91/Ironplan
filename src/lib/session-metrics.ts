@@ -205,25 +205,49 @@ export const getVirtualBodyweight = (
  * Calculates Volume Load in Pounds.
  * Formula: Reps * Weight(lb)
  * For bodyweight exercises without weight, uses virtual bodyweight estimation.
+ * For weighted bodyweight exercises (e.g., weighted pull-ups), adds external weight to virtual bodyweight.
  */
 export const computeSetTonnage = (
   set: MetricsSet,
   userWeightLbs?: number,
-  exerciseName?: string | null
+  exerciseName?: string | null,
+  isBodyweightExercise?: boolean
 ): number => {
   if (!isValidNumber(set.reps) || set.reps <= 0) return 0
   
-  // Handle bodyweight exercises with no weight recorded
-  if (!isValidNumber(set.weight) || set.weight <= 0) {
-    // Use virtual bodyweight based on exercise type
-    const baseWeight = userWeightLbs ?? DEFAULT_USER_WEIGHT_LBS
-    const effectiveWeight = getVirtualBodyweight(baseWeight, exerciseName)
+  const baseWeight = userWeightLbs ?? DEFAULT_USER_WEIGHT_LBS
+  const hasExternalWeight = isValidNumber(set.weight) && set.weight > 0
+  
+  // Detect if this is a bodyweight exercise by name or explicit flag
+  const exerciseType = getBodyweightExerciseType(exerciseName)
+  const isBodyweight = isBodyweightExercise ?? exerciseType !== 'default'
+  
+  // For bodyweight exercises (weighted or unweighted):
+  // Effective weight = Virtual bodyweight + External weight
+  if (isBodyweight || !hasExternalWeight) {
+    const virtualWeight = getVirtualBodyweight(baseWeight, exerciseName)
+    const externalWeight = hasExternalWeight 
+      ? toLbs(getTotalWeight(set.weight!, set.loadType, set.implementCount), set.weightUnit)
+      : 0
+    const effectiveWeight = virtualWeight + externalWeight
     return effectiveWeight * set.reps
   }
   
+  // For non-bodyweight exercises with external weight only
   const totalWeight = getTotalWeight(set.weight, set.loadType, set.implementCount)
   if (!Number.isFinite(totalWeight) || totalWeight <= 0) return 0
   return toLbs(totalWeight, set.weightUnit) * set.reps
+}
+
+/** Metric profiles that are eligible for E1RM calculations */
+const E1RM_ELIGIBLE_PROFILES: MetricProfile[] = ['reps_weight']
+
+/** Check if a metric profile is eligible for E1RM calculations (treats legacy 'strength' as 'reps_weight') */
+const isE1rmEligibleProfile = (profile?: MetricProfile | string | null): boolean => {
+  if (!profile) return true // Default to eligible if not specified
+  // Legacy 'strength' profile should be treated as 'reps_weight'
+  if (profile === 'strength') return true
+  return E1RM_ELIGIBLE_PROFILES.includes(profile as MetricProfile)
 }
 
 export const computeSetE1rm = (
@@ -231,7 +255,7 @@ export const computeSetE1rm = (
   sessionGoal?: SessionGoal | null,
   exerciseEligible?: boolean | null
 ) => {
-  if (set.metricProfile && set.metricProfile !== 'reps_weight') return null
+  if (!isE1rmEligibleProfile(set.metricProfile)) return null
   if (!isSetE1rmEligible(sessionGoal, exerciseEligible, set)) return null
   if (!isValidNumber(set.reps) || !isValidNumber(set.weight)) return null
   const totalWeight = getTotalWeight(set.weight, set.loadType, set.implementCount)
@@ -256,8 +280,19 @@ export const getEffortScore = (set: MetricsSet) => {
   return null
 }
 
+/** Metric profiles eligible for hard set calculations */
+const HARD_SET_ELIGIBLE_PROFILES: MetricProfile[] = ['reps_weight', 'timed_strength']
+
+/** Check if a metric profile is eligible for hard set tracking (treats legacy 'strength' as 'reps_weight') */
+const isHardSetEligibleProfile = (profile?: MetricProfile | string | null): boolean => {
+  if (!profile) return true // Default to eligible if not specified
+  // Legacy 'strength' profile should be treated as 'reps_weight'
+  if (profile === 'strength') return true
+  return HARD_SET_ELIGIBLE_PROFILES.includes(profile as MetricProfile)
+}
+
 export const isHardSet = (set: MetricsSet) => {
-  if (set.metricProfile && set.metricProfile !== 'reps_weight' && set.metricProfile !== 'timed_strength') return false
+  if (!isHardSetEligibleProfile(set.metricProfile)) return false
   const effort = getEffortScore(set)
   return typeof effort === 'number' ? effort >= 8 : false
 }
@@ -274,7 +309,8 @@ export const computeSetIntensity = (set: MetricsSet) => {
 
 /**
  * Calculates Workload Score (Physiological Stress).
- * Formula: Volume Load (kg) * Normalized Intensity Factor
+ * Formula: Volume Load (lbs) * Normalized Intensity Factor
+ * Note: All internal volume calculations use pounds for consistency.
  */
 export const computeSetLoad = (set: MetricsSet): number => {
   const profile = set.metricProfile || 'reps_weight'

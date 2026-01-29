@@ -20,6 +20,10 @@ export type MuscleGroup =
   | 'adductors'
   | 'abductors'
   | 'full_body'
+  | 'upper_body'
+  | 'lower_body'
+  | 'cardio'
+  | 'mobility'
 
 export type BandResistance = 'light' | 'medium' | 'heavy'
 
