@@ -1,5 +1,25 @@
 -- Add Bench Press equipment requirements and backfill inventory defaults.
 
+-- Ensure equipment is jsonb (fix for schema mismatch where baseline created it as text)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_schema = 'public'
+    AND table_name = 'exercise_catalog' 
+    AND column_name = 'equipment' 
+    AND data_type = 'text'
+  ) THEN
+    ALTER TABLE public.exercise_catalog 
+    ALTER COLUMN equipment TYPE jsonb 
+    USING CASE WHEN equipment IS NULL OR equipment = '' THEN '[]'::jsonb ELSE equipment::jsonb END;
+    
+    -- Also set default to '[]'::jsonb
+    ALTER TABLE public.exercise_catalog ALTER COLUMN equipment SET DEFAULT '[]'::jsonb;
+  END IF;
+END $$;
+
 -- 1) Update bench-dependent exercises to require Bench Press equipment.
 update public.exercise_catalog
 set equipment = (
