@@ -57,41 +57,41 @@ const moduleExports = loadTsModule(modulePath);
 const deriveMetricProfile = moduleExports.deriveMetricProfile as (
   category?: string,
   goal?: string
-) => { profile: string; isAmbiguous: boolean; options?: unknown[] };
+) => { option: { value: string }; isAmbiguous: boolean; isHybrid: boolean; compatibleProfiles: unknown[]; alternatives?: unknown[] };
 
 test('deriveMetricProfile', async (t) => {
   await t.test('should derive cardio_session for Cardio category', () => {
     const result = deriveMetricProfile('Cardio', 'endurance');
-    assert.equal(result.profile, 'cardio_session');
+    assert.equal(result.option.value, 'cardio_session');
     assert.equal(result.isAmbiguous, false);
   });
 
   await t.test('should derive mobility_session for Mobility category', () => {
     const result = deriveMetricProfile('Mobility', 'range_of_motion');
-    assert.equal(result.profile, 'mobility_session');
+    assert.equal(result.option.value, 'mobility_session');
     assert.equal(result.isAmbiguous, false);
   });
 
   await t.test('should derive strength for Strength category with standard goals', () => {
     const result = deriveMetricProfile('Strength', 'strength');
-    assert.equal(result.profile, 'strength');
+    assert.equal(result.option.value, 'strength');
     assert.equal(result.isAmbiguous, false);
 
     const result2 = deriveMetricProfile('Strength', 'hypertrophy');
-    assert.equal(result2.profile, 'strength');
+    assert.equal(result2.option.value, 'strength');
     assert.equal(result2.isAmbiguous, false);
   });
 
   await t.test('should flag ambiguity for Strength + Endurance', () => {
     const result = deriveMetricProfile('Strength', 'endurance');
-    assert.equal(result.profile, 'strength'); // Default
+    assert.equal(result.option.value, 'strength'); // Default
     assert.equal(result.isAmbiguous, true);
-    assert.ok(result.options && result.options.length > 1);
+    assert.ok(result.alternatives && result.alternatives.length > 1);
   });
 
   await t.test('should default to strength for undefined category', () => {
     const result = deriveMetricProfile(undefined, undefined);
-    assert.equal(result.profile, 'strength');
+    assert.equal(result.option.value, 'strength');
     assert.equal(result.isAmbiguous, false);
   });
 });

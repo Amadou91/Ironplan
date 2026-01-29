@@ -257,7 +257,7 @@ test('validate input errors when required fields are missing', () => {
         kettlebells: [],
         bands: [],
         barbell: { available: false, plates: [] },
-        machines: { cable: false, leg_press: false, treadmill: false, rower: false }
+        machines: { cable: false, leg_press: false, treadmill: false, rower: false, indoor_bicycle: false, outdoor_bicycle: false }
       }
     }
   })

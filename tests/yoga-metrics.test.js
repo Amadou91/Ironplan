@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -10,30 +10,63 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const requireShim = createRequire(import.meta.url)
 
-const transpile = (path) => {
-  const source = readFileSync(path, 'utf8')
-  return ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
-  }).outputText
-}
+// Module Loading System (robust loader that handles transitive @/ imports)
+const moduleCache = new Map()
 
-// Load units.ts
-const unitsPath = join(__dirname, '../src/lib/units.ts')
-const unitsCode = transpile(unitsPath)
-const unitsModule = { exports: {} }
-new Function('module', 'exports', 'require', unitsCode)(unitsModule, unitsModule.exports, requireShim)
+function loadTsModule(modulePath) {
+  if (moduleCache.has(modulePath)) return moduleCache.get(modulePath)
+
+  const moduleSource = readFileSync(modulePath, 'utf8')
+  const { outputText: moduleOutput } = ts.transpileModule(moduleSource, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020
+    }
+  })
+
+  const moduleShim = { exports: {} }
+  const moduleDir = dirname(modulePath)
+
+  const contextRequire = (moduleId) => {
+    // Handle Aliases (@/)
+    if (moduleId.startsWith('@/')) {
+      const relativePath = moduleId.replace('@/', '')
+      const resolved = join(__dirname, '../src', `${relativePath}.ts`)
+      if (existsSync(resolved)) return loadTsModule(resolved)
+      
+      const resolvedIndex = join(__dirname, '../src', relativePath, 'index.ts')
+      if (existsSync(resolvedIndex)) return loadTsModule(resolvedIndex)
+      
+      return loadTsModule(resolved) // Fallback attempt
+    }
+
+    // Handle Relative Imports
+    if (moduleId.startsWith('.')) {
+      const resolvedCandidate = join(moduleDir, moduleId)
+      const resolvedTs = resolvedCandidate + '.ts'
+      if (existsSync(resolvedTs)) {
+        return loadTsModule(resolvedTs)
+      }
+      const resolvedIndex = join(resolvedCandidate, 'index.ts')
+      if (existsSync(resolvedIndex)) {
+        return loadTsModule(resolvedIndex)
+      }
+    }
+
+    // Fallback to Node Require
+    return requireShim(moduleId)
+  }
+
+  const factory = new Function('module', 'exports', 'require', moduleOutput)
+  factory(moduleShim, moduleShim.exports, contextRequire)
+  moduleCache.set(modulePath, moduleShim.exports)
+  return moduleShim.exports
+}
 
 // Load session-metrics.ts
 const sessionMetricsPath = join(__dirname, '../src/lib/session-metrics.ts')
-const sessionMetricsCode = transpile(sessionMetricsPath)
-const sessionMetricsModule = { exports: {} }
-const requireForSessionMetrics = (id) => {
-  if (id === '@/lib/units') return unitsModule.exports
-  return requireShim(id)
-}
-new Function('module', 'exports', 'require', sessionMetricsCode)(sessionMetricsModule, sessionMetricsModule.exports, requireForSessionMetrics)
-
-const { computeSetLoad, computeSetTonnage } = sessionMetricsModule.exports
+const sessionMetricsModule = loadTsModule(sessionMetricsPath)
+const { computeSetLoad, computeSetTonnage } = sessionMetricsModule
 
 const mockYogaSet = {
   metricProfile: 'mobility_session',
@@ -64,20 +97,22 @@ test('Mobility Metrics: computeSetTonnage returns 0 for Yoga set', () => {
 })
 
 test('Mobility Metrics: computeSetLoad returns normalized workload', () => {
-  // 60 min * 0.285 (RPE 5) * 450 (Factor) ≈ 7700
+  // 60 min * intensityFactor * 215 (TIME_LOAD_FACTOR)
+  // RPE 5 -> intensityFactor via normalizeIntensity
   const load = computeSetLoad(mockYogaSet)
   console.log('Yoga Load:', load)
-  assert.ok(load > 7000)
-  assert.ok(load < 8500)
+  // With TIME_LOAD_FACTOR = 215, expect ~3500-4000
+  assert.ok(load > 3000)
+  assert.ok(load < 4500)
 })
 
 test('Mobility Metrics: computeSetLoad handles missing intensity (defaults to moderate)', () => {
   const noIntensitySet = { ...mockYogaSet, rpe: null }
   const load = computeSetLoad(noIntensitySet)
-  // RPE null -> 0.5 intensity (default in units.ts)
-  // 60 * 0.5 * 450 = 13500
+  // RPE null -> 0.5 intensity (default)
+  // 60 * 0.5 * 215 = 6450
   console.log('Yoga Load (No RPE):', load)
-  assert.equal(load, 60 * 0.5 * 450)
+  assert.equal(load, 60 * 0.5 * 215)
 })
 
 test('Mobility Metrics: Strength set uses Tonnage based calculation', () => {

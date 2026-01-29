@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -8,35 +8,64 @@ import ts from 'typescript'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const swapPath = join(__dirname, '../src/lib/exercise-swap.ts')
-const equipmentPath = join(__dirname, '../src/lib/equipment.ts')
-const swapSource = readFileSync(swapPath, 'utf8')
-const equipmentSource = readFileSync(equipmentPath, 'utf8')
-
-const { outputText: equipmentOutput } = ts.transpileModule(equipmentSource, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
-})
-const { outputText: swapOutput } = ts.transpileModule(swapSource, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
-})
-
-const equipmentModuleShim = { exports: {} }
 const requireShim = createRequire(import.meta.url)
-const equipmentFactory = new Function('module', 'exports', 'require', equipmentOutput)
-equipmentFactory(equipmentModuleShim, equipmentModuleShim.exports, requireShim)
 
-const requireWithEquipment = (moduleId) => {
-  if (moduleId === '@/lib/equipment' || moduleId === '../src/lib/equipment') {
-    return equipmentModuleShim.exports
+// Module Loading System (robust loader that handles transitive @/ imports)
+const moduleCache = new Map()
+
+function loadTsModule(modulePath) {
+  if (moduleCache.has(modulePath)) return moduleCache.get(modulePath)
+
+  const moduleSource = readFileSync(modulePath, 'utf8')
+  const { outputText: moduleOutput } = ts.transpileModule(moduleSource, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020
+    }
+  })
+
+  const moduleShim = { exports: {} }
+  const moduleDir = dirname(modulePath)
+
+  const contextRequire = (moduleId) => {
+    // Handle Aliases (@/)
+    if (moduleId.startsWith('@/')) {
+      const relativePath = moduleId.replace('@/', '')
+      const resolved = join(__dirname, '../src', `${relativePath}.ts`)
+      if (existsSync(resolved)) return loadTsModule(resolved)
+      
+      const resolvedIndex = join(__dirname, '../src', relativePath, 'index.ts')
+      if (existsSync(resolvedIndex)) return loadTsModule(resolvedIndex)
+      
+      return loadTsModule(resolved) // Fallback attempt
+    }
+
+    // Handle Relative Imports
+    if (moduleId.startsWith('.')) {
+      const resolvedCandidate = join(moduleDir, moduleId)
+      const resolvedTs = resolvedCandidate + '.ts'
+      if (existsSync(resolvedTs)) {
+        return loadTsModule(resolvedTs)
+      }
+      const resolvedIndex = join(resolvedCandidate, 'index.ts')
+      if (existsSync(resolvedIndex)) {
+        return loadTsModule(resolvedIndex)
+      }
+    }
+
+    // Fallback to Node Require
+    return requireShim(moduleId)
   }
-  return requireShim(moduleId)
+
+  const factory = new Function('module', 'exports', 'require', moduleOutput)
+  factory(moduleShim, moduleShim.exports, contextRequire)
+  moduleCache.set(modulePath, moduleShim.exports)
+  return moduleShim.exports
 }
 
-const swapModuleShim = { exports: {} }
-const swapFactory = new Function('module', 'exports', 'require', swapOutput)
-swapFactory(swapModuleShim, swapModuleShim.exports, requireWithEquipment)
-
-const { getSwapSuggestions } = swapModuleShim.exports
+const swapPath = join(__dirname, '../src/lib/exercise-swap.ts')
+const swapModule = loadTsModule(swapPath)
+const { getSwapSuggestions } = swapModule
 
 test('swap suggestions avoid duplicates and respect equipment', () => {
   const inventory = {

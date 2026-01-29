@@ -1,4 +1,4 @@
-import type { AuthUser } from '../store/authStore'
+import type { AuthUser } from '@/store/authStore'
 
 export const getUserDisplayName = (user: AuthUser | null) => {
   if (!user?.email) return 'there'

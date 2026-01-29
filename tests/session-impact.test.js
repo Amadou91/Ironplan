@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -8,46 +8,65 @@ import ts from 'typescript'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const generatorPath = join(__dirname, '../src/lib/generator.ts')
-const metricsPath = join(__dirname, '../src/lib/workout-metrics.ts')
-const equipmentPath = join(__dirname, '../src/lib/equipment.ts')
-const generatorSource = readFileSync(generatorPath, 'utf8')
-const metricsSource = readFileSync(metricsPath, 'utf8')
-const equipmentSource = readFileSync(equipmentPath, 'utf8')
-
-const { outputText: metricsOutput } = ts.transpileModule(metricsSource, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
-})
-const { outputText: equipmentOutput } = ts.transpileModule(equipmentSource, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
-})
-const { outputText: generatorOutput } = ts.transpileModule(generatorSource, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
-})
-
-const metricsModuleShim = { exports: {} }
 const requireShim = createRequire(import.meta.url)
-const metricsFactory = new Function('module', 'exports', 'require', metricsOutput)
-metricsFactory(metricsModuleShim, metricsModuleShim.exports, requireShim)
-const equipmentModuleShim = { exports: {} }
-const equipmentFactory = new Function('module', 'exports', 'require', equipmentOutput)
-equipmentFactory(equipmentModuleShim, equipmentModuleShim.exports, requireShim)
 
-const requireWithMetrics = (moduleId) => {
-  if (moduleId === '@/lib/workout-metrics') {
-    return metricsModuleShim.exports
+// Module Loading System (robust loader that handles transitive @/ imports)
+const moduleCache = new Map()
+
+function loadTsModule(modulePath) {
+  if (moduleCache.has(modulePath)) return moduleCache.get(modulePath)
+
+  const moduleSource = readFileSync(modulePath, 'utf8')
+  const { outputText: moduleOutput } = ts.transpileModule(moduleSource, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020
+    }
+  })
+
+  const moduleShim = { exports: {} }
+  const moduleDir = dirname(modulePath)
+
+  const contextRequire = (moduleId) => {
+    // Handle Aliases (@/)
+    if (moduleId.startsWith('@/')) {
+      const relativePath = moduleId.replace('@/', '')
+      const resolved = join(__dirname, '../src', `${relativePath}.ts`)
+      if (existsSync(resolved)) return loadTsModule(resolved)
+      
+      const resolvedIndex = join(__dirname, '../src', relativePath, 'index.ts')
+      if (existsSync(resolvedIndex)) return loadTsModule(resolvedIndex)
+      
+      return loadTsModule(resolved) // Fallback attempt
+    }
+
+    // Handle Relative Imports
+    if (moduleId.startsWith('.')) {
+      const resolvedCandidate = join(moduleDir, moduleId)
+      const resolvedTs = resolvedCandidate + '.ts'
+      if (existsSync(resolvedTs)) {
+        return loadTsModule(resolvedTs)
+      }
+      const resolvedIndex = join(resolvedCandidate, 'index.ts')
+      if (existsSync(resolvedIndex)) {
+        return loadTsModule(resolvedIndex)
+      }
+    }
+
+    // Fallback to Node Require
+    return requireShim(moduleId)
   }
-  if (moduleId === './equipment' || moduleId === '@/lib/equipment') {
-    return equipmentModuleShim.exports
-  }
-  return requireShim(moduleId)
+
+  const factory = new Function('module', 'exports', 'require', moduleOutput)
+  factory(moduleShim, moduleShim.exports, contextRequire)
+  moduleCache.set(modulePath, moduleShim.exports)
+  return moduleShim.exports
 }
 
-const generatorModuleShim = { exports: {} }
-const generatorFactory = new Function('module', 'exports', 'require', generatorOutput)
-generatorFactory(generatorModuleShim, generatorModuleShim.exports, requireWithMetrics)
-
-const { calculateExerciseImpact } = generatorModuleShim.exports
+// Load the generator impact-utils module
+const impactPath = join(__dirname, '../src/lib/generator/impact-utils.ts')
+const impactModule = loadTsModule(impactPath)
+const { calculateExerciseImpact } = impactModule
 
 test('calculateExerciseImpact only sums the provided session exercises', () => {
   const dayOneExercises = [

@@ -24,6 +24,11 @@ type ExerciseRow = {
 };
 
 function inferCategory(row: ExerciseRow): ExerciseCategory {
+  // Respect explicit category override first
+  if (row.category && ['Strength', 'Cardio', 'Mobility'].includes(row.category)) {
+    return row.category as ExerciseCategory
+  }
+
   const indicators = [
     row.name,
     row.focus,
@@ -33,10 +38,6 @@ function inferCategory(row: ExerciseRow): ExerciseCategory {
 
   if (indicators.some(s => s.includes('yoga') || s.includes('mobility') || s.includes('stretch'))) return 'Mobility'
   if (indicators.some(s => s.includes('cardio'))) return 'Cardio'
-
-  if (row.category && ['Strength', 'Cardio', 'Mobility'].includes(row.category)) {
-    return row.category as ExerciseCategory
-  }
   
   return 'Strength'
 }
