@@ -36,7 +36,7 @@ export function adaptPrescription(
   let reps = repsOverride ?? exercise.reps
   
   if (!repsOverride) {
-    const isStrengthMove = profile === 'strength' || profile === 'reps_weight' || profile === 'reps_only'
+    const isStrengthMove = profile === 'reps_weight' || profile === 'reps_only'
     
     if (isStrengthMove) {
       if (style === 'strength') {
@@ -79,7 +79,7 @@ export function adaptPrescription(
 
   return {
     sets: baseSets,
-    reps,
+    reps: reps ?? '8-12',
     rpe,
     restSeconds
   }

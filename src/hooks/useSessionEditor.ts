@@ -129,7 +129,7 @@ export function useSessionEditor(sessionId?: string) {
               reps: set.reps ?? '',
               weight: set.weight ?? '',
               implementCount: set.implement_count ?? '',
-              loadType: set.load_type ?? '',
+              loadType: (set.load_type as '' | 'total' | 'per_implement' | null) ?? '',
               rpe: set.rpe ?? '',
               rir: set.rir ?? '',
               durationSeconds: set.duration_seconds ?? '',

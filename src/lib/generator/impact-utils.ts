@@ -23,14 +23,18 @@ export const calculateExerciseImpact = (exercises: Exercise[]): WorkoutImpact =>
     totalIntensity += metrics.intensity ?? 0
 
     // Estimate duration for density calc
+    const loadTarget = exercise.loadTarget
+    const load = loadTarget !== undefined 
+      ? { value: loadTarget, unit: 'lb' as const, label: `${loadTarget} lb` }
+      : undefined
     const estimatedMinutes = estimateExerciseMinutes(
       exercise,
       {
-        sets: exercise.sets,
-        reps: exercise.reps,
-        rpe: exercise.rpe,
-        restSeconds: exercise.restSeconds,
-        load: exercise.load
+        sets: exercise.sets ?? 3,
+        reps: exercise.reps ?? '8-12',
+        rpe: exercise.rpe ?? 7,
+        restSeconds: exercise.restSeconds ?? 60,
+        load
       },
       undefined,
       undefined

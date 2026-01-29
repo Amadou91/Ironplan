@@ -12,13 +12,13 @@ type ExerciseRow = {
   id: string;
   name: string;
   category: string;
-  focus: string;
-  metric_profile: string;
+  focus: string | null;
+  metric_profile: string | null;
   equipment: EquipmentOption[];
-  movement_pattern: string;
-  primary_muscle: string;
+  movement_pattern: string | null;
+  primary_muscle: string | null;
   secondary_muscles: string[];
-  e1rm_eligible: boolean;
+  e1rm_eligible: boolean | null;
   is_interval: boolean;
   or_group?: string | null;
 };
@@ -46,14 +46,14 @@ export function mapCatalogRowToExercise(row: ExerciseRow): Exercise {
     id: row.id,
     name: row.name,
     category: inferCategory(row),
-    focus: row.focus as FocusArea,
-    metricProfile: row.metric_profile as MetricProfile,
+    focus: (row.focus || 'full_body') as FocusArea,
+    metricProfile: (row.metric_profile || 'reps_weight') as MetricProfile,
     equipment: row.equipment,
     orGroup: row.or_group as EquipmentOrGroup | undefined,
-    movementPattern: row.movement_pattern as MovementPattern,
-    primaryMuscle: row.primary_muscle,
+    movementPattern: row.movement_pattern as MovementPattern | undefined,
+    primaryMuscle: row.primary_muscle || 'full_body',
     secondaryMuscles: row.secondary_muscles,
-    e1rmEligible: row.e1rm_eligible,
+    e1rmEligible: row.e1rm_eligible ?? false,
     secondaryBodyParts: [],
     primaryBodyParts: [],
     isInterval: row.is_interval

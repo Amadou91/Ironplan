@@ -12,7 +12,7 @@ const __dirname = dirname(__filename);
 const requireShim = createRequire(import.meta.url);
 const moduleCache = new Map();
 
-function loadTsModule(modulePath) {
+function loadTsModule(modulePath: string): Record<string, unknown> {
   if (moduleCache.has(modulePath)) return moduleCache.get(modulePath);
 
   const moduleSource = readFileSync(modulePath, 'utf8');
@@ -23,10 +23,10 @@ function loadTsModule(modulePath) {
     }
   });
 
-  const moduleShim = { exports: {} };
+  const moduleShim = { exports: {} as Record<string, unknown> };
   const moduleDir = dirname(modulePath);
 
-  const contextRequire = (moduleId) => {
+  const contextRequire = (moduleId: string): unknown => {
     if (moduleId.startsWith('@/')) {
       const relativePath = moduleId.replace('@/', '');
       const resolved = join(__dirname, '../src', `${relativePath}.ts`);
@@ -53,7 +53,11 @@ function loadTsModule(modulePath) {
 
 // Load the module under test
 const modulePath = join(__dirname, '../src/lib/metric-derivation.ts');
-const { deriveMetricProfile } = loadTsModule(modulePath);
+const moduleExports = loadTsModule(modulePath);
+const deriveMetricProfile = moduleExports.deriveMetricProfile as (
+  category?: string,
+  goal?: string
+) => { profile: string; isAmbiguous: boolean; options?: unknown[] };
 
 test('deriveMetricProfile', async (t) => {
   await t.test('should derive cardio_session for Cardio category', () => {

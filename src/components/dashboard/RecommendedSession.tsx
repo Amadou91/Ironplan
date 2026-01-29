@@ -11,11 +11,14 @@ import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import type { TemplateRow } from '@/hooks/useDashboardData'
 import type { Goal } from '@/types/domain'
 
+type TrainingLoadStatus = 'balanced' | 'undertraining' | 'overreaching'
+
 interface RecommendedSessionProps {
   recommendedTemplate: TemplateRow | undefined
+  trainingLoadStatus?: TrainingLoadStatus
 }
 
-export function RecommendedSession({ recommendedTemplate }: RecommendedSessionProps) {
+export function RecommendedSession({ recommendedTemplate, trainingLoadStatus }: RecommendedSessionProps) {
   const router = useRouter()
   const [isModalOpen, setIsModalOpen] = useState(false)
 

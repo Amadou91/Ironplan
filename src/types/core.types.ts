@@ -52,7 +52,7 @@ export type GoalPriority = 'primary' | 'secondary' | 'balanced'
 
 export type Intensity = 'low' | 'moderate' | 'high'
 
-export type MovementPattern = 'push' | 'pull' | 'squat' | 'hinge' | 'carry' | 'core' | 'cardio'
+export type MovementPattern = 'push' | 'pull' | 'squat' | 'hinge' | 'carry' | 'core' | 'cardio' | 'mobility'
 
 export type RestPreference = 'balanced' | 'high_recovery' | 'minimal_rest'
 

@@ -42,6 +42,7 @@ type ExerciseSeed = {
   secondaryMuscles?: string[]
   metricProfile: string
   sets: SetSeed[]
+  movementPattern?: string
 }
 
 type SessionSeed = {
@@ -264,7 +265,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     kettlebells: [18, 26, 35, 44, 53],
     bands: ['light', 'medium', 'heavy'],
     barbell: { available: true, plates: [45, 35, 25, 10, 5, 2.5] },
-    machines: { cable: true, leg_press: true, treadmill: true, rower: true }
+    machines: { cable: true, leg_press: true, treadmill: true, rower: true, indoor_bicycle: true, outdoor_bicycle: false }
   }
 
   const mobilityInventory: EquipmentInventory = {
@@ -274,7 +275,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     kettlebells: [],
     bands: [],
     barbell: { available: false, plates: [] },
-    machines: { cable: false, leg_press: false, treadmill: false, rower: false }
+    machines: { cable: false, leg_press: false, treadmill: false, rower: false, indoor_bicycle: false, outdoor_bicycle: false }
   }
 
   const templateSeeds = [

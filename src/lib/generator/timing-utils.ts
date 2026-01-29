@@ -49,9 +49,10 @@ export const estimateExerciseMinutes = (
   const workSeconds = getWorkSeconds(goal ?? 'general_fitness', exercise)
   // Robustly handle undefined restSeconds by defaulting to 90s (typical rest)
   const restSeconds = prescription.restSeconds ?? 90
-  const workMinutes = (prescription.sets * (workSeconds + restSeconds)) / 60
+  const sets = prescription.sets ?? 3
+  const workMinutes = (sets * (workSeconds + restSeconds)) / 60
   const fallbackPerSet = exercise.durationMinutes
-    ? exercise.durationMinutes / Math.max(exercise.sets, 1)
+    ? exercise.durationMinutes / Math.max(exercise.sets ?? 1, 1)
     : null
   const fallbackMinutes = fallbackPerSet ? setupMinutes + prescription.sets * fallbackPerSet : 0
   const estimated = setupMinutes + workMinutes

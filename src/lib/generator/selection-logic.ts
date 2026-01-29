@@ -65,12 +65,6 @@ export const filterExercises = (
       case 'upper': // Backward compat
          matchesFocus = ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms'].includes(primary)
          break
-      case 'full_body':
-        matchesFocus = true // Allow any strength exercise for full body flow? Or strictly compounds?
-        // Usually full_body includes everything, or specific 'full_body' muscle
-        if (exercise.primaryMuscle === 'full_body') matchesFocus = true
-        else matchesFocus = true // Allow all for now
-        break
       default:
         matchesFocus = false
     }

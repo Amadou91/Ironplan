@@ -473,19 +473,19 @@ export function ProgressCharts({
               />
               <Tooltip content={<CustomTooltip type="readiness" />} cursor={{ strokeDasharray: '3 3' }} />
               {/* Overreaching: Low Readiness, High Effort */}
-              <ReferenceArea x1={0} x2={50} y1={5} y2={10} fill="var(--color-danger)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extend">
+              <ReferenceArea x1={0} x2={50} y1={5} y2={10} fill="var(--color-danger)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Overreaching" position="insideTopLeft" offset={10} fill="var(--color-danger)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               {/* Optimal: High Readiness, High Effort */}
-              <ReferenceArea x1={50} x2={100} y1={5} y2={10} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extend">
+              <ReferenceArea x1={50} x2={100} y1={5} y2={10} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Optimal" position="insideTopRight" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               {/* Recovery: Low Readiness, Low Effort */}
-              <ReferenceArea x1={0} x2={50} y1={0} y2={5} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extend">
+              <ReferenceArea x1={0} x2={50} y1={0} y2={5} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Recovery" position="insideBottomLeft" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               {/* Undertraining: High Readiness, Low Effort */}
-              <ReferenceArea x1={50} x2={100} y1={0} y2={5} fill="var(--color-warning)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extend">
+              <ReferenceArea x1={50} x2={100} y1={0} y2={5} fill="var(--color-warning)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Undertraining" position="insideBottomRight" offset={10} fill="var(--color-warning)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               <ReferenceLine x={50} stroke="var(--color-border)" strokeDasharray="3 3" />

@@ -40,7 +40,15 @@ import type {
 
 } from '@/types/domain';
 
-
+/** Format rest time in seconds to a human-readable string */
+const formatRestTime = (seconds: number): string => {
+  if (seconds >= 60) {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`
+  }
+  return `${seconds}s`
+}
 
 type ActiveSessionProps = {
 

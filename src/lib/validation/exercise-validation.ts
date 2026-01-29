@@ -1,7 +1,7 @@
 import type { Exercise, MetricProfile, Goal } from '@/types/domain'
 
 export const METRIC_PROFILES: { label: string; value: MetricProfile; description: string }[] = [
-  { value: 'strength', label: 'Strength', description: 'Sets × Reps × Load' },
+  { value: 'reps_weight', label: 'Strength', description: 'Sets × Reps × Load' },
   { value: 'timed_strength', label: 'Timed Strength', description: 'Isometric holds, carries, planks' },
   { value: 'cardio_session', label: 'Cardio Session', description: 'Time-based endurance' },
   { value: 'mobility_session', label: 'Yoga / Mobility Session', description: 'Time-based recovery' }
@@ -74,7 +74,9 @@ export function getConstraintForProfile(profile?: MetricProfile) {
         allowLoad: true,
         defaultRpeRange: [6, 9]
       }
-    case 'strength':
+    case 'reps_weight':
+    case 'reps_only':
+    case 'duration':
     default:
       return {
         requiresDuration: false,

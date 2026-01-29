@@ -207,5 +207,5 @@ export const getMetricProfile = (exercise: Partial<Exercise>): MetricProfile => 
     name.includes('carry')
   ) return 'timed_strength';
   
-  return 'strength';
+  return 'reps_weight';
 };

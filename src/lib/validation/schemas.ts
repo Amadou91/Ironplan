@@ -114,6 +114,24 @@ export const readinessRowSchema = z.object({
 })
 export type ReadinessRowValidated = z.infer<typeof readinessRowSchema>
 
+// Equipment kind enum
+const equipmentKindSchema = z.enum([
+  'bodyweight', 'dumbbell', 'kettlebell', 'band', 'barbell', 
+  'bench_press', 'machine', 'block', 'bolster', 'strap'
+])
+
+// Machine type enum
+const machineTypeSchema = z.enum([
+  'cable', 'leg_press', 'treadmill', 'rower', 'indoor_bicycle', 'outdoor_bicycle'
+])
+
+// Equipment option schema (for exercise catalog)
+const equipmentOptionSchema = z.object({
+  kind: equipmentKindSchema,
+  machineType: machineTypeSchema.optional(),
+  requires: z.array(equipmentKindSchema).optional()
+})
+
 // Exercise catalog row schema
 export const exerciseCatalogRowSchema = z.object({
   id: uuidSchema,
@@ -132,7 +150,7 @@ export const exerciseCatalogRowSchema = z.object({
   secondary_muscles: z.array(z.string()).default([]),
   instructions: z.array(z.string()).default([]),
   video_url: nullableString,
-  equipment: z.array(z.unknown()).default([]),
+  equipment: z.array(equipmentOptionSchema).default([]),
   e1rm_eligible: nullableBoolean.default(false),
   is_interval: z.boolean().default(false),
   interval_duration: nullableNumber,
