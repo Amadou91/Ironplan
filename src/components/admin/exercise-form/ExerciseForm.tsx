@@ -32,6 +32,7 @@ import type {
   EquipmentOption, 
   MachineType, 
   EquipmentKind,
+  EquipmentOrGroup,
   MovementPattern
 } from '@/types/domain'
 
@@ -62,6 +63,16 @@ const MACHINE_TYPES: { label: string; value: MachineType }[] = [
   { label: 'Rower', value: 'rower' },
   { label: 'Indoor Bicycle', value: 'indoor_bicycle' },
   { label: 'Outdoor Bicycle', value: 'outdoor_bicycle' }
+]
+
+const OR_GROUPS: { label: string; value: EquipmentOrGroup; description: string }[] = [
+  { label: 'Free Weight Primary', value: 'free_weight_primary', description: 'Barbell OR Dumbbells' },
+  { label: 'Single Implement', value: 'single_implement', description: 'Kettlebell OR Dumbbell (ballistic/unilateral)' },
+  { label: 'Pull-up Infrastructure', value: 'pull_up_infrastructure', description: 'Pull-up Bar OR Rings' },
+  { label: 'Treadmill/Outdoor', value: 'treadmill_outdoor', description: 'Treadmill OR Outdoor Running' },
+  { label: 'Stationary/Spin', value: 'stationary_spin', description: 'Stationary Bike OR Spin Bike' },
+  { label: 'Rowing Machines', value: 'rowing_machines', description: 'Row Erg OR Ski Erg' },
+  { label: 'Resistance Variable', value: 'resistance_variable', description: 'Resistance Bands OR Cables' }
 ]
 
 const MOVEMENT_PATTERNS: { label: string; value: string }[] = [
@@ -613,6 +624,27 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                               )
                             })}
                           </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* OR-Group Selector - Equipment Substitution */}
+                    {exerciseType === 'Strength' && (formData.equipment?.length ?? 0) > 1 && (
+                      <div className="pt-4 animate-in zoom-in-95 fade-in duration-500">
+                        <div className="p-6 bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-2xl space-y-5">
+                          <div>
+                            <Label className="block text-amber-700 dark:text-amber-400 uppercase text-[10px] font-black tracking-widest">Equipment Substitution Group (Optional)</Label>
+                            <p className="text-xs text-amber-600/70 dark:text-amber-500/70 mt-1">Allow any equipment in the group to satisfy this requirement</p>
+                          </div>
+                          <Select 
+                            value={formData.orGroup || ''} 
+                            onValueChange={(v) => setFormData({...formData, orGroup: v as EquipmentOrGroup || undefined})}
+                          >
+                            <option value="">No substitution (AND logic)</option>
+                            {OR_GROUPS.map(g => (
+                              <option key={g.value} value={g.value}>{g.label} — {g.description}</option>
+                            ))}
+                          </Select>
                         </div>
                       </div>
                     )}

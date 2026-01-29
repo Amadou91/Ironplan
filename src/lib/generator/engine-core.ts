@@ -23,6 +23,7 @@ import {
   getMovementFamily,
   matchesPrimaryMuscle,
   selectEquipmentOption,
+  isExerciseEquipmentSatisfied,
   estimateExerciseMinutes,
   buildSessionName,
   buildRationale,
@@ -110,7 +111,7 @@ const buildSessionForTime = (
   const availableExerciseCount = new Set(
     [...primaryPool, ...secondaryPool, ...accessoryPool]
       .filter((exercise) => isAllowedFocusExercise(exercise))
-      .filter((exercise) => selectEquipmentOption(input.equipment.inventory, exercise.equipment))
+      .filter((exercise) => isExerciseEquipmentSatisfied(input.equipment.inventory, exercise))
       .map((exercise) => exercise.name)
   ).size
 
@@ -234,7 +235,7 @@ const buildSessionForTime = (
       const planned = picks.find((item) => isPrimaryMatch(item.exercise) && item.prescription.sets < item.maxSets)
       if (!planned) break
       planned.prescription.sets += 1
-      const selectedOption = selectEquipmentOption(input.equipment.inventory, planned.exercise.equipment)
+      const selectedOption = selectEquipmentOption(input.equipment.inventory, planned.exercise.equipment, planned.exercise.orGroup)
       planned.estimatedMinutes = estimateExerciseMinutes(planned.exercise, planned.prescription, selectedOption, goal)
       totalMinutes = picks.reduce((sum, item) => sum + item.estimatedMinutes, 0)
       ratioCheck = getSetTotals()

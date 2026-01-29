@@ -8,11 +8,13 @@ import type {
   MovementPattern,
   EquipmentInventory,
   EquipmentOption,
+  EquipmentOrGroup,
   PlanInput,
   ExerciseLoad
 } from '@/types/domain'
 import { computeExerciseMetrics } from '@/lib/workout-metrics'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { evaluateEquipmentExpression, isOrGroupSatisfied } from '@/lib/equipment-groups'
 import type { ExercisePrescription, FocusConstraint } from './types'
 import { focusMuscleMap, focusAccessoryMap, bandLoadMap } from './constants'
 
@@ -204,8 +206,34 @@ export const isEquipmentOptionAvailable = (inventory: EquipmentInventory, option
   }
 }
 
-export const selectEquipmentOption = (inventory: EquipmentInventory, options: Exercise['equipment']) =>
-  options?.find(option => isEquipmentOptionAvailable(inventory, option))
+/**
+ * Check if an exercise's equipment requirements are satisfied.
+ * Evaluates: (OR-group satisfied if present) AND (at least one equipment option available)
+ * 
+ * This is the primary function for filtering exercises during workout generation.
+ * It handles the full boolean expression including OR-group substitution.
+ */
+export const isExerciseEquipmentSatisfied = (
+  inventory: EquipmentInventory,
+  exercise: Exercise
+): boolean => {
+  // Use the OR-group evaluation if exercise declares one
+  if (exercise.orGroup) {
+    return evaluateEquipmentExpression(inventory, exercise.equipment, exercise.orGroup)
+  }
+  
+  // Fall back to standard evaluation: at least one equipment option available
+  if (!exercise.equipment?.length) return true
+  return exercise.equipment.some(option => isEquipmentOptionAvailable(inventory, option))
+}
+
+export const selectEquipmentOption = (inventory: EquipmentInventory, options: Exercise['equipment'], orGroup?: EquipmentOrGroup) => {
+  // If there's an OR-group, ensure it's satisfied first
+  if (orGroup && !isOrGroupSatisfied(inventory, orGroup)) {
+    return undefined
+  }
+  return options?.find(option => isEquipmentOptionAvailable(inventory, option))
+}
 
 export const pickClosestWeight = (weights: number[], target: number) => {
   if (weights.length === 0) return undefined

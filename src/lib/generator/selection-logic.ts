@@ -11,7 +11,8 @@ import {
   normalizeExerciseKey,
   getPrimaryMuscleKey,
   getMovementFamily,
-  selectEquipmentOption
+  selectEquipmentOption,
+  isExerciseEquipmentSatisfied
 } from './utils'
 import {
   getIntensityScore
@@ -75,8 +76,8 @@ export const filterExercises = (
     }
   }
 
-  // 2. Equipment Check
-  const option = selectEquipmentOption(inventory, exercise.equipment)
+  // 2. Equipment Check - evaluates OR-groups and AND requirements
+  const hasEquipment = isExerciseEquipmentSatisfied(inventory, exercise)
   
   // 3. Preferences
   const isDisliked = disliked.some(activity => exercise.name.toLowerCase().includes(activity.toLowerCase()))
@@ -101,7 +102,7 @@ export const filterExercises = (
     // Otherwise, we allow it but will score it based on alignment in scoreExercise
   }
 
-  return matchesFocus && matchesGoal && Boolean(option) && !isDisliked && !(lowImpact && isHighImpact)
+  return matchesFocus && matchesGoal && hasEquipment && !isDisliked && !(lowImpact && isHighImpact)
 })
 
 /**

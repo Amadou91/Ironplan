@@ -39,6 +39,20 @@ export type EquipmentKind =
   | 'bolster'
   | 'strap'
 
+/**
+ * Equipment OR-groups for substitutable equipment.
+ * Exercises can declare an OR-group to allow any equipment within the group.
+ * Groups combine with other requirements via AND logic.
+ */
+export type EquipmentOrGroup =
+  | 'free_weight_primary'        // Barbell OR Dumbbells
+  | 'single_implement'           // Kettlebell OR Dumbbell (single-implement ballistic/unilateral)
+  | 'pull_up_infrastructure'     // Pull-up Bar OR Rings (bodyweight pulling)
+  | 'treadmill_outdoor'          // Treadmill OR Outdoor Running
+  | 'stationary_spin'            // Stationary Bike OR Spin Bike
+  | 'rowing_machines'            // Row Erg OR Ski Erg
+  | 'resistance_variable'        // Resistance Bands OR Cables
+
 type EquipmentRequirement = { requires?: EquipmentKind[] }
 
 export type EquipmentOption =
@@ -129,6 +143,12 @@ export interface Exercise {
   focus?: FocusArea
   metricProfile?: MetricProfile
   equipment: EquipmentOption[]
+  /**
+   * Optional OR-group for equipment substitution.
+   * When set, any equipment in the group can satisfy the requirement.
+   * Group is combined with other equipment requirements via AND logic.
+   */
+  orGroup?: EquipmentOrGroup
   movementPattern?: MovementPattern
   load?: ExerciseLoad
   primaryMuscle?: MuscleGroup | string

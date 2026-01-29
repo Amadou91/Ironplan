@@ -25,7 +25,7 @@ export const createPlannedExercise = (
   reps: string | number,
   goal: Goal
 ): PlannedExercise | null => {
-  const selectedOption = selectEquipmentOption(input.equipment.inventory, exercise.equipment)
+  const selectedOption = selectEquipmentOption(input.equipment.inventory, exercise.equipment, exercise.orGroup)
   if (!selectedOption) return null
 
   const prescription = adaptPrescription(
@@ -74,7 +74,7 @@ export const adjustSessionVolume = (
   let totalMinutes = recalcTotals()
 
   const adjustEstimate = (planned: PlannedExercise) => {
-    const selectedOption = selectEquipmentOption(inventory, planned.exercise.equipment)
+    const selectedOption = selectEquipmentOption(inventory, planned.exercise.equipment, planned.exercise.orGroup)
     planned.estimatedMinutes = estimateExerciseMinutes(
       planned.exercise,
       planned.prescription,

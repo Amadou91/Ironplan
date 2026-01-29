@@ -17,7 +17,8 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "category": "Strength",
     "movementPattern": "squat",
     "metricProfile": "reps_weight",
-    "equipment": [{ "kind": "dumbbell" }],
+    "equipment": [{ "kind": "dumbbell" }, { "kind": "kettlebell" }],
+    "orGroup": "single_implement",
     "primaryMuscle": "quads",
     "secondaryMuscles": ["glutes", "hamstrings"]
   },
@@ -27,6 +28,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "movementPattern": "hinge",
     "metricProfile": "reps_weight",
     "equipment": [{ "kind": "barbell" }, { "kind": "dumbbell" }],
+    "orGroup": "free_weight_primary",
     "primaryMuscle": "hamstrings",
     "secondaryMuscles": ["glutes", "back"]
   },
@@ -109,6 +111,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "movementPattern": "push",
     "metricProfile": "reps_weight",
     "equipment": [{ "kind": "dumbbell" }, { "kind": "barbell" }],
+    "orGroup": "free_weight_primary",
     "primaryMuscle": "chest",
     "secondaryMuscles": ["triceps", "shoulders"]
   },
@@ -127,6 +130,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "movementPattern": "push",
     "metricProfile": "reps_weight",
     "equipment": [{ "kind": "barbell" }, { "kind": "dumbbell" }],
+    "orGroup": "free_weight_primary",
     "primaryMuscle": "shoulders",
     "secondaryMuscles": ["triceps", "core"],
     "e1rmEligible": true
@@ -164,6 +168,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "equipment": [{ "kind": "dumbbell" }, { "kind": "band" }],
+    "orGroup": "resistance_variable",
     "primaryMuscle": "biceps",
     "secondaryMuscles": ["forearms"]
   },
@@ -173,6 +178,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "equipment": [{ "kind": "dumbbell" }, { "kind": "kettlebell" }],
+    "orGroup": "single_implement",
     "primaryMuscle": "biceps",
     "secondaryMuscles": ["forearms"]
   },
@@ -218,6 +224,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "movementPattern": "pull",
     "metricProfile": "reps_weight",
     "equipment": [{ "kind": "barbell" }, { "kind": "dumbbell" }],
+    "orGroup": "free_weight_primary",
     "primaryMuscle": "biceps",
     "secondaryMuscles": ["forearms"]
   },
@@ -272,6 +279,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "movementPattern": "push",
     "metricProfile": "reps_weight",
     "equipment": [{ "kind": "dumbbell" }, { "kind": "band" }],
+    "orGroup": "resistance_variable",
     "primaryMuscle": "triceps",
     "secondaryMuscles": ["shoulders"]
   },

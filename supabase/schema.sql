@@ -79,12 +79,14 @@ create table if not exists public.exercise_catalog (
   is_interval boolean not null default false,
   interval_duration int,
   interval_rest int,
+  or_group text,
   created_at timestamptz not null default now()
 );
 
 create index if not exists exercise_catalog_primary_muscle_idx on public.exercise_catalog (primary_muscle);
 create index if not exists exercise_catalog_focus_idx on public.exercise_catalog (focus);
 create index if not exists exercise_catalog_category_idx on public.exercise_catalog (category);
+create index if not exists exercise_catalog_or_group_idx on public.exercise_catalog (or_group);
 
 create table if not exists public.workout_templates (
   id uuid primary key default gen_random_uuid(),
