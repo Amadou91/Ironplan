@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
 import { ArrowRight, Loader2, Wand2, X } from 'lucide-react'
@@ -12,11 +12,14 @@ import { EquipmentSelector, cardioMachineOptions, strengthMachineOptions } from 
 import { MuscleGroupSelector } from '@/components/generate/MuscleGroupSelector'
 import { TemplateHistory } from '@/components/generate/TemplateHistory'
 import { GenerationSummary } from '@/components/generate/GenerationSummary'
+import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import { useGenerationFlow } from '@/hooks/useGenerationFlow'
+import type { Goal } from '@/types/domain'
 
 export default function GeneratePage() {
   const router = useRouter()
   const { loading: userLoading } = useUser()
+  const [isLatestModalOpen, setIsLatestModalOpen] = useState(false)
   const {
     formData,
     loading,
@@ -36,6 +39,19 @@ export default function GeneratePage() {
     handleStartSession,
     generatePlanHandler
   } = useGenerationFlow()
+
+  const handleLatestSessionConfirm = (data: { minutes: number; style: Goal; bodyWeight?: number }) => {
+    if (!lastSavedTemplate) return
+    
+    const params = new URLSearchParams({
+      minutes: data.minutes.toString(),
+      style: data.style,
+      ...(data.bodyWeight ? { weight: data.bodyWeight.toString() } : {})
+    })
+    
+    router.push(`/workouts/${lastSavedTemplate.templateId}/start?${params.toString()}`)
+    setIsLatestModalOpen(false)
+  }
 
   const flowState = useMemo(() => getFlowCompletion(formData), [formData])
 
@@ -234,17 +250,21 @@ export default function GeneratePage() {
             </Button>
             <Button
               type="button"
-              onClick={() => {
-                if (!lastSavedTemplate) return
-                handleStartSession({ templateId: lastSavedTemplate.templateId, sessionKey: 'latest-start' })
-              }}
-              disabled={!lastSavedTemplate || startingSessionKey === 'latest-start'}
+              onClick={() => setIsLatestModalOpen(true)}
+              disabled={!lastSavedTemplate}
             >
-              {startingSessionKey === 'latest-start' ? 'Starting...' : 'Start latest session'}
+              Start latest session
             </Button>
           </div>
         </div>
       </div>
+
+      <SessionSetupModal
+        isOpen={isLatestModalOpen}
+        onClose={() => setIsLatestModalOpen(false)}
+        onConfirm={handleLatestSessionConfirm}
+        initialCategory={lastSavedTemplate?.focus}
+      />
     </div>
   )
 }

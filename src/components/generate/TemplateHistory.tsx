@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import type { WorkoutHistoryEntry } from '@/lib/workoutHistory'
+import type { Goal } from '@/types/domain'
 
 interface TemplateHistoryProps {
   historyEntries: WorkoutHistoryEntry[]
@@ -28,12 +31,34 @@ export function TemplateHistory({
   startSessionError,
   deletingHistoryIds
 }: TemplateHistoryProps) {
+  const router = useRouter()
   const [entryToDelete, setEntryToDelete] = useState<WorkoutHistoryEntry | null>(null)
+  const [selectedEntry, setSelectedEntry] = useState<WorkoutHistoryEntry | null>(null)
 
   const handleDeleteConfirm = async () => {
     if (!entryToDelete) return
     await onDeleteHistory(entryToDelete)
     setEntryToDelete(null)
+  }
+
+  const handleStartClick = (entry: WorkoutHistoryEntry) => {
+    if (!entry.remoteId) return
+    // Check for active session via the parent's onStartSession first (it will redirect if active)
+    // But we'll still show the modal - the redirect happens after confirm if needed
+    setSelectedEntry(entry)
+  }
+
+  const handleModalConfirm = (data: { minutes: number; style: Goal; bodyWeight?: number }) => {
+    if (!selectedEntry?.remoteId) return
+    
+    const params = new URLSearchParams({
+      minutes: data.minutes.toString(),
+      style: data.style,
+      ...(data.bodyWeight ? { weight: data.bodyWeight.toString() } : {})
+    })
+    
+    router.push(`/workouts/${selectedEntry.remoteId}/start?${params.toString()}`)
+    setSelectedEntry(null)
   }
 
   return (
@@ -83,17 +108,11 @@ export function TemplateHistory({
                     <Button
                       type="button"
                       variant="primary"
-                      onClick={() => {
-                        if (!entry.remoteId) return
-                        onStartSession({
-                          templateId: entry.remoteId,
-                          sessionKey: `${entry.id}-start`
-                        })
-                      }}
+                      onClick={() => handleStartClick(entry)}
                       className="px-3 py-2 text-xs"
-                      disabled={!entry.remoteId || startingSessionKey === `${entry.id}-start`}
+                      disabled={!entry.remoteId}
                     >
-                      {startingSessionKey === `${entry.id}-start` ? 'Starting...' : 'Start Session'}
+                      Start Session
                     </Button>
                     <Button
                       type="button"
@@ -121,6 +140,13 @@ export function TemplateHistory({
         confirmText="Delete"
         variant="danger"
         isLoading={entryToDelete ? Boolean(deletingHistoryIds[entryToDelete.id]) : false}
+      />
+
+      <SessionSetupModal
+        isOpen={Boolean(selectedEntry)}
+        onClose={() => setSelectedEntry(null)}
+        onConfirm={handleModalConfirm}
+        initialCategory={selectedEntry?.template.focus}
       />
     </>
   )
