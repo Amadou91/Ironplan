@@ -191,6 +191,10 @@ export const calculateSessionImpactFromSets = (
 
       weight: isNumber(set.weight) ? set.weight : null,
 
+      implementCount: typeof set.implementCount === 'number' ? set.implementCount : null,
+
+      loadType: (set.loadType as 'total' | 'per_implement' | null) ?? null,
+
       rpe: isNumber(set.rpe) ? set.rpe : null,
 
       rir: isNumber(set.rir) ? set.rir : null,

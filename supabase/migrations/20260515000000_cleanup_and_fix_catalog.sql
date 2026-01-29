@@ -2,7 +2,6 @@
 
 -- 1. Add missing columns to exercise_catalog
 alter table public.exercise_catalog
-  add column if not exists eligible_goals text[] not null default '{}',
   add column if not exists instructions text[] not null default '{}',
   add column if not exists video_url text;
 

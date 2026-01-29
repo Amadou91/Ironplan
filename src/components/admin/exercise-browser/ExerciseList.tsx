@@ -140,11 +140,16 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
 
         {/* 3. Main Content: Equipment */}
         <div className="flex-1 flex flex-col gap-2">
-           {exercise.equipment?.map((e, idx) => (
-              <div key={idx} className="flex justify-start">
-                <EquipmentBadge kind={e.kind} machineType={e.kind === 'machine' ? e.machineType : undefined} />
-              </div>
-           ))}
+          {exercise.equipment?.map((e, idx) => (
+            <div key={idx} className="flex justify-start">
+              <EquipmentBadge kind={e.kind} machineType={e.kind === 'machine' ? e.machineType : undefined} />
+            </div>
+          ))}
+          {exercise.equipment?.some(e => e.requires?.includes('bench_press')) && (
+            <div className="flex justify-start">
+              <EquipmentBadge kind="bench_press" />
+            </div>
+          )}
         </div>
 
         {/* 4. Footer: Metadata & Actions */}

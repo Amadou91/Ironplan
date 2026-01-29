@@ -11,7 +11,14 @@ alter table public.sessions
 -- Backfill snapshot fields from templates when possible
 update public.sessions s
 set session_focus = coalesce(s.session_focus, t.focus),
-    session_goal = coalesce(s.session_goal, t.style),
+    session_goal = coalesce(
+      s.session_goal,
+      case
+        when t.focus = 'mobility' then 'range_of_motion'
+        when t.focus = 'cardio' then 'cardio'
+        else t.style
+      end
+    ),
     session_intensity = coalesce(s.session_intensity, t.intensity)
 from public.workout_templates t
 where s.template_id = t.id

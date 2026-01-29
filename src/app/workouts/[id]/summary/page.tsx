@@ -8,7 +8,7 @@ import { computeSessionMetrics, type ReadinessSurvey } from '@/lib/training-metr
 import { useUser } from '@/hooks/useUser'
 import { useUIStore } from '@/store/uiStore'
 import { Button } from '@/components/ui/Button'
-import type { FocusArea, Goal, Intensity, WeightUnit, MetricProfile, Exercise } from '@/types/domain'
+import type { FocusArea, SessionGoal, Intensity, WeightUnit, MetricProfile, Exercise } from '@/types/domain'
 import { SummaryHeader } from '@/components/workout/SummaryHeader'
 import { SessionHighlights } from '@/components/workout/SessionHighlights'
 import { ExerciseHighlights } from '@/components/workout/ExerciseHighlights'
@@ -21,7 +21,7 @@ type SessionDetail = {
   ended_at: string | null
   status: string | null
   session_notes: string | null
-  session_goal?: Goal | null
+  session_goal?: SessionGoal | null
   body_weight_lb: number | null
   impact: {
     score?: number
@@ -41,6 +41,8 @@ type SessionDetail = {
       id: string
       reps: number | null
       weight: number | null
+      implement_count: number | null
+      load_type: string | null
       rpe: number | null
       rir: number | null
       completed: boolean | null
@@ -57,7 +59,7 @@ type SessionNotes = {
   readinessScore?: number
   readinessSurvey?: ReadinessSurvey
   minutesAvailable?: number
-  goal?: Goal
+  goal?: SessionGoal
   focus?: FocusArea
 }
 
@@ -120,7 +122,7 @@ export default function WorkoutSummaryPage() {
       const [sessionRes, catalogRes] = await Promise.all([
         supabase
           .from('sessions')
-          .select('id, name, started_at, ended_at, status, session_notes, session_goal, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds))')
+          .select('id, name, started_at, ended_at, status, session_notes, session_goal, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds))')
           .eq('id', sessionId).single(),
         supabase.from('exercise_catalog').select('*')
       ])
@@ -138,12 +140,16 @@ export default function WorkoutSummaryPage() {
 
   const sessionMetrics = useMemo(() => {
     if (!session) return null
-    const sessionGoal = (session.session_goal ?? parsedNotes?.goal ?? null) as Goal | undefined
+    const sessionGoal = (session.session_goal ?? parsedNotes?.goal ?? null) as SessionGoal | undefined
     const exerciseLibraryByName = new Map(catalog.map(ex => [ex.name.toLowerCase(), ex]))
     const metricSets = session.session_exercises.flatMap(exercise => {
       const isEligible = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())?.e1rmEligible
       return exercise.sets.filter(set => set.completed !== false).map(set => ({
-        reps: set.reps ?? null, weight: set.weight ?? null, weightUnit: set.weight_unit ?? null,
+        reps: set.reps ?? null,
+        weight: set.weight ?? null,
+        implementCount: set.implement_count ?? null,
+        loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
+        weightUnit: set.weight_unit ?? null,
         rpe: typeof set.rpe === 'number' ? set.rpe : null, rir: typeof set.rir === 'number' ? set.rir : null,
         performedAt: set.performed_at ?? null, completed: set.completed, durationSeconds: set.duration_seconds ?? null,
         metricProfile: exercise.metric_profile ?? undefined, sessionGoal, isEligible
@@ -168,7 +174,7 @@ export default function WorkoutSummaryPage() {
     if (!session) return []
     return session.session_exercises.map(exercise => ({
       name: exercise.exercise_name, muscle: exercise.primary_muscle,
-      volume: Math.round(exercise.sets.reduce((sum, set) => set.completed === false ? sum : sum + computeSetTonnage({ reps: set.reps ?? null, weight: set.weight ?? null, weightUnit: set.weight_unit ?? null }), 0))
+      volume: Math.round(exercise.sets.reduce((sum, set) => set.completed === false ? sum : sum + computeSetTonnage({ reps: set.reps ?? null, weight: set.weight ?? null, implementCount: set.implement_count ?? null, loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null, weightUnit: set.weight_unit ?? null }), 0))
     })).sort((a, b) => b.volume - a.volume).slice(0, 3)
   }, [session])
 

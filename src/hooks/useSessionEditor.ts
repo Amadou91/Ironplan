@@ -40,6 +40,8 @@ type SetRow = {
   set_number: number | null
   reps: number | null
   weight: number | null
+  implement_count: number | null
+  load_type: string | null
   rpe: number | null
   rir: number | null
   completed: boolean | null
@@ -125,6 +127,8 @@ export function useSessionEditor(sessionId?: string) {
               setNumber: set.set_number ?? idx + 1,
               reps: set.reps ?? '',
               weight: set.weight ?? '',
+              implementCount: set.implement_count ?? '',
+              loadType: set.load_type ?? '',
               rpe: set.rpe ?? '',
               rir: set.rir ?? '',
               durationSeconds: set.duration_seconds ?? '',
@@ -142,7 +146,7 @@ export function useSessionEditor(sessionId?: string) {
     setLoading(true)
     const { data, error } = await supabase
       .from('sessions')
-      .select('id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_readiness(sleep_quality, muscle_soreness, stress_level, motivation), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance))')
+      .select('id, user_id, template_id, name, started_at, ended_at, timezone, body_weight_lb, session_readiness(sleep_quality, muscle_soreness, stress_level, motivation), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance))')
       .eq('id', sessionId)
       .single()
 

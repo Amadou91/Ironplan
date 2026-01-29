@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { WorkoutSet, MetricProfile } from '@/types/domain';
 import { Trash2, Check } from 'lucide-react';
 import { RIR_OPTIONS, RPE_OPTIONS } from '@/constants/intensityOptions';
 import type { WeightOption } from '@/lib/equipment';
-import { mapRirToRpe } from '@/lib/session-metrics';
+import { mapRirToRpe, formatTotalWeightLabel } from '@/lib/session-metrics';
 import { useSetEditor } from '@/hooks/useSetEditor';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +18,7 @@ interface SetLoggerProps {
   isMobility?: boolean;
   isTimeBased?: boolean;
   repsLabel?: string;
+  isDumbbell?: boolean;
 }
 
 const NumericInput = ({ 
@@ -58,8 +59,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
   isCardio = false,
   isMobility = false,
   isTimeBased = false,
-  repsLabel = 'Reps'
+  repsLabel = 'Reps',
+  isDumbbell = false
 }) => {
+  const [implementError, setImplementError] = useState(false);
   const {
     isEditing,
     effectiveProfile,
@@ -92,11 +95,36 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
   );
 
   const labelStyle = "mb-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--color-text-subtle)] text-center";
+  const totalLabelStyle = "text-[10px] font-black uppercase tracking-[0.2em] text-[var(--color-text-subtle)]";
+  const totalValueStyle = "text-sm font-black text-[var(--color-text)]";
+  const unitLabel = set.weightUnit ?? 'lb';
+  const hasImplementCount = typeof set.implementCount === 'number' && (set.implementCount === 1 || set.implementCount === 2);
+  const effectiveLoadType = set.loadType === 'per_implement'
+    ? 'per_implement'
+    : (isDumbbell && hasImplementCount ? 'per_implement' : 'total');
+  const totalWeightLabel = useMemo(() => {
+    if (typeof set.weight !== 'number' || !Number.isFinite(set.weight)) return null;
+    return formatTotalWeightLabel({
+      weight: set.weight,
+      weightUnit: unitLabel,
+      displayUnit: unitLabel,
+      loadType: effectiveLoadType,
+      implementCount: hasImplementCount ? set.implementCount as number : null
+    });
+  }, [set.weight, unitLabel, effectiveLoadType, hasImplementCount, set.implementCount]);
+  const handleToggleComplete = () => {
+    if (isDumbbell && !hasImplementCount) {
+      setImplementError(true);
+      return;
+    }
+    setImplementError(false);
+    onToggleComplete();
+  };
 
   const renderCompletionControl = () => (
     <div className="flex justify-end mt-6 pt-4 border-t border-[var(--color-border)]/50">
        <button
-        onClick={onToggleComplete}
+        onClick={handleToggleComplete}
         className={cn(
           "flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all duration-300",
           set.completed 
@@ -215,13 +243,44 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
         set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
       )}>
         {renderHeader()}
+        {isDumbbell && (
+          <div className="mb-5">
+            <label className={labelStyle}>Dumbbells</label>
+            <div className={cn(
+              "grid grid-cols-2 rounded-xl border-2 p-1 transition-all",
+              implementError ? "border-[var(--color-danger)] bg-[var(--color-danger-soft)]/40" : "border-[var(--color-border-strong)] bg-[var(--color-surface-muted)]"
+            )}>
+              {[1, 2].map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  onClick={() => { onUpdate('implementCount', count as 1 | 2); onUpdate('loadType', 'per_implement'); setImplementError(false); }}
+                  className={cn(
+                    "h-10 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                    hasImplementCount && set.implementCount === count
+                      ? "bg-[var(--color-primary)] text-white shadow-sm"
+                      : "text-[var(--color-text-subtle)] hover:text-[var(--color-primary-strong)]"
+                  )}
+                  disabled={!isEditing}
+                >
+                  {count} DB
+                </button>
+              ))}
+            </div>
+            {implementError && (
+              <p className="mt-2 text-[10px] font-bold text-center text-[var(--color-danger)] uppercase tracking-widest">Select 1 or 2</p>
+            )}
+          </div>
+        )}
         <div className="grid gap-5 grid-cols-1 sm:grid-cols-2">
           <div className="flex flex-col">
             <label className={labelStyle}>Duration (min)</label>
             <NumericInput placeholder="0" value={durationMinutes} onChange={handleDurationChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
           </div>
           <div className="flex flex-col">
-            <label className={labelStyle}>Weight ({set.weightUnit ?? 'lb'})</label>
+            <label className={labelStyle}>
+              {effectiveLoadType === 'per_implement' ? `Weight / DB (${unitLabel})` : `Weight (${unitLabel})`}
+            </label>
             {weightChoices.length > 0 ? (
               <select value={typeof set.weight === 'number' ? String(set.weight) : ''} onChange={(e) => { const v = e.target.value === '' ? '' : Number(e.target.value); onUpdate('weight', v); const opt = weightChoices.find(c => c.value === v); if (opt?.unit) onUpdate('weightUnit', opt.unit); }} className={inputClassName()} disabled={!isEditing}>
                 <option value="">Select weight</option>
@@ -246,6 +305,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
             </select>
           </div>
         </div>
+        <div className="mt-5 flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 px-4 py-3">
+          <span className={totalLabelStyle}>Total Weight</span>
+          <span className={totalValueStyle}>{totalWeightLabel ?? '—'}</span>
+        </div>
         {renderCompletionControl()}
       </div>
     );
@@ -260,9 +323,40 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
       set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
     )}>
       {renderHeader()}
-      <div className="grid gap-5 grid-cols-1 sm:grid-cols-3">
+      <div className={cn("grid gap-5 grid-cols-1", isDumbbell ? "sm:grid-cols-4" : "sm:grid-cols-3")}>
+        {isDumbbell && (
+          <div className="flex flex-col">
+            <label className={labelStyle}>Dumbbells</label>
+            <div className={cn(
+              "grid grid-cols-2 rounded-xl border-2 p-1 transition-all",
+              implementError ? "border-[var(--color-danger)] bg-[var(--color-danger-soft)]/40" : "border-[var(--color-border-strong)] bg-[var(--color-surface-muted)]"
+            )}>
+              {[1, 2].map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  onClick={() => { onUpdate('implementCount', count as 1 | 2); onUpdate('loadType', 'per_implement'); setImplementError(false); }}
+                  className={cn(
+                    "h-10 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                    hasImplementCount && set.implementCount === count
+                      ? "bg-[var(--color-primary)] text-white shadow-sm"
+                      : "text-[var(--color-text-subtle)] hover:text-[var(--color-primary-strong)]"
+                  )}
+                  disabled={!isEditing}
+                >
+                  {count} DB
+                </button>
+              ))}
+            </div>
+            {implementError && (
+              <p className="mt-2 text-[10px] font-bold text-center text-[var(--color-danger)] uppercase tracking-widest">Select 1 or 2</p>
+            )}
+          </div>
+        )}
         <div className="flex flex-col">
-          <label className={labelStyle}>Weight ({set.weightUnit ?? 'lb'})</label>
+          <label className={labelStyle}>
+            {effectiveLoadType === 'per_implement' ? `Weight / DB (${unitLabel})` : `Weight (${unitLabel})`}
+          </label>
           {weightChoices.length > 0 ? (
             <select value={typeof set.weight === 'number' ? String(set.weight) : ''} onChange={(e) => { const v = e.target.value === '' ? '' : Number(e.target.value); onUpdate('weight', v); const opt = weightChoices.find(c => c.value === v); if (opt?.unit) onUpdate('weightUnit', opt.unit); }} className={inputClassName()} disabled={!isEditing}>
               <option value="">--</option>
@@ -284,6 +378,10 @@ export const SetLogger: React.FC<SetLoggerProps> = ({
           </select>
           {derivedRpe && <p className="mt-2 text-[10px] font-bold text-center text-[var(--color-text-subtle)] uppercase tracking-tighter italic">RPE {derivedRpe}{derivedRpeLabel ? ` · ${derivedRpeLabel}` : ''}</p>}
         </div>
+      </div>
+      <div className="mt-5 flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 px-4 py-3">
+        <span className={totalLabelStyle}>Total Weight</span>
+        <span className={totalValueStyle}>{totalWeightLabel ?? '—'}</span>
       </div>
       {renderCompletionControl()}
     </div>

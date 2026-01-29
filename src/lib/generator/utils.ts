@@ -101,13 +101,13 @@ export const formatFocusLabel = (focus: FocusArea) => {
 }
 
 export const formatGoalLabel = (goal: Goal | string) => {
-  const map: Record<string, string> = {
-    range_of_motion: 'Mobility & Flexibility',
-    hypertrophy: 'Muscle Growth',
-    strength: 'Strength',
-    endurance: 'Endurance',
-    cardio: 'Conditioning'
-  }
+const map: Record<string, string> = {
+  range_of_motion: 'Mobility & Flexibility',
+  hypertrophy: 'Muscle Growth',
+  strength: 'Strength',
+  endurance: 'Endurance',
+  cardio: 'Conditioning'
+}
   return map[goal] ?? goal.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
@@ -313,7 +313,7 @@ export const estimateExerciseMinutes = (
   goal?: Goal
 ) => {
   const setupMinutes = getSetupMinutes(option)
-  const workSeconds = getWorkSeconds(goal ?? exercise.goal ?? 'general_fitness', exercise)
+  const workSeconds = getWorkSeconds(goal ?? 'general_fitness', exercise)
   // Robustly handle undefined restSeconds by defaulting to 90s (typical rest)
   const restSeconds = prescription.restSeconds ?? 90
   const workMinutes = (prescription.sets * (workSeconds + restSeconds)) / 60
@@ -427,7 +427,7 @@ export const calculateExerciseImpact = (exercises: Exercise[]): WorkoutImpact =>
         load: exercise.load // might be undefined, fine
       },
       undefined, // equipment option
-      exercise.goal
+      undefined
     )
     totalDuration += estimatedMinutes
   })

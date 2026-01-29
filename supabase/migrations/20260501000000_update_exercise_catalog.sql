@@ -2,7 +2,6 @@
 alter table public.exercise_catalog
   add column if not exists focus text,
   add column if not exists movement_pattern text,
-  add column if not exists goal text,
   add column if not exists metric_profile text,
   add column if not exists sets int,
   add column if not exists reps text,
@@ -25,4 +24,3 @@ alter table public.exercise_catalog
 
 -- Add indexes for common filters
 create index if not exists exercise_catalog_focus_idx on public.exercise_catalog (focus);
-create index if not exists exercise_catalog_goal_idx on public.exercise_catalog (goal);

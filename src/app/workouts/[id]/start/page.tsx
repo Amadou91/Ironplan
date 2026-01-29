@@ -18,7 +18,7 @@ import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import type { FocusArea, Goal, PlanInput, Exercise, CardioActivity } from '@/types/domain'
+import type { FocusArea, Goal, SessionGoal, PlanInput, Exercise, CardioActivity } from '@/types/domain'
 import { ReadinessCheck, READINESS_FIELDS } from '@/components/workout/start/ReadinessCheck'
 import { SessionPreview } from '@/components/workout/start/SessionPreview'
 import { mapCatalogRowToExercise } from '@/lib/generator/mappers'
@@ -172,7 +172,13 @@ export default function WorkoutStartPage() {
       }
       const history = await fetchTemplateHistory(supabase, template.id)
       
-      const sessionGoal = overrideStyle ?? template.style
+      const sessionGoal: SessionGoal =
+        template.focus === 'mobility'
+          ? 'range_of_motion'
+          : template.focus === 'cardio'
+            ? 'cardio'
+            : overrideStyle ?? template.style
+      const generatorGoal: Goal = overrideStyle ?? template.style
       
       const { sessionId, startedAt, sessionName, exercises, impact, timezone, sessionNotes } = await createWorkoutSession({
         supabase, 
@@ -185,7 +191,8 @@ export default function WorkoutStartPage() {
           fallback: template.title 
         }),
         focus: template.focus, 
-        goal: sessionGoal, 
+        goal: generatorGoal, 
+        sessionGoal,
         input: tunedInputs, 
         minutesAvailable, 
         readiness: { 

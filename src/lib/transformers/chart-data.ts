@@ -55,6 +55,8 @@ export type AnalyzedSet = {
   metricProfile?: string | null
   reps?: number | null
   weight?: number | null
+  implement_count?: number | null
+  load_type?: string | null
   weight_unit?: string | null
   weightUnit?: string | null
   rpe?: number | null
@@ -167,12 +169,16 @@ export function transformSessionsToVolumeTrend(
       metricProfile: set.metricProfile as MetricProfile,
       reps: set.reps ?? null,
       weight: set.weight ?? null,
+      implementCount: set.implement_count ?? null,
+      loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
       weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null
     })
     const load = computeSetLoad({
       metricProfile: set.metricProfile as MetricProfile,
       reps: set.reps ?? null,
       weight: set.weight ?? null,
+      implementCount: set.implement_count ?? null,
+      loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
       weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null,
       rpe: typeof set.rpe === 'number' ? set.rpe : null,
       rir: typeof set.rir === 'number' ? set.rir : null,
@@ -235,6 +241,8 @@ export function transformSessionsToExerciseTrend(
     const e1rm = computeSetE1rm({
       ...set,
       metricProfile: set.metricProfile as MetricProfile,
+      implementCount: set.implement_count ?? null,
+      loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
       weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null
     }, null, isEligible)
     if (!e1rm) return
@@ -278,6 +286,8 @@ export function transformSetsToMuscleBreakdown(
       metricProfile: set.metricProfile as MetricProfile,
       reps: set.reps ?? null,
       weight: set.weight ?? null,
+      implementCount: set.implement_count ?? null,
+      loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
       weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null
     })
     if (!tonnage) return

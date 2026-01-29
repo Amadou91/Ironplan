@@ -23,6 +23,8 @@ type SetPayload = {
   set_number: number | null;
   reps: number | null;
   weight: number | null;
+  implement_count: number | null;
+  load_type: string | null;
   rpe: number | null;
   rir: number | null;
   completed: boolean | null;
@@ -139,6 +141,8 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
               setNumber: set.set_number ?? setIdx + 1,
               reps: set.reps ?? '',
               weight: set.weight ?? '',
+              implementCount: set.implement_count ?? '',
+              loadType: set.load_type ?? '',
               rpe: set.rpe ?? '',
               rir: set.rir ?? '',
               performedAt: set.performed_at ?? undefined,
@@ -159,7 +163,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     const fetchSession = async () => {
       const { data, error } = await supabase
         .from('sessions')
-        .select('id, user_id, name, template_id, started_at, ended_at, status, body_weight_lb, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit, extras, extra_metrics))')
+        .select('id, user_id, name, template_id, started_at, ended_at, status, body_weight_lb, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit, extras, extra_metrics))')
         .eq('id', sessionId)
         .single();
 
@@ -209,6 +213,8 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
       set_number: set.setNumber,
       reps: set.reps === '' ? null : Number(set.reps),
       weight: set.weight === '' ? null : Number(set.weight),
+      implement_count: set.implementCount === '' ? null : (typeof set.implementCount === 'number' ? set.implementCount : null),
+      load_type: set.loadType === 'per_implement' ? 'per_implement' : 'total',
       rpe: set.rpe === '' ? null : Number(set.rpe),
       rir: set.rir === '' ? null : Number(set.rir),
       completed: set.completed,

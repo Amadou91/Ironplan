@@ -55,6 +55,9 @@ export default function SessionEditPage() {
     return buildWeightOptions(resolvedInventory, match.equipment, profileWeightLb, preferredUnit)
   }
 
+  const isDumbbellExercise = (exerciseName: string) =>
+    Boolean(exerciseLibraryByName.get(exerciseName.toLowerCase())?.equipment?.some(option => option.kind === 'dumbbell'))
+
   const handleAddExercise = () => {
     if (!newExerciseName.trim() || !session) return
     const match = exerciseLibraryByName.get(newExerciseName.toLowerCase())
@@ -138,10 +141,11 @@ export default function SessionEditPage() {
                     onToggleComplete={() => setSession({...session, exercises: session.exercises.map(e => e.id === exercise.id ? {...e, sets: e.sets.map(s => s.id === set.id ? {...s, completed: !s.completed} : s)} : e)})}
                     metricProfile={exercise.metricProfile ?? undefined}
                     isTimeBased={isTimeBasedExercise(exercise.name, exerciseLibraryByName.get(exercise.name.toLowerCase())?.reps)}
+                    isDumbbell={isDumbbellExercise(exercise.name)}
                   />
                 ))}
               </div>
-              <Button variant="outline" className="w-full" onClick={() => setSession({...session, exercises: session.exercises.map(e => e.id === exercise.id ? {...e, sets: [...e.sets, { id: `temp-${Date.now()}`, setNumber: e.sets.length + 1, reps: '', weight: '', completed: false, weightUnit: preferredUnit } as WorkoutSet]} : e)})}>Add set</Button>
+              <Button variant="outline" className="w-full" onClick={() => setSession({...session, exercises: session.exercises.map(e => e.id === exercise.id ? {...e, sets: [...e.sets, { id: `temp-${Date.now()}`, setNumber: e.sets.length + 1, reps: '', weight: '', implementCount: isDumbbellExercise(exercise.name) ? 2 : '', loadType: isDumbbellExercise(exercise.name) ? 'per_implement' : '', completed: false, weightUnit: preferredUnit } as WorkoutSet]} : e)})}>Add set</Button>
             </Card>
           ))}
         </div>

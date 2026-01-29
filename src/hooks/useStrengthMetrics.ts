@@ -22,7 +22,8 @@ import {
   computeSetLoad,
   getEffortScore,
   getWeekKey,
-  toWeightInPounds
+  toWeightInPounds,
+  getTotalWeight
 } from '@/lib/session-metrics'
 import type { WeightUnit, MetricProfile } from '@/types/domain'
 
@@ -78,7 +79,7 @@ export function useStrengthMetrics(options: {
       let query = supabase
         .from('sessions')
         .select(
-          'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds))'
+          'id, name, template_id, started_at, ended_at, status, minutes_available, body_weight_lb, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds))'
         )
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
@@ -157,6 +158,8 @@ export function useStrengthMetrics(options: {
     const metricSets = allSets.map(set => ({
       reps: set.reps ?? null,
       weight: set.weight ?? null,
+      implementCount: set.implement_count ?? null,
+      loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
       weightUnit: (set.weight_unit as WeightUnit) ?? null,
       rpe: typeof set.rpe === 'number' ? set.rpe : null,
       rir: typeof set.rir === 'number' ? set.rir : null
@@ -169,7 +172,16 @@ export function useStrengthMetrics(options: {
 
     let bestE1rmValue = 0, bestE1rmExercise = ''
     allSets.forEach(set => {
-      const e1rm = computeSetE1rm(set, null, exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible)
+      const e1rm = computeSetE1rm({
+        reps: set.reps ?? null,
+        weight: set.weight ?? null,
+        implementCount: set.implement_count ?? null,
+        loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
+        weightUnit: (set.weight_unit as WeightUnit) ?? null,
+        rpe: typeof set.rpe === 'number' ? set.rpe : null,
+        rir: typeof set.rir === 'number' ? set.rir : null,
+        completed: true
+      }, null, exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible)
       if (e1rm && e1rm > bestE1rmValue) { bestE1rmValue = e1rm; bestE1rmExercise = set.exerciseName }
     })
 
@@ -198,10 +210,20 @@ export function useStrengthMetrics(options: {
     allSets.forEach(set => {
       const reps = set.reps ?? 0, weight = set.weight ?? 0
       if (!reps || !weight) return
-      const normalizedWeight = toWeightInPounds(weight, (set.weight_unit as WeightUnit) ?? null)
+      const totalWeight = getTotalWeight(weight, (set.load_type as 'total' | 'per_implement' | null) ?? null, set.implement_count ?? null)
+      const normalizedWeight = toWeightInPounds(totalWeight, (set.weight_unit as WeightUnit) ?? null)
       maxWeight = Math.max(maxWeight, normalizedWeight)
       bestReps = Math.max(bestReps, reps)
-      const e1rm = computeSetE1rm(set, undefined, exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible)
+      const e1rm = computeSetE1rm({
+        reps: set.reps ?? null,
+        weight: set.weight ?? null,
+        implementCount: set.implement_count ?? null,
+        loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
+        weightUnit: (set.weight_unit as WeightUnit) ?? null,
+        rpe: typeof set.rpe === 'number' ? set.rpe : null,
+        rir: typeof set.rir === 'number' ? set.rir : null,
+        completed: true
+      }, undefined, exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible)
       if (e1rm) bestE1rm = Math.max(bestE1rm, e1rm)
     })
     return { maxWeight, bestReps, bestE1rm: Math.round(bestE1rm) }

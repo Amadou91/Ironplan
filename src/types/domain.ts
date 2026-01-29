@@ -55,6 +55,7 @@ export type EquipmentOption =
 
 export type WeightUnit = 'lb' | 'kg'
 export type DistanceUnit = 'm' | 'km' | 'miles'
+export type LoadType = 'total' | 'per_implement'
 
 export type GroupType = 'superset' | 'circuit' | 'giant_set' | 'dropset'
 
@@ -93,6 +94,7 @@ export type FocusArea =
   | 'shoulders'
 
 export type Goal = 'strength' | 'hypertrophy' | 'endurance' | 'range_of_motion' | 'cardio' | 'general_fitness'
+export type SessionGoal = Goal
 
 export type GoalPriority = 'primary' | 'secondary' | 'balanced'
 
@@ -260,7 +262,7 @@ export interface WorkoutSession {
   templateId?: string
   name: string
   sessionFocus?: FocusArea | null
-  sessionGoal?: Goal | null
+  sessionGoal?: SessionGoal | null
   sessionIntensity?: Intensity | null
   startedAt: string
   endedAt?: string
@@ -297,6 +299,8 @@ export interface WorkoutSet {
   setNumber: number
   reps: number | '' | null
   weight: number | '' | null
+  implementCount?: number | '' | null
+  loadType?: LoadType | '' | null
   rpe?: number | '' | null
   rir?: number | '' | null
   notes?: string | null

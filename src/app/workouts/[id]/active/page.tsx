@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { calculateSessionImpactFromSets, formatFocusLabel, formatGoalLabel } from '@/lib/workout-metrics'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
-import type { Goal } from '@/types/domain'
+import type { SessionGoal } from '@/types/domain'
 
 type ConfirmAction = {
   type: 'finish' | 'cancel'
@@ -41,7 +41,7 @@ function WorkoutActiveContent() {
   const sessionNotes = activeSession?.sessionNotes
     ? (typeof activeSession.sessionNotes === 'string' ? JSON.parse(activeSession.sessionNotes) : activeSession.sessionNotes)
     : null
-  const sessionGoal = (activeSession?.sessionGoal ?? sessionNotes?.goal ?? null) as Goal | null
+  const sessionGoal = (activeSession?.sessionGoal ?? sessionNotes?.goal ?? null) as SessionGoal | null
   const sessionFocus = activeSession?.sessionFocus ?? sessionNotes?.focus ?? null
   const equipmentInventory = sessionNotes?.equipmentInventory ?? null
   const sessionTitle = activeSession?.name ?? 'Active session'

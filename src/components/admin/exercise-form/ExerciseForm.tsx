@@ -216,6 +216,26 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
   const handleEquipmentChange = (kind: EquipmentKind, machineType?: MachineType) => {
     setFormData(prev => {
       const current = prev.equipment || []
+      if (kind === 'bench_press') {
+        const hasBenchRequirement = current.some(e => e.requires?.includes('bench_press'))
+        const next = current
+          .filter(e => e.kind !== 'bench_press')
+          .map((e) => {
+            if (e.kind !== 'barbell' && e.kind !== 'dumbbell') return e
+            if (!hasBenchRequirement) {
+              const requires = Array.from(new Set([...(e.requires ?? []), 'bench_press']))
+              return { ...e, requires }
+            }
+            const requires = (e.requires ?? []).filter(req => req !== 'bench_press')
+            if (requires.length === 0) {
+              const { requires: _removed, ...rest } = e
+              return rest
+            }
+            return { ...e, requires }
+          })
+
+        return { ...prev, equipment: next }
+      }
       const existing = current.find(e => e.kind === kind)
       
       if (existing) {
@@ -546,7 +566,9 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                         if (exerciseType === 'Yoga') return ['block', 'bolster', 'strap', 'bodyweight'].includes(item.value);
                         return !['block', 'bolster', 'strap'].includes(item.value);
                       }).map(item => {
-                        const isSelected = formData.equipment?.some(e => e.kind === item.value)
+                        const isSelected = item.value === 'bench_press'
+                          ? formData.equipment?.some(e => e.requires?.includes('bench_press') || e.kind === 'bench_press')
+                          : formData.equipment?.some(e => e.kind === item.value)
                         return (
                           <button
                             key={item.value}

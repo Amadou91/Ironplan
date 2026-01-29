@@ -30,6 +30,8 @@ export type SessionRow = {
       set_number: number | null
       reps: number | null
       weight: number | null
+      implement_count?: number | null
+      load_type?: string | null
       rpe: number | null
       rir: number | null
       completed: boolean | null
@@ -51,6 +53,8 @@ export function calculateTrainingStatus(sessions: SessionRow[]) {
           metricProfile: (exercise.metric_profile as MetricProfile) ?? null,
           reps: set.reps ?? null,
           weight: set.weight ?? null,
+          implementCount: set.implement_count ?? null,
+          loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
           rpe: typeof set.rpe === 'number' ? set.rpe : null,
           rir: typeof set.rir === 'number' ? set.rir : null,

@@ -16,10 +16,11 @@ import {
   aggregateHardSets, 
   computeSetTonnage, 
   computeSetLoad, 
-  computeSetE1rm 
+  computeSetE1rm,
+  formatTotalWeightLabel
 } from '@/lib/session-metrics'
 import { useUIStore } from '@/store/uiStore'
-import { KG_PER_LB, convertWeight } from '@/lib/units'
+import { KG_PER_LB } from '@/lib/units'
 import type { SessionRow } from '@/lib/transformers/progress-data'
 import type { Exercise, WeightUnit } from '@/types/domain'
 
@@ -98,6 +99,8 @@ export function SessionHistoryList({
           metricProfile: exercise.metric_profile ?? undefined,
           reps: set.reps ?? null,
           weight: set.weight ?? null,
+          implementCount: set.implement_count ?? null,
+          loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null
         })
         totals.volume += tonnage
@@ -106,6 +109,8 @@ export function SessionHistoryList({
             metricProfile: exercise.metric_profile ?? undefined,
             reps: set.reps ?? null,
             weight: set.weight ?? null,
+            implementCount: set.implement_count ?? null,
+            loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
             rpe: typeof set.rpe === 'number' ? set.rpe : null,
             rir: typeof set.rir === 'number' ? set.rir : null
@@ -115,6 +120,8 @@ export function SessionHistoryList({
           metricProfile: exercise.metric_profile ?? undefined,
           reps: set.reps ?? null,
           weight: set.weight ?? null,
+          implementCount: set.implement_count ?? null,
+          loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
           weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
           rpe: typeof set.rpe === 'number' ? set.rpe : null,
           rir: typeof set.rir === 'number' ? set.rir : null,
@@ -125,6 +132,8 @@ export function SessionHistoryList({
           {
             reps: set.reps ?? null,
             weight: set.weight ?? null,
+            implementCount: set.implement_count ?? null,
+            loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
             weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
             rpe: typeof set.rpe === 'number' ? set.rpe : null,
             rir: typeof set.rir === 'number' ? set.rir : null,
@@ -217,16 +226,20 @@ export function SessionHistoryList({
                             </div>
                             <div className="space-y-2">
                               {(exercise.sets ?? []).map((set) => {
-                                const weightVal = set.weight ?? 0;
-                                const fromUnit = (set.weight_unit as WeightUnit) || 'lb';
-                                const displayWeight = Math.round(convertWeight(weightVal, fromUnit, displayUnit) * 10) / 10;
+                                const totalLabel = formatTotalWeightLabel({
+                                  weight: set.weight ?? null,
+                                  weightUnit: (set.weight_unit as WeightUnit) || 'lb',
+                                  displayUnit,
+                                  loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
+                                  implementCount: set.implement_count ?? null
+                                });
                                 
                                 return (
                                   <div key={set.id} className="rounded-xl border border-[var(--color-border)]/50 bg-[var(--color-surface-subtle)]/50 px-3 py-2.5 transition-colors hover:border-[var(--color-border-strong)]">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                       <span className="text-[10px] font-black uppercase tracking-widest text-subtle/60">Set {set.set_number ?? 'N/A'}</span>
                                       <div className="text-xs font-black text-strong">
-                                        {set.weight ? `${displayWeight} ${displayUnit}` : 'N/A'} <span className="text-[var(--color-border-strong)] font-normal mx-1">×</span> {set.reps ?? 'N/A'}
+                                        {totalLabel ?? 'N/A'} <span className="text-[var(--color-border-strong)] font-normal mx-1">×</span> {set.reps ?? 'N/A'}
                                         <span className="ml-2 text-[10px] text-subtle tracking-normal">
                                           {typeof set.rpe === 'number' ? ` RPE ${set.rpe}` : ''}
                                           {typeof set.rir === 'number' ? ` RIR ${set.rir}` : ''}

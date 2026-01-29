@@ -1,4 +1,4 @@
-import type { Goal, GroupType, WeightUnit, MetricProfile } from '@/types/domain'
+import type { SessionGoal, GroupType, WeightUnit, MetricProfile, LoadType } from '@/types/domain'
 import { toKg, toLbs, normalizeIntensity, convertWeight } from '@/lib/units'
 
 export const E1RM_FORMULA_VERSION = 'epley_v1'
@@ -8,6 +8,8 @@ export type MetricsSet = {
   reps?: number | null
   weight?: number | null
   weightUnit?: WeightUnit | null
+  implementCount?: number | null
+  loadType?: LoadType | null
   rpe?: number | null
   rir?: number | null
   performedAt?: string | null
@@ -27,11 +29,11 @@ export type MetricsExercise = {
 export type MetricsSession = {
   startedAt: string
   exercises: MetricsExercise[]
-  goal?: Goal | null
+  goal?: SessionGoal | null
 }
 
 export const isSetE1rmEligible = (
-  sessionGoal?: Goal | null,
+  sessionGoal?: SessionGoal | null,
   exerciseEligible?: boolean | null,
   set?: MetricsSet | null
 ): boolean => {
@@ -68,6 +70,50 @@ export const toWeightInUnit = (weight: number, fromUnit: WeightUnit, toUnit: Wei
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
+const isValidNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value)
+
+export const getTotalWeight = (
+  weight: number | null | undefined,
+  loadType?: LoadType | null,
+  implementCount?: number | null
+) => {
+  if (!isValidNumber(weight)) return 0
+  if (loadType === 'per_implement' && isValidNumber(implementCount) && implementCount > 0) {
+    return weight * implementCount
+  }
+  return weight
+}
+
+export const formatTotalWeightLabel = ({
+  weight,
+  weightUnit,
+  displayUnit,
+  loadType,
+  implementCount,
+  decimals = 1
+}: {
+  weight: number | null | undefined
+  weightUnit: WeightUnit | null | undefined
+  displayUnit: WeightUnit
+  loadType?: LoadType | null
+  implementCount?: number | null
+  decimals?: number
+}) => {
+  if (!isValidNumber(weight)) return null
+  const fromUnit = weightUnit ?? 'lb'
+  const perImplement = convertWeight(weight, fromUnit, displayUnit)
+  const total = getTotalWeight(perImplement, loadType, implementCount)
+  const format = (value: number) => {
+    const rounded = Number.isFinite(value) ? Number(value.toFixed(decimals)) : value
+    return Number.isInteger(rounded) ? String(rounded) : String(rounded)
+  }
+  if (loadType === 'per_implement' && isValidNumber(implementCount) && implementCount > 0) {
+    return `${implementCount} x ${format(perImplement)} ${displayUnit} = ${format(total)} ${displayUnit} total`
+  }
+  return `${format(total)} ${displayUnit} total`
+}
+
 export const mapRirToRpe = (rir: number) => {
   if (!Number.isFinite(rir)) return null
   return clamp(10 - rir, 0, 10)
@@ -84,25 +130,26 @@ export const mapRpeToRir = (rpe: number) => {
  * Formula: Reps * Weight(lb)
  */
 export const computeSetTonnage = (set: MetricsSet): number => {
-  if (typeof set.weight !== 'number' || typeof set.reps !== 'number') return 0
-  if (!Number.isFinite(set.weight) || !Number.isFinite(set.reps)) return 0
-  if (set.weight <= 0 || set.reps <= 0) return 0
-  return toLbs(set.weight, set.weightUnit) * set.reps
+  if (!isValidNumber(set.reps) || set.reps <= 0) return 0
+  if (!isValidNumber(set.weight)) return 0
+  const totalWeight = getTotalWeight(set.weight, set.loadType, set.implementCount)
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0) return 0
+  return toLbs(totalWeight, set.weightUnit) * set.reps
 }
 
 export const computeSetE1rm = (
   set: MetricsSet,
-  sessionGoal?: Goal | null,
+  sessionGoal?: SessionGoal | null,
   exerciseEligible?: boolean | null
 ) => {
   if (set.metricProfile && set.metricProfile !== 'reps_weight') return null
   if (!isSetE1rmEligible(sessionGoal, exerciseEligible, set)) return null
-  if (typeof set.weight !== 'number' || typeof set.reps !== 'number') return null
-  if (!Number.isFinite(set.weight) || !Number.isFinite(set.reps)) return null
-  if (set.weight <= 0 || set.reps <= 0) return null
+  if (!isValidNumber(set.reps) || !isValidNumber(set.weight)) return null
+  const totalWeight = getTotalWeight(set.weight, set.loadType, set.implementCount)
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0 || set.reps <= 0) return null
   
   // Use KG for internal calculation consistency
-  const weight = toKg(set.weight, set.weightUnit)
+  const weight = toKg(totalWeight, set.weightUnit)
   const derivedRir =
     typeof set.rir === 'number' && Number.isFinite(set.rir)
       ? set.rir
@@ -127,10 +174,12 @@ export const isHardSet = (set: MetricsSet) => {
 }
 
 export const computeSetIntensity = (set: MetricsSet) => {
-  const e1rm = computeSetE1rm(set, 'reps_weight', true)
+  const e1rm = computeSetE1rm(set, null, true)
   if (!e1rm) return 0
-  if (typeof set.weight !== 'number' || set.weight <= 0) return 0
-  const weight = toKg(set.weight, set.weightUnit)
+  if (!isValidNumber(set.weight)) return 0
+  const totalWeight = getTotalWeight(set.weight, set.loadType, set.implementCount)
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0) return 0
+  const weight = toKg(totalWeight, set.weightUnit)
   return weight / e1rm
 }
 
@@ -175,7 +224,7 @@ export const computeSetLoad = (set: MetricsSet): number => {
 export const aggregateTonnage = (sets: MetricsSet[]) =>
   sets.reduce((sum, set) => sum + computeSetTonnage(set), 0)
 
-export const aggregateBestE1rm = (sets: MetricsSet[], sessionGoal?: Goal | null, exerciseEligible?: boolean | null) => {
+export const aggregateBestE1rm = (sets: MetricsSet[], sessionGoal?: SessionGoal | null, exerciseEligible?: boolean | null) => {
   const e1rms = sets
     .map((set) => computeSetE1rm(set, sessionGoal, exerciseEligible))
     .filter((val): val is number => val !== null)

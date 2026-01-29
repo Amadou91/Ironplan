@@ -204,7 +204,7 @@ export const buildWeightOptions = (
           options.push({
             value: converted,
             unit: preferredUnit,
-            label: showKindLabel ? `${converted} ${unitLabel} dumbbell` : `${converted} ${unitLabel}`
+            label: showKindLabel ? `${converted} ${unitLabel} dumbbell (per DB)` : `${converted} ${unitLabel} per DB`
           })
         })
         break

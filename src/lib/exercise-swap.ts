@@ -72,8 +72,8 @@ const scoreCandidate = (current: Exercise, candidate: Exercise) => {
     score += 2
   }
 
-  const currentGoal = current.goal ?? inferGoalFromReps(current.reps)
-  const candidateGoal = candidate.goal ?? inferGoalFromReps(candidate.reps)
+  const currentGoal = inferGoalFromReps(current.reps)
+  const candidateGoal = inferGoalFromReps(candidate.reps)
   if (currentGoal && candidateGoal && currentGoal === candidateGoal) {
     score += 1
   }

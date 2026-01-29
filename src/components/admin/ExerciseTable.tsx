@@ -157,6 +157,9 @@ export function ExerciseTable({ exercises }: ExerciseTableProps) {
                                         {exercise.equipment?.map((e, idx) => (
                                           <EquipmentMiniBadge key={idx} kind={e.kind as EquipmentKind} machineType={e.kind === 'machine' ? e.machineType : undefined} />
                                         ))}
+                                        {exercise.equipment?.some(e => e.requires?.includes('bench_press')) && (
+                                          <EquipmentMiniBadge kind="bench_press" />
+                                        )}
                                       </div>
                                     </div>
                                   </td>

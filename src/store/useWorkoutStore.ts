@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { SessionExercise, WorkoutSession, WorkoutSet, WeightUnit } from '@/types/domain';
+import { SessionExercise, WorkoutSession, WorkoutSet, WeightUnit, LoadType } from '@/types/domain';
 
 interface WorkoutState {
   activeSession: WorkoutSession | null;
@@ -11,7 +11,12 @@ interface WorkoutState {
   addSessionExercise: (exercise: SessionExercise) => void;
   removeSessionExercise: (exerciseIndex: number) => void;
   updateSet: (exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => void;
-  addSet: (exerciseIndex: number, weightUnit?: WeightUnit, defaultWeight?: number | null) => WorkoutSet | null;
+  addSet: (
+    exerciseIndex: number,
+    weightUnit?: WeightUnit,
+    defaultWeight?: number | null,
+    options?: { loadType?: LoadType; implementCount?: number | null }
+  ) => WorkoutSet | null;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
 }
 
@@ -53,7 +58,7 @@ export const useWorkoutStore = create<WorkoutState>()(
         return { activeSession: { ...state.activeSession, exercises } };
       }),
 
-      addSet: (exerciseIndex, weightUnit, defaultWeight) => {
+      addSet: (exerciseIndex, weightUnit, defaultWeight, options) => {
         let createdSet: WorkoutSet | null = null;
         set((state) => {
         if (!state.activeSession) return state;
@@ -65,6 +70,8 @@ export const useWorkoutStore = create<WorkoutState>()(
           setNumber: exercise.sets.length + 1,
           reps: '',
           weight: typeof defaultWeight === 'number' ? defaultWeight : '',
+          implementCount: typeof options?.implementCount === 'number' ? options.implementCount : '',
+          loadType: options?.loadType ?? '',
           rpe: '',
           rir: '',
           performedAt: new Date().toISOString(),

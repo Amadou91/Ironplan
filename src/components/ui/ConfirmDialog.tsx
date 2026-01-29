@@ -30,9 +30,12 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const [isVisible, setIsVisible] = useState(false)
 
+  if (isOpen && !isVisible) {
+    setIsVisible(true)
+  }
+
   useEffect(() => {
     if (isOpen) {
-      setIsVisible(true)
       document.body.style.overflow = 'hidden'
     } else {
       const timer = setTimeout(() => setIsVisible(false), 200)

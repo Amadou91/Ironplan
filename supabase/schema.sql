@@ -63,8 +63,6 @@ create table if not exists public.exercise_catalog (
   category text not null default 'Strength',
   focus text,
   movement_pattern text,
-  goal text,
-  eligible_goals text[] not null default '{}',
   metric_profile text,
   sets int,
   reps text,
@@ -86,7 +84,6 @@ create table if not exists public.exercise_catalog (
 
 create index if not exists exercise_catalog_primary_muscle_idx on public.exercise_catalog (primary_muscle);
 create index if not exists exercise_catalog_focus_idx on public.exercise_catalog (focus);
-create index if not exists exercise_catalog_goal_idx on public.exercise_catalog (goal);
 create index if not exists exercise_catalog_category_idx on public.exercise_catalog (category);
 
 create table if not exists public.workout_templates (

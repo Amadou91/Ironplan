@@ -326,6 +326,9 @@ export default function ActiveSession({
 
   };
 
+  const isDumbbellExercise = (exercise: SessionExercise) =>
+    Boolean(exerciseLibraryByName.get(exercise.name.toLowerCase())?.equipment?.some(option => option.kind === 'dumbbell'));
+
 
 
   const getExerciseTargetSummary = (exercise: SessionExercise) => {
@@ -484,13 +487,15 @@ export default function ActiveSession({
 
                   isTimeBased={isTimeBasedExercise(exercise.name, exerciseTargets[exercise.name.toLowerCase()]?.reps)}
 
+                  isDumbbell={isDumbbellExercise(exercise)}
+
                 />
 
               ))}
 
             </div>
 
-            <button onClick={() => addSet(exIdx, preferredUnit, profileWeightLb)} className="mt-4 w-full py-2 border-2 border-dashed border-[var(--color-border-strong)] rounded-xl text-sm font-medium text-muted hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)]">
+            <button onClick={() => addSet(exIdx, preferredUnit, profileWeightLb, isDumbbellExercise(exercise) ? { loadType: 'per_implement', implementCount: 2 } : undefined)} className="mt-4 w-full py-2 border-2 border-dashed border-[var(--color-border-strong)] rounded-xl text-sm font-medium text-muted hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)]">
 
               + Add Set
 
