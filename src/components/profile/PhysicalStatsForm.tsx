@@ -6,8 +6,6 @@ import { createClient } from '@/lib/supabase/client'
 
 import { useUser } from '@/hooks/useUser'
 
-import { Button } from '@/components/ui/Button'
-
 import { 
 
   calculateAge, 

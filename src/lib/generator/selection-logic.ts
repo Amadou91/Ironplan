@@ -11,7 +11,6 @@ import {
   normalizeExerciseKey,
   getPrimaryMuscleKey,
   getMovementFamily,
-  selectEquipmentOption,
   isExerciseEquipmentSatisfied
 } from './utils'
 import {

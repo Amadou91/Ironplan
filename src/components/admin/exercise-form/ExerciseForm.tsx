@@ -21,9 +21,7 @@ import type {
   Exercise, 
   EquipmentOption, 
   MachineType, 
-  EquipmentKind,
-  EquipmentOrGroup,
-  MovementPattern
+  EquipmentKind
 } from '@/types/domain'
 
 // Sub-components
@@ -157,8 +155,8 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
             }
             const requires = (e.requires ?? []).filter(req => req !== 'bench_press')
             if (requires.length === 0) {
-              const { requires: _removed, ...rest } = e
-              return rest as EquipmentOption
+              // Omit the requires property - for barbell/dumbbell, just return the kind
+              return { kind: e.kind } as EquipmentOption
             }
             return { ...e, requires }
           })

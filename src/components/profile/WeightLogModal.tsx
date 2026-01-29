@@ -3,12 +3,6 @@
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
-type WeightEntry = {
-  id: string
-  weight_lb: number
-  recorded_at: string
-}
-
 type Props = {
   isOpen: boolean
   isEditing: boolean

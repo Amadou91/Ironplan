@@ -3,7 +3,7 @@
  * Handles display name generation for workouts and exercises.
  */
 
-import type { Exercise, FocusArea, Goal, PlanInput, MovementPattern } from '@/types/domain'
+import type { Exercise, FocusArea, Goal, PlanInput } from '@/types/domain'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 
 /**

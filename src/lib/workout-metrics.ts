@@ -69,8 +69,6 @@ const parseReps = (reps: ExerciseMetricsInput['reps']): number => {
 
 // Default weights for preview calculations when actual weight is unknown
 const DEFAULT_BARBELL_WEIGHT_LBS = 135
-const DEFAULT_DUMBBELL_WEIGHT_LBS = 15
-const DEFAULT_WEIGHT_LBS = 45 // Generic fallback for other equipment
 
 /**
  * Returns a sensible default weight for preview impact calculations.

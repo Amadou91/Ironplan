@@ -9,8 +9,7 @@ import type {
   MovementPattern,
   MetricProfile,
   ExerciseCategory,
-  WeightUnit,
-  LoadType
+  WeightUnit
 } from './core.types'
 import type { EquipmentOption, EquipmentOrGroup } from './equipment.types'
 

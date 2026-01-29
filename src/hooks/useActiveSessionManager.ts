@@ -15,8 +15,7 @@ import type {
   WeightUnit, 
   WorkoutSession, 
   WorkoutSet, 
-  EquipmentInventory, 
-  SessionExercise,
+  EquipmentInventory,
   MetricProfile,
   LoadType
 } from '@/types/domain';

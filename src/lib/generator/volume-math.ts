@@ -5,8 +5,7 @@ import type {
   PlannedExercise,
   ExerciseSource,
   EquipmentInventory,
-  WarmupSet,
-  ExercisePrescription
+  WarmupSet
 } from '@/types/domain'
 import {
   clamp,
@@ -15,15 +14,6 @@ import {
   estimateExerciseMinutes
 } from './utils'
 import { adaptPrescription } from './adaptation'
-
-/**
- * Default warm-up set configuration for primary exercises.
- * Two sets at 50% load with reduced reps and low RPE.
- */
-const DEFAULT_WARMUP_SETS: WarmupSet[] = [
-  { setType: 'warmup', loadPercentage: 0.5, reps: 8, rpe: 4 },
-  { setType: 'warmup', loadPercentage: 0.5, reps: 6, rpe: 5 }
-]
 
 /**
  * Generates warm-up sets for a primary exercise.
@@ -186,7 +176,7 @@ export const adjustSessionVolume = (
   direction: 'increase' | 'decrease'
 ) => {
   const recalcTotals = () => picks.reduce((sum, item) => sum + item.estimatedMinutes, 0)
-  let totalMinutes = recalcTotals()
+  const totalMinutes = recalcTotals()
 
   const adjustEstimate = (planned: PlannedExercise) => {
     const selectedOption = selectEquipmentOption(inventory, planned.exercise.equipment, planned.exercise.orGroup)

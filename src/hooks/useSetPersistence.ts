@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { SessionExercise, WorkoutSet, WeightUnit, LoadType } from '@/types/domain'
+import type { SessionExercise, WorkoutSet } from '@/types/domain'
 
 type SetPayload = {
   session_exercise_id: string

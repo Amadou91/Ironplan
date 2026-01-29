@@ -4,7 +4,6 @@ import { clamp, isValidNumber } from '@/lib/math'
 import { getWeekKey } from '@/lib/date-utils'
 import {
   DEFAULT_USER_WEIGHT_LB,
-  DEFAULT_BODYWEIGHT_FACTOR,
   VIRTUAL_WEIGHT_MULTIPLIERS
 } from '@/constants/training'
 

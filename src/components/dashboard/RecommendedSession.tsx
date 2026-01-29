@@ -18,7 +18,7 @@ interface RecommendedSessionProps {
   trainingLoadStatus?: TrainingLoadStatus
 }
 
-export function RecommendedSession({ recommendedTemplate, trainingLoadStatus }: RecommendedSessionProps) {
+export function RecommendedSession({ recommendedTemplate }: RecommendedSessionProps) {
   const router = useRouter()
   const [isModalOpen, setIsModalOpen] = useState(false)
 

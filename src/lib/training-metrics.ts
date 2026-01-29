@@ -72,11 +72,6 @@ type TrainingLoadSummary = {
 export type IntensityBaselines = CustomRpeBaselines
 
 /**
- * @deprecated Use defaultRpeBaselines from preferences.ts instead
- */
-const DEFAULT_INTENSITY_BASELINES: IntensityBaselines = { ...defaultRpeBaselines }
-
-/**
  * Returns RPE baseline for a given intensity level.
  * Accepts optional user-derived baselines from training history or preferences.
  * 

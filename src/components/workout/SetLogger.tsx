@@ -82,8 +82,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     durationMinutes,
     handleDurationChange,
     restMinutes,
-    handleRestChange,
-    rirValue
+    handleRestChange
   } = useSetEditor({
     set,
     metricProfile,
