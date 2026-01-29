@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Dumbbell, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -10,7 +9,6 @@ import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import type { TemplateRow } from '@/hooks/useDashboardData'
-import type { Goal } from '@/types/domain'
 
 interface TemplateInventoryProps {
   templates: TemplateRow[]
@@ -25,25 +23,11 @@ export function TemplateInventory({
   onDeleteTemplate,
   deletingWorkoutIds
 }: TemplateInventoryProps) {
-  const router = useRouter()
   const [activeTemplate, setActiveTemplate] = useState<TemplateRow | null>(null)
   const [templateToDelete, setTemplateToDelete] = useState<TemplateRow | null>(null)
 
   const handleStartClick = (template: TemplateRow) => {
     setActiveTemplate(template)
-  }
-
-  const handleConfirm = (data: { minutes: number; style: Goal; bodyWeight?: number }) => {
-    if (!activeTemplate) return
-    
-    const params = new URLSearchParams({
-      minutes: data.minutes.toString(),
-      style: data.style,
-      ...(data.bodyWeight ? { weight: data.bodyWeight.toString() } : {})
-    })
-    
-    router.push(`/workouts/${activeTemplate.id}/start?${params.toString()}`)
-    setActiveTemplate(null)
   }
 
   const handleDeleteConfirm = async () => {
@@ -137,12 +121,23 @@ export function TemplateInventory({
         </div>
       </Card>
 
-      <SessionSetupModal 
-        isOpen={Boolean(activeTemplate)}
-        onClose={() => setActiveTemplate(null)}
-        onConfirm={handleConfirm}
-        initialCategory={activeTemplate?.focus}
-      />
+      {activeTemplate && (
+        <SessionSetupModal 
+          isOpen={Boolean(activeTemplate)}
+          onClose={() => setActiveTemplate(null)}
+          templateId={activeTemplate.id}
+          templateTitle={buildWorkoutDisplayName({
+            focus: activeTemplate.focus,
+            style: activeTemplate.style,
+            intensity: activeTemplate.intensity,
+            fallback: activeTemplate.title
+          })}
+          templateFocus={activeTemplate.focus}
+          templateStyle={activeTemplate.style}
+          templateIntensity={activeTemplate.intensity}
+          templateInputs={activeTemplate.template_inputs}
+        />
+      )}
 
       <ConfirmDialog
         isOpen={Boolean(templateToDelete)}

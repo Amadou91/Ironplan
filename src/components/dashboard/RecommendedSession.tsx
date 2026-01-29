@@ -2,14 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Clock, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import type { TemplateRow } from '@/hooks/useDashboardData'
-import type { Goal } from '@/types/domain'
 
 type TrainingLoadStatus = 'balanced' | 'undertraining' | 'overreaching'
 
@@ -19,24 +17,10 @@ interface RecommendedSessionProps {
 }
 
 export function RecommendedSession({ recommendedTemplate }: RecommendedSessionProps) {
-  const router = useRouter()
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   const handleStartClick = () => {
     setIsModalOpen(true)
-  }
-
-  const handleConfirm = (data: { minutes: number; style: Goal; bodyWeight?: number }) => {
-    if (!recommendedTemplate) return
-    
-    // Construct query params for the start page to consume
-    const params = new URLSearchParams({
-      minutes: data.minutes.toString(),
-      style: data.style,
-      ...(data.bodyWeight ? { weight: data.bodyWeight.toString() } : {})
-    })
-    
-    router.push(`/workouts/${recommendedTemplate.id}/start?${params.toString()}`)
   }
 
   return (
@@ -103,12 +87,23 @@ export function RecommendedSession({ recommendedTemplate }: RecommendedSessionPr
         </div>
       </Card>
 
-      <SessionSetupModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onConfirm={handleConfirm}
-        initialCategory={recommendedTemplate?.focus}
-      />
+      {recommendedTemplate && (
+        <SessionSetupModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          templateId={recommendedTemplate.id}
+          templateTitle={buildWorkoutDisplayName({
+            focus: recommendedTemplate.focus,
+            style: recommendedTemplate.style,
+            intensity: recommendedTemplate.intensity,
+            fallback: recommendedTemplate.title
+          })}
+          templateFocus={recommendedTemplate.focus}
+          templateStyle={recommendedTemplate.style}
+          templateIntensity={recommendedTemplate.intensity}
+          templateInputs={recommendedTemplate.template_inputs}
+        />
+      )}
     </>
   )
 }

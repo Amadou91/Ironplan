@@ -13,8 +13,8 @@ import { MuscleGroupSelector } from '@/components/generate/MuscleGroupSelector'
 import { TemplateHistory } from '@/components/generate/TemplateHistory'
 import { GenerationSummary } from '@/components/generate/GenerationSummary'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { useGenerationFlow } from '@/hooks/useGenerationFlow'
-import type { Goal } from '@/types/domain'
 
 export default function GeneratePage() {
   const router = useRouter()
@@ -39,19 +39,6 @@ export default function GeneratePage() {
     handleStartSession,
     generatePlanHandler
   } = useGenerationFlow()
-
-  const handleLatestSessionConfirm = (data: { minutes: number; style: Goal; bodyWeight?: number }) => {
-    if (!lastSavedTemplate) return
-    
-    const params = new URLSearchParams({
-      minutes: data.minutes.toString(),
-      style: data.style,
-      ...(data.bodyWeight ? { weight: data.bodyWeight.toString() } : {})
-    })
-    
-    router.push(`/workouts/${lastSavedTemplate.templateId}/start?${params.toString()}`)
-    setIsLatestModalOpen(false)
-  }
 
   const flowState = useMemo(() => getFlowCompletion(formData), [formData])
 
@@ -259,12 +246,23 @@ export default function GeneratePage() {
         </div>
       </div>
 
-      <SessionSetupModal
-        isOpen={isLatestModalOpen}
-        onClose={() => setIsLatestModalOpen(false)}
-        onConfirm={handleLatestSessionConfirm}
-        initialCategory={lastSavedTemplate?.focus}
-      />
+      {lastSavedTemplate && (
+        <SessionSetupModal
+          isOpen={isLatestModalOpen}
+          onClose={() => setIsLatestModalOpen(false)}
+          templateId={lastSavedTemplate.templateId}
+          templateTitle={buildWorkoutDisplayName({
+            focus: lastSavedTemplate.focus,
+            style: lastSavedTemplate.style,
+            intensity: lastSavedTemplate.input.intensity,
+            fallback: lastSavedTemplate.title
+          })}
+          templateFocus={lastSavedTemplate.focus}
+          templateStyle={lastSavedTemplate.style}
+          templateIntensity={lastSavedTemplate.input.intensity}
+          templateInputs={lastSavedTemplate.input}
+        />
+      )}
     </div>
   )
 }

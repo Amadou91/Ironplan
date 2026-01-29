@@ -1,14 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import type { WorkoutHistoryEntry } from '@/lib/workoutHistory'
-import type { Goal } from '@/types/domain'
 
 interface TemplateHistoryProps {
   historyEntries: WorkoutHistoryEntry[]
@@ -25,13 +23,9 @@ export function TemplateHistory({
   historyEntries,
   onLoadHistory,
   onDeleteHistory,
-  onStartSession,
-  startingSessionKey,
   historyError,
-  startSessionError,
   deletingHistoryIds
 }: TemplateHistoryProps) {
-  const router = useRouter()
   const [entryToDelete, setEntryToDelete] = useState<WorkoutHistoryEntry | null>(null)
   const [selectedEntry, setSelectedEntry] = useState<WorkoutHistoryEntry | null>(null)
 
@@ -43,22 +37,7 @@ export function TemplateHistory({
 
   const handleStartClick = (entry: WorkoutHistoryEntry) => {
     if (!entry.remoteId) return
-    // Check for active session via the parent's onStartSession first (it will redirect if active)
-    // But we'll still show the modal - the redirect happens after confirm if needed
     setSelectedEntry(entry)
-  }
-
-  const handleModalConfirm = (data: { minutes: number; style: Goal; bodyWeight?: number }) => {
-    if (!selectedEntry?.remoteId) return
-    
-    const params = new URLSearchParams({
-      minutes: data.minutes.toString(),
-      style: data.style,
-      ...(data.bodyWeight ? { weight: data.bodyWeight.toString() } : {})
-    })
-    
-    router.push(`/workouts/${selectedEntry.remoteId}/start?${params.toString()}`)
-    setSelectedEntry(null)
   }
 
   return (
@@ -71,7 +50,6 @@ export function TemplateHistory({
           </div>
         </div>
 
-        {startSessionError && <p className="mb-3 text-sm text-[var(--color-danger)]">{startSessionError}</p>}
         {historyError && <p className="mb-3 text-sm text-[var(--color-danger)]">{historyError}</p>}
 
         {historyEntries.length === 0 ? (
@@ -142,12 +120,23 @@ export function TemplateHistory({
         isLoading={entryToDelete ? Boolean(deletingHistoryIds[entryToDelete.id]) : false}
       />
 
-      <SessionSetupModal
-        isOpen={Boolean(selectedEntry)}
-        onClose={() => setSelectedEntry(null)}
-        onConfirm={handleModalConfirm}
-        initialCategory={selectedEntry?.template.focus}
-      />
+      {selectedEntry?.remoteId && (
+        <SessionSetupModal
+          isOpen={Boolean(selectedEntry)}
+          onClose={() => setSelectedEntry(null)}
+          templateId={selectedEntry.remoteId}
+          templateTitle={buildWorkoutDisplayName({
+            focus: selectedEntry.template.focus,
+            style: selectedEntry.template.style,
+            intensity: selectedEntry.template.inputs.intensity,
+            fallback: selectedEntry.title
+          })}
+          templateFocus={selectedEntry.template.focus}
+          templateStyle={selectedEntry.template.style}
+          templateIntensity={selectedEntry.template.inputs.intensity}
+          templateInputs={selectedEntry.template.inputs}
+        />
+      )}
     </>
   )
 }
