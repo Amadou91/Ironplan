@@ -5,12 +5,12 @@ import type { FocusArea } from '@/types/domain'
 const focusOptions: { value: FocusArea; label: string; description?: string }[] = [
   { value: 'chest', label: 'Chest' },
   { value: 'back', label: 'Back' },
+  { value: 'shoulders', label: 'Shoulders' },
   { value: 'arms', label: 'Arms' },
   { value: 'legs', label: 'Legs' },
-  { value: 'biceps', label: 'Biceps' },
-  { value: 'triceps', label: 'Triceps' },
-  { value: 'mobility', label: 'Yoga / Mobility' },
-  { value: 'cardio', label: 'Cardio' }
+  { value: 'core', label: 'Core' },
+  { value: 'cardio', label: 'Cardio' },
+  { value: 'mobility', label: 'Yoga / Mobility' }
 ]
 
 interface MuscleGroupSelectorProps {
