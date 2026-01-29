@@ -13,11 +13,6 @@ update public.exercise_catalog
 set goal = 'general_fitness'
 where name in ('Stretching', 'Yoga') and (goal is null or goal != 'general_fitness');
 
--- Update any null difficulties to intermediate as a safe baseline
-update public.exercise_catalog
-set difficulty = 'intermediate'
-where difficulty is null;
-
 -- Ensure metric profiles are set for all specialty sessions
 update public.exercise_catalog
 set metric_profile = 'yoga_session'

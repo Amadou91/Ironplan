@@ -24,6 +24,7 @@ export function SessionPreview({
     if (!equipmentInventory) return []
     const labels = [] as string[]
     if (equipmentInventory.bodyweight) labels.push('Bodyweight')
+    if (equipmentInventory.benchPress) labels.push('Bench Press')
     if (equipmentInventory.dumbbells?.length) labels.push(`Dumbbells (${equipmentInventory.dumbbells.join(', ')} lb)`)
     if (equipmentInventory.kettlebells?.length) labels.push(`Kettlebells (${equipmentInventory.kettlebells.join(', ')} lb)`)
     if (equipmentInventory.bands?.length) labels.push(`Bands (${equipmentInventory.bands.join(', ')})`)

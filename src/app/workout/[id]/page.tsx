@@ -58,6 +58,7 @@ export default function WorkoutDetailPage() {
     if (!inventory) return []
     const labels = [] as string[]
     if (inventory.bodyweight) labels.push('Bodyweight')
+    if (inventory.benchPress) labels.push('Bench Press')
     if (inventory.dumbbells?.length) labels.push(`Dumbbells (${inventory.dumbbells.join(', ')} lb)`)
     if (inventory.kettlebells?.length) labels.push(`Kettlebells (${inventory.kettlebells.join(', ')} lb)`)
     if (inventory.bands?.length) labels.push(`Bands (${inventory.bands.join(', ')})`)

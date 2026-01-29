@@ -70,6 +70,7 @@ const baseInput = {
     preset: 'full_gym',
     inventory: {
       bodyweight: true,
+      benchPress: true,
       dumbbells: [10, 20],
       kettlebells: [],
       bands: ['light'],

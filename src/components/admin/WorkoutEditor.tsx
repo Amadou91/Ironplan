@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Exercise, Difficulty, MetricProfile, MuscleGroup, ExerciseCategory } from '@/types/domain';
+import { Exercise, MetricProfile, MuscleGroup, ExerciseCategory } from '@/types/domain';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Label } from '@/components/ui/Label';

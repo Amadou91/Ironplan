@@ -14,6 +14,7 @@ const EQUIPMENT_ICONS: Record<string, React.ElementType> = {
   dumbbell: Dumbbell,
   kettlebell: Dumbbell,
   barbell: Dumbbell,
+  bench_press: Box,
   machine: Settings,
   band: Zap,
   block: Box,

@@ -41,6 +41,7 @@ const { getSwapSuggestions } = swapModuleShim.exports
 test('swap suggestions avoid duplicates and respect equipment', () => {
   const inventory = {
     bodyweight: true,
+    benchPress: true,
     dumbbells: [20],
     kettlebells: [],
     bands: [],
@@ -52,13 +53,12 @@ test('swap suggestions avoid duplicates and respect equipment', () => {
     name: 'Bench Press',
     focus: 'upper',
     movementPattern: 'push',
-    difficulty: 'intermediate',
     goal: 'strength',
     primaryMuscle: 'Chest',
     sets: 4,
     reps: '5-8',
     rpe: 8,
-    equipment: [{ kind: 'barbell' }],
+    equipment: [{ kind: 'barbell', requires: ['bench_press'] }],
     durationMinutes: 12,
     restSeconds: 120
   }
@@ -69,13 +69,12 @@ test('swap suggestions avoid duplicates and respect equipment', () => {
       name: 'Dumbbell Bench Press',
       focus: 'upper',
       movementPattern: 'push',
-      difficulty: 'intermediate',
       goal: 'strength',
       primaryMuscle: 'Chest',
       sets: 4,
       reps: '6-10',
       rpe: 8,
-      equipment: [{ kind: 'dumbbell' }],
+      equipment: [{ kind: 'dumbbell', requires: ['bench_press'] }],
       durationMinutes: 12,
       restSeconds: 90
     },
@@ -83,7 +82,6 @@ test('swap suggestions avoid duplicates and respect equipment', () => {
       name: 'Lat Pulldown',
       focus: 'upper',
       movementPattern: 'pull',
-      difficulty: 'beginner',
       goal: 'hypertrophy',
       primaryMuscle: 'Back',
       sets: 3,
@@ -109,6 +107,7 @@ test('swap suggestions avoid duplicates and respect equipment', () => {
 test('swap suggestions restrict to overlapping muscle groups for leg day', () => {
   const inventory = {
     bodyweight: true,
+    benchPress: false,
     dumbbells: [15],
     kettlebells: [],
     bands: [],
@@ -120,7 +119,6 @@ test('swap suggestions restrict to overlapping muscle groups for leg day', () =>
     name: 'Back Squat',
     focus: 'lower',
     movementPattern: 'squat',
-    difficulty: 'intermediate',
     goal: 'strength',
     primaryMuscle: 'Quads',
     secondaryMuscles: ['Glutes', 'Hamstrings'],
@@ -138,7 +136,6 @@ test('swap suggestions restrict to overlapping muscle groups for leg day', () =>
       name: 'Leg Press',
       focus: 'lower',
       movementPattern: 'squat',
-      difficulty: 'beginner',
       goal: 'hypertrophy',
       primaryMuscle: 'Quads',
       secondaryMuscles: ['Glutes'],
@@ -153,13 +150,12 @@ test('swap suggestions restrict to overlapping muscle groups for leg day', () =>
       name: 'Bench Press',
       focus: 'upper',
       movementPattern: 'push',
-      difficulty: 'intermediate',
       goal: 'strength',
       primaryMuscle: 'Chest',
       sets: 4,
       reps: '6-8',
       rpe: 8,
-      equipment: [{ kind: 'barbell' }],
+      equipment: [{ kind: 'barbell', requires: ['bench_press'] }],
       durationMinutes: 12,
       restSeconds: 120
     }
@@ -179,6 +175,7 @@ test('swap suggestions restrict to overlapping muscle groups for leg day', () =>
 test('swap suggestions restrict to overlapping muscle groups for upper-body day', () => {
   const inventory = {
     bodyweight: true,
+    benchPress: false,
     dumbbells: [25],
     kettlebells: [],
     bands: [],
@@ -190,7 +187,6 @@ test('swap suggestions restrict to overlapping muscle groups for upper-body day'
     name: 'Pull Up',
     focus: 'upper',
     movementPattern: 'pull',
-    difficulty: 'intermediate',
     goal: 'strength',
     primaryMuscle: 'Back',
     secondaryMuscles: ['Biceps'],
@@ -208,7 +204,6 @@ test('swap suggestions restrict to overlapping muscle groups for upper-body day'
       name: 'Lat Pulldown',
       focus: 'upper',
       movementPattern: 'pull',
-      difficulty: 'beginner',
       goal: 'hypertrophy',
       primaryMuscle: 'Back',
       secondaryMuscles: ['Biceps'],
@@ -223,7 +218,6 @@ test('swap suggestions restrict to overlapping muscle groups for upper-body day'
       name: 'Walking Lunge',
       focus: 'lower',
       movementPattern: 'squat',
-      difficulty: 'beginner',
       goal: 'hypertrophy',
       primaryMuscle: 'Quads',
       secondaryMuscles: ['Glutes'],

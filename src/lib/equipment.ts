@@ -14,6 +14,7 @@ export const BARBELL_PLATE_OPTIONS = [10, 25, 35, 45] as const
 export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
   home_minimal: {
     bodyweight: true,
+    benchPress: false,
     dumbbells: [10, 20],
     kettlebells: [],
     bands: ['light', 'medium'],
@@ -29,6 +30,7 @@ export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
   },
   full_gym: {
     bodyweight: true,
+    benchPress: true,
     dumbbells: [...DUMBBELL_WEIGHT_OPTIONS],
     kettlebells: [...KETTLEBELL_WEIGHT_OPTIONS],
     bands: ['light', 'medium', 'heavy'],
@@ -44,6 +46,7 @@ export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
   },
   hotel: {
     bodyweight: true,
+    benchPress: false,
     dumbbells: [10, 15, 20],
     kettlebells: [],
     bands: ['light'],
@@ -61,6 +64,7 @@ export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
 
 export const cloneInventory = (inventory: EquipmentInventory): EquipmentInventory => ({
   bodyweight: inventory.bodyweight,
+  benchPress: inventory.benchPress,
   dumbbells: [...inventory.dumbbells],
   kettlebells: [...inventory.kettlebells],
   bands: [...inventory.bands],
@@ -75,6 +79,7 @@ export const formatWeightList = (weights: number[]) => [...weights].sort((a, b) 
 
 export const hasEquipment = (inventory: EquipmentInventory) =>
   inventory.bodyweight ||
+  inventory.benchPress ||
   inventory.dumbbells.length > 0 ||
   inventory.kettlebells.length > 0 ||
   inventory.bands.length > 0 ||
@@ -106,13 +111,44 @@ export const bandLabels: Record<BandResistance, string> = {
 const bandLoadMap: Record<BandResistance, number> = {
   light: 10,
   medium: 20,
-    heavy: 30
+  heavy: 30
+}
+
+const isRequirementMet = (inventory: EquipmentInventory, requirement: EquipmentOption['kind']) => {
+  switch (requirement) {
+    case 'bodyweight':
+      return inventory.bodyweight
+    case 'bench_press':
+      return inventory.benchPress
+    case 'dumbbell':
+      return inventory.dumbbells.length > 0
+    case 'kettlebell':
+      return inventory.kettlebells.length > 0
+    case 'band':
+      return inventory.bands.length > 0
+    case 'barbell':
+      return inventory.barbell.available
+    case 'machine':
+      return Object.values(inventory.machines).some(Boolean)
+    case 'block':
+    case 'bolster':
+    case 'strap':
+      return true
+    default:
+      return false
   }
+}
 
 export const isEquipmentOptionAvailable = (inventory: EquipmentInventory, option: EquipmentOption) => {
+  if (option.requires?.length) {
+    const meetsRequirements = option.requires.every((requirement) => isRequirementMet(inventory, requirement))
+    if (!meetsRequirements) return false
+  }
   switch (option.kind) {
     case 'bodyweight':
       return inventory.bodyweight
+    case 'bench_press':
+      return inventory.benchPress
     case 'dumbbell':
       return inventory.dumbbells.length > 0
     case 'kettlebell':

@@ -1,34 +1,10 @@
 import type {
-  Exercise,
   Intensity,
   Goal,
   RestPreference,
   PlanInput
 } from '@/types/domain'
 import { clamp, isCompoundMovement } from './utils'
-
-/**
- * Calculates a score modifier based on the exercise difficulty and user experience.
- * Used during selection to favor exercises that match the user's skill level.
- * 
- * - Beginner: Favors 'beginner' exercises (+2), penalizes 'advanced' (-2).
- * - Advanced: Favors 'advanced' exercises (+2), slight penalty for 'beginner' (-1).
- */
-export const getExperienceScore = (exercise: Exercise, experience: PlanInput['experienceLevel']) => {
-  if (!exercise.difficulty) return 0
-  if (experience === 'beginner') {
-    if (exercise.difficulty === 'beginner') return 2
-    if (exercise.difficulty === 'intermediate') return 0.5
-    return -2
-  }
-  if (experience === 'advanced') {
-    if (exercise.difficulty === 'advanced') return 2
-    if (experience === 'advanced' && exercise.difficulty === 'intermediate') return 1
-    return -1
-  }
-  if (exercise.difficulty === 'intermediate') return 1.5
-  return 0.5
-}
 
 /**
  * Favors compound movements for high intensity sessions and 

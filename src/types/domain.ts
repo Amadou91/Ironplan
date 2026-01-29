@@ -27,18 +27,31 @@ export type MachineType = 'cable' | 'leg_press' | 'treadmill' | 'rower' | 'indoo
 
 export type EquipmentPreset = 'home_minimal' | 'full_gym' | 'hotel'
 
-export type EquipmentKind = 'bodyweight' | 'dumbbell' | 'kettlebell' | 'band' | 'barbell' | 'machine' | 'block' | 'bolster' | 'strap'
+export type EquipmentKind =
+  | 'bodyweight'
+  | 'dumbbell'
+  | 'kettlebell'
+  | 'band'
+  | 'barbell'
+  | 'bench_press'
+  | 'machine'
+  | 'block'
+  | 'bolster'
+  | 'strap'
+
+type EquipmentRequirement = { requires?: EquipmentKind[] }
 
 export type EquipmentOption =
-  | { kind: 'bodyweight' }
-  | { kind: 'dumbbell' }
-  | { kind: 'kettlebell' }
-  | { kind: 'band' }
-  | { kind: 'barbell' }
-  | { kind: 'machine'; machineType?: MachineType }
-  | { kind: 'block' }
-  | { kind: 'bolster' }
-  | { kind: 'strap' }
+  | ({ kind: 'bodyweight' } & EquipmentRequirement)
+  | ({ kind: 'dumbbell' } & EquipmentRequirement)
+  | ({ kind: 'kettlebell' } & EquipmentRequirement)
+  | ({ kind: 'band' } & EquipmentRequirement)
+  | ({ kind: 'barbell' } & EquipmentRequirement)
+  | ({ kind: 'bench_press' } & EquipmentRequirement)
+  | ({ kind: 'machine'; machineType?: MachineType } & EquipmentRequirement)
+  | ({ kind: 'block' } & EquipmentRequirement)
+  | ({ kind: 'bolster' } & EquipmentRequirement)
+  | ({ kind: 'strap' } & EquipmentRequirement)
 
 export type WeightUnit = 'lb' | 'kg'
 export type DistanceUnit = 'm' | 'km' | 'miles'
@@ -53,6 +66,7 @@ export type ExerciseVariation = {
 
 export interface EquipmentInventory {
   bodyweight: boolean
+  benchPress: boolean
   dumbbells: number[]
   kettlebells: number[]
   bands: BandResistance[]
@@ -85,8 +99,6 @@ export type GoalPriority = 'primary' | 'secondary' | 'balanced'
 export type Intensity = 'low' | 'moderate' | 'high'
 
 export type MovementPattern = 'push' | 'pull' | 'squat' | 'hinge' | 'carry' | 'core' | 'cardio'
-
-export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
 
 export type RestPreference = 'balanced' | 'high_recovery' | 'minimal_rest'
 

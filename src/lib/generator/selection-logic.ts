@@ -14,7 +14,6 @@ import {
   selectEquipmentOption
 } from './utils'
 import {
-  getExperienceScore,
   getIntensityScore
 } from './scoring'
 
@@ -111,7 +110,7 @@ export const filterExercises = (
  * Scoring components:
  * 1. Freshness: Penalizes exercises performed very recently (-3).
  * 2. Muscle/Pattern Variety: Penalizes repeating the same primary muscle or pattern (-1).
- * 3. Profile Match: Bonus for exercises matching user's experience and intensity level.
+ * 3. Profile Match: Bonus for exercises matching the session intensity.
  * 4. Goal Alignment: Bonus for exercises that natively match the session goal.
  * 5. Source Priority: Bonus for exercises that are 'primary' for the session focus.
  */
@@ -152,7 +151,6 @@ export const scoreExercise = (
     score += 0.5
   }
 
-  score += getExperienceScore(exercise, input.experienceLevel)
   score += getIntensityScore(exercise, input.intensity)
   if (source === 'primary') score += 1
   return score

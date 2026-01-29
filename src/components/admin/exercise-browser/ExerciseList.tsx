@@ -25,6 +25,7 @@ const EQUIPMENT_ICONS: Record<EquipmentKind, React.ElementType> = {
   dumbbell: Dumbbell,
   kettlebell: Dumbbell, // Often same icon category
   barbell: Dumbbell,
+  bench_press: Box,
   machine: Settings,
   band: Zap,
   block: Box,
@@ -231,4 +232,3 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
     </>
   );
 }
-

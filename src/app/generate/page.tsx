@@ -54,6 +54,7 @@ export default function GeneratePage() {
         ]
       : [
           inventory.bodyweight ? 'Bodyweight' : null,
+          inventory.benchPress ? 'Bench Press' : null,
           inventory.dumbbells.length > 0 ? `Dumbbells (${formatWeightList(inventory.dumbbells)} lb)` : null,
           inventory.kettlebells.length > 0 ? `Kettlebells (${formatWeightList(inventory.kettlebells)} lb)` : null,
           inventory.bands.length > 0 ? `Bands (${inventory.bands.map((band) => bandLabels[band]).join(', ')})` : null,

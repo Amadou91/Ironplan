@@ -45,6 +45,7 @@ type Props = {
 const EQUIPMENT_KINDS: { label: string; value: EquipmentKind }[] = [
   { label: 'Bodyweight', value: 'bodyweight' },
   { label: 'Barbell', value: 'barbell' },
+  { label: 'Bench Press', value: 'bench_press' },
   { label: 'Dumbbell', value: 'dumbbell' },
   { label: 'Kettlebell', value: 'kettlebell' },
   { label: 'Band', value: 'band' },

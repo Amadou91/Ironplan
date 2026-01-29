@@ -154,10 +154,41 @@ export const getFocusConstraint = (focus: FocusArea): FocusConstraint | null => 
 export const hasMachine = (inventory: EquipmentInventory, machineType?: keyof EquipmentInventory['machines']) =>
   machineType ? inventory.machines[machineType] : Object.values(inventory.machines).some(Boolean)
 
+const isRequirementMet = (inventory: EquipmentInventory, requirement: EquipmentOption['kind']) => {
+  switch (requirement) {
+    case 'bodyweight':
+      return inventory.bodyweight
+    case 'bench_press':
+      return inventory.benchPress
+    case 'dumbbell':
+      return inventory.dumbbells.length > 0
+    case 'kettlebell':
+      return inventory.kettlebells.length > 0
+    case 'band':
+      return inventory.bands.length > 0
+    case 'barbell':
+      return inventory.barbell.available
+    case 'machine':
+      return Object.values(inventory.machines).some(Boolean)
+    case 'block':
+    case 'bolster':
+    case 'strap':
+      return true
+    default:
+      return false
+  }
+}
+
 export const isEquipmentOptionAvailable = (inventory: EquipmentInventory, option: Exercise['equipment'][number]) => {
+  if (option.requires?.length) {
+    const meetsRequirements = option.requires.every((requirement) => isRequirementMet(inventory, requirement))
+    if (!meetsRequirements) return false
+  }
   switch (option.kind) {
     case 'bodyweight':
       return inventory.bodyweight
+    case 'bench_press':
+      return inventory.benchPress
     case 'dumbbell':
       return inventory.dumbbells.length > 0
     case 'kettlebell':
@@ -255,6 +286,7 @@ export const getSetupMinutes = (option?: EquipmentOption | null) => {
   switch (option?.kind) {
     case 'bodyweight':
       return 1
+    case 'bench_press':
     case 'dumbbell':
     case 'kettlebell':
     case 'band':

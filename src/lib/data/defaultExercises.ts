@@ -35,7 +35,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "category": "Strength",
     "movementPattern": "push",
     "metricProfile": "reps_weight",
-    "equipment": [{ "kind": "barbell" }],
+    "equipment": [{ "kind": "barbell", "requires": ["bench_press"] }],
     "primaryMuscle": "chest",
     "secondaryMuscles": ["shoulders", "triceps"],
     "e1rmEligible": true
@@ -45,7 +45,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "category": "Strength",
     "movementPattern": "push",
     "metricProfile": "reps_weight",
-    "equipment": [{ "kind": "dumbbell" }],
+    "equipment": [{ "kind": "dumbbell", "requires": ["bench_press"] }],
     "primaryMuscle": "chest",
     "secondaryMuscles": ["shoulders", "triceps"]
   },
@@ -54,7 +54,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "category": "Strength",
     "movementPattern": "push",
     "metricProfile": "reps_weight",
-    "equipment": [{ "kind": "barbell" }],
+    "equipment": [{ "kind": "barbell", "requires": ["bench_press"] }],
     "primaryMuscle": "chest",
     "secondaryMuscles": ["shoulders", "triceps"]
   },
@@ -63,7 +63,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "category": "Strength",
     "movementPattern": "push",
     "metricProfile": "reps_weight",
-    "equipment": [{ "kind": "barbell" }],
+    "equipment": [{ "kind": "barbell", "requires": ["bench_press"] }],
     "primaryMuscle": "chest",
     "secondaryMuscles": ["shoulders", "triceps"]
   },
@@ -262,7 +262,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "category": "Strength",
     "movementPattern": "push",
     "metricProfile": "reps_weight",
-    "equipment": [{ "kind": "dumbbell" }],
+    "equipment": [{ "kind": "dumbbell", "requires": ["bench_press"] }],
     "primaryMuscle": "chest",
     "secondaryMuscles": ["shoulders", "triceps"]
   },

@@ -230,6 +230,20 @@ export function EquipmentSelector({
                     />
                   ))}
                 </div>
+                <Checkbox
+                  label="Bench Press available"
+                  checked={inventory.benchPress}
+                  onCheckedChange={() =>
+                    onUpdateEquipment(prev => ({
+                      ...prev,
+                      preset: 'custom',
+                      inventory: {
+                        ...prev.inventory,
+                        benchPress: !prev.inventory.benchPress
+                      }
+                    }))
+                  }
+                />
               </div>
             </div>
           </div>

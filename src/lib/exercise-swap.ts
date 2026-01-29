@@ -71,9 +71,6 @@ const scoreCandidate = (current: Exercise, candidate: Exercise) => {
   if (equipmentOverlap(current, candidate)) {
     score += 2
   }
-  if (candidate.difficulty && current.difficulty && candidate.difficulty === current.difficulty) {
-    score += 1
-  }
 
   const currentGoal = current.goal ?? inferGoalFromReps(current.reps)
   const candidateGoal = candidate.goal ?? inferGoalFromReps(candidate.reps)

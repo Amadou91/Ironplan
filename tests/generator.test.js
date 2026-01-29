@@ -85,7 +85,10 @@ const mockCatalog = [
   {
     name: 'Bench Press',
     primaryMuscle: 'chest',
-    equipment: [{ kind: 'barbell' }, { kind: 'dumbbell' }],
+    equipment: [
+      { kind: 'barbell', requires: ['bench_press'] },
+      { kind: 'dumbbell', requires: ['bench_press'] }
+    ],
     category: 'Strength',
     sets: 3,
     reps: 10,
@@ -245,7 +248,18 @@ test('validate input errors when required fields are missing', () => {
   const { errors } = buildWorkoutTemplate({
     intent: { mode: 'body_part', bodyParts: [] },
     schedule: { daysAvailable: [], minRestDays: 1 },
-    equipment: { preset: 'custom', inventory: { bodyweight: false, dumbbells: [], kettlebells: [], bands: [], barbell: { available: false, plates: [] }, machines: { cable: false, leg_press: false, treadmill: false, rower: false } } }
+    equipment: {
+      preset: 'custom',
+      inventory: {
+        bodyweight: false,
+        benchPress: false,
+        dumbbells: [],
+        kettlebells: [],
+        bands: [],
+        barbell: { available: false, plates: [] },
+        machines: { cable: false, leg_press: false, treadmill: false, rower: false }
+      }
+    }
   })
 
   assert.ok(errors.length >= 2)
@@ -283,6 +297,7 @@ test('returns an error when chest focus cannot be satisfied by equipment', () =>
       preset: 'custom',
       inventory: {
         bodyweight: false,
+        benchPress: false,
         dumbbells: [],
         kettlebells: [],
         bands: [],
@@ -320,6 +335,7 @@ test('time availability scales exercise count and volume', () => {
       preset: 'custom',
       inventory: {
         bodyweight: true,
+        benchPress: false,
         dumbbells: [],
         kettlebells: [],
         bands: [],
@@ -347,6 +363,7 @@ test('filters exercises to available equipment inventory', () => {
       preset: 'custom',
       inventory: {
         bodyweight: true,
+        benchPress: false,
         dumbbells: [],
         kettlebells: [],
         bands: [],

@@ -24,6 +24,7 @@ const buildCardioInventory = (
   inventory: PlanInput['equipment']['inventory']
 ): PlanInput['equipment']['inventory'] => ({
   bodyweight: inventory.bodyweight,
+  benchPress: false,
   dumbbells: [],
   kettlebells: [],
   bands: [],

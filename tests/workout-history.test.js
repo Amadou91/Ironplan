@@ -54,7 +54,18 @@ test('workout history persists and reloads entries', () => {
         goals: { primary: 'strength', priority: 'primary' },
         experienceLevel: 'beginner',
         intensity: 'low',
-        equipment: { preset: 'full_gym', inventory: { bodyweight: true, dumbbells: [], kettlebells: [], bands: [], barbell: { available: false, plates: [] }, machines: { cable: false, leg_press: false, treadmill: false, rower: false } } },
+        equipment: {
+          preset: 'full_gym',
+          inventory: {
+            bodyweight: true,
+            benchPress: false,
+            dumbbells: [],
+            kettlebells: [],
+            bands: [],
+            barbell: { available: false, plates: [] },
+            machines: { cable: false, leg_press: false, treadmill: false, rower: false }
+          }
+        },
         time: { minutesPerSession: 30 },
         schedule: { daysAvailable: [0], minRestDays: 1 },
         preferences: { focusAreas: ['chest'], dislikedActivities: [], cardioActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
