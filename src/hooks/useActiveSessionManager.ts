@@ -159,7 +159,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     const fetchSession = async () => {
       const { data, error } = await supabase
         .from('sessions')
-        .select('id, user_id, name, template_id, session_focus, session_goal, session_intensity, started_at, ended_at, status, body_weight_lb, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit, extras, extra_metrics))')
+        .select('id, user_id, name, template_id, started_at, ended_at, status, body_weight_lb, session_notes, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds, distance, distance_unit, extras, extra_metrics))')
         .eq('id', sessionId)
         .single();
 

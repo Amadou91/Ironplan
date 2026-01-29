@@ -93,7 +93,7 @@ export function useDashboardData() {
           supabase
             .from('sessions')
             .select(
-              'id, name, template_id, session_focus, session_goal, session_intensity, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds))'
+              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, rpe, rir, completed, performed_at, weight_unit, duration_seconds))'
             )
             .eq('user_id', user.id)
             .order('started_at', { ascending: false })
