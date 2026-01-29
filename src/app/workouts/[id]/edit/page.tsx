@@ -32,10 +32,8 @@ export default function EditWorkoutPage() {
         .from('exercise_catalog')
         .select(`
           id, name, category, focus, movement_pattern, metric_profile,
-          sets, reps, rpe, duration_minutes, rest_seconds, load_target,
-          primary_muscle, secondary_muscles, instructions, video_url,
-          equipment, e1rm_eligible, is_interval, interval_duration,
-          interval_rest, or_group
+          primary_muscle, secondary_muscles, equipment,
+          e1rm_eligible, is_interval, or_group
         `)
         .eq('id', id)
         .single();

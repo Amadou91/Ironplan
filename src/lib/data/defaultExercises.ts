@@ -376,7 +376,7 @@ export const DEFAULT_EXERCISES: Partial<Exercise>[] = [
     "category": "Cardio",
     "movementPattern": "cardio",
     "metricProfile": "cardio_session",
-    "equipment": [{ "kind": "bodyweight" }],
+    "equipment": [{ "kind": "machine", "machineType": "outdoor_bicycle" }],
     "primaryMuscle": "full_body"
   },
   {
