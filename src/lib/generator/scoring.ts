@@ -72,12 +72,78 @@ export const getIntensityRestModifier = (intensity: Intensity) => {
   return 1
 }
 
-export const getExerciseCaps = (minutes: number) => {
-  if (minutes <= 30) return { min: 3, max: 5 }
-  if (minutes <= 45) return { min: 4, max: 6 }
-  if (minutes <= 60) return { min: 5, max: 8 }
-  if (minutes <= 90) return { min: 6, max: 9 }
-  return { min: 6, max: 10 }
+/**
+ * Calculates realistic exercise count caps based on session duration.
+ * 
+ * Model assumptions per exercise:
+ * - Setup/transition: 2 min
+ * - Work per set: ~45 sec
+ * - Rest per set: ~90 sec (varies by goal)
+ * - Average sets: 3-4
+ * - Total per exercise: ~10-12 min
+ * 
+ * The model uses ~10 min/exercise as the baseline for calculating max,
+ * with a buffer for warmup and transitions between exercises.
+ */
+export const getExerciseCaps = (minutes: number): { min: number; max: number } => {
+  // Reserve time for warmup and cooldown (scales with session length)
+  const warmupCooldown = Math.min(5, Math.max(2, minutes * 0.08))
+  const effectiveMinutes = minutes - warmupCooldown
+  
+  // Realistic time per exercise: 10-12 min average
+  // Use 11 min as middle ground for max calculation
+  const avgMinutesPerExercise = 11
+  
+  // Calculate max based on available time
+  const rawMax = Math.floor(effectiveMinutes / avgMinutesPerExercise)
+  
+  // Apply bounds based on session length
+  if (minutes <= 25) return { min: 2, max: Math.min(rawMax, 3) }
+  if (minutes <= 35) return { min: 2, max: Math.min(rawMax, 4) }
+  if (minutes <= 50) return { min: 3, max: Math.min(rawMax, 4) }
+  if (minutes <= 65) return { min: 3, max: Math.min(rawMax, 5) }
+  if (minutes <= 80) return { min: 4, max: Math.min(rawMax, 6) }
+  if (minutes <= 100) return { min: 4, max: Math.min(rawMax, 7) }
+  return { min: 5, max: Math.min(rawMax, 8) }
+}
+
+/**
+ * Adjusts exercise caps based on training goal.
+ * - Strength: Longer rest between sets means fewer exercises fit
+ * - Endurance/Cardio: Shorter rest allows more exercises
+ * - Mobility: Typically flowing sequences, can include more movements
+ */
+export const getGoalAdjustedExerciseCaps = (
+  minutes: number, 
+  goal: Goal
+): { min: number; max: number } => {
+  const base = getExerciseCaps(minutes)
+  
+  // Strength sessions need more rest, so fewer exercises fit
+  if (goal === 'strength') {
+    return {
+      min: Math.max(2, base.min - 1),
+      max: Math.max(base.min, base.max - 1)
+    }
+  }
+  
+  // Endurance/cardio can fit slightly more due to shorter rest
+  if (goal === 'endurance' || goal === 'cardio') {
+    return {
+      min: base.min,
+      max: Math.min(base.max + 1, Math.floor(minutes / 8))
+    }
+  }
+  
+  // Mobility/yoga sessions flow more quickly between movements
+  if (goal === 'range_of_motion') {
+    return {
+      min: base.min,
+      max: Math.min(base.max + 2, Math.floor(minutes / 6))
+    }
+  }
+  
+  return base
 }
 
 export const getSetCaps = (minutes: number) => {

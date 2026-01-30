@@ -37,7 +37,7 @@ import {
 import {
   deriveReps,
   getIntensityRestModifier,
-  getExerciseCaps,
+  getGoalAdjustedExerciseCaps,
   getSetCaps,
   getFamilyCaps,
   getRestModifier
@@ -81,7 +81,7 @@ const buildSessionForTime = (
 ): { exercises: Exercise[]; error?: string } => {
   const targetMinutes = clamp(duration, 20, 120)
   const reps = deriveReps(goal, input.intensity)
-  let { min: minExercises, max: maxExercises } = getExerciseCaps(targetMinutes)
+  let { min: minExercises, max: maxExercises } = getGoalAdjustedExerciseCaps(targetMinutes, goal)
   const { min: minSetCap, max: maxSetCap } = getSetCaps(targetMinutes)
   const restModifier = getRestModifier(targetMinutes, input.preferences.restPreference) * getIntensityRestModifier(input.intensity)
   const picks: PlannedExercise[] = []
