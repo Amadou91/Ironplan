@@ -59,3 +59,35 @@ export const buildWorkoutDisplayName = ({
   if (!parts.length) return fallback ?? ''
   return parts.join(' · ')
 }
+
+/**
+ * Strips the planned duration suffix (e.g., " · 45 min") from a session name.
+ * Used for completed sessions where actual duration should be shown instead.
+ */
+export const stripPlannedDuration = (name: string): string => {
+  // Match patterns like " · 45 min" or " · 120 min" at end of string
+  return name.replace(/\s*·\s*\d+\s*min$/i, '')
+}
+
+/**
+ * Formats a session title for display by replacing planned duration with actual duration.
+ * For completed sessions, this shows the real elapsed time instead of the intended time.
+ */
+export const formatSessionDisplayTitle = (
+  name: string,
+  startedAt?: string | null,
+  endedAt?: string | null
+): string => {
+  const baseName = stripPlannedDuration(name)
+  
+  if (startedAt && endedAt) {
+    const start = new Date(startedAt).getTime()
+    const end = new Date(endedAt).getTime()
+    if (!Number.isNaN(start) && !Number.isNaN(end) && end > start) {
+      const durationMinutes = Math.round((end - start) / 60000)
+      return `${baseName} · ${durationMinutes} min`
+    }
+  }
+  
+  return baseName
+}

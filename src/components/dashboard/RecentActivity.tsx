@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { ArrowRight, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { formatDateTime, formatDuration } from '@/lib/transformers/chart-data'
+import { formatDateTime } from '@/lib/transformers/chart-data'
+import { formatSessionDisplayTitle } from '@/lib/workout-naming'
 import type { SessionRow } from '@/hooks/useDashboardData'
 
 interface RecentActivityProps {
@@ -38,11 +39,9 @@ export function RecentActivity({ recentSessions }: RecentActivityProps) {
                 className="group flex flex-col gap-6 rounded-2xl border border-[var(--color-border)] p-6 transition-all hover:bg-[var(--color-surface-subtle)] hover:shadow-md md:flex-row md:items-center md:justify-between"
               >
                 <div className="space-y-1.5">
-                  <p className="text-lg font-bold text-strong">{sessionTitle}</p>
+                  <p className="text-lg font-bold text-strong">{formatSessionDisplayTitle(sessionTitle, session.started_at, session.ended_at)}</p>
                   <div className="flex items-center gap-4 text-sm text-subtle">
                     <span className="font-medium">{formatDateTime(session.started_at)}</span>
-                    <span className="h-1 w-1 rounded-full bg-[var(--color-border)]" />
-                    <span>{formatDuration(session.started_at, session.ended_at)}</span>
                   </div>
                 </div>
                 <Link href={`/sessions/${session.id}/edit`}>

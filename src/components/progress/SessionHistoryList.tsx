@@ -8,10 +8,8 @@ import { Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { SessionHistoryToolbar } from '@/components/progress/SessionHistoryToolbar'
-import { 
-  formatDateTime, 
-  formatDuration 
-} from '@/lib/transformers/chart-data'
+import { formatDateTime } from '@/lib/transformers/chart-data'
+import { formatSessionDisplayTitle } from '@/lib/workout-naming'
 import { toMuscleLabel } from '@/lib/muscle-utils'
 import { 
   aggregateHardSets, 
@@ -175,11 +173,9 @@ export function SessionHistoryList({
                 <div key={session.id} className="space-y-5 p-6 transition-all hover:bg-[var(--color-surface-subtle)]/40 group">
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-1.5">
-                      <p className="text-base font-black text-strong tracking-tight group-hover:text-[var(--color-primary)] transition-colors">{getSessionTitle(session)}</p>
+                      <p className="text-base font-black text-strong tracking-tight group-hover:text-[var(--color-primary)] transition-colors">{formatSessionDisplayTitle(getSessionTitle(session), session.started_at, session.ended_at)}</p>
                       <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-bold text-subtle uppercase tracking-wider">
                         <span className="text-strong opacity-80">{formatDateTime(session.started_at)}</span>
-                        <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-border-strong)] opacity-30" />
-                        <span>{formatDuration(session.started_at, session.ended_at)}</span>
                         {session.body_weight_lb && (
                           <>
                             <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-border-strong)] opacity-30" />
