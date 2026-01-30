@@ -1,8 +1,14 @@
 /**
- * Tonnage (Volume Load) Correctness Tests
+ * External Tonnage (Volume Load) Correctness Tests
  * 
- * Tests the volume load calculation: reps * weight (lbs)
- * With virtual bodyweight handling for bodyweight exercises.
+ * CORRECTNESS REQUIREMENT: Tonnage is calculated from EXTERNAL weight only.
+ * Formula: reps × externalWeight (lbs)
+ * 
+ * - No virtual bodyweight inference
+ * - No exercise name matching for multipliers
+ * - No user bodyweight in calculations
+ * 
+ * If no external weight is entered, tonnage = 0.
  * 
  * @see docs/METRICS-SPEC.md for detailed specification
  */
@@ -65,85 +71,17 @@ const fixtures = JSON.parse(
 const sessionMetrics = loadTsModule(
   join(__dirname, '../../src/lib/session-metrics.ts')
 ) as {
-  computeSetTonnage: (
-    set: Record<string, unknown>,
-    userWeightLbs?: number,
-    exerciseName?: string | null,
-    isBodyweightExercise?: boolean
-  ) => number;
-  getBodyweightExerciseType: (exerciseName?: string | null) => 'push' | 'pull' | 'default';
-  getVirtualBodyweight: (userWeightLbs: number, exerciseName?: string | null) => number;
+  computeSetTonnage: (set: Record<string, unknown>) => number;
+  computeSetLoad: (set: Record<string, unknown>) => number;
   aggregateTonnage: (sets: Array<Record<string, unknown>>) => number;
 };
 
-const constants = loadTsModule(
-  join(__dirname, '../../src/constants/training.ts')
-) as {
-  VIRTUAL_WEIGHT_MULTIPLIERS: { push: number; pull: number; default: number };
-  DEFAULT_USER_WEIGHT_LB: number;
-};
+// ============================================================================
+// EXTERNAL TONNAGE CORRECTNESS TESTS
+// ============================================================================
 
-// --- Constants Verification ---
-test('Tonnage Constants: Correct values', () => {
-  assert.equal(constants.VIRTUAL_WEIGHT_MULTIPLIERS.push, 0.66);
-  assert.equal(constants.VIRTUAL_WEIGHT_MULTIPLIERS.pull, 0.90);
-  assert.equal(constants.VIRTUAL_WEIGHT_MULTIPLIERS.default, 0.70);
-  assert.equal(constants.DEFAULT_USER_WEIGHT_LB, 170);
-});
-
-// --- Bodyweight Exercise Type Detection ---
-test('Bodyweight Exercise Type Detection', async (t) => {
-  await t.test('Push exercises detected correctly', () => {
-    assert.equal(sessionMetrics.getBodyweightExerciseType('Push-up'), 'push');
-    assert.equal(sessionMetrics.getBodyweightExerciseType('pushup'), 'push');
-    assert.equal(sessionMetrics.getBodyweightExerciseType('Dip'), 'push');
-    assert.equal(sessionMetrics.getBodyweightExerciseType('Pike Press'), 'push');
-  });
-
-  await t.test('Pull exercises detected correctly', () => {
-    assert.equal(sessionMetrics.getBodyweightExerciseType('Pull-up'), 'pull');
-    assert.equal(sessionMetrics.getBodyweightExerciseType('pullup'), 'pull');
-    assert.equal(sessionMetrics.getBodyweightExerciseType('Chin-up'), 'pull');
-    assert.equal(sessionMetrics.getBodyweightExerciseType('chinup'), 'pull');
-    assert.equal(sessionMetrics.getBodyweightExerciseType('Muscle-up'), 'pull');
-  });
-
-  await t.test('Default-bodyweight exercises', () => {
-    // Exercises that ARE primarily bodyweight (burpees, planks, etc.) return 'default-bodyweight'
-    assert.equal(sessionMetrics.getBodyweightExerciseType('Burpee'), 'default-bodyweight');
-  });
-
-  await t.test('Default for unrecognized exercises', () => {
-    // Exercises that CAN use bodyweight but aren't primarily BW (step-ups, lunges, squats) return 'default'
-    assert.equal(sessionMetrics.getBodyweightExerciseType('Squat'), 'default');
-    assert.equal(sessionMetrics.getBodyweightExerciseType('Step Up'), 'default');
-    assert.equal(sessionMetrics.getBodyweightExerciseType(null), 'default');
-    assert.equal(sessionMetrics.getBodyweightExerciseType(undefined), 'default');
-  });
-});
-
-// --- Virtual Bodyweight Calculation ---
-test('Virtual Bodyweight Calculation', async (t) => {
-  const userWeight = 170;
-  
-  await t.test('Push exercise virtual weight', () => {
-    const result = sessionMetrics.getVirtualBodyweight(userWeight, 'Push-up');
-    assert.equal(result, 170 * 0.66, 'Push-up: 66% of bodyweight');
-  });
-
-  await t.test('Pull exercise virtual weight', () => {
-    const result = sessionMetrics.getVirtualBodyweight(userWeight, 'Pull-up');
-    assert.equal(result, 170 * 0.90, 'Pull-up: 90% of bodyweight');
-  });
-
-  await t.test('Default exercise virtual weight', () => {
-    const result = sessionMetrics.getVirtualBodyweight(userWeight, 'Burpee');
-    assert.equal(result, 170 * 0.70, 'Default: 70% of bodyweight');
-  });
-});
-
-// --- Tonnage Golden Fixture Tests ---
-test('Tonnage Golden Fixtures', async (t) => {
+// --- Golden Fixture Tests ---
+test('External Tonnage Golden Fixtures', async (t) => {
   for (const fixture of fixtures.fixtures) {
     await t.test(`${fixture.id}: ${fixture.description}`, () => {
       const set: Record<string, unknown> = {
@@ -154,13 +92,9 @@ test('Tonnage Golden Fixtures', async (t) => {
         implementCount: fixture.input.implementCount
       };
 
-      const result = sessionMetrics.computeSetTonnage(
-        set,
-        fixture.input.userWeightLbs,
-        fixture.input.exerciseName
-      );
+      const result = sessionMetrics.computeSetTonnage(set);
 
-      const tolerance = fixture.tolerance ?? 1; // Allow 1 lb tolerance
+      const tolerance = fixture.tolerance ?? 1;
       assert.ok(
         Math.abs(result - fixture.expected) <= tolerance,
         `Expected ${fixture.expected}, got ${result}`
@@ -169,13 +103,78 @@ test('Tonnage Golden Fixtures', async (t) => {
   }
 });
 
+// --- Correctness: No Bodyweight Inference ---
+test('CORRECTNESS: Push-up with reps only = 0 tonnage (no virtual BW)', () => {
+  const set = { reps: 20 }; // No weight entered
+  const result = sessionMetrics.computeSetTonnage(set);
+  assert.equal(result, 0, 'Bodyweight-only push-up should have 0 external tonnage');
+});
+
+test('CORRECTNESS: Pull-up with reps only = 0 tonnage (no virtual BW)', () => {
+  const set = { reps: 10 }; // No weight entered
+  const result = sessionMetrics.computeSetTonnage(set);
+  assert.equal(result, 0, 'Bodyweight-only pull-up should have 0 external tonnage');
+});
+
+test('CORRECTNESS: Weighted pull-up uses external weight ONLY', () => {
+  const set = { reps: 10, weight: 25, weightUnit: 'lb' };
+  const result = sessionMetrics.computeSetTonnage(set);
+  assert.equal(result, 250, '10 × 25 = 250 (no virtual bodyweight added)');
+});
+
+test('CORRECTNESS: Step-ups bodyweight only = 0 tonnage', () => {
+  const set = { reps: 20 }; // No weight entered
+  const result = sessionMetrics.computeSetTonnage(set);
+  assert.equal(result, 0, 'Step-ups without external weight = 0 tonnage');
+});
+
+test('CORRECTNESS: Step-ups with dumbbells = external weight only', () => {
+  const set = { reps: 10, weight: 25, weightUnit: 'lb', loadType: 'per_implement', implementCount: 2 };
+  const result = sessionMetrics.computeSetTonnage(set);
+  assert.equal(result, 500, '10 × (25 × 2) = 500 (external weight only)');
+});
+
+test('CORRECTNESS: Bulgarian split squat with dumbbells = external only', () => {
+  const set = { reps: 8, weight: 30, weightUnit: 'lb', loadType: 'per_implement', implementCount: 2 };
+  const result = sessionMetrics.computeSetTonnage(set);
+  assert.equal(result, 480, '8 × (30 × 2) = 480 (no bodyweight added)');
+});
+
+// --- Workload Score (Load) Correctness ---
+test('CORRECTNESS: Bodyweight-only set with reps = 0 load (no estimation)', () => {
+  const set = { reps: 20, rpe: 8 }; // No weight, no duration
+  const result = sessionMetrics.computeSetLoad(set);
+  assert.equal(result, 0, 'No weight and no duration = 0 load (pure accuracy)');
+});
+
+test('CORRECTNESS: Set with external weight computes load correctly', () => {
+  const set = { reps: 10, weight: 100, weightUnit: 'lb', rpe: 8 };
+  const result = sessionMetrics.computeSetLoad(set);
+  // Tonnage = 1000, intensity factor for RPE 8 ≈ 0.67
+  assert.ok(result > 0, 'Weighted set should have positive load');
+  assert.ok(result < 1000, 'Load should be tonnage × intensity factor (< 1.0)');
+});
+
+test('CORRECTNESS: Cardio with explicit duration computes load', () => {
+  const set = { durationSeconds: 1800, rpe: 7, metricProfile: 'cardio_session' }; // 30 min
+  const result = sessionMetrics.computeSetLoad(set);
+  assert.ok(result > 0, 'Cardio with duration should have positive load');
+});
+
+test('CORRECTNESS: Cardio without duration = 0 load', () => {
+  const set = { reps: 10, rpe: 7, metricProfile: 'cardio_session' }; // No duration
+  const result = sessionMetrics.computeSetLoad(set);
+  assert.equal(result, 0, 'Cardio without explicit duration = 0 load');
+});
+
 // --- Property Tests ---
 test('Tonnage Invariant: Always >= 0', () => {
   const testCases = [
     { reps: 10, weight: 100, weightUnit: 'lb' },
     { reps: 0, weight: 100, weightUnit: 'lb' },
     { reps: 10, weight: 0, weightUnit: 'lb' },
-    { reps: -5, weight: 100, weightUnit: 'lb' }, // Negative reps should return 0
+    { reps: -5, weight: 100, weightUnit: 'lb' },
+    { reps: 10 }, // No weight
   ];
 
   for (const tc of testCases) {
@@ -231,42 +230,21 @@ test('Aggregate Tonnage: Empty array returns 0', () => {
   assert.equal(total, 0);
 });
 
-// --- Bodyweight + External Weight ---
-test('Weighted Bodyweight: Adds external weight to virtual', () => {
-  const userWeight = 170;
-  const externalWeight = 45;
-  
-  // Pull-up virtual weight: 170 * 0.90 = 153
-  // Total: 153 + 45 = 198
-  // Tonnage: 10 * 198 = 1980
-  
-  const set = {
-    reps: 10,
-    weight: externalWeight,
-    weightUnit: 'lb'
-  };
-  
-  const result = sessionMetrics.computeSetTonnage(set, userWeight, 'Weighted Pull-up', true);
-  
-  // Virtual (153) + External (45) = 198 per rep
-  const expected = 10 * (153 + 45);
-  assert.ok(
-    Math.abs(result - expected) <= 1,
-    `Expected ~${expected}, got ${result}`
-  );
+test('Aggregate Tonnage: Bodyweight sets contribute 0', () => {
+  const sets = [
+    { reps: 10, weight: 100, weightUnit: 'lb' }, // 1000
+    { reps: 20 }, // 0 (bodyweight, no external weight)
+    { reps: 8, weight: 50, weightUnit: 'lb' },   // 400
+  ];
+
+  const total = sessionMetrics.aggregateTonnage(sets);
+  assert.equal(total, 1400, 'Bodyweight set contributes 0 to aggregate');
 });
 
-// --- Unit Conversion in Tonnage ---
+// --- KG to LBS Conversion ---
 test('Tonnage: KG weight converted to LBS in output', () => {
-  const setKg = { reps: 10, weight: 100, weightUnit: 'kg' };
-  const setLb = { reps: 10, weight: 220.46, weightUnit: 'lb' };
-
-  const tonnageKg = sessionMetrics.computeSetTonnage(setKg);
-  const tonnageLb = sessionMetrics.computeSetTonnage(setLb);
-
-  // Both should produce similar tonnage (all in lbs)
-  assert.ok(
-    Math.abs(tonnageKg - tonnageLb) < 5,
-    `KG set tonnage (${tonnageKg}) should match LB equivalent (${tonnageLb})`
-  );
+  const set = { reps: 10, weight: 100, weightUnit: 'kg' };
+  const result = sessionMetrics.computeSetTonnage(set);
+  // 100 kg = 220.462 lbs, × 10 reps = 2204.62 lbs
+  assert.ok(Math.abs(result - 2204.62) < 1, `Expected ~2204.62, got ${result}`);
 });

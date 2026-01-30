@@ -2,10 +2,6 @@ import type { SessionGoal, GroupType, WeightUnit, MetricProfile, LoadType } from
 import { toKg, toLbs, normalizeIntensity, convertWeight } from '@/lib/units'
 import { clamp, isValidNumber } from '@/lib/math'
 import { getWeekKey } from '@/lib/date-utils'
-import {
-  DEFAULT_USER_WEIGHT_LB,
-  VIRTUAL_WEIGHT_MULTIPLIERS
-} from '@/constants/training'
 
 // Re-export getWeekKey for backwards compatibility
 export { getWeekKey }
@@ -139,117 +135,33 @@ export const mapRpeToRir = (rpe: number) => {
   return 10 - rpe
 }
 
-// Constants imported from @/constants/training:
-// DEFAULT_BODYWEIGHT_FACTOR, DEFAULT_USER_WEIGHT_LB, VIRTUAL_WEIGHT_MULTIPLIERS
-
-export type BodyweightExerciseType = 'push' | 'pull' | 'default-bodyweight' | 'default'
-
 /**
- * Determines the bodyweight exercise type from exercise name.
- * Used for calculating virtual weight for tonnage tracking.
+ * Calculates External Tonnage (Volume Load) in Pounds.
  * 
- * Only returns a non-default type for exercises that are PRIMARILY bodyweight exercises
- * (e.g., push-ups, pull-ups, dips, burpees). Exercises that can optionally use bodyweight
- * but are typically weighted (e.g., step-ups, lunges) should return 'default' and will
- * have 0 tonnage when no weight is entered.
- */
-export const getBodyweightExerciseType = (exerciseName?: string | null): BodyweightExerciseType => {
-  if (!exerciseName) return 'default'
-  const lower = exerciseName.toLowerCase()
-  
-  // Pull exercises (vertical pulling - higher % of bodyweight)
-  if (lower.includes('pull-up') || lower.includes('pullup') || 
-      lower.includes('chin-up') || lower.includes('chinup') ||
-      lower.includes('muscle-up') || lower.includes('muscleup') ||
-      lower.includes('inverted row') || lower.includes('body row')) {
-    return 'pull'
-  }
-  
-  // Push exercises (horizontal pushing - lower % of bodyweight)
-  if (lower.includes('push-up') || lower.includes('pushup') ||
-      lower.includes('dip') || lower.includes('pike press') ||
-      lower.includes('handstand')) {
-    return 'push'
-  }
-  
-  // Default bodyweight exercises (full body movements that ARE primarily bodyweight)
-  // These use the 0.70 multiplier for virtual bodyweight
-  if (lower.includes('burpee') ||
-      lower.includes('mountain climber') ||
-      lower.includes('jumping jack') ||
-      lower.includes('plank') ||
-      lower.includes('bear crawl') ||
-      lower.includes('crab walk') ||
-      lower.includes('bodyweight squat') ||
-      lower.includes('air squat') ||
-      lower.includes('pistol squat') ||
-      lower.includes('jump squat') ||
-      lower.includes('box jump')) {
-    return 'default-bodyweight'
-  }
-  
-  return 'default'
-}
-
-/**
- * Returns the effective "virtual weight" for bodyweight exercises.
- * This allows tonnage tracking for exercises without external load.
+ * Formula: Reps × ExternalWeight(lbs)
  * 
- * @param userWeightLbs - User's bodyweight in pounds
- * @param exerciseName - Name of the exercise (optional, for type detection)
- * @returns Virtual weight in pounds representing the effective load
+ * CORRECTNESS REQUIREMENT: This function uses ONLY explicit external weight.
+ * - No virtual bodyweight inference
+ * - No exercise name matching
+ * - No user bodyweight multipliers
+ * 
+ * If no external weight is entered, tonnage = 0.
+ * 
+ * @param set - The set metrics containing reps, weight, unit, loadType, implementCount
+ * @returns External tonnage in pounds (0 if no valid external weight)
  */
-export const getVirtualBodyweight = (
-  userWeightLbs: number,
-  exerciseName?: string | null
-): number => {
-  const exerciseType = getBodyweightExerciseType(exerciseName)
-  const multiplier = VIRTUAL_WEIGHT_MULTIPLIERS[exerciseType]
-  return userWeightLbs * multiplier
-}
-
-/**
- * Calculates Volume Load in Pounds.
- * Formula: Reps * Weight(lb)
- * For bodyweight exercises without weight, uses virtual bodyweight estimation.
- * For weighted bodyweight exercises (e.g., weighted pull-ups), adds external weight to virtual bodyweight.
- */
-export const computeSetTonnage = (
-  set: MetricsSet,
-  userWeightLbs?: number,
-  exerciseName?: string | null,
-  isBodyweightExercise?: boolean
-): number => {
+export const computeSetTonnage = (set: MetricsSet): number => {
+  // Validate reps
   if (!isValidNumber(set.reps) || set.reps <= 0) return 0
   
-  const baseWeight = userWeightLbs ?? DEFAULT_USER_WEIGHT_LB
-  const hasExternalWeight = isValidNumber(set.weight) && set.weight > 0
+  // Validate external weight
+  if (!isValidNumber(set.weight) || set.weight <= 0) return 0
   
-  // Detect if this is a bodyweight exercise by name or explicit flag
-  // Only exercises explicitly recognized as bodyweight (push-ups, pull-ups, dips, etc.)
-  // get virtual bodyweight applied. Other exercises without weight return 0 tonnage.
-  const exerciseType = getBodyweightExerciseType(exerciseName)
-  const isRecognizedBodyweight = exerciseType !== 'default'
-  const isBodyweight = isBodyweightExercise ?? isRecognizedBodyweight
-  
-  // For recognized bodyweight exercises (push-ups, pull-ups, dips, etc.):
-  // Effective weight = Virtual bodyweight + External weight (if any)
-  if (isBodyweight) {
-    const virtualWeight = getVirtualBodyweight(baseWeight, exerciseName)
-    const externalWeight = hasExternalWeight 
-      ? toLbs(getTotalWeight(set.weight!, set.loadType, set.implementCount), set.weightUnit)
-      : 0
-    const effectiveWeight = virtualWeight + externalWeight
-    return effectiveWeight * set.reps
-  }
-  
-  // For non-bodyweight exercises: require external weight
-  // If no weight is entered, tonnage is 0 (not tracked)
-  if (!hasExternalWeight) return 0
-  
-  // For non-bodyweight exercises with external weight only
+  // Calculate total weight respecting loadType and implementCount
   const totalWeight = getTotalWeight(set.weight, set.loadType, set.implementCount)
   if (!Number.isFinite(totalWeight) || totalWeight <= 0) return 0
+  
+  // Convert to pounds and multiply by reps
   return toLbs(totalWeight, set.weightUnit) * set.reps
 }
 
@@ -323,26 +235,32 @@ export const computeSetIntensity = (set: MetricsSet) => {
 
 /**
  * Calculates Workload Score (Physiological Stress).
- * Formula: Volume Load (lbs) * Normalized Intensity Factor
- * Note: All internal volume calculations use pounds for consistency.
+ * 
+ * CORRECTNESS REQUIREMENT: Uses only explicit inputs.
+ * - External tonnage (from explicit weight entered by user)
+ * - Explicit durationSeconds (for cardio/mobility)
+ * - No estimated/inferred values
+ * 
+ * Formula for strength: ExternalTonnage(lbs) × IntensityFactor
+ * Formula for cardio/mobility: Minutes × IntensityFactor × TIME_LOAD_FACTOR
+ * 
+ * If no explicit weight AND no explicit duration: load = 0
  */
 export const computeSetLoad = (set: MetricsSet): number => {
   const profile = set.metricProfile || 'reps_weight'
   const effort = getEffortScore(set)
   const intensityFactor = normalizeIntensity(effort)
   
-  // Strategy 1: Strength/Hypertrophy (Load-based)
-  // Used for 'strength' and 'timed_strength' if weight is present
+  // Strategy 1: Strength/Hypertrophy (External Load-based)
+  // Only applies if explicit external weight was entered
   const tonnage = computeSetTonnage(set)
   if (tonnage > 0 && profile !== 'cardio_session' && profile !== 'mobility_session') {
-    // Tonnage (lbs) * IntensityFactor.
     return tonnage * intensityFactor
   }
 
-  // Strategy 2: Duration-based (Cardio/Mobility/Timed Bodyweight)
-  // Normalize minutes to be comparable to Tonnage.
-  // CONSTANT: 215 scales ~60min cardio @ RPE 7 to ~7,500 Load,
-  // comparable to a moderate lifting session.
+  // Strategy 2: Duration-based (Cardio/Mobility)
+  // Only applies if explicit durationSeconds was entered
+  // CONSTANT: 215 scales ~60min cardio @ RPE 7 to ~7,500 Load
   const TIME_LOAD_FACTOR = 215
 
   if (typeof set.durationSeconds === 'number' && set.durationSeconds > 0) {
@@ -350,13 +268,8 @@ export const computeSetLoad = (set: MetricsSet): number => {
     return minutes * intensityFactor * TIME_LOAD_FACTOR
   }
 
-  // Fallback: If no duration but reps provided for non-weighted (e.g. bodyweight reps)
-  // Estimate duration: 3 seconds per rep?
-  if (typeof set.reps === 'number' && set.reps > 0) {
-     const estimatedMinutes = (set.reps * 3) / 60
-     return estimatedMinutes * intensityFactor * TIME_LOAD_FACTOR
-  }
-
+  // No explicit weight and no explicit duration = 0 load
+  // (Pure accuracy: do not estimate from reps)
   return 0
 }
 

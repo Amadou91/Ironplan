@@ -200,10 +200,17 @@ const buildBarbellLoadOptions = (inventory: EquipmentInventory) => {
     .map((value) => ({ value, label: `${value} lb barbell` }))
 }
 
+/**
+ * Builds selectable weight options based on equipment inventory.
+ * 
+ * NOTE: profileWeightLb parameter is kept for API compatibility but is NOT used.
+ * Bodyweight is not a selectable weight option - exercises using bodyweight
+ * should have weight=0 or null and will show 0 tonnage (external weight only).
+ */
 export const buildWeightOptions = (
   inventory: EquipmentInventory,
   equipmentOptions: EquipmentOption[],
-  profileWeightLb?: number | null,
+  _profileWeightLb?: number | null,
   preferredUnit: WeightUnit = 'lb'
 ) => {
   const availableOptions = equipmentOptions.filter((option) => isEquipmentOptionAvailable(inventory, option))
@@ -264,11 +271,9 @@ export const buildWeightOptions = (
         })
         break
       case 'bodyweight':
-        // Bodyweight is not a selectable "weight" option.
-        // Exercises using bodyweight have weight=0 or null, and virtual bodyweight
-        // is calculated at metrics time in computeSetTonnage().
-        // Including user's actual weight here causes incorrect load calculations
-        // where bodyweight is treated as external load and multiplied.
+        // Bodyweight is NOT a selectable "weight" option.
+        // Exercises using bodyweight have weight=0 or null.
+        // External tonnage = 0 for sets without explicit weight (pure accuracy).
         break
       case 'machine':
       default:

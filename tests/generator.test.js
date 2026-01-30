@@ -268,7 +268,19 @@ test('validate input errors when required fields are missing', () => {
 test('chest focus stays chest-dominant with allowed accessories', () => {
   const input = normalizePlanInput({
     intent: { mode: 'body_part', bodyParts: ['chest'] },
-    preferences: { focusAreas: ['chest'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
+    preferences: { focusAreas: ['chest'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' },
+    equipment: {
+      preset: 'full_gym',
+      inventory: {
+        bodyweight: true,
+        benchPress: true,
+        dumbbells: [10, 20, 30, 40],
+        kettlebells: [],
+        bands: [],
+        barbell: { available: true, plates: [25, 45] },
+        machines: { cable: true, leg_press: false, treadmill: false, rower: false }
+      }
+    }
   })
 
   const exercises = generateSessionExercises(mockCatalog, input, 'chest', 45, input.goals.primary, { seed: 'seed-chest' })
@@ -313,7 +325,19 @@ test('returns an error when chest focus cannot be satisfied by equipment', () =>
 test('back focus avoids unrelated primary muscles', () => {
   const input = normalizePlanInput({
     intent: { mode: 'body_part', bodyParts: ['back'] },
-    preferences: { focusAreas: ['back'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
+    preferences: { focusAreas: ['back'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' },
+    equipment: {
+      preset: 'full_gym',
+      inventory: {
+        bodyweight: true,
+        benchPress: false,
+        dumbbells: [10, 20, 30, 40],
+        kettlebells: [],
+        bands: ['medium'],
+        barbell: { available: true, plates: [25, 45] },
+        machines: { cable: true, leg_press: false, treadmill: false, rower: false }
+      }
+    }
   })
 
   const exercises = generateSessionExercises(mockCatalog, input, 'back', 45, input.goals.primary, { seed: 'seed-back' })
@@ -382,7 +406,19 @@ test('filters exercises to available equipment inventory', () => {
 test('intensity and experience change prescriptions', () => {
   const baseInput = normalizePlanInput({
     intent: { mode: 'body_part', bodyParts: ['upper'] },
-    preferences: { focusAreas: ['upper'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
+    preferences: { focusAreas: ['upper'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' },
+    equipment: {
+      preset: 'full_gym',
+      inventory: {
+        bodyweight: true,
+        benchPress: true,
+        dumbbells: [10, 20, 30, 40],
+        kettlebells: [],
+        bands: [],
+        barbell: { available: true, plates: [25, 45] },
+        machines: { cable: true, leg_press: false, treadmill: false, rower: false }
+      }
+    }
   })
 
   const lowIntensity = generateSessionExercises(
@@ -428,7 +464,19 @@ test('intensity and experience change prescriptions', () => {
 test('repeated runs vary while avoiding back-to-back duplicates', () => {
   const input = normalizePlanInput({
     intent: { mode: 'body_part', bodyParts: ['back'] },
-    preferences: { focusAreas: ['back'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
+    preferences: { focusAreas: ['back'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' },
+    equipment: {
+      preset: 'full_gym',
+      inventory: {
+        bodyweight: true,
+        benchPress: false,
+        dumbbells: [10, 20, 30, 40],
+        kettlebells: [],
+        bands: ['medium'],
+        barbell: { available: true, plates: [25, 45] },
+        machines: { cable: true, leg_press: false, treadmill: false, rower: false }
+      }
+    }
   })
 
   const firstRun = generateSessionExercises(mockCatalog, input, 'back', 45, input.goals.primary, { seed: 'run-1' })

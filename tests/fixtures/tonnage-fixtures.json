@@ -1,19 +1,14 @@
 {
-  "description": "Golden fixtures for Volume Load (Tonnage) calculations",
-  "formula": "reps * weight (lbs) with virtual bodyweight for BW exercises",
-  "virtualWeightMultipliers": {
-    "push": 0.66,
-    "pull": 0.90,
-    "default": 0.70
-  },
-  "defaultUserWeight": 170,
+  "description": "Golden fixtures for External Tonnage (Volume Load) calculations",
+  "formula": "reps × externalWeight (lbs) - NO virtual bodyweight",
+  "note": "Tonnage is ONLY calculated from explicit external weight entered by user",
   "fixtures": [
     {
       "id": "tonnage-001",
       "description": "Standard weighted set - 10 reps @ 100 lbs",
       "input": { "reps": 10, "weight": 100, "weightUnit": "lb" },
       "expected": 1000,
-      "calculation": "10 * 100 = 1000 lbs"
+      "calculation": "10 × 100 = 1000 lbs"
     },
     {
       "id": "tonnage-002",
@@ -21,49 +16,49 @@
       "input": { "reps": 8, "weight": 60, "weightUnit": "kg" },
       "expected": 1058.22,
       "tolerance": 0.1,
-      "calculation": "8 * (60 * 2.20462) = 8 * 132.277 = 1058.22 lbs"
+      "calculation": "8 × (60 × 2.20462) = 8 × 132.277 = 1058.22 lbs"
     },
     {
       "id": "tonnage-003",
-      "description": "Bodyweight push-up (uses virtual BW)",
-      "input": { "reps": 20, "exerciseName": "Push-up", "userWeightLbs": 170 },
-      "expected": 2244,
-      "calculation": "20 * (170 * 0.66) = 20 * 112.2 = 2244 lbs"
+      "description": "Bodyweight push-up with NO external weight = 0 tonnage",
+      "input": { "reps": 20 },
+      "expected": 0,
+      "calculation": "No external weight entered = 0 tonnage (pure accuracy)"
     },
     {
       "id": "tonnage-004",
-      "description": "Bodyweight pull-up (uses virtual BW)",
-      "input": { "reps": 10, "exerciseName": "Pull-up", "userWeightLbs": 170 },
-      "expected": 1530,
-      "calculation": "10 * (170 * 0.90) = 10 * 153 = 1530 lbs"
+      "description": "Bodyweight pull-up with NO external weight = 0 tonnage",
+      "input": { "reps": 10 },
+      "expected": 0,
+      "calculation": "No external weight entered = 0 tonnage (pure accuracy)"
     },
     {
       "id": "tonnage-005",
-      "description": "Weighted pull-up (virtual BW + external weight)",
-      "input": { "reps": 8, "exerciseName": "Weighted Pull-up", "weight": 45, "weightUnit": "lb", "userWeightLbs": 170 },
-      "expected": 1584,
-      "calculation": "8 * (170 * 0.90 + 45) = 8 * (153 + 45) = 8 * 198 = 1584 lbs"
+      "description": "Weighted pull-up with external weight only",
+      "input": { "reps": 8, "weight": 45, "weightUnit": "lb" },
+      "expected": 360,
+      "calculation": "8 × 45 = 360 lbs (external weight only)"
     },
     {
       "id": "tonnage-006",
-      "description": "Dip (push category)",
-      "input": { "reps": 12, "exerciseName": "Dip", "userWeightLbs": 180 },
-      "expected": 1425.6,
-      "calculation": "12 * (180 * 0.66) = 12 * 118.8 = 1425.6 lbs"
+      "description": "Weighted dip with external weight only",
+      "input": { "reps": 12, "weight": 25, "weightUnit": "lb" },
+      "expected": 300,
+      "calculation": "12 × 25 = 300 lbs (external weight only)"
     },
     {
       "id": "tonnage-007",
       "description": "Per-implement load type with 2 dumbbells",
       "input": { "reps": 10, "weight": 40, "weightUnit": "lb", "loadType": "per_implement", "implementCount": 2 },
       "expected": 800,
-      "calculation": "10 * (40 * 2) = 10 * 80 = 800 lbs"
+      "calculation": "10 × (40 × 2) = 10 × 80 = 800 lbs"
     },
     {
       "id": "tonnage-008",
-      "description": "Generic bodyweight exercise (default multiplier)",
-      "input": { "reps": 15, "exerciseName": "Burpee", "userWeightLbs": 170 },
-      "expected": 1785,
-      "calculation": "15 * (170 * 0.70) = 15 * 119 = 1785 lbs"
+      "description": "Bodyweight burpees with NO external weight = 0 tonnage",
+      "input": { "reps": 15 },
+      "expected": 0,
+      "calculation": "No external weight entered = 0 tonnage (pure accuracy)"
     },
     {
       "id": "tonnage-009",
@@ -73,10 +68,17 @@
     },
     {
       "id": "tonnage-010",
-      "description": "No user weight uses default 170 lb",
-      "input": { "reps": 10, "exerciseName": "Push-up" },
-      "expected": 1122,
-      "calculation": "10 * (170 * 0.66) = 10 * 112.2 = 1122 lbs"
+      "description": "Step-ups bodyweight only = 0 tonnage",
+      "input": { "reps": 10 },
+      "expected": 0,
+      "calculation": "No external weight entered = 0 tonnage (pure accuracy)"
+    },
+    {
+      "id": "tonnage-011",
+      "description": "Step-ups with dumbbells = external weight only",
+      "input": { "reps": 10, "weight": 25, "weightUnit": "lb", "loadType": "per_implement", "implementCount": 2 },
+      "expected": 500,
+      "calculation": "10 × (25 × 2) = 500 lbs"
     }
   ]
 }

@@ -19,18 +19,6 @@ export const DEFAULT_REST_SECONDS = 90
 export const ESTIMATED_SET_TIME_SECONDS = 45
 export const SECONDS_PER_REP = 3
 
-// Default user metrics
-export const DEFAULT_USER_WEIGHT_LB = 170
-export const DEFAULT_BODYWEIGHT_FACTOR = 0.7
-
-// Virtual weight multipliers for bodyweight exercises
-export const VIRTUAL_WEIGHT_MULTIPLIERS = {
-  push: 0.66,            // Push-ups, dips, etc.
-  pull: 0.90,            // Pull-ups, chin-ups, etc.
-  'default-bodyweight': 0.70, // Explicitly bodyweight exercises (burpees, planks, etc.)
-  default: 0.70          // Generic fallback
-} as const
-
 // Pagination limits
 export const SESSION_PAGE_SIZE = 50
 export const DASHBOARD_SESSION_LIMIT = 24
