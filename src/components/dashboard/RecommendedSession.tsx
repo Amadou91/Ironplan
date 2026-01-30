@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Clock, Sparkles, Moon, AlertTriangle } from 'lucide-react'
+import { Sparkles, Moon, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
@@ -118,12 +118,9 @@ export function RecommendedSession({ recommendedTemplate, trainingLoadStatus, lo
                       })}
                     </p>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted">
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <Clock className="h-4 w-4" />
-                      {recommendedTemplate.template_inputs?.time?.minutesPerSession ?? 45} min
-                    </span>
-                  </div>
+                  <p className="text-xs text-subtle uppercase font-bold tracking-widest">
+                    {recommendedTemplate.style.replace('_', ' ')} · {recommendedTemplate.focus}
+                  </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <Link href={`/workout/${recommendedTemplate.id}`}>
