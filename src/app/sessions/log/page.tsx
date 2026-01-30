@@ -85,7 +85,7 @@ export default function LogPastWorkoutPage() {
   // Session setup state
   const [workoutDate, setWorkoutDate] = useState(formatDateForInput(new Date()))
   const [startTime, setStartTime] = useState('09:00')
-  const [durationMinutes, setDurationMinutes] = useState(45)
+  const [durationMinutes, setDurationMinutes] = useState('45')
   const [focus, setFocus] = useState<FocusArea>('chest')
   const [userGoal, setUserGoal] = useState<Goal>('hypertrophy')
   const [bodyWeight, setBodyWeight] = useState('')
@@ -128,7 +128,7 @@ export default function LogPastWorkoutPage() {
     return buildWorkoutDisplayName({
       focus,
       style: effectiveGoal,
-      minutes: durationMinutes,
+      minutes: parseInt(durationMinutes) || null,
       fallback: 'Past Workout'
     })
   }, [focus, effectiveGoal, durationMinutes])
@@ -141,6 +141,11 @@ export default function LogPastWorkoutPage() {
     if (!user) return
     if (!readinessComplete) {
       setError('Please complete the readiness survey.')
+      return
+    }
+    const parsedDuration = parseInt(durationMinutes)
+    if (!parsedDuration || parsedDuration < 1 || parsedDuration > 300) {
+      setError('Please enter a valid duration (1-300 minutes).')
       return
     }
     
@@ -162,7 +167,7 @@ export default function LogPastWorkoutPage() {
       
       const sessionNotes = JSON.stringify({
         sessionIntensity,
-        minutesAvailable: durationMinutes,
+        minutesAvailable: parsedDuration,
         readiness: readinessLevel,
         readinessScore,
         readinessSurvey: readinessSurvey as ReadinessSurvey,
@@ -184,7 +189,7 @@ export default function LogPastWorkoutPage() {
           status: 'in_progress',
           started_at: startedAt.toISOString(),
           ended_at: null, // Will be set when completed
-          minutes_available: durationMinutes,
+          minutes_available: parsedDuration,
           timezone,
           session_notes: sessionNotes,
           body_weight_lb: bodyWeightLb
@@ -231,7 +236,7 @@ export default function LogPastWorkoutPage() {
       })
       
       // Navigate to the active session page for logging
-      router.push(`/sessions/${sessionData.id}/log?duration=${durationMinutes}`)
+      router.push(`/sessions/${sessionData.id}/log?duration=${parsedDuration}`)
     } catch (err) {
       console.error('Failed to create session:', err)
       setError('Unable to create session. Please try again.')
@@ -325,7 +330,7 @@ export default function LogPastWorkoutPage() {
                     min={1}
                     max={300}
                     value={durationMinutes}
-                    onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 45)}
+                    onChange={(e) => setDurationMinutes(e.target.value)}
                     className="mt-2"
                   />
                 </div>

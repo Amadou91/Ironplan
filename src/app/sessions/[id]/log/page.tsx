@@ -3,12 +3,10 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Clock, Save } from 'lucide-react'
+import { ArrowLeft, Save } from 'lucide-react'
 import ActiveSession from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { Input } from '@/components/ui/Input'
-import { Label } from '@/components/ui/Label'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ValidationBlockerModal } from '@/components/ui/ValidationBlockerModal'
 import { createClient } from '@/lib/supabase/client'
@@ -45,9 +43,9 @@ function SessionLogContent() {
   const [showValidationBlocker, setShowValidationBlocker] = useState(false)
   const [hasNoCompletedSets, setHasNoCompletedSets] = useState(false)
   
-  // Duration input for past workout
+  // Duration from the previous page (passed via query param)
   const queryDuration = searchParams.get('duration')
-  const [durationMinutes, setDurationMinutes] = useState(queryDuration ? parseInt(queryDuration) : 45)
+  const durationMinutes = queryDuration ? parseInt(queryDuration) : 45
   
   const sessionId = params?.id as string
   const currentSessionId = activeSession?.id ?? sessionId
@@ -215,29 +213,6 @@ function SessionLogContent() {
           </div>
           
           <div className="space-y-4">
-            {/* Duration Input */}
-            <Card className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Clock className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold text-strong">Workout Duration</h2>
-              </div>
-              <div>
-                <Label htmlFor="duration-input">Total time (minutes)</Label>
-                <Input
-                  id="duration-input"
-                  type="number"
-                  min={1}
-                  max={300}
-                  value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 45)}
-                  className="mt-2"
-                />
-                <p className="mt-2 text-xs text-muted">
-                  This will be used to calculate your session end time.
-                </p>
-              </div>
-            </Card>
-            
             {/* Save Controls */}
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
