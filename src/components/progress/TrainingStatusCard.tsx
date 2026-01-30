@@ -101,7 +101,7 @@ export function TrainingStatusCard({
                 </div>
                 {!insufficientData && !isInitialPhase && (
                   <div 
-                    className={`absolute top-2 h-6 w-2 rounded-full transition-all duration-1000 cubic-bezier(0.34, 1.56, 0.64, 1) shadow-xl border-2 border-white dark:border-gray-900 ${
+                    className={`absolute top-2 h-6 w-2 rounded-full transition-all duration-1000 cubic-bezier(0.34, 1.56, 0.64, 1) shadow-xl border-2 border-[var(--color-surface)] ${
                       status === 'balanced' ? 'bg-[var(--color-success)]' :
                       status === 'overreaching' ? 'bg-[var(--color-danger)]' :
                       'bg-[var(--color-primary)]'

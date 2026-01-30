@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
-import { deleteExerciseAction } from '@/app/workouts/actions';
+import { deleteExerciseAction } from '@/app/exercises/actions';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { cn } from '@/lib/utils';
 
@@ -193,7 +193,7 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
               )}
               
               <div className="flex items-center gap-1.5 ml-2">
-                <Link href={`/workouts/${exercise.id}/edit`}>
+                <Link href={`/exercises/${exercise.id}/edit`}>
                     <Button 
                       variant="secondary" 
                       size="sm" 

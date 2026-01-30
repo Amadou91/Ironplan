@@ -265,7 +265,7 @@ export function SessionSetupModal({
       })
       
       onClose()
-      router.push(`/workouts/${templateId}/active?sessionId=${sessionId}&from=start`)
+      router.push(`/exercises/${templateId}/active?sessionId=${sessionId}&from=start`)
     } catch (err) { 
       console.error(err)
       setStartError('Unable to start the session. Please try again.') 
@@ -306,7 +306,7 @@ export function SessionSetupModal({
   if (!isOpen) return null
 
   const activeSessionLink = activeSession?.templateId 
-    ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=workouts` 
+    ? `/exercises/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=exercises` 
     : '/dashboard'
 
   // Show conflict modal if active session

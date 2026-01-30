@@ -8,7 +8,7 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Next.js App Router                        │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │   /generate │  │  /workouts  │  │  /progress  │  ...         │
+│  │   /generate │  │  /exercises │  │  /progress  │  ...         │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘              │
 └─────────┼─────────────────┼─────────────────┼───────────────────┘
           │                 │                 │
@@ -113,18 +113,18 @@ User Input → useGenerationFlow → generator/engine.ts →
   → selection-logic.ts (pick exercises) 
   → scoring.ts (rank options)
   → volume-math.ts (calculate sets/reps)
-→ Supabase (save template) → Navigate to /workouts/[id]/start
+→ Supabase (save template) → Navigate to /exercises/[id]/start
 ```
 
 ### 2. Active Session
 ```
-Template → /workouts/[id]/start → Create Session Row → 
-Navigate to /workouts/[id]/active → 
+Template → /exercises/[id]/start → Create Session Row → 
+Navigate to /exercises/[id]/active → 
   → useActiveSessionManager (state)
   → ActiveSession component (UI)
   → SetLogger (individual sets)
 → Supabase (real-time updates) → 
-Session Complete → /workouts/[id]/summary
+Session Complete → /exercises/[id]/summary
 ```
 
 ### 3. Progress Analytics

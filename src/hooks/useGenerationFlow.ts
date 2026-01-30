@@ -252,15 +252,15 @@ export function useGenerationFlow() {
     if (activeSession) {
       setStartSessionError('Finish your current session before starting a new one.')
       if (activeSession.templateId && activeSession.id) {
-        router.push(`/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=generate`)
+        router.push(`/exercises/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=generate`)
       } else if (activeSession.id) {
-        router.push(`/workouts/active?sessionId=${activeSession.id}&from=generate`)
+        router.push(`/exercises/active?sessionId=${activeSession.id}&from=generate`)
       }
       return
     }
     setStartSessionError(null)
     setStartingSessionKey(sessionKey)
-    router.push(`/workouts/${templateId}/start`)
+    router.push(`/exercises/${templateId}/start`)
   }
 
   const generatePlanHandler = async () => {

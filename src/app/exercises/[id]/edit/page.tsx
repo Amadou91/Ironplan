@@ -104,22 +104,22 @@ export default function EditWorkoutPage() {
       toast(`Failed to update exercise: ${error.message}`, 'error');
     } else {
       toast('Exercise updated successfully!', 'success');
-      router.push('/workouts');
+      router.push('/exercises');
     }
   };
 
   if (loading) {
-      return <div className="p-8 text-center text-slate-500">Loading exercise details...</div>;
+      return <div className="p-8 text-center text-muted">Loading exercise details...</div>;
   }
 
   return (
     <div className="container mx-auto py-8 max-w-5xl">
       <div className="mb-10 flex flex-col items-center text-center">
-        <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Edit Exercise</h1>
-        <p className="text-slate-500 mt-2 max-w-lg">Update existing exercise details and library parameters.</p>
+        <h1 className="text-3xl font-black tracking-tight text-strong uppercase">Edit Exercise</h1>
+        <p className="text-muted mt-2 max-w-lg">Update existing exercise details and library parameters.</p>
         <div className="mt-6">
-          <Link href="/workouts">
-            <Button variant="outline" size="sm">Back to Workouts</Button>
+          <Link href="/exercises">
+            <Button variant="outline" size="sm">Back to Exercises</Button>
           </Link>
         </div>
       </div>

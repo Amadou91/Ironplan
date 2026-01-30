@@ -15,7 +15,7 @@ import {
   resetToDefaultsAction,
   getExerciseBackupAction,
   importExercisesAction
-} from '@/app/workouts/actions'
+} from '@/app/exercises/actions'
 
 export function DataManagementToolbar() {
   const { toast } = useToast()

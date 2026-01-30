@@ -239,7 +239,7 @@ export default function WorkoutStartPage() {
         timezone, 
         sessionNotes 
       })
-      router.push(`/workouts/${template.id}/active?sessionId=${sessionId}&from=start`)
+      router.push(`/exercises/${template.id}/active?sessionId=${sessionId}&from=start`)
     } catch (err) { 
       console.error(err)
       setStartError('Unable to start the session.') 
@@ -252,7 +252,7 @@ export default function WorkoutStartPage() {
   if (!template) return <div className="page-shell p-10 text-center text-muted">Template not found.</div>
 
   const activeSessionLink = activeSession?.templateId 
-    ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=workouts` 
+    ? `/exercises/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=exercises` 
     : '/dashboard'
 
   return (

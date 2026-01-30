@@ -3,7 +3,7 @@
 import { Suspense, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { X } from 'lucide-react'
+import { CheckCircle2, X } from 'lucide-react'
 import ActiveSession from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -38,6 +38,7 @@ function WorkoutActiveContent() {
   const [finishError, setFinishError] = useState<string | null>(null)
   const [finishingSession, setFinishingSession] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
+  const [cancelingSession, setCancelingSession] = useState(false)
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const [validationErrors, setValidationErrors] = useState<SetValidationError[]>([])
   const [showValidationBlocker, setShowValidationBlocker] = useState(false)
@@ -112,7 +113,11 @@ function WorkoutActiveContent() {
       }
 
       endSession()
-      router.push(`/workouts/${params.id}/summary?sessionId=${currentSessionId}`)
+      if (params.id) {
+        router.push(`/exercises/${params.id}/summary?sessionId=${currentSessionId}`)
+      } else {
+        router.push(`/exercises/summary?sessionId=${currentSessionId}`)
+      }
     } catch (error) {
       console.error('Failed to finish workout:', error)
       setFinishError('Failed to finish workout. Please try again.')
@@ -124,6 +129,7 @@ function WorkoutActiveContent() {
   const executeCancel = async () => {
     if (!currentSessionId) return
     setCancelError(null)
+    setCancelingSession(true)
     try {
       const { error } = await supabase
         .from('sessions')
@@ -139,6 +145,8 @@ function WorkoutActiveContent() {
     } catch (error) {
       console.error('Failed to cancel workout:', error)
       setCancelError('Failed to cancel workout. Please try again.')
+    } finally {
+      setCancelingSession(false)
     }
   }
 
@@ -201,12 +209,35 @@ function WorkoutActiveContent() {
           </div>
 
           <div className="space-y-4">
-            {(finishError || cancelError) && (
-              <Card className="p-4 border-[var(--color-danger)] bg-[var(--color-danger-soft)]/10">
-                {finishError && <div className="text-xs text-[var(--color-danger)] font-medium">{finishError}</div>}
-                {cancelError && <div className="mt-2 text-xs text-[var(--color-danger)] font-medium">{cancelError}</div>}
-              </Card>
-            )}
+            <Card className="p-6">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold text-strong">Session controls</h2>
+              </div>
+              {finishError && <div className="mt-3 alert-error px-3 py-2 text-xs">{finishError}</div>}
+              {cancelError && <div className="mt-3 alert-error px-3 py-2 text-xs">{cancelError}</div>}
+
+              <div className="mt-4 space-y-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={requestFinish}
+                  disabled={finishingSession}
+                  className="w-full justify-center"
+                >
+                  {finishingSession ? 'Finishing...' : 'Finish Session'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={requestCancel}
+                  disabled={cancelingSession}
+                  className="w-full justify-center text-[var(--color-danger)] hover:text-[var(--color-danger)]"
+                >
+                  {cancelingSession ? 'Cancelling...' : 'Cancel Session'}
+                </Button>
+              </div>
+            </Card>
 
             <Card className="p-6">
               <h2 className="text-lg font-semibold text-strong">Focus cues</h2>
@@ -226,7 +257,7 @@ function WorkoutActiveContent() {
         description={confirmAction?.description ?? ''}
         confirmText={confirmAction?.confirmText}
         variant={confirmAction?.variant}
-        isLoading={finishingSession}
+        isLoading={finishingSession || cancelingSession}
       />
 
       <ValidationBlockerModal

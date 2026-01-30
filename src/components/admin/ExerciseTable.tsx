@@ -85,10 +85,10 @@ export function ExerciseTable({ exercises }: ExerciseTableProps) {
             className="pl-11 h-12 text-base bg-[var(--color-surface)] border-[var(--color-border)] rounded-xl"
           />
         </div>
-        <Link href="/workouts/new">
+        <Link href="/exercises/new">
           <Button className="w-full sm:w-auto h-12 px-6 text-base shadow-sm bg-[var(--color-text)] text-[var(--color-bg)] hover:opacity-90 transition-opacity rounded-xl">
             <Plus className="h-5 w-5 mr-2" />
-            Create New Workout
+            Create New Exercise
           </Button>
         </Link>
       </div>
@@ -167,7 +167,7 @@ export function ExerciseTable({ exercises }: ExerciseTableProps) {
                                   {/* Column 2: Details & Actions */}
                                   <td className="px-8 py-6 text-right align-middle">
                                     <div className="flex items-center justify-end gap-6">
-                                      <Link href={`/workouts/${exercise.id}/edit`}>
+                                      <Link href={`/exercises/${exercise.id}/edit`}>
                                         <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] rounded-lg">
                                           <span className="sr-only">Edit</span>
                                           <MoreHorizontal className="w-5 h-5" />

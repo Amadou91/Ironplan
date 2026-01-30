@@ -9,7 +9,7 @@ export default function MobileNav() {
   const isActive = (path: string) =>
     pathname === path ||
     (path !== '/' && pathname.startsWith(`${path}/`)) ||
-    (path === '/workouts' && pathname.startsWith('/workout/'))
+    (path === '/exercises' && pathname.startsWith('/workout/'))
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 pb-[calc(env(safe-area-inset-bottom)_+_0.5rem)] pt-3 backdrop-blur lg:hidden">

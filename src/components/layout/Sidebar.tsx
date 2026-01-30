@@ -48,7 +48,7 @@ export default function Sidebar() {
   const isActive = (path: string) =>
     pathname === path ||
     (path !== '/' && pathname.startsWith(`${path}/`)) ||
-    (path === '/workouts' && pathname.startsWith('/workout/'));
+    (path === '/exercises' && pathname.startsWith('/workout/'));
 
   if (!hasMounted) {
     return (

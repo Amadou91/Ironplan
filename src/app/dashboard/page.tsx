@@ -44,9 +44,9 @@ export default function DashboardPage() {
   }, [activeSession, sessions])
 
   const resumeLink = latestActiveSession?.templateId
-    ? `/workouts/${latestActiveSession.templateId}/active?sessionId=${latestActiveSession.id}&from=dashboard`
+    ? `/exercises/${latestActiveSession.templateId}/active?sessionId=${latestActiveSession.id}&from=dashboard`
     : latestActiveSession?.id
-      ? `/workouts/active?sessionId=${latestActiveSession.id}&from=dashboard`
+      ? `/exercises/active?sessionId=${latestActiveSession.id}&from=dashboard`
       : '/dashboard'
 
   const greetingName = user?.email?.split('@')[0] || 'there'

@@ -78,9 +78,9 @@ export default function WorkoutDetailPage() {
 
   const isCurrentSessionActive = activeSession?.templateId === template?.id
   const activeSessionLink = activeSession?.templateId
-    ? `/workouts/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=template`
+    ? `/exercises/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=template`
     : activeSession?.id
-      ? `/workouts/active?sessionId=${activeSession.id}&from=template`
+      ? `/exercises/active?sessionId=${activeSession.id}&from=template`
       : '/dashboard'
 
   if (loading) return <div className="page-shell p-10 text-center text-muted">Loading template...</div>
@@ -110,7 +110,7 @@ export default function WorkoutDetailPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {user ? (
-              <Link href={`/workouts/${template.id}/start`}>
+              <Link href={`/exercises/${template.id}/start`}>
                 <Button size="sm">Start session</Button>
               </Link>
             ) : (
@@ -173,7 +173,7 @@ export default function WorkoutDetailPage() {
               <p className="mt-2 text-sm text-muted">
                 We will adapt exercises based on your time, equipment, and recent training load.
               </p>
-              <Link href={`/workouts/${template.id}/start`} className="mt-4 inline-flex text-sm font-semibold text-accent">
+              <Link href={`/exercises/${template.id}/start`} className="mt-4 inline-flex text-sm font-semibold text-accent">
                 Configure session
               </Link>
             </Card>

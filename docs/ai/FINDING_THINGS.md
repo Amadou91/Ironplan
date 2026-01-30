@@ -72,7 +72,7 @@ src/types/
 |---------|----------|
 | Dashboard | `src/app/dashboard/`, `src/hooks/useDashboardData.ts` |
 | Generation | `src/app/generate/`, `src/hooks/useGenerationFlow.ts`, `src/lib/generator/` |
-| Active Session | `src/app/workouts/[id]/active/`, `src/hooks/useActiveSessionManager.ts` |
+| Active Session | `src/app/exercises/[id]/active/`, `src/hooks/useActiveSessionManager.ts` |
 | Progress | `src/app/progress/`, `src/hooks/useProgressMetrics.ts` |
 | Exercise Catalog | `src/components/admin/`, `src/lib/data/defaultExercises.ts` |
 | Equipment | `src/lib/equipment.ts`, `src/lib/equipment-groups.ts` |

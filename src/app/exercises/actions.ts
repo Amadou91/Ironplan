@@ -67,7 +67,7 @@ export async function resetToDefaultsAction() {
     return { success: false, error: `Insert failed: ${insertError.message}` }
   }
 
-  revalidatePath('/workouts')
+  revalidatePath('/exercises')
   return { success: true, count: inserted.length }
 }
 
@@ -84,7 +84,7 @@ export async function deleteExerciseAction(id: string) {
 
   if (error) return { success: false, error: error.message }
   
-  revalidatePath('/workouts')
+  revalidatePath('/exercises')
   return { success: true }
 }
 
@@ -150,6 +150,6 @@ export async function importExercisesAction(exercises: Partial<Exercise>[]) {
 
   if (insertError) return { success: false, error: `Insert failed: ${insertError.message}` }
 
-  revalidatePath('/workouts')
+  revalidatePath('/exercises')
   return { success: true, count: inserted.length }
 }

@@ -13,8 +13,8 @@ export const primaryNavItems: NavItem[] = [
     icon: LayoutDashboard
   },
   {
-    label: 'Workouts',
-    href: '/workouts',
+    label: 'Exercises',
+    href: '/exercises',
     icon: Dumbbell
   },
   {

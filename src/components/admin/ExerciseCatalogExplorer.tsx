@@ -76,20 +76,20 @@ export function ExerciseCatalogExplorer({ initialExercises, muscleOptions }: Pro
                   <div className="flex items-center gap-3">
                     <h3 className="font-bold text-lg">{ex.name}</h3>
                     {ex.movementPattern && (
-                      <span className="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
+                      <span className="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--color-surface-muted)] text-[var(--color-text-muted)] border border-[var(--color-border)]">
                         {ex.movementPattern}
                       </span>
                     )}
                   </div>
                   <div className="text-sm text-muted flex flex-wrap gap-2 mt-1">
-                    <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">{ex.primaryMuscle}</span>
+                    <span className="bg-[var(--color-surface-muted)] px-2 py-0.5 rounded text-[var(--color-text)] font-medium">{ex.primaryMuscle}</span>
                     {ex.primaryMuscle !== 'full_body' && ex.secondaryMuscles && ex.secondaryMuscles.length > 0 && (
-                      <span className="bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-slate-500 text-[11px]">
+                      <span className="bg-[var(--color-surface-subtle)] border border-[var(--color-border)] px-2 py-0.5 rounded text-[var(--color-text-muted)] text-[11px]">
                         +{ex.secondaryMuscles.join(', ')}
                       </span>
                     )}
-                    <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700">{ex.focus}</span>
-                    {ex.metricProfile && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100">{ex.metricProfile}</span>}
+                    <span className="bg-[var(--color-surface-muted)] px-2 py-0.5 rounded text-[var(--color-text)]">{ex.focus}</span>
+                    {ex.metricProfile && <span className="bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] px-2 py-0.5 rounded border border-[var(--color-primary-border)]">{ex.metricProfile}</span>}
                   </div>
                 </div>
                 <Button variant="secondary" size="sm" onClick={() => setEditingId(ex.id!)}>Edit</Button>

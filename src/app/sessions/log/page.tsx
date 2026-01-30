@@ -242,7 +242,7 @@ export default function LogPastWorkoutPage() {
     return (
       <div className="page-shell p-10 text-center text-muted">
         <p className="mb-4">You have an active session. Please finish or cancel it first.</p>
-        <Button onClick={() => router.push('/workouts/active')}>Go to active session</Button>
+        <Button onClick={() => router.push('/exercises/active')}>Go to active session</Button>
       </div>
     )
   }

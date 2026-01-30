@@ -14,7 +14,7 @@ const HIDDEN_SHELL_PREFIXES = ['/auth']
 
 export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname()
-  const hideForFocusMode = pathname.startsWith('/workouts/') && pathname.includes('/active')
+  const hideForFocusMode = pathname.startsWith('/exercises/') && pathname.includes('/active')
   const showShell =
     pathname !== '/' &&
     !hideForFocusMode &&
