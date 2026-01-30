@@ -16,6 +16,8 @@ import { AddExerciseModal } from './modals/AddExerciseModal';
 
 import { SwapExerciseModal } from './modals/SwapExerciseModal';
 
+import { ReorderExercisesModal } from './modals/ReorderExercisesModal';
+
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 import { useActiveSessionManager } from '@/hooks/useActiveSessionManager';
@@ -112,11 +114,15 @@ export default function ActiveSession({
 
     addSessionExercise,
 
+    handleReorderExercises,
+
     resolvedInventory,
 
     exerciseLibrary,
 
     exerciseLibraryByName,
+
+    isUpdating,
 
     supabase
 
@@ -127,6 +133,8 @@ export default function ActiveSession({
   const [swappingExIdx, setSwappingExIdx] = useState<number | null>(null);
 
   const [isAddingExercise, setIsAddingExercise] = useState(false);
+
+  const [isReordering, setIsReordering] = useState(false);
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -338,6 +346,17 @@ export default function ActiveSession({
 
   };
 
+  const handleSaveReorder = async (reorderedExercises: SessionExercise[]) => {
+    const updates = reorderedExercises.map((ex, idx) => ({
+      id: ex.id,
+      orderIndex: idx
+    }));
+    const result = await handleReorderExercises(updates);
+    if (result.success) {
+      setIsReordering(false);
+    }
+  };
+
   // Use session bodyweight (from readiness check) as primary source, fall back to profile weight
   const effectiveBodyWeightLb = activeSession?.bodyWeightLb ?? profileWeightLb;
 
@@ -530,9 +549,16 @@ export default function ActiveSession({
 
 
 
-      <SessionControls onFinish={onFinish} onAddExercise={() => setIsAddingExercise(true)} onReorder={() => {}} isFinishing={isFinishing} />
+      <SessionControls onFinish={onFinish} onAddExercise={() => setIsAddingExercise(true)} onReorder={() => setIsReordering(true)} isFinishing={isFinishing} />
 
-
+      {isReordering && activeSession && (
+        <ReorderExercisesModal
+          exercises={activeSession.exercises}
+          onClose={() => setIsReordering(false)}
+          onSave={handleSaveReorder}
+          isSaving={isUpdating}
+        />
+      )}
 
       {isAddingExercise && <AddExerciseModal onClose={() => setIsAddingExercise(false)} onAdd={handleAddExercise} focus={focus} style={style} />}
 

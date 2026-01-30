@@ -10,6 +10,7 @@ interface WorkoutState {
   replaceSessionExercise: (exerciseIndex: number, updates: Partial<SessionExercise>) => void;
   addSessionExercise: (exercise: SessionExercise) => void;
   removeSessionExercise: (exerciseIndex: number) => void;
+  reorderExercises: (fromIndex: number, toIndex: number) => void;
   updateSet: (exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => void;
   addSet: (
     exerciseIndex: number,
@@ -55,7 +56,25 @@ export const useWorkoutStore = create<WorkoutState>()(
       removeSessionExercise: (exerciseIndex) => set((state) => {
         if (!state.activeSession) return state;
         const exercises = state.activeSession.exercises.filter((_, index) => index !== exerciseIndex);
-        return { activeSession: { ...state.activeSession, exercises } };
+        // Re-assign orderIndex after removal
+        const reindexed = exercises.map((ex, idx) => ({ ...ex, orderIndex: idx }));
+        return { activeSession: { ...state.activeSession, exercises: reindexed } };
+      }),
+
+      reorderExercises: (fromIndex, toIndex) => set((state) => {
+        if (!state.activeSession) return state;
+        if (fromIndex === toIndex) return state;
+        const exercises = [...state.activeSession.exercises];
+        if (fromIndex < 0 || fromIndex >= exercises.length || toIndex < 0 || toIndex >= exercises.length) return state;
+        
+        // Remove from old position and insert at new position
+        const [movedExercise] = exercises.splice(fromIndex, 1);
+        exercises.splice(toIndex, 0, movedExercise);
+        
+        // Re-assign orderIndex to match new positions
+        const reindexed = exercises.map((ex, idx) => ({ ...ex, orderIndex: idx }));
+        
+        return { activeSession: { ...state.activeSession, exercises: reindexed } };
       }),
 
       addSet: (exerciseIndex, weightUnit, defaultWeight, options) => {

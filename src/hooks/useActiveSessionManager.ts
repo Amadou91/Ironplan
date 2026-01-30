@@ -103,7 +103,8 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     updateSession,
     replaceSessionExercise, 
     removeSessionExercise, 
-    addSessionExercise 
+    addSessionExercise,
+    reorderExercises
   } = useWorkoutStore();
 
   // State
@@ -418,6 +419,52 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     }
   }, [activeSession, persistSessionBodyWeight]);
 
+  /**
+   * Persist exercise order to database and update local state.
+   * Updates order_index for all exercises in the session.
+   */
+  const handleReorderExercises = useCallback(async (reorderedExercises: { id: string; orderIndex: number }[]) => {
+    if (!activeSession) return { success: false, error: 'No active session' };
+    
+    setIsUpdating(true);
+    try {
+      // Batch update all exercise order_index values
+      const updates = reorderedExercises.map(({ id, orderIndex }) => 
+        supabase
+          .from('session_exercises')
+          .update({ order_index: orderIndex })
+          .eq('id', id)
+          .eq('session_id', activeSession.id)
+      );
+      
+      const results = await Promise.all(updates);
+      const hasError = results.some(r => r.error);
+      
+      if (hasError) {
+        setErrorMessage('Failed to save exercise order. Please try again.');
+        return { success: false, error: 'Database update failed' };
+      }
+      
+      // Apply reorder to local state
+      // Find the new positions based on the reordered array
+      for (let i = 0; i < reorderedExercises.length; i++) {
+        const targetExercise = reorderedExercises[i];
+        const currentIndex = activeSession.exercises.findIndex(e => e.id === targetExercise.id);
+        if (currentIndex !== i && currentIndex !== -1) {
+          reorderExercises(currentIndex, i);
+        }
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('handleReorderExercises error:', error);
+      setErrorMessage('An unexpected error occurred. Please try again.');
+      return { success: false, error: 'Unexpected error' };
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [activeSession, supabase, reorderExercises]);
+
   return {
     // Session state
     activeSession,
@@ -442,6 +489,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     replaceSessionExercise,
     removeSessionExercise,
     addSessionExercise,
+    handleReorderExercises,
     
     // Exercise library
     resolvedInventory,
