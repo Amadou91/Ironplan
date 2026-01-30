@@ -20,7 +20,7 @@ export default function ProgressPage() {
     prMetrics, readinessAverages, readinessSeries, readinessComponents,
     readinessCorrelation, readinessTrendLine, volumeTrend, effortTrend,
     exerciseTrend, muscleBreakdown, bodyWeightData, sessionsPerWeek,
-    getSessionTitle, exerciseLibraryByName, ensureSession
+    getSessionTitle, exerciseLibraryByName
   } = useProgressMetrics()
 
   const handleLogPastWorkout = useCallback(() => {

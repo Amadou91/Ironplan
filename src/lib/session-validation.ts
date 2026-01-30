@@ -3,7 +3,7 @@
  * Ensures all required fields are completed before a workout can be saved.
  */
 
-import type { WorkoutSession, SessionExercise, WorkoutSet, MetricProfile } from '@/types/domain'
+import type { WorkoutSession, WorkoutSet, MetricProfile } from '@/types/domain'
 
 export type SetValidationError = {
   exerciseIndex: number

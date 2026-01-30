@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useRef, useState, useEffect } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Clock, Save } from 'lucide-react'
@@ -288,7 +288,7 @@ function SessionLogContent() {
             <Card className="p-6">
               <h2 className="text-lg font-semibold text-strong">Tips</h2>
               <ul className="mt-2 space-y-2 text-sm text-muted">
-                <li>• Click "Add Exercise" to search for exercises</li>
+                <li>• Click &quot;Add Exercise&quot; to search for exercises</li>
                 <li>• Enter reps, weight, and RPE for each set</li>
                 <li>• Mark sets complete as you log them</li>
                 <li>• Set the duration to match how long you trained</li>

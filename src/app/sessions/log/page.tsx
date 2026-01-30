@@ -64,16 +64,11 @@ function formatDateForInput(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
-function formatTimeForInput(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
 export default function LogPastWorkoutPage() {
   const router = useRouter()
   const supabase = createClient()
   const { user, loading: userLoading } = useUser()
-  const { catalog } = useExerciseCatalog()
+  useExerciseCatalog() // Preload catalog for downstream components
   const startSession = useWorkoutStore((state) => state.startSession)
   const activeSession = useWorkoutStore((state) => state.activeSession)
   
@@ -139,7 +134,6 @@ export default function LogPastWorkoutPage() {
       const [year, month, day] = workoutDate.split('-').map(Number)
       const [hours, minutes] = startTime.split(':').map(Number)
       const startedAt = new Date(year, month - 1, day, hours, minutes)
-      const endedAt = new Date(startedAt.getTime() + durationMinutes * 60 * 1000)
       
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? null
       const bodyWeightLb = bodyWeight ? parseFloat(bodyWeight) : null
