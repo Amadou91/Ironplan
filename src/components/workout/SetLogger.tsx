@@ -57,6 +57,18 @@ const CompletedSetSummary = memo(function CompletedSetSummary({
 
   const derivedRpe = typeof set.rir === 'number' ? mapRirToRpe(set.rir) : set.rpe
 
+  // Calculate simple weight display (just the number)
+  const simpleWeight = typeof set.weight === 'number' ? `${set.weight} ${unitLabel}` : null
+  
+  // Calculate load (weight × reps = tonnage for the set)
+  const load = useMemo(() => {
+    if (typeof set.weight !== 'number' || typeof set.reps !== 'number') return null
+    const hasImpl = typeof set.implementCount === 'number' && (set.implementCount === 1 || set.implementCount === 2)
+    const multiplier = effectiveLoadType === 'per_implement' && hasImpl ? set.implementCount as number : 1
+    const totalWeight = set.weight * multiplier
+    return totalWeight * set.reps
+  }, [set.weight, set.reps, set.implementCount, effectiveLoadType])
+
   const renderMetrics = () => {
     if (effectiveProfile === 'mobility_session') {
       return (
@@ -84,16 +96,17 @@ const CompletedSetSummary = memo(function CompletedSetSummary({
       return (
         <>
           <MetricPill label="Duration" value={`${durationMinutes} min`} />
-          {totalWeightLabel && <MetricPill label="Weight" value={totalWeightLabel} />}
+          {simpleWeight && <MetricPill label="Weight" value={simpleWeight} />}
           {derivedRpe && <MetricPill label="RPE" value={String(derivedRpe)} />}
         </>
       )
     }
 
-    // Default strength profile
+    // Default strength profile: Weight, Load, Reps, RPE
     return (
       <>
-        {totalWeightLabel && <MetricPill label="Weight" value={totalWeightLabel} />}
+        {simpleWeight && <MetricPill label="Weight" value={simpleWeight} />}
+        {load && <MetricPill label="Load" value={`${load} ${unitLabel}`} />}
         {set.reps && <MetricPill label="Reps" value={String(set.reps)} />}
         {derivedRpe && <MetricPill label="RPE" value={String(derivedRpe)} />}
       </>
@@ -627,7 +640,9 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className={labelClass}>RIR</label>
+          <label className={labelClass} title="Reps in Reserve – How many more reps could you have done?">
+            RIR <span className="text-[10px] text-subtle">(reps left)</span>
+          </label>
           <select
             value={typeof set.rir === 'number' ? String(set.rir) : ''}
             onChange={(e) => { onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value)); onUpdate('rpe', '') }}
@@ -636,7 +651,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
           >
             <option value="">--</option>
             {RIR_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.value}</option>
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
           {derivedRpe && (
