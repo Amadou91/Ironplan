@@ -16,7 +16,7 @@ interface WorkoutState {
     exerciseIndex: number,
     weightUnit?: WeightUnit,
     defaultWeight?: number | null,
-    options?: { loadType?: LoadType; implementCount?: number | null }
+    options?: { loadType?: LoadType; implementCount?: number | null; initialValues?: Partial<WorkoutSet> }
   ) => WorkoutSet | null;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
 }
@@ -84,15 +84,16 @@ export const useWorkoutStore = create<WorkoutState>()(
         const exercises = [...state.activeSession.exercises];
         const exercise = exercises[exerciseIndex];
         
+        const initial = options?.initialValues ?? {};
         const newSet: WorkoutSet = {
           id: `temp-${crypto.randomUUID()}`,
           setNumber: exercise.sets.length + 1,
-          reps: '',
-          weight: typeof defaultWeight === 'number' ? defaultWeight : '',
-          implementCount: typeof options?.implementCount === 'number' ? options.implementCount : '',
-          loadType: options?.loadType ?? '',
-          rpe: '',
-          rir: '',
+          reps: initial.reps ?? '',
+          weight: initial.weight ?? (typeof defaultWeight === 'number' ? defaultWeight : ''),
+          implementCount: initial.implementCount ?? (typeof options?.implementCount === 'number' ? options.implementCount : ''),
+          loadType: initial.loadType ?? options?.loadType ?? '',
+          rpe: initial.rpe ?? '',
+          rir: initial.rir ?? '',
           performedAt: new Date().toISOString(),
           completed: false,
           weightUnit: weightUnit ?? state.activeSession.weightUnit ?? 'lb'

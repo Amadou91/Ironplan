@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Clock, X, Info } from 'lucide-react';
+import React from 'react';
+import { X, Info } from 'lucide-react';
 import type { WeightUnit } from '@/types/domain';
 
 interface SessionHeaderProps {
@@ -21,8 +21,8 @@ interface SessionHeaderProps {
   preferredUnit?: WeightUnit;
   onCancel?: () => void;
   errorMessage?: string | null;
-  /** When set, show a static duration instead of live timer (for logging past workouts) */
-  fixedDurationMinutes?: number | null;
+  /** Callback when 'Started at' label is clicked (to edit start time) */
+  onStartTimeClick?: () => void;
   /** Callback when weight label is clicked (to edit body weight) */
   onWeightClick?: () => void;
 }
@@ -38,40 +38,20 @@ export function SessionHeader({
   preferredUnit = 'lb',
   onCancel,
   errorMessage,
-  fixedDurationMinutes,
+  onStartTimeClick,
   onWeightClick,
 }: SessionHeaderProps) {
-  const [duration, setDuration] = useState<string>('00:00');
-
-  useEffect(() => {
-    // Skip live timer if using fixed duration (logging past workout)
-    if (typeof fixedDurationMinutes === 'number') {
-      const hrs = Math.floor(fixedDurationMinutes / 60);
-      const mins = fixedDurationMinutes % 60;
-      if (hrs > 0) {
-        setDuration(`${hrs}:${mins.toString().padStart(2, '0')}:00`);
-      } else {
-        setDuration(`${mins.toString().padStart(2, '0')}:00`);
-      }
-      return;
-    }
+  const formatStartedAt = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const isToday = date.toDateString() === today.toDateString();
     
-    const start = new Date(startedAt).getTime();
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const diff = Math.max(0, now - start);
-      const hrs = Math.floor(diff / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      
-      if (hrs > 0) {
-        setDuration(`${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
-      } else {
-        setDuration(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [startedAt, fixedDurationMinutes]);
+    if (isToday) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + 
+      ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
     <div className="sticky top-0 z-20 surface-elevated p-4 backdrop-blur-md border-b border-[var(--color-border)]">
@@ -79,12 +59,15 @@ export function SessionHeader({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-strong">{name}</h2>
-            <div className="flex items-center gap-3 text-sm text-muted">
-              <div className="flex items-center gap-1">
-                <Clock size={14} className="text-accent" />
-                <span className="font-mono font-medium text-accent">{duration}</span>
-              </div>
-              <span className="text-xs">Started at {new Date(startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <div 
+              className={`text-sm text-muted ${onStartTimeClick ? 'cursor-pointer hover:text-[var(--color-primary)] transition-colors' : ''}`}
+              onClick={onStartTimeClick}
+              role={onStartTimeClick ? 'button' : undefined}
+              tabIndex={onStartTimeClick ? 0 : undefined}
+              onKeyDown={onStartTimeClick ? (e) => e.key === 'Enter' && onStartTimeClick() : undefined}
+            >
+              Started at {formatStartedAt(startedAt)}
+              {onStartTimeClick && <span className="ml-1 text-[10px] text-muted">(edit)</span>}
             </div>
           </div>
           {onCancel && (

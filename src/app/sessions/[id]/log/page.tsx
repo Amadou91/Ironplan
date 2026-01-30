@@ -3,12 +3,10 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Clock, Save } from 'lucide-react'
+import { ArrowLeft, Save } from 'lucide-react'
 import ActiveSession from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { Input } from '@/components/ui/Input'
-import { Label } from '@/components/ui/Label'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ValidationBlockerModal } from '@/components/ui/ValidationBlockerModal'
 import { createClient } from '@/lib/supabase/client'
@@ -220,46 +218,11 @@ function SessionLogContent() {
               isFinishing={savingSession}
               focus={sessionFocus}
               style={sessionGoal}
-              fixedDurationMinutes={durationMinutes}
+              onStartTimeChange={setStartTimeOverride}
             />
           </div>
           
           <div className="space-y-4">
-            {/* Session Time */}
-            <Card className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Clock className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold text-strong">Session Time</h2>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="start-time">Start Time</Label>
-                  <Input
-                    id="start-time"
-                    type="datetime-local"
-                    value={startTimeOverride 
-                      ? new Date(startTimeOverride).toISOString().slice(0, 16) 
-                      : (activeSession?.startedAt ? new Date(activeSession.startedAt).toISOString().slice(0, 16) : '')
-                    }
-                    onChange={(e) => setStartTimeOverride(e.target.value ? new Date(e.target.value).toISOString() : null)}
-                    className="mt-2"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="duration">Duration (minutes)</Label>
-                  <Input
-                    id="duration"
-                    type="number"
-                    min={1}
-                    max={300}
-                    value={durationMinutes}
-                    onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 45)}
-                    className="mt-2"
-                  />
-                </div>
-              </div>
-            </Card>
-            
             {/* Save Controls */}
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
@@ -306,7 +269,7 @@ function SessionLogContent() {
                 <li>• Click &quot;Add Exercise&quot; to search for exercises</li>
                 <li>• Enter reps, weight, and RPE for each set</li>
                 <li>• Mark sets complete as you log them</li>
-                <li>• Set the duration to match how long you trained</li>
+                <li>• Click &quot;Started at&quot; to adjust the start time</li>
               </ul>
             </Card>
           </div>

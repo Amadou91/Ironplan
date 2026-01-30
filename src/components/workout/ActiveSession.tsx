@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 
-import { Trash2, RefreshCcw } from 'lucide-react';
+import { Trash2, RefreshCcw, Copy } from 'lucide-react';
 
 import { SetLogger } from './SetLogger';
 
@@ -66,8 +66,8 @@ type ActiveSessionProps = {
 
   style?: Goal | null;
 
-  /** When set, show a static duration instead of live timer (for logging past workouts) */
-  fixedDurationMinutes?: number | null;
+  /** Callback when start time is changed (for logging past workouts) */
+  onStartTimeChange?: (newStartTime: string) => void;
 
 };
 
@@ -89,7 +89,7 @@ export default function ActiveSession({
 
   style,
 
-  fixedDurationMinutes 
+  onStartTimeChange 
 
 }: ActiveSessionProps) {
 
@@ -151,6 +151,10 @@ export default function ActiveSession({
 
   const [editWeightValue, setEditWeightValue] = useState('');
 
+  const [isEditingStartTime, setIsEditingStartTime] = useState(false);
+
+  const [editStartTimeValue, setEditStartTimeValue] = useState('');
+
   const exerciseRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const handleWeightEditClick = () => {
@@ -164,6 +168,23 @@ export default function ActiveSession({
       await handleBodyWeightUpdate(parsed);
     }
     setIsEditingWeight(false);
+  };
+
+  const handleStartTimeEditClick = () => {
+    if (!activeSession?.startedAt) return;
+    // Format for datetime-local input: YYYY-MM-DDTHH:mm
+    const date = new Date(activeSession.startedAt);
+    const localIso = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    setEditStartTimeValue(localIso);
+    setIsEditingStartTime(true);
+  };
+
+  const handleStartTimeEditConfirm = () => {
+    if (editStartTimeValue && onStartTimeChange) {
+      const newDate = new Date(editStartTimeValue);
+      onStartTimeChange(newDate.toISOString());
+    }
+    setIsEditingStartTime(false);
   };
 
   const handleExerciseSelect = (index: number) => {
@@ -453,7 +474,7 @@ export default function ActiveSession({
 
         errorMessage={errorMessage}
 
-        fixedDurationMinutes={fixedDurationMinutes}
+        onStartTimeClick={onStartTimeChange ? handleStartTimeEditClick : undefined}
 
         onWeightClick={handleWeightEditClick}
 
@@ -561,11 +582,36 @@ export default function ActiveSession({
 
             </div>
 
-            <button onClick={() => addSet(exIdx, preferredUnit, profileWeightLb, isDumbbellExercise(exercise) ? { loadType: 'per_implement', implementCount: 2 } : undefined)} className="mt-4 w-full py-2 border-2 border-dashed border-[var(--color-border-strong)] rounded-xl text-sm font-medium text-muted hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)]">
-
-              + Add Set
-
-            </button>
+            <div className="flex gap-2 mt-4">
+              {exercise.sets.length > 0 && (
+                <button 
+                  onClick={() => {
+                    const lastSet = exercise.sets[exercise.sets.length - 1];
+                    addSet(exIdx, preferredUnit, profileWeightLb, {
+                      loadType: lastSet.loadType || (isDumbbellExercise(exercise) ? 'per_implement' : undefined),
+                      implementCount: typeof lastSet.implementCount === 'number' ? lastSet.implementCount : (isDumbbellExercise(exercise) ? 2 : undefined),
+                      initialValues: {
+                        reps: lastSet.reps,
+                        weight: lastSet.weight,
+                        rpe: lastSet.rpe,
+                        rir: lastSet.rir,
+                        loadType: lastSet.loadType,
+                        implementCount: lastSet.implementCount
+                      }
+                    });
+                  }} 
+                  className="flex-1 py-2 border-2 border-dashed border-[var(--color-border-strong)] rounded-xl text-sm font-medium text-muted hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)] flex items-center justify-center gap-2"
+                >
+                  <Copy size={14} /> Copy Last
+                </button>
+              )}
+              <button 
+                onClick={() => addSet(exIdx, preferredUnit, profileWeightLb, isDumbbellExercise(exercise) ? { loadType: 'per_implement', implementCount: 2 } : undefined)} 
+                className="flex-1 py-2 border-2 border-dashed border-[var(--color-border-strong)] rounded-xl text-sm font-medium text-muted hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)]"
+              >
+                + Add Set
+              </button>
+            </div>
 
           </div>
 
@@ -656,6 +702,39 @@ export default function ActiveSession({
               </button>
               <button
                 onClick={handleWeightEditConfirm}
+                className="flex-1 px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white font-medium hover:bg-[var(--color-primary-strong)] transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Start Time Edit Modal */}
+      {isEditingStartTime && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[var(--color-surface)] rounded-2xl p-6 shadow-xl border border-[var(--color-border)] w-80">
+            <h3 className="text-lg font-semibold text-strong mb-4">Edit Start Time</h3>
+            <div className="mb-4">
+              <label className="text-sm text-muted mb-2 block">Date & Time</label>
+              <input
+                type="datetime-local"
+                value={editStartTimeValue}
+                onChange={(e) => setEditStartTimeValue(e.target.value)}
+                className="input-base w-full"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsEditingStartTime(false)}
+                className="flex-1 px-4 py-2 rounded-lg border border-[var(--color-border)] text-muted hover:bg-[var(--color-surface-muted)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleStartTimeEditConfirm}
                 className="flex-1 px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white font-medium hover:bg-[var(--color-primary-strong)] transition-colors"
               >
                 Save
