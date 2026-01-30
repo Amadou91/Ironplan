@@ -31,19 +31,19 @@ export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
     }
   },
   full_gym: {
-    bodyweight: true,
-    benchPress: true,
+    bodyweight: false,
+    benchPress: false,
     dumbbells: [],
     kettlebells: [],
     bands: [],
-    barbell: { available: true, plates: [] },
+    barbell: { available: false, plates: [] },
     machines: {
-      cable: true,
-      leg_press: true,
-      treadmill: true,
-      rower: true,
-      indoor_bicycle: true,
-      outdoor_bicycle: true
+      cable: false,
+      leg_press: false,
+      treadmill: false,
+      rower: false,
+      indoor_bicycle: false,
+      outdoor_bicycle: false
     }
   },
   hotel: {

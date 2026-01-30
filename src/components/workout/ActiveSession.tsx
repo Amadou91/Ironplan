@@ -586,7 +586,7 @@ export default function ActiveSession({
         />
       )}
 
-      {isAddingExercise && <AddExerciseModal onClose={() => setIsAddingExercise(false)} onAdd={handleAddExercise} focus={focus} style={style} />}
+      {isAddingExercise && <AddExerciseModal onClose={() => setIsAddingExercise(false)} onAdd={handleAddExercise} focus={focus} style={style} inventory={resolvedInventory} />}
 
       {swappingExIdx !== null && (
 

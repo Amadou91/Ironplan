@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/Label'
 import { EquipmentSelector } from '@/components/generate/EquipmentSelector'
 import { ReadinessCheck } from '@/components/workout/start/ReadinessCheck'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
-import { cloneInventory, equipmentPresets } from '@/lib/equipment'
+import { cloneInventory, equipmentPresets, hasEquipment } from '@/lib/equipment'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
@@ -146,6 +146,10 @@ export default function LogPastWorkoutPage() {
     const parsedDuration = parseInt(durationMinutes)
     if (!parsedDuration || parsedDuration < 1 || parsedDuration > 300) {
       setError('Please enter a valid duration (1-300 minutes).')
+      return
+    }
+    if (!hasEquipment(equipment.inventory)) {
+      setError('Please select at least one equipment option.')
       return
     }
     

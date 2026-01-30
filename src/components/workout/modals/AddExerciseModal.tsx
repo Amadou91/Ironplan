@@ -1,21 +1,28 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog';
 import { toMuscleLabel } from '@/lib/muscle-utils';
-import type { Exercise } from '@/types/domain';
+import { isExerciseEquipmentAvailable } from '@/lib/equipment';
+import type { Exercise, EquipmentInventory } from '@/types/domain';
 
 interface AddExerciseModalProps {
   onClose: () => void;
   onAdd: (exercise: Exercise) => void;
   focus?: string | null;
   style?: string | null;
+  inventory?: EquipmentInventory | null;
 }
 
-export function AddExerciseModal({ onClose, onAdd, focus, style }: AddExerciseModalProps) {
+export function AddExerciseModal({ onClose, onAdd, focus, style, inventory }: AddExerciseModalProps) {
   const [search, setSearch] = useState('');
   const { catalog } = useExerciseCatalog();
+
+  const checkEquipmentAvailable = (exercise: Exercise): boolean => {
+    if (!inventory || !exercise.equipment?.length) return true;
+    return isExerciseEquipmentAvailable(inventory, exercise.equipment);
+  };
 
   const filteredLibrary = useMemo(() => {
     const s = search.toLowerCase();
@@ -62,28 +69,43 @@ export function AddExerciseModal({ onClose, onAdd, focus, style }: AddExerciseMo
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {filteredLibrary.map((exercise) => (
-            <button
-              key={exercise.name}
-              onClick={() => onAdd(exercise)}
-              className="w-full text-left p-3 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]/30 transition-all"
-            >
-              <p className="font-semibold text-sm text-strong">{exercise.name}</p>
-              <div className="flex flex-wrap gap-2">
-                <p className="text-[10px] font-bold text-muted uppercase tracking-wider">{toMuscleLabel(exercise.primaryMuscle ?? '')}</p>
-                {exercise.movementPattern && (
-                  <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-surface text-subtle border border-border">
-                    {exercise.movementPattern}
-                  </span>
-                )}
-                {exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
-                  <p className="text-[10px] font-medium text-subtle/60 uppercase tracking-wider">
-                    + {exercise.secondaryMuscles.map(m => toMuscleLabel(m)).join(', ')}
-                  </p>
-                )}
-              </div>
-            </button>
-          ))}
+          {filteredLibrary.map((exercise) => {
+            const hasEquipment = checkEquipmentAvailable(exercise);
+            return (
+              <button
+                key={exercise.name}
+                onClick={() => onAdd(exercise)}
+                className={`w-full text-left p-3 rounded-lg border transition-all ${
+                  hasEquipment 
+                    ? 'border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]/30' 
+                    : 'border-[var(--color-warning)]/50 bg-[var(--color-warning)]/5'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-sm text-strong">{exercise.name}</p>
+                  {!hasEquipment && (
+                    <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[var(--color-warning)] bg-[var(--color-warning)]/10 px-1.5 py-0.5 rounded">
+                      <AlertTriangle size={10} />
+                      No equipment
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-wider">{toMuscleLabel(exercise.primaryMuscle ?? '')}</p>
+                  {exercise.movementPattern && (
+                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-surface text-subtle border border-border">
+                      {exercise.movementPattern}
+                    </span>
+                  )}
+                  {exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
+                    <p className="text-[10px] font-medium text-subtle/60 uppercase tracking-wider">
+                      + {exercise.secondaryMuscles.map(m => toMuscleLabel(m)).join(', ')}
+                    </p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
