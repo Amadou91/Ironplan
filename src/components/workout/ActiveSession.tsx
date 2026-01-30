@@ -338,7 +338,8 @@ export default function ActiveSession({
 
   };
 
-
+  // Use session bodyweight (from readiness check) as primary source, fall back to profile weight
+  const effectiveBodyWeightLb = activeSession?.bodyWeightLb ?? profileWeightLb;
 
   const getWeightOptions = (exercise: SessionExercise) => {
 
@@ -346,7 +347,7 @@ export default function ActiveSession({
 
     if (!match?.equipment?.length) return [];
 
-    return buildWeightOptions(resolvedInventory, match.equipment, profileWeightLb, preferredUnit);
+    return buildWeightOptions(resolvedInventory, match.equipment, effectiveBodyWeightLb, preferredUnit);
 
   };
 
@@ -390,8 +391,6 @@ export default function ActiveSession({
         name={activeSession.name}
 
         startedAt={activeSession.startedAt}
-
-        sessionGoal={activeSession.sessionGoal}
 
         progressSummary={{
 

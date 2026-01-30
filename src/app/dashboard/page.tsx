@@ -1,12 +1,14 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, X } from 'lucide-react'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
 import { RecommendedSession } from '@/components/dashboard/RecommendedSession'
 import { TemplateInventory } from '@/components/dashboard/TemplateInventory'
@@ -15,7 +17,12 @@ import { useDashboardData } from '@/hooks/useDashboardData'
 
 export default function DashboardPage() {
   const router = useRouter()
+  const supabase = createClient()
   const activeSession = useWorkoutStore((state) => state.activeSession)
+  const endSession = useWorkoutStore((state) => state.endSession)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [cancelingSession, setCancelingSession] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
   const {
     user,
     userLoading,
@@ -48,6 +55,30 @@ export default function DashboardPage() {
     : latestActiveSession?.id
       ? `/exercises/active?sessionId=${latestActiveSession.id}&from=dashboard`
       : '/dashboard'
+
+  const handleCancelSession = useCallback(async () => {
+    if (!latestActiveSession?.id) return
+    setCancelError(null)
+    setCancelingSession(true)
+    try {
+      const { error: updateError } = await supabase
+        .from('sessions')
+        .update({
+          status: 'cancelled',
+          ended_at: new Date().toISOString()
+        })
+        .eq('id', latestActiveSession.id)
+
+      if (updateError) throw updateError
+      endSession()
+      setCancelDialogOpen(false)
+    } catch (err) {
+      console.error('Failed to cancel workout:', err)
+      setCancelError('Failed to cancel workout. Please try again.')
+    } finally {
+      setCancelingSession(false)
+    }
+  }, [latestActiveSession?.id, supabase, endSession])
 
   const greetingName = user?.email?.split('@')[0] || 'there'
   const recentSessions = sessions.slice(0, 3)
@@ -83,6 +114,7 @@ export default function DashboardPage() {
         </div>
 
         {error && <div className="alert-error p-6 text-base font-medium">{error}</div>}
+        {cancelError && <div className="alert-error p-6 text-base font-medium">{cancelError}</div>}
 
         {latestActiveSession && (
           <Card className="p-8 border-2 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]/50 backdrop-blur-sm">
@@ -91,14 +123,36 @@ export default function DashboardPage() {
                 <p className="text-lg font-bold text-[var(--color-primary-strong)]">Session in progress</p>
                 <p className="text-sm text-subtle font-medium">Finish your active session before starting another.</p>
               </div>
-              <Link href={resumeLink}>
-                <Button variant="primary" size="md">
-                  Resume active session
+              <div className="flex items-center gap-3">
+                <Button 
+                  variant="ghost" 
+                  size="md" 
+                  onClick={() => setCancelDialogOpen(true)}
+                  disabled={cancelingSession}
+                >
+                  <X className="h-4 w-4 mr-1" /> Cancel
                 </Button>
-              </Link>
+                <Link href={resumeLink}>
+                  <Button variant="primary" size="md">
+                    Resume active session
+                  </Button>
+                </Link>
+              </div>
             </div>
           </Card>
         )}
+
+        <ConfirmDialog
+          isOpen={cancelDialogOpen}
+          onClose={() => setCancelDialogOpen(false)}
+          onConfirm={handleCancelSession}
+          title="Cancel Workout"
+          description="Are you sure you want to cancel this workout session? All logged sets will be discarded and cannot be recovered."
+          confirmText={cancelingSession ? 'Cancelling...' : 'Cancel Workout'}
+          cancelText="Keep Session"
+          variant="danger"
+          isLoading={cancelingSession}
+        />
 
         <div className="grid grid-cols-1 gap-12">
           <TrainingStatusCard

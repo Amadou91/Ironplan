@@ -5,6 +5,8 @@ export type WeightOption = {
   value: number
   label: string
   unit?: WeightUnit
+  /** Equipment kind that this weight option belongs to (for UI decisions like dumbbell toggle) */
+  equipmentKind?: EquipmentOption['kind']
 }
 
 export const DUMBBELL_WEIGHT_OPTIONS = [5, 8, 10, 12, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60] as const
@@ -204,7 +206,8 @@ export const buildWeightOptions = (
           options.push({
             value: converted,
             unit: preferredUnit,
-            label: showKindLabel ? `${converted} ${unitLabel} dumbbell (per DB)` : `${converted} ${unitLabel} per DB`
+            label: showKindLabel ? `${converted} ${unitLabel} dumbbell (per DB)` : `${converted} ${unitLabel} per DB`,
+            equipmentKind: 'dumbbell'
           })
         })
         break
@@ -214,7 +217,8 @@ export const buildWeightOptions = (
           options.push({
             value: converted,
             unit: preferredUnit,
-            label: showKindLabel ? `${converted} ${unitLabel} kettlebell` : `${converted} ${unitLabel}`
+            label: showKindLabel ? `${converted} ${unitLabel} kettlebell` : `${converted} ${unitLabel}`,
+            equipmentKind: 'kettlebell'
           })
         })
         break
@@ -224,7 +228,8 @@ export const buildWeightOptions = (
           options.push({
             value: converted,
             unit: preferredUnit,
-            label: showKindLabel ? `${converted} ${unitLabel} barbell` : `${converted} ${unitLabel}`
+            label: showKindLabel ? `${converted} ${unitLabel} barbell (total)` : `${converted} ${unitLabel} (total)`,
+            equipmentKind: 'barbell'
           })
         })
         break
@@ -237,7 +242,8 @@ export const buildWeightOptions = (
             unit: preferredUnit,
             label: showKindLabel
               ? `${bandLabels[band]} band (~${converted} ${unitLabel})`
-              : `${bandLabels[band]} band`
+              : `${bandLabels[band]} band`,
+            equipmentKind: 'band'
           })
         })
         break
@@ -247,7 +253,8 @@ export const buildWeightOptions = (
           options.push({
             value: converted,
             unit: preferredUnit,
-            label: showKindLabel ? `Bodyweight (${converted} ${unitLabel})` : `Bodyweight (${converted} ${unitLabel})`
+            label: `Bodyweight (${converted} ${unitLabel})`,
+            equipmentKind: 'bodyweight'
           })
         }
         break

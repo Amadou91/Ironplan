@@ -49,10 +49,13 @@ export default function SessionEditPage() {
 
   const exerciseLibraryByName = useMemo(() => new Map(catalog.map(ex => [ex.name.toLowerCase(), ex])), [catalog])
 
+  // Use session bodyweight as primary source, fall back to profile weight
+  const effectiveBodyWeightLb = session?.bodyWeightLb ?? profileWeightLb
+
   const getWeightOptions = (exerciseName: string) => {
     const match = exerciseLibraryByName.get(exerciseName.toLowerCase())
     if (!match?.equipment?.length) return []
-    return buildWeightOptions(resolvedInventory, match.equipment, profileWeightLb, preferredUnit)
+    return buildWeightOptions(resolvedInventory, match.equipment, effectiveBodyWeightLb, preferredUnit)
   }
 
   const isDumbbellExercise = (exerciseName: string) =>

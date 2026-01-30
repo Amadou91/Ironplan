@@ -1,19 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Clock, X, Info, Target } from 'lucide-react';
-import type { SessionGoal, WeightUnit } from '@/types/domain';
-
-const GOAL_GUIDANCE: Record<string, { label: string; description: string }> = {
-  strength: { label: 'Strength', description: '1-6 reps • High Rest' },
-  hypertrophy: { label: 'Hypertrophy', description: '6-12 reps • Moderate Rest' },
-  endurance: { label: 'Endurance', description: '12+ reps • Short Rest' },
-};
+import { Clock, X, Info } from 'lucide-react';
+import type { WeightUnit } from '@/types/domain';
 
 interface SessionHeaderProps {
   name: string;
   startedAt: string;
-  sessionGoal?: SessionGoal | null;
   intensityLabel?: string | null;
   minutesAvailable?: number;
   readinessScore?: number;
@@ -33,7 +26,6 @@ interface SessionHeaderProps {
 export function SessionHeader({
   name,
   startedAt,
-  sessionGoal,
   intensityLabel,
   minutesAvailable,
   readinessScore,
@@ -76,12 +68,6 @@ export function SessionHeader({
               </div>
               <span className="text-xs">Started at {new Date(startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
-            {sessionGoal && GOAL_GUIDANCE[sessionGoal] && (
-              <div className="flex items-center gap-1.5 mt-1 text-xs text-subtle">
-                <Target size={12} className="text-accent" />
-                <span className="font-medium">Focus: {GOAL_GUIDANCE[sessionGoal].description}</span>
-              </div>
-            )}
           </div>
           {onCancel && (
             <button

@@ -106,9 +106,20 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
   const totalValueStyle = "text-sm font-black text-[var(--color-text)]";
   const unitLabel = set.weightUnit ?? 'lb';
   const hasImplementCount = typeof set.implementCount === 'number' && (set.implementCount === 1 || set.implementCount === 2);
+  
+  // Determine the equipment kind of the currently selected weight
+  const selectedEquipmentKind = useMemo(() => {
+    if (typeof set.weight !== 'number' || !weightOptions) return null;
+    const match = weightOptions.find(opt => opt.value === set.weight);
+    return match?.equipmentKind ?? null;
+  }, [set.weight, weightOptions]);
+  
+  // Show dumbbell toggle only when dumbbell weight is selected (not just when exercise can use dumbbells)
+  const showDumbbellToggle = selectedEquipmentKind === 'dumbbell' || (isDumbbell && hasImplementCount && !selectedEquipmentKind);
+  
   const effectiveLoadType = set.loadType === 'per_implement'
     ? 'per_implement'
-    : (isDumbbell && hasImplementCount ? 'per_implement' : 'total');
+    : (showDumbbellToggle && hasImplementCount ? 'per_implement' : 'total');
   const totalWeightLabel = useMemo(() => {
     if (typeof set.weight !== 'number' || !Number.isFinite(set.weight)) return null;
     return formatTotalWeightLabel({
@@ -120,7 +131,8 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     });
   }, [set.weight, unitLabel, effectiveLoadType, hasImplementCount, set.implementCount]);
   const handleToggleComplete = () => {
-    if (isDumbbell && !hasImplementCount) {
+    // Only require implement count selection when dumbbell is actually selected
+    if (showDumbbellToggle && !hasImplementCount) {
       setImplementError(true);
       return;
     }
@@ -250,7 +262,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
         set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
       )}>
         {renderHeader()}
-        {isDumbbell && (
+        {showDumbbellToggle && (
           <div className="mb-5">
             <label className={labelStyle}>Dumbbells</label>
             <div className={cn(
@@ -334,8 +346,8 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
       set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
     )}>
       {renderHeader()}
-      <div className={cn("grid gap-5 grid-cols-1", isDumbbell ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
-        {isDumbbell && (
+      <div className={cn("grid gap-5 grid-cols-1", showDumbbellToggle ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
+        {showDumbbellToggle && (
           <div className="flex flex-col">
             <label className={labelStyle}>Dumbbells</label>
             <div className={cn(
