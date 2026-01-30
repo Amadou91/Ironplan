@@ -3,10 +3,12 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Clock, Save } from 'lucide-react'
 import ActiveSession from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import { Label } from '@/components/ui/Label'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ValidationBlockerModal } from '@/components/ui/ValidationBlockerModal'
 import { createClient } from '@/lib/supabase/client'
@@ -46,6 +48,10 @@ function SessionLogContent() {
   // Duration from the previous page (passed via query param)
   const queryDuration = searchParams.get('duration')
   const durationMinutes = queryDuration ? parseInt(queryDuration) : 45
+  
+  // Editable start time (initialized from session, can be changed)
+  const queryStartTime = searchParams.get('startTime')
+  const [startTimeOverride, setStartTimeOverride] = useState<string | null>(queryStartTime)
   
   const sessionId = params?.id as string
   const currentSessionId = activeSession?.id ?? sessionId
@@ -102,12 +108,17 @@ function SessionLogContent() {
     
     try {
       // Calculate end time based on start time + duration
-      const startTime = new Date(activeSession.startedAt).getTime()
-      const endedAt = new Date(startTime + durationMinutes * 60 * 1000).toISOString()
+      // Use overridden start time if user edited it
+      const baseStartTime = startTimeOverride 
+        ? new Date(startTimeOverride).getTime()
+        : new Date(activeSession.startedAt).getTime()
+      const endedAt = new Date(baseStartTime + durationMinutes * 60 * 1000).toISOString()
+      const startedAtFinal = startTimeOverride ?? activeSession.startedAt
       
       // Create a modified session with the end time for the snapshot
       const sessionWithEnd = {
         ...activeSession,
+        startedAt: startedAtFinal,
         endedAt
       }
       
@@ -209,10 +220,38 @@ function SessionLogContent() {
               isFinishing={savingSession}
               focus={sessionFocus}
               style={sessionGoal}
+              fixedDurationMinutes={durationMinutes}
             />
           </div>
           
           <div className="space-y-4">
+            {/* Session Time */}
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold text-strong">Session Time</h2>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="start-time">Start Time</Label>
+                  <Input
+                    id="start-time"
+                    type="datetime-local"
+                    value={startTimeOverride 
+                      ? startTimeOverride.slice(0, 16) 
+                      : (activeSession?.startedAt ? new Date(activeSession.startedAt).toISOString().slice(0, 16) : '')
+                    }
+                    onChange={(e) => setStartTimeOverride(e.target.value ? new Date(e.target.value).toISOString() : null)}
+                    className="mt-2"
+                  />
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted">Duration</span>
+                  <span className="font-semibold text-strong">{durationMinutes} min</span>
+                </div>
+              </div>
+            </Card>
+            
             {/* Save Controls */}
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">

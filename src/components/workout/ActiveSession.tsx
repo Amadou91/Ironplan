@@ -66,6 +66,9 @@ type ActiveSessionProps = {
 
   style?: Goal | null;
 
+  /** When set, show a static duration instead of live timer (for logging past workouts) */
+  fixedDurationMinutes?: number | null;
+
 };
 
 
@@ -84,7 +87,9 @@ export default function ActiveSession({
 
   focus, 
 
-  style 
+  style,
+
+  fixedDurationMinutes 
 
 }: ActiveSessionProps) {
 
@@ -430,6 +435,8 @@ export default function ActiveSession({
         onCancel={onCancel}
 
         errorMessage={errorMessage}
+
+        fixedDurationMinutes={fixedDurationMinutes}
 
       />
 

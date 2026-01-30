@@ -21,6 +21,8 @@ interface SessionHeaderProps {
   preferredUnit?: WeightUnit;
   onCancel?: () => void;
   errorMessage?: string | null;
+  /** When set, show a static duration instead of live timer (for logging past workouts) */
+  fixedDurationMinutes?: number | null;
 }
 
 export function SessionHeader({
@@ -34,10 +36,23 @@ export function SessionHeader({
   preferredUnit = 'lb',
   onCancel,
   errorMessage,
+  fixedDurationMinutes,
 }: SessionHeaderProps) {
   const [duration, setDuration] = useState<string>('00:00');
 
   useEffect(() => {
+    // Skip live timer if using fixed duration (logging past workout)
+    if (typeof fixedDurationMinutes === 'number') {
+      const hrs = Math.floor(fixedDurationMinutes / 60);
+      const mins = fixedDurationMinutes % 60;
+      if (hrs > 0) {
+        setDuration(`${hrs}:${mins.toString().padStart(2, '0')}:00`);
+      } else {
+        setDuration(`${mins.toString().padStart(2, '0')}:00`);
+      }
+      return;
+    }
+    
     const start = new Date(startedAt).getTime();
     const interval = setInterval(() => {
       const now = Date.now();
@@ -53,7 +68,7 @@ export function SessionHeader({
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [startedAt]);
+  }, [startedAt, fixedDurationMinutes]);
 
   return (
     <div className="sticky top-0 z-20 surface-elevated p-4 backdrop-blur-md border-b border-[var(--color-border)]">
