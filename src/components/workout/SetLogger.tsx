@@ -72,7 +72,6 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
   const {
     isEditing,
     effectiveProfile,
-    timeLabel,
     weightError,
     repsError,
     validateAndUpdate,
@@ -169,10 +168,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
         <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--color-surface-muted)] font-black text-[var(--color-text)] border border-[var(--color-border)] shadow-inner">
           {set.setNumber}
         </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">Entry Time</span>
-          <span className="text-xs font-bold text-[var(--color-text-muted)]">{timeLabel}</span>
-        </div>
+        <span className="text-sm font-semibold text-[var(--color-text-muted)]">Set {set.setNumber}</span>
         <div className="ml-auto">
            <button
             onClick={onDelete}
@@ -291,12 +287,12 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
             )}
           </div>
         )}
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
-          <div className="flex flex-col min-w-0">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex flex-col flex-1 min-w-[130px]">
             <label className={labelStyle}>Duration</label>
             <NumericInput placeholder="0" value={durationMinutes} onChange={handleDurationChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
           </div>
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col flex-1 min-w-[130px]">
             <label className={labelStyle}>
               {effectiveLoadType === 'per_implement' ? `Wt/DB (${unitLabel})` : `Weight (${unitLabel})`}
             </label>
@@ -309,25 +305,24 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
               <NumericInput placeholder="0" value={set.weight ?? ''} onChange={(val) => validateAndUpdate('weight', val)} hasError={weightError} inputClassName={inputClassName(weightError)} isEditing={isEditing} />
             )}
           </div>
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col flex-1 min-w-[130px]">
             <label className={labelStyle}>RPE</label>
             <select value={typeof set.rpe === 'number' ? String(set.rpe) : ''} onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
               <option value="">--</option>
               {RPE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label} ({opt.value})</option>)}
             </select>
           </div>
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col flex-1 min-w-[130px]">
             <label className={labelStyle}>Reserve</label>
             <select value={typeof set.rir === 'number' ? String(set.rir) : ''} onChange={(e) => onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
               <option value="">--</option>
               {RIR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
           </div>
-          <div className="flex flex-col min-w-0">
-            <label className={labelStyle}>Rest</label>
-            <NumericInput placeholder="0" value={restMinutes} onChange={handleRestChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
-          </div>
-        </div>
+                  <div className="flex flex-col flex-1 min-w-[130px]">
+                    <label className={labelStyle}>Rest (min)</label>
+                    <NumericInput placeholder="0" value={restMinutes} onChange={handleRestChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
+                  </div>        </div>
         <div className="mt-5 flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 px-4 py-3">
           <span className={totalLabelStyle}>Total Weight</span>
           <span className={totalValueStyle}>{totalWeightLabel ?? '—'}</span>
@@ -346,9 +341,9 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
       set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
     )}>
       {renderHeader()}
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+      <div className="flex flex-wrap gap-4">
         {showDumbbellToggle && (
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col flex-1 min-w-[130px]">
             <label className={labelStyle}>Dumbbells</label>
             <div className={cn(
               "grid grid-cols-2 rounded-xl border-2 p-1 transition-all",
@@ -376,7 +371,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
             )}
           </div>
         )}
-        <div className="flex flex-col min-w-0">
+        <div className="flex flex-col flex-1 min-w-[130px]">
           <label className={labelStyle}>
             {effectiveLoadType === 'per_implement' ? `Wt/DB (${unitLabel})` : `Weight (${unitLabel})`}
           </label>
@@ -389,11 +384,11 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
             <NumericInput placeholder="0" value={set.weight ?? ''} onChange={(v) => validateAndUpdate('weight', v)} hasError={weightError} inputClassName={inputClassName(weightError)} isEditing={isEditing} />
           )}
         </div>
-        <div className="flex flex-col min-w-0">
+        <div className="flex flex-col flex-1 min-w-[130px]">
           <label className={labelStyle}>{repsLabel}</label>
           <NumericInput placeholder={repsLabel === 'Reps' ? '0' : '--'} value={set.reps ?? ''} onChange={(v) => validateAndUpdate('reps', v)} hasError={repsError} mode={repsLabel === 'Reps' ? 'numeric' : 'decimal'} inputClassName={inputClassName(repsError)} isEditing={isEditing} />
         </div>
-        <div className="flex flex-col min-w-0">
+        <div className="flex flex-col flex-1 min-w-[130px]">
           <label className={labelStyle}>Reserve</label>
           <select value={typeof set.rir === 'number' ? String(set.rir) : ''} onChange={(e) => { onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value)); onUpdate('rpe', ''); }} className={inputClassName()} disabled={!isEditing}>
             <option value="">--</option>
@@ -401,11 +396,10 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
           </select>
           {derivedRpe && <p className="mt-2 text-[10px] font-bold text-center text-[var(--color-text-subtle)] uppercase tracking-tighter italic">RPE {derivedRpe}{derivedRpeLabel ? ` · ${derivedRpeLabel}` : ''}</p>}
         </div>
-        <div className="flex flex-col min-w-0">
-          <label className={labelStyle}>Rest</label>
-          <NumericInput placeholder="0" value={restMinutes} onChange={handleRestChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
-        </div>
-      </div>
+                <div className="flex flex-col flex-1 min-w-[130px]">
+                  <label className={labelStyle}>Rest (min)</label>
+                  <NumericInput placeholder="0" value={restMinutes} onChange={handleRestChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
+                </div>      </div>
     </div>
   );
 };
