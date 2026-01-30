@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
@@ -9,11 +9,9 @@ import { SessionHistoryList } from '@/components/progress/SessionHistoryList'
 import { MetricCards } from '@/components/progress/MetricCards'
 import { ProgressCharts } from '@/components/progress/ProgressCharts'
 import { useProgressMetrics } from '@/hooks/useProgressMetrics'
-import { createClient } from '@/lib/supabase/client'
 
 export default function ProgressPage() {
   const router = useRouter()
-  const supabase = createClient()
   const {
     user, userLoading, loading, error, setError, sessions, setSessions, filteredSessions,
     exerciseOptions, startDate, setStartDate, endDate, setEndDate,
@@ -25,23 +23,9 @@ export default function ProgressPage() {
     getSessionTitle, exerciseLibraryByName, ensureSession
   } = useProgressMetrics()
 
-  const [creatingManualSession, setCreatingManualSession] = useState(false)
-
-  const handleCreateManualSession = useCallback(async () => {
-    setCreatingManualSession(true); setError(null)
-    const session = await ensureSession()
-    if (!session) { setCreatingManualSession(false); return }
-    try {
-      const now = new Date()
-      const { data, error: insertError } = await supabase.from('sessions').insert({
-        user_id: session.user.id, name: 'Manual workout', status: 'completed',
-        started_at: now.toISOString(), ended_at: now.toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? null
-      }).select('id').single()
-      if (insertError || !data) throw insertError ?? new Error('Failed to create manual session.')
-      router.push(`/sessions/${data.id}/edit`)
-    } catch { setError('Unable to create a manual session.') } finally { setCreatingManualSession(false) }
-  }, [ensureSession, router, supabase, setError])
+  const handleLogPastWorkout = useCallback(() => {
+    router.push('/sessions/log')
+  }, [router])
 
   // Only show full page skeleton on initial load or when we have no data
   const isInitialLoad = userLoading || (loading && sessions.length === 0)
@@ -73,8 +57,8 @@ export default function ProgressPage() {
             <h1 className="font-display text-4xl lg:text-6xl font-black text-strong mt-3 tracking-tight">Progress & Insights</h1>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <Button variant="outline" size="md" type="button" onClick={handleCreateManualSession} disabled={creatingManualSession} className="h-12 px-6 text-[11px] font-black uppercase tracking-widest border-2">
-              {creatingManualSession ? 'Creating...' : 'Log past workout'}
+            <Button variant="outline" size="md" type="button" onClick={handleLogPastWorkout} className="h-12 px-6 text-[11px] font-black uppercase tracking-widest border-2">
+              Log past workout
             </Button>
             <Button variant="secondary" size="md" type="button" onClick={() => { setStartDate(''); setEndDate(''); setSelectedMuscle('all'); setSelectedExercise('all'); }} className="h-12 px-6 text-[11px] font-black uppercase tracking-widest">
               Reset filters
