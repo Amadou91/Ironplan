@@ -20,7 +20,8 @@ import type {
   MetricProfile,
   LoadType,
   Goal,
-  Intensity
+  Intensity,
+  PlanInput
 } from '@/types/domain';
 
 type SessionPayload = {
@@ -73,6 +74,21 @@ type GeneratedExerciseTarget = {
   restSeconds?: number;
 };
 
+const EXPERIENCE_LEVELS: PlanInput['experienceLevel'][] = ['beginner', 'intermediate', 'advanced'];
+
+const EXPERIENCE_DELTA_BY_INTENSITY: Record<Intensity, -1 | 0 | 1> = {
+  low: -1,
+  moderate: 0,
+  high: 1
+};
+
+const shiftExperienceLevel = (base: PlanInput['experienceLevel'], delta: -1 | 0 | 1) => {
+  const index = EXPERIENCE_LEVELS.indexOf(base);
+  if (index === -1) return base;
+  const nextIndex = Math.max(0, Math.min(EXPERIENCE_LEVELS.length - 1, index + delta));
+  return EXPERIENCE_LEVELS[nextIndex];
+};
+
 /**
  * Manages active workout session state, persistence, and synchronization.
  * Uses extracted hooks for separation of concerns.
@@ -96,6 +112,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistoryPoint[]>([]);
   const [sessionBodyWeight, setSessionBodyWeight] = useState<string>('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [templateExperienceLevel, setTemplateExperienceLevel] = useState<PlanInput['experienceLevel'] | null>(null);
   
   // Hooks
   const supabase = createClient();
@@ -115,6 +132,13 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     [exerciseLibrary]
   );
 
+  const targetExperienceLevel = useMemo(() => {
+    const baseExperience = templateExperienceLevel ?? 'intermediate';
+    const intensityKey = (activeSession?.sessionIntensity || 'moderate') as Intensity;
+    const delta = EXPERIENCE_DELTA_BY_INTENSITY[intensityKey] ?? 0;
+    return shiftExperienceLevel(baseExperience, delta);
+  }, [activeSession?.sessionIntensity, templateExperienceLevel]);
+
   // Compute exercise targets dynamically based on session goal/intensity and catalog metadata
   const exerciseTargets = useMemo(() => {
     if (!activeSession || !exerciseLibraryByName.size) return {} as Record<string, GeneratedExerciseTarget>;
@@ -126,7 +150,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     activeSession.exercises.forEach(exercise => {
       const match = exerciseLibraryByName.get(exercise.name.toLowerCase());
       if (match) {
-        const prescription = adaptPrescription(match, goal, intensity, 'intermediate', {});
+        const prescription = adaptPrescription(match, goal, intensity, targetExperienceLevel, {});
         targets[exercise.name.toLowerCase()] = {
           name: exercise.name,
           sets: prescription.sets,
@@ -138,7 +162,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     });
 
     return targets;
-  }, [activeSession, exerciseLibraryByName]);
+  }, [activeSession, exerciseLibraryByName, targetExperienceLevel]);
 
   const resolvedInventory = useMemo(
     () => equipmentInventory ?? equipmentPresets.full_gym,
@@ -209,7 +233,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
       const { data, error } = await supabase
         .from('sessions')
         .select(`
-          id, user_id, name, template_id, started_at, ended_at, status, 
+          id, user_id, name, template_id, session_focus, session_goal, session_intensity, started_at, ended_at, status, 
           body_weight_lb, session_notes, 
           session_exercises(
             id, exercise_name, primary_muscle, secondary_muscles, 
@@ -247,6 +271,35 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     
     fetchSession();
   }, [activeSession, mapSession, sessionId, startSession, supabase]);
+
+  // Load template experience level (used to align targets with generation logic)
+  useEffect(() => {
+    if (!activeSession?.templateId) {
+      setTemplateExperienceLevel(null);
+      return;
+    }
+
+    const loadTemplate = async () => {
+      const { data, error } = await supabase
+        .from('workout_templates')
+        .select('experience_level, template_inputs')
+        .eq('id', activeSession.templateId)
+        .maybeSingle();
+
+      if (error || !data) {
+        return;
+      }
+
+      const templateInputs = data.template_inputs as Partial<PlanInput> | null;
+      const baseExperience =
+        templateInputs?.experienceLevel ??
+        (data.experience_level as PlanInput['experienceLevel'] | null) ??
+        null;
+      setTemplateExperienceLevel(baseExperience);
+    };
+
+    loadTemplate();
+  }, [activeSession?.templateId, supabase]);
 
   // Load profile preferences
   useEffect(() => {
