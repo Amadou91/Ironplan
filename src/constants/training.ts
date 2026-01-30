@@ -76,6 +76,16 @@ export const RECOMMENDATION_WEIGHTS = {
   undertrainingLowPenalty: -2
 } as const
 
+// ACR (Acute:Chronic Ratio) thresholds for training load status
+export const ACR_THRESHOLDS = {
+  /** Below this value = undertraining */
+  undertraining: 0.8,
+  /** Above this value = overreaching, suggest rest */
+  overreaching: 1.3,
+  /** Above this value = high injury risk, strongly suggest rest */
+  dangerZone: 1.5
+} as const
+
 // Chart display thresholds
 export const CHART_DAILY_THRESHOLD_DAYS = 14
 

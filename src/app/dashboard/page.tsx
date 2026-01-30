@@ -110,7 +110,7 @@ export default function DashboardPage() {
             isInitialPhase={trainingLoadSummary.isInitialPhase}
           />
 
-          <RecommendedSession recommendedTemplate={recommendedTemplate} trainingLoadStatus={trainingLoadSummary.status} />
+          <RecommendedSession recommendedTemplate={recommendedTemplate} trainingLoadStatus={trainingLoadSummary.status} loadRatio={trainingLoadSummary.loadRatio} />
 
           <TemplateInventory
             templates={templates}
