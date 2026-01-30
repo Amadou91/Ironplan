@@ -264,15 +264,11 @@ export const buildWeightOptions = (
         })
         break
       case 'bodyweight':
-        if (typeof profileWeightLb === 'number' && Number.isFinite(profileWeightLb) && profileWeightLb > 0) {
-          const converted = toPreferred(profileWeightLb)
-          options.push({
-            value: converted,
-            unit: preferredUnit,
-            label: `Bodyweight (${converted} ${unitLabel})`,
-            equipmentKind: 'bodyweight'
-          })
-        }
+        // Bodyweight is not a selectable "weight" option.
+        // Exercises using bodyweight have weight=0 or null, and virtual bodyweight
+        // is calculated at metrics time in computeSetTonnage().
+        // Including user's actual weight here causes incorrect load calculations
+        // where bodyweight is treated as external load and multiplied.
         break
       case 'machine':
       default:

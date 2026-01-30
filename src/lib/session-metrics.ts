@@ -142,11 +142,16 @@ export const mapRpeToRir = (rpe: number) => {
 // Constants imported from @/constants/training:
 // DEFAULT_BODYWEIGHT_FACTOR, DEFAULT_USER_WEIGHT_LB, VIRTUAL_WEIGHT_MULTIPLIERS
 
-export type BodyweightExerciseType = 'push' | 'pull' | 'default'
+export type BodyweightExerciseType = 'push' | 'pull' | 'default-bodyweight' | 'default'
 
 /**
  * Determines the bodyweight exercise type from exercise name.
  * Used for calculating virtual weight for tonnage tracking.
+ * 
+ * Only returns a non-default type for exercises that are PRIMARILY bodyweight exercises
+ * (e.g., push-ups, pull-ups, dips, burpees). Exercises that can optionally use bodyweight
+ * but are typically weighted (e.g., step-ups, lunges) should return 'default' and will
+ * have 0 tonnage when no weight is entered.
  */
 export const getBodyweightExerciseType = (exerciseName?: string | null): BodyweightExerciseType => {
   if (!exerciseName) return 'default'
@@ -155,14 +160,32 @@ export const getBodyweightExerciseType = (exerciseName?: string | null): Bodywei
   // Pull exercises (vertical pulling - higher % of bodyweight)
   if (lower.includes('pull-up') || lower.includes('pullup') || 
       lower.includes('chin-up') || lower.includes('chinup') ||
-      lower.includes('muscle-up') || lower.includes('muscleup')) {
+      lower.includes('muscle-up') || lower.includes('muscleup') ||
+      lower.includes('inverted row') || lower.includes('body row')) {
     return 'pull'
   }
   
   // Push exercises (horizontal pushing - lower % of bodyweight)
   if (lower.includes('push-up') || lower.includes('pushup') ||
-      lower.includes('dip') || lower.includes('pike press')) {
+      lower.includes('dip') || lower.includes('pike press') ||
+      lower.includes('handstand')) {
     return 'push'
+  }
+  
+  // Default bodyweight exercises (full body movements that ARE primarily bodyweight)
+  // These use the 0.70 multiplier for virtual bodyweight
+  if (lower.includes('burpee') ||
+      lower.includes('mountain climber') ||
+      lower.includes('jumping jack') ||
+      lower.includes('plank') ||
+      lower.includes('bear crawl') ||
+      lower.includes('crab walk') ||
+      lower.includes('bodyweight squat') ||
+      lower.includes('air squat') ||
+      lower.includes('pistol squat') ||
+      lower.includes('jump squat') ||
+      lower.includes('box jump')) {
+    return 'default-bodyweight'
   }
   
   return 'default'
@@ -203,12 +226,15 @@ export const computeSetTonnage = (
   const hasExternalWeight = isValidNumber(set.weight) && set.weight > 0
   
   // Detect if this is a bodyweight exercise by name or explicit flag
+  // Only exercises explicitly recognized as bodyweight (push-ups, pull-ups, dips, etc.)
+  // get virtual bodyweight applied. Other exercises without weight return 0 tonnage.
   const exerciseType = getBodyweightExerciseType(exerciseName)
-  const isBodyweight = isBodyweightExercise ?? exerciseType !== 'default'
+  const isRecognizedBodyweight = exerciseType !== 'default'
+  const isBodyweight = isBodyweightExercise ?? isRecognizedBodyweight
   
-  // For bodyweight exercises (weighted or unweighted):
-  // Effective weight = Virtual bodyweight + External weight
-  if (isBodyweight || !hasExternalWeight) {
+  // For recognized bodyweight exercises (push-ups, pull-ups, dips, etc.):
+  // Effective weight = Virtual bodyweight + External weight (if any)
+  if (isBodyweight) {
     const virtualWeight = getVirtualBodyweight(baseWeight, exerciseName)
     const externalWeight = hasExternalWeight 
       ? toLbs(getTotalWeight(set.weight!, set.loadType, set.implementCount), set.weightUnit)
@@ -216,6 +242,10 @@ export const computeSetTonnage = (
     const effectiveWeight = virtualWeight + externalWeight
     return effectiveWeight * set.reps
   }
+  
+  // For non-bodyweight exercises: require external weight
+  // If no weight is entered, tonnage is 0 (not tracked)
+  if (!hasExternalWeight) return 0
   
   // For non-bodyweight exercises with external weight only
   const totalWeight = getTotalWeight(set.weight, set.loadType, set.implementCount)

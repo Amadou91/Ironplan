@@ -108,9 +108,15 @@ test('Bodyweight Exercise Type Detection', async (t) => {
     assert.equal(sessionMetrics.getBodyweightExerciseType('Muscle-up'), 'pull');
   });
 
+  await t.test('Default-bodyweight exercises', () => {
+    // Exercises that ARE primarily bodyweight (burpees, planks, etc.) return 'default-bodyweight'
+    assert.equal(sessionMetrics.getBodyweightExerciseType('Burpee'), 'default-bodyweight');
+  });
+
   await t.test('Default for unrecognized exercises', () => {
-    assert.equal(sessionMetrics.getBodyweightExerciseType('Burpee'), 'default');
+    // Exercises that CAN use bodyweight but aren't primarily BW (step-ups, lunges, squats) return 'default'
     assert.equal(sessionMetrics.getBodyweightExerciseType('Squat'), 'default');
+    assert.equal(sessionMetrics.getBodyweightExerciseType('Step Up'), 'default');
     assert.equal(sessionMetrics.getBodyweightExerciseType(null), 'default');
     assert.equal(sessionMetrics.getBodyweightExerciseType(undefined), 'default');
   });

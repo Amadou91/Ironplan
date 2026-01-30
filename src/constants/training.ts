@@ -25,9 +25,10 @@ export const DEFAULT_BODYWEIGHT_FACTOR = 0.7
 
 // Virtual weight multipliers for bodyweight exercises
 export const VIRTUAL_WEIGHT_MULTIPLIERS = {
-  push: 0.66,   // Push-ups, dips, etc.
-  pull: 0.90,   // Pull-ups, chin-ups, etc.
-  default: 0.70 // Generic bodyweight exercises
+  push: 0.66,            // Push-ups, dips, etc.
+  pull: 0.90,            // Pull-ups, chin-ups, etc.
+  'default-bodyweight': 0.70, // Explicitly bodyweight exercises (burpees, planks, etc.)
+  default: 0.70          // Generic fallback
 } as const
 
 // Pagination limits
