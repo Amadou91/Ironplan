@@ -33,10 +33,10 @@ export const equipmentPresets: Record<EquipmentPreset, EquipmentInventory> = {
   full_gym: {
     bodyweight: true,
     benchPress: true,
-    dumbbells: [...DUMBBELL_WEIGHT_OPTIONS],
-    kettlebells: [...KETTLEBELL_WEIGHT_OPTIONS],
-    bands: ['light', 'medium', 'heavy'],
-    barbell: { available: true, plates: [10, 25, 35, 45] },
+    dumbbells: [],
+    kettlebells: [],
+    bands: [],
+    barbell: { available: true, plates: [] },
     machines: {
       cable: true,
       leg_press: true,

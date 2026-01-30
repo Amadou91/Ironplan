@@ -45,13 +45,13 @@ function SessionLogContent() {
   const [showValidationBlocker, setShowValidationBlocker] = useState(false)
   const [hasNoCompletedSets, setHasNoCompletedSets] = useState(false)
   
-  // Duration from the previous page (passed via query param)
+  // Duration from the previous page (passed via query param) - now editable
   const queryDuration = searchParams.get('duration')
-  const durationMinutes = queryDuration ? parseInt(queryDuration) : 45
+  const [durationMinutes, setDurationMinutes] = useState(queryDuration ? parseInt(queryDuration) : 45)
   
-  // Editable start time (initialized from session, can be changed)
+  // Editable start time (initialized from query param, which comes from the setup page)
   const queryStartTime = searchParams.get('startTime')
-  const [startTimeOverride, setStartTimeOverride] = useState<string | null>(queryStartTime)
+  const [startTimeOverride, setStartTimeOverride] = useState<string | null>(queryStartTime ? decodeURIComponent(queryStartTime) : null)
   
   const sessionId = params?.id as string
   const currentSessionId = activeSession?.id ?? sessionId
@@ -238,16 +238,24 @@ function SessionLogContent() {
                     id="start-time"
                     type="datetime-local"
                     value={startTimeOverride 
-                      ? startTimeOverride.slice(0, 16) 
+                      ? new Date(startTimeOverride).toISOString().slice(0, 16) 
                       : (activeSession?.startedAt ? new Date(activeSession.startedAt).toISOString().slice(0, 16) : '')
                     }
                     onChange={(e) => setStartTimeOverride(e.target.value ? new Date(e.target.value).toISOString() : null)}
                     className="mt-2"
                   />
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted">Duration</span>
-                  <span className="font-semibold text-strong">{durationMinutes} min</span>
+                <div>
+                  <Label htmlFor="duration">Duration (minutes)</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    min={1}
+                    max={300}
+                    value={durationMinutes}
+                    onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 45)}
+                    className="mt-2"
+                  />
                 </div>
               </div>
             </Card>

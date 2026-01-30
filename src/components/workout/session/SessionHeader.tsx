@@ -23,6 +23,8 @@ interface SessionHeaderProps {
   errorMessage?: string | null;
   /** When set, show a static duration instead of live timer (for logging past workouts) */
   fixedDurationMinutes?: number | null;
+  /** Callback when weight label is clicked (to edit body weight) */
+  onWeightClick?: () => void;
 }
 
 export function SessionHeader({
@@ -37,6 +39,7 @@ export function SessionHeader({
   onCancel,
   errorMessage,
   fixedDurationMinutes,
+  onWeightClick,
 }: SessionHeaderProps) {
   const [duration, setDuration] = useState<string>('00:00');
 
@@ -119,11 +122,18 @@ export function SessionHeader({
               </span>
             </div>
             {sessionBodyWeight != null && sessionBodyWeight > 0 && (
-              <div className="flex items-center gap-2 border-l border-[var(--color-border)] pl-4">
+              <div 
+                className={`flex items-center gap-2 border-l border-[var(--color-border)] pl-4 ${onWeightClick ? 'cursor-pointer hover:text-[var(--color-primary)] transition-colors' : ''}`}
+                onClick={onWeightClick}
+                role={onWeightClick ? 'button' : undefined}
+                tabIndex={onWeightClick ? 0 : undefined}
+                onKeyDown={onWeightClick ? (e) => e.key === 'Enter' && onWeightClick() : undefined}
+              >
                 <span className="font-medium text-muted">Weight:</span>
                 <span className="font-semibold text-strong">
                   {sessionBodyWeight} {preferredUnit}
                 </span>
+                {onWeightClick && <span className="text-[10px] text-muted">(edit)</span>}
               </div>
             )}
           </div>

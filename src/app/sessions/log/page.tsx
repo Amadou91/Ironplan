@@ -236,7 +236,7 @@ export default function LogPastWorkoutPage() {
       })
       
       // Navigate to the active session page for logging
-      router.push(`/sessions/${sessionData.id}/log?duration=${parsedDuration}`)
+      router.push(`/sessions/${sessionData.id}/log?duration=${parsedDuration}&startTime=${encodeURIComponent(startedAt.toISOString())}`)
     } catch (err) {
       console.error('Failed to create session:', err)
       setError('Unable to create session. Please try again.')

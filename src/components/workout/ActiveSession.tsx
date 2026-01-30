@@ -129,7 +129,9 @@ export default function ActiveSession({
 
     isUpdating,
 
-    supabase
+    supabase,
+
+    handleBodyWeightUpdate
 
   } = useActiveSessionManager(sessionId, equipmentInventory);
 
@@ -145,9 +147,24 @@ export default function ActiveSession({
 
   const [exerciseToRemove, setExerciseToRemove] = useState<number | null>(null);
 
+  const [isEditingWeight, setIsEditingWeight] = useState(false);
+
+  const [editWeightValue, setEditWeightValue] = useState('');
+
   const exerciseRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  const handleWeightEditClick = () => {
+    setEditWeightValue(activeSession?.bodyWeightLb?.toString() ?? '');
+    setIsEditingWeight(true);
+  };
 
+  const handleWeightEditConfirm = async () => {
+    const parsed = parseFloat(editWeightValue);
+    if (!isNaN(parsed) && parsed > 0) {
+      await handleBodyWeightUpdate(parsed);
+    }
+    setIsEditingWeight(false);
+  };
 
   const handleExerciseSelect = (index: number) => {
 
@@ -438,6 +455,8 @@ export default function ActiveSession({
 
         fixedDurationMinutes={fixedDurationMinutes}
 
+        onWeightClick={handleWeightEditClick}
+
       />
 
 
@@ -610,6 +629,41 @@ export default function ActiveSession({
         variant="danger"
 
       />
+
+      {/* Weight Edit Modal */}
+      {isEditingWeight && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[var(--color-surface)] rounded-2xl p-6 shadow-xl border border-[var(--color-border)] w-80">
+            <h3 className="text-lg font-semibold text-strong mb-4">Edit Body Weight</h3>
+            <div className="mb-4">
+              <label className="text-sm text-muted mb-2 block">Weight ({preferredUnit})</label>
+              <input
+                type="number"
+                value={editWeightValue}
+                onChange={(e) => setEditWeightValue(e.target.value)}
+                className="input-base w-full"
+                autoFocus
+                min={0}
+                step={0.1}
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsEditingWeight(false)}
+                className="flex-1 px-4 py-2 rounded-lg border border-[var(--color-border)] text-muted hover:bg-[var(--color-surface-muted)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleWeightEditConfirm}
+                className="flex-1 px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white font-medium hover:bg-[var(--color-primary-strong)] transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
 
