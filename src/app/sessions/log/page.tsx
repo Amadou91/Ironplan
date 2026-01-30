@@ -27,6 +27,10 @@ type ReadinessSurveyDraft = {
   [Key in keyof ReadinessSurvey]: number | null
 }
 
+/**
+ * Canonical focus options for user-selectable focus areas.
+ * Must match MuscleGroupSelector for consistency.
+ */
 const FOCUS_OPTIONS: { value: FocusArea; label: string }[] = [
   { value: 'chest', label: 'Chest' },
   { value: 'back', label: 'Back' },
@@ -34,21 +38,36 @@ const FOCUS_OPTIONS: { value: FocusArea; label: string }[] = [
   { value: 'arms', label: 'Arms' },
   { value: 'legs', label: 'Legs' },
   { value: 'core', label: 'Core' },
-  { value: 'full_body', label: 'Full Body' },
-  { value: 'upper', label: 'Upper Body' },
-  { value: 'lower', label: 'Lower Body' },
   { value: 'cardio', label: 'Cardio' },
-  { value: 'mobility', label: 'Mobility' }
+  { value: 'mobility', label: 'Yoga / Mobility' }
 ]
 
-const GOAL_OPTIONS: { value: Goal; label: string }[] = [
+/**
+ * Training goal options for strength-based focus areas.
+ * Cardio and Mobility have fixed goals that are auto-set.
+ */
+const STRENGTH_GOAL_OPTIONS: { value: Goal; label: string }[] = [
   { value: 'strength', label: 'Strength' },
   { value: 'hypertrophy', label: 'Hypertrophy' },
-  { value: 'endurance', label: 'Endurance' },
-  { value: 'cardio', label: 'Cardio' },
-  { value: 'range_of_motion', label: 'Mobility/Flexibility' },
-  { value: 'general_fitness', label: 'General Fitness' }
+  { value: 'endurance', label: 'Endurance' }
 ]
+
+/**
+ * Returns the appropriate goal for a focus area.
+ * For cardio/mobility, returns the fixed goal. For others, returns the user's selection.
+ */
+const getGoalForFocus = (focus: FocusArea, userGoal: Goal): Goal => {
+  if (focus === 'mobility') return 'range_of_motion'
+  if (focus === 'cardio') return 'cardio'
+  return userGoal
+}
+
+/**
+ * Checks if the focus area allows user to select a goal.
+ */
+const focusAllowsGoalSelection = (focus: FocusArea): boolean => {
+  return focus !== 'mobility' && focus !== 'cardio'
+}
 
 function formatDateForInput(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -67,13 +86,17 @@ export default function LogPastWorkoutPage() {
   const [workoutDate, setWorkoutDate] = useState(formatDateForInput(new Date()))
   const [startTime, setStartTime] = useState('09:00')
   const [durationMinutes, setDurationMinutes] = useState(45)
-  const [focus, setFocus] = useState<FocusArea>('full_body')
-  const [goal, setGoal] = useState<Goal>('hypertrophy')
+  const [focus, setFocus] = useState<FocusArea>('chest')
+  const [userGoal, setUserGoal] = useState<Goal>('hypertrophy')
   const [bodyWeight, setBodyWeight] = useState('')
   const [equipment, setEquipment] = useState<PlanInput['equipment']>(() => ({
     preset: 'full_gym',
     inventory: cloneInventory(equipmentPresets.full_gym)
   }))
+  
+  // Computed goal based on focus - cardio/mobility have fixed goals
+  const effectiveGoal = useMemo(() => getGoalForFocus(focus, userGoal), [focus, userGoal])
+  const showGoalSelector = focusAllowsGoalSelection(focus)
   
   // Readiness state
   const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurveyDraft>({
@@ -104,11 +127,11 @@ export default function LogPastWorkoutPage() {
   const sessionName = useMemo(() => {
     return buildWorkoutDisplayName({
       focus,
-      style: goal,
+      style: effectiveGoal,
       minutes: durationMinutes,
       fallback: 'Past Workout'
     })
-  }, [focus, goal, durationMinutes])
+  }, [focus, effectiveGoal, durationMinutes])
   
   const handleReadinessChange = useCallback((field: keyof ReadinessSurvey, value: number) => {
     setReadinessSurvey(prev => ({ ...prev, [field]: value }))
@@ -133,8 +156,8 @@ export default function LogPastWorkoutPage() {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? null
       const bodyWeightLb = bodyWeight ? parseFloat(bodyWeight) : null
       
-      // Use the goal directly since it's already typed correctly
-      const sessionGoal: SessionGoal = goal
+      // Use the computed effective goal which respects focus constraints
+      const sessionGoal: SessionGoal = effectiveGoal
       const sessionIntensity = readinessLevel ? getReadinessIntensity(readinessLevel) : 'moderate'
       
       const sessionNotes = JSON.stringify({
@@ -323,7 +346,7 @@ export default function LogPastWorkoutPage() {
                   value={sessionName}
                   readOnly
                   aria-readonly="true"
-                  className="mt-2"
+                  className="mt-2 bg-[var(--color-surface-muted)] cursor-not-allowed"
                 />
               </div>
               <div>
@@ -341,16 +364,27 @@ export default function LogPastWorkoutPage() {
               </div>
               <div>
                 <Label htmlFor="goal">Training Goal</Label>
-                <select
-                  id="goal"
-                  value={goal}
-                  onChange={(e) => setGoal(e.target.value as Goal)}
-                  className="input-base mt-2"
-                >
-                  {GOAL_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                {showGoalSelector ? (
+                  <select
+                    id="goal"
+                    value={userGoal}
+                    onChange={(e) => setUserGoal(e.target.value as Goal)}
+                    className="input-base mt-2"
+                  >
+                    {STRENGTH_GOAL_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    id="goal"
+                    type="text"
+                    value={focus === 'cardio' ? 'Cardio / Endurance' : 'Yoga / Mobility'}
+                    readOnly
+                    aria-readonly="true"
+                    className="mt-2 bg-[var(--color-surface-muted)] cursor-not-allowed"
+                  />
+                )}
               </div>
               <div>
                 <Label htmlFor="body-weight">Body Weight (lb)</Label>
