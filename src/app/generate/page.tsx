@@ -13,7 +13,7 @@ import { MuscleGroupSelector } from '@/components/generate/MuscleGroupSelector'
 import { TemplateHistory } from '@/components/generate/TemplateHistory'
 import { GenerationSummary } from '@/components/generate/GenerationSummary'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
-import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { buildTemplateDisplayName } from '@/lib/workout-naming'
 import { useGenerationFlow } from '@/hooks/useGenerationFlow'
 
 export default function GeneratePage() {
@@ -251,10 +251,8 @@ export default function GeneratePage() {
           isOpen={isLatestModalOpen}
           onClose={() => setIsLatestModalOpen(false)}
           templateId={lastSavedTemplate.templateId}
-          templateTitle={buildWorkoutDisplayName({
+          templateTitle={buildTemplateDisplayName({
             focus: lastSavedTemplate.focus,
-            style: lastSavedTemplate.style,
-            intensity: lastSavedTemplate.input.intensity,
             fallback: lastSavedTemplate.title
           })}
           templateFocus={lastSavedTemplate.focus}

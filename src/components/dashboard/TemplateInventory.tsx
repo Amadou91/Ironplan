@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Dumbbell, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { buildTemplateDisplayName } from '@/lib/workout-naming'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import type { TemplateRow } from '@/hooks/useDashboardData'
@@ -64,10 +64,8 @@ export function TemplateInventory({
           ) : (
             templates.map((template) => {
               const isRecommended = recommendedTemplateId === template.id
-              const displayTitle = buildWorkoutDisplayName({
+              const displayTitle = buildTemplateDisplayName({
                 focus: template.focus,
-                style: template.style,
-                intensity: template.intensity,
                 fallback: template.title
               })
               return (
@@ -126,10 +124,8 @@ export function TemplateInventory({
           isOpen={Boolean(activeTemplate)}
           onClose={() => setActiveTemplate(null)}
           templateId={activeTemplate.id}
-          templateTitle={buildWorkoutDisplayName({
+          templateTitle={buildTemplateDisplayName({
             focus: activeTemplate.focus,
-            style: activeTemplate.style,
-            intensity: activeTemplate.intensity,
             fallback: activeTemplate.title
           })}
           templateFocus={activeTemplate.focus}

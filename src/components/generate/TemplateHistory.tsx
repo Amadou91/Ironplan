@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { buildTemplateDisplayName } from '@/lib/workout-naming'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import type { WorkoutHistoryEntry } from '@/lib/workoutHistory'
@@ -59,10 +59,8 @@ export function TemplateHistory({
         ) : (
           <div className="space-y-3">
             {historyEntries.map((entry) => {
-              const entryTitle = buildWorkoutDisplayName({
+              const entryTitle = buildTemplateDisplayName({
                 focus: entry.template.focus,
-                style: entry.template.style,
-                intensity: entry.template.inputs.intensity,
                 fallback: entry.title
               })
               return (
@@ -125,10 +123,8 @@ export function TemplateHistory({
           isOpen={Boolean(selectedEntry)}
           onClose={() => setSelectedEntry(null)}
           templateId={selectedEntry.remoteId}
-          templateTitle={buildWorkoutDisplayName({
+          templateTitle={buildTemplateDisplayName({
             focus: selectedEntry.template.focus,
-            style: selectedEntry.template.style,
-            intensity: selectedEntry.template.inputs.intensity,
             fallback: selectedEntry.title
           })}
           templateFocus={selectedEntry.template.focus}

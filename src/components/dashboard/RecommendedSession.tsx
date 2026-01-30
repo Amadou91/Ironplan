@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Sparkles, Moon, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { buildTemplateDisplayName } from '@/lib/workout-naming'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import type { TemplateRow } from '@/hooks/useDashboardData'
 
@@ -110,10 +110,8 @@ export function RecommendedSession({ recommendedTemplate, trainingLoadStatus, lo
                   <div className="flex items-center gap-3">
                     <span className="badge-success text-[11px]">Best for Today</span>
                     <p className="text-2xl font-bold text-strong">
-                      {buildWorkoutDisplayName({
+                      {buildTemplateDisplayName({
                         focus: recommendedTemplate.focus,
-                        style: recommendedTemplate.style,
-                        intensity: recommendedTemplate.intensity,
                         fallback: recommendedTemplate.title
                       })}
                     </p>
@@ -157,10 +155,8 @@ export function RecommendedSession({ recommendedTemplate, trainingLoadStatus, lo
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           templateId={recommendedTemplate.id}
-          templateTitle={buildWorkoutDisplayName({
+          templateTitle={buildTemplateDisplayName({
             focus: recommendedTemplate.focus,
-            style: recommendedTemplate.style,
-            intensity: recommendedTemplate.intensity,
             fallback: recommendedTemplate.title
           })}
           templateFocus={recommendedTemplate.focus}

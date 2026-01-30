@@ -10,12 +10,48 @@ type WorkoutNamingInput = {
   cardioExerciseName?: string | null
 }
 
+type TemplateNamingInput = {
+  focus?: FocusArea | null
+  fallback?: string | null
+  cardioExerciseName?: string | null
+}
+
 const formatMinutes = (minutes?: number | null) => {
   if (!Number.isFinite(minutes ?? null)) return ''
   const rounded = Math.max(1, Math.round(minutes as number))
   return `${rounded} min`
 }
 
+/**
+ * Builds a display name for templates/plans.
+ * Templates represent reusable structure and should stay neutral (no training style).
+ * Format: Focus Area only (e.g., "Arms", "Cardio", "Yoga / Mobility")
+ */
+export const buildTemplateDisplayName = ({
+  focus,
+  fallback,
+  cardioExerciseName
+}: TemplateNamingInput) => {
+  // Special cases for Yoga and Cardio
+  if (focus === 'mobility') {
+    return 'Yoga / Mobility'
+  }
+  if (focus === 'cardio') {
+    if (cardioExerciseName) {
+      return `Cardio ${cardioExerciseName}`
+    }
+    return 'Cardio'
+  }
+  
+  const focusLabel = focus ? formatFocusLabel(focus) : null
+  return focusLabel || fallback || ''
+}
+
+/**
+ * Builds a display name for workout sessions.
+ * Sessions represent execution and include the selected training style for context.
+ * Format: Focus Area · Style · Duration (e.g., "Arms · Strength · 45 min")
+ */
 export const buildWorkoutDisplayName = ({
   focus,
   style,
@@ -36,21 +72,18 @@ export const buildWorkoutDisplayName = ({
        parts.push('Cardio')
      }
   } else {
-    // Standard format: "[Focus] [Style]"
+    // Standard format: "[Focus] · [Style]"
     const focusLabel = focus ? formatFocusLabel(focus) : null
-    const nameParts = []
     
-    if (focusLabel) nameParts.push(focusLabel)
+    if (focusLabel) parts.push(focusLabel)
     
-    // Only add style if it's not redundant with the focus
+    // Add style as a separate segment (not joined with focus)
     if (styleLabel && 
         styleLabel !== focusLabel && 
         !focusLabel?.toLowerCase().includes(styleLabel.toLowerCase()) &&
         !styleLabel.toLowerCase().includes(focusLabel?.toLowerCase() || '')) {
-      nameParts.push(styleLabel)
+      parts.push(styleLabel)
     }
-    
-    if (nameParts.length > 0) parts.push(nameParts.join(' '))
   }
   
   const minutesLabel = formatMinutes(minutes)

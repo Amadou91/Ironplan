@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { createClient } from '@/lib/supabase/client'
 import { toMuscleLabel } from '@/lib/muscle-utils'
-import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { buildTemplateDisplayName } from '@/lib/workout-naming'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import type { FocusArea, PlanInput } from '@/types/domain'
@@ -86,10 +86,8 @@ export default function WorkoutDetailPage() {
   if (loading) return <div className="page-shell p-10 text-center text-muted">Loading template...</div>
   if (!template) return <div className="page-shell p-10 text-center text-muted">Template not found.</div>
 
-  const displayTitle = buildWorkoutDisplayName({
+  const displayTitle = buildTemplateDisplayName({
     focus: template.focus,
-    style: template.style,
-    intensity: template.intensity,
     fallback: template.title
   })
 
