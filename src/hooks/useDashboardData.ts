@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
-import { summarizeTrainingLoad } from '@/lib/training-metrics'
+import { calculateTrainingStatus } from '@/lib/transformers/progress-data'
 import { safeParseArray, sessionRowSchema, templateRowSchema } from '@/lib/validation/schemas'
 import type { FocusArea, PlanInput, MetricProfile } from '@/types/domain'
 
@@ -20,6 +20,7 @@ export type SessionRow = {
   ended_at: string | null
   status: string | null
   minutes_available?: number | null
+  body_weight_lb?: number | null
   timezone?: string | null
   session_exercises: Array<{
     id: string
@@ -27,10 +28,14 @@ export type SessionRow = {
     primary_muscle: string | null
     secondary_muscles: string[] | null
     metric_profile?: string | null
+    order_index?: number | null
     sets: Array<{
       id: string
+      set_number?: number | null
       reps: number | null
       weight: number | null
+      implement_count?: number | null
+      load_type?: string | null
       rpe: number | null
       rir: number | null
       completed: boolean | null
@@ -180,25 +185,9 @@ export function useDashboardData() {
   }, [templates])
 
   const trainingLoadSummary = useMemo(() => {
-    const mappedSessions = sessions.map((session) => ({
-      startedAt: session.started_at,
-      endedAt: session.ended_at,
-      sets: session.session_exercises.flatMap((exercise) =>
-        exercise.sets
-          .filter((set) => set.completed !== false)
-          .map((set) => ({
-            metricProfile: (exercise.metric_profile as MetricProfile) ?? undefined,
-            reps: set.reps ?? null,
-            weight: set.weight ?? null,
-            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
-            rpe: typeof set.rpe === 'number' ? set.rpe : null,
-            rir: typeof set.rir === 'number' ? set.rir : null,
-            performedAt: set.performed_at ?? null,
-            durationSeconds: set.duration_seconds ?? null
-          }))
-      )
-    }))
-    return summarizeTrainingLoad(mappedSessions)
+    // Use the shared calculateTrainingStatus to ensure consistent mapping
+    // with the progress page (includes implementCount, loadType, etc.)
+    return calculateTrainingStatus(sessions as Parameters<typeof calculateTrainingStatus>[0])
   }, [sessions])
 
   const recommendedTemplateId = useMemo(() => {

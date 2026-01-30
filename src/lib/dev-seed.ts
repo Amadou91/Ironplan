@@ -246,16 +246,30 @@ export async function seedExerciseCatalog(supabase: SupabaseClient): Promise<num
     is_interval: false
   }));
 
-  const { error } = await supabase
+  // Check which exercises already exist
+  const existingNames = new Set<string>();
+  const { data: existing } = await supabase
     .from('exercise_catalog')
-    .upsert(toInsert, { onConflict: 'name' });
+    .select('name')
+    .in('name', toInsert.map(e => e.name));
+  
+  existing?.forEach(e => existingNames.add(e.name));
 
-  if (error) {
-    console.error('Seed exercise catalog error:', error);
-    return 0;
+  // Only insert exercises that don't already exist
+  const newExercises = toInsert.filter(e => !existingNames.has(e.name));
+
+  if (newExercises.length > 0) {
+    const { error } = await supabase
+      .from('exercise_catalog')
+      .insert(newExercises);
+
+    if (error) {
+      console.error('Seed exercise catalog error:', error);
+      return 0;
+    }
   }
 
-  return toInsert.length;
+  return newExercises.length;
 }
 
 export async function seedDevData(supabase: SupabaseClient, userId: string): Promise<SeedResult> {
@@ -568,7 +582,6 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     exercise_name: string
     primary_muscle: string
     secondary_muscles: string[]
-    movement_pattern: string
     metric_profile: string
     order_index: number
   }> = []
@@ -582,7 +595,6 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         exercise_name: exercise.name,
         primary_muscle: exercise.primaryMuscle,
         secondary_muscles: exercise.secondaryMuscles ?? [],
-        movement_pattern: exercise.movementPattern || 'push',
         metric_profile: exercise.metricProfile ?? 'reps_weight',
         order_index: index
       })

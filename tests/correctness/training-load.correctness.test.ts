@@ -324,3 +324,114 @@ test('Load-based Readiness: Balanced with recovery returns steady', () => {
   const result = trainingMetrics.getLoadBasedReadiness(summary as never);
   assert.equal(result, 'steady');
 });
+
+// --- Session Row Mapping Consistency (Regression Test for ACR divergence) ---
+// This test verifies that calculateTrainingStatus correctly handles implement_count and load_type
+// to prevent ACR values from diverging between pages that use different data mappings.
+const progressData = loadTsModule(
+  join(__dirname, '../../src/lib/transformers/progress-data.ts')
+) as {
+  calculateTrainingStatus: (sessions: Array<{
+    started_at: string;
+    ended_at: string | null;
+    session_exercises: Array<{
+      metric_profile?: string | null;
+      sets: Array<{
+        reps: number | null;
+        weight: number | null;
+        implement_count?: number | null;
+        load_type?: string | null;
+        weight_unit: string | null;
+        rpe: number | null;
+        rir: number | null;
+        completed: boolean | null;
+        performed_at: string | null;
+        duration_seconds?: number | null;
+        rest_seconds_actual?: number | null;
+      }>;
+    }>;
+  }>) => { acuteLoad: number; chronicLoad: number; loadRatio: number };
+};
+
+test('ACR Consistency: calculateTrainingStatus includes implementCount in tonnage', () => {
+  // Simulate a dumbbell exercise with per_implement load type
+  const sessions = [{
+    started_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // yesterday
+    ended_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000).toISOString(),
+    session_exercises: [{
+      metric_profile: 'weight-reps',
+      sets: [{
+        reps: 10,
+        weight: 25, // 25 lb per dumbbell
+        implement_count: 2, // 2 dumbbells
+        load_type: 'per_implement',
+        weight_unit: 'lb',
+        rpe: 7,
+        rir: null,
+        completed: true,
+        performed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        duration_seconds: null,
+        rest_seconds_actual: null
+      }]
+    }]
+  }];
+
+  const result = progressData.calculateTrainingStatus(sessions);
+  
+  // With per_implement (25 lb * 2 implements * 10 reps = 500 lb tonnage)
+  // Should NOT be 250 (missing implement count)
+  assert.ok(result.acuteLoad > 0, 'acuteLoad should be calculated from dumbbell set');
+  
+  // Also verify direct summarizeTrainingLoad with complete mapping
+  const mappedSessions = [{
+    startedAt: sessions[0].started_at,
+    sets: [{
+      metricProfile: 'weight-reps' as const,
+      reps: 10,
+      weight: 25,
+      implementCount: 2,
+      loadType: 'per_implement' as const,
+      weightUnit: 'lb' as const,
+      rpe: 7,
+      rir: null,
+      performedAt: sessions[0].session_exercises[0].sets[0].performed_at,
+      durationSeconds: null
+    }]
+  }];
+  
+  const directResult = trainingMetrics.summarizeTrainingLoad(mappedSessions);
+  
+  // Both approaches should yield the same acuteLoad
+  assert.ok(
+    Math.abs(result.acuteLoad - directResult.acuteLoad) < 0.001,
+    `calculateTrainingStatus (${result.acuteLoad}) should match direct summarizeTrainingLoad (${directResult.acuteLoad})`
+  );
+});
+
+test('ACR Consistency: Missing implementCount defaults correctly', () => {
+  // Session WITHOUT implement_count should still work (defaults to 1)
+  const sessions = [{
+    started_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    ended_at: null,
+    session_exercises: [{
+      metric_profile: 'weight-reps',
+      sets: [{
+        reps: 10,
+        weight: 100,
+        // NO implement_count or load_type
+        weight_unit: 'lb',
+        rpe: 7,
+        rir: null,
+        completed: true,
+        performed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        duration_seconds: null,
+        rest_seconds_actual: null
+      }]
+    }]
+  }];
+
+  const result = progressData.calculateTrainingStatus(sessions);
+  
+  // 100 lb * 10 reps = 1000 lb tonnage base, with intensity multiplier
+  assert.ok(result.acuteLoad > 0, 'acuteLoad should calculate without implement_count');
+});
