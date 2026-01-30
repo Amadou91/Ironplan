@@ -139,10 +139,24 @@ export async function completeSession({
       finalName
     }
   } catch (error) {
-    console.error('Failed to complete session:', error)
+    // Supabase errors have non-enumerable properties, so we extract them manually
+    const errorDetails = error && typeof error === 'object' 
+      ? {
+          message: (error as { message?: string }).message,
+          code: (error as { code?: string }).code,
+          details: (error as { details?: string }).details,
+          hint: (error as { hint?: string }).hint
+        }
+      : error
+    console.error('Failed to complete session:', errorDetails)
+    
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : (error as { message?: string })?.message ?? 'Failed to complete session'
+    
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to complete session'
+      error: errorMessage
     }
   }
 }
