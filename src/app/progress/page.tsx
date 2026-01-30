@@ -27,6 +27,12 @@ export default function ProgressPage() {
     router.push('/sessions/log')
   }, [router])
 
+  const handleImportSuccess = useCallback(() => {
+    // Clear sessions and reset to page 0 to trigger a fresh load
+    setSessions([])
+    setSessionPage(0)
+  }, [setSessions, setSessionPage])
+
   // Only show full page skeleton on initial load or when we have no data
   const isInitialLoad = userLoading || (loading && sessions.length === 0)
 
@@ -119,7 +125,8 @@ export default function ProgressPage() {
               onLoadMore={() => setSessionPage(p => p + 1)} 
               onDeleteSuccess={(id) => setSessions(prev => prev.filter(s => s.id !== id))} 
               onError={setError} 
-              loading={loading} 
+              loading={loading}
+              onImportSuccess={handleImportSuccess}
             />
           </div>
         </div>

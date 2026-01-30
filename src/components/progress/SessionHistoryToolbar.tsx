@@ -155,7 +155,7 @@ export function SessionHistoryToolbar({ onImportSuccess }: SessionHistoryToolbar
         title="Import Session History"
         description={`Import sessions from "${pendingFile?.name}"? Duplicate sessions (matching start times) will be skipped.`}
         confirmText="Import"
-        variant="default"
+        variant="info"
         isLoading={importing}
       />
     </>
