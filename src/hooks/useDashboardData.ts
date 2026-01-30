@@ -90,8 +90,13 @@ export function useDashboardData() {
         return
       }
 
-      const [{ data: sessionRows, error: sessionError }, { data: templateRows }] =
-        await Promise.all([
+      let sessionResult: any
+      let templateResult: any
+      let attempt = 0
+      const MAX_RETRIES = 3
+
+      while (attempt < MAX_RETRIES) {
+        ;[sessionResult, templateResult] = await Promise.all([
           supabase
             .from('sessions')
             .select(
@@ -107,6 +112,25 @@ export function useDashboardData() {
             .order('created_at', { ascending: false })
             .limit(12)
         ])
+
+        const sessionError = sessionResult.error
+        const templateError = templateResult.error
+
+        // PGRST303: JWT issued at future (clock skew)
+        if (
+          (sessionError?.code === 'PGRST303' || templateError?.code === 'PGRST303') &&
+          attempt < MAX_RETRIES - 1
+        ) {
+          console.warn(`Clock skew detected (JWT future). Retrying attempt ${attempt + 2}...`)
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          attempt++
+          continue
+        }
+        break
+      }
+
+      const { data: sessionRows, error: sessionError } = sessionResult
+      const { data: templateRows } = templateResult
 
       if (sessionError) {
         console.error('Failed to load sessions', JSON.stringify(sessionError, null, 2))
