@@ -1,40 +1,31 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Clock, Calendar, Target, Play } from 'lucide-react'
+import { ArrowLeft, Calendar, Target, Play, Dumbbell } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { EquipmentSelector } from '@/components/generate/EquipmentSelector'
+import { ReadinessCheck } from '@/components/workout/start/ReadinessCheck'
+import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { cloneInventory, equipmentPresets } from '@/lib/equipment'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import {
   computeReadinessScore,
+  getReadinessIntensity,
   getReadinessLevel,
   type ReadinessSurvey
 } from '@/lib/training-metrics'
-import { READINESS_FIELDS } from '@/components/workout/start/ReadinessCheck'
 import type { FocusArea, Goal, PlanInput, SessionGoal } from '@/types/domain'
 
 type ReadinessSurveyDraft = {
   [Key in keyof ReadinessSurvey]: number | null
 }
-
-type SessionIntensitySetting = {
-  value: number
-  label: string
-  intensity: PlanInput['intensity']
-  helper: string
-}
-
-const SESSION_INTENSITY_LEVELS: SessionIntensitySetting[] = [
-  { value: 1, label: 'Ease in', intensity: 'low', helper: 'Lower intensity session.' },
-  { value: 2, label: 'Steady', intensity: 'moderate', helper: 'Balanced intensity.' },
-  { value: 3, label: 'Push', intensity: 'high', helper: 'Higher intensity session.' }
-]
 
 const FOCUS_OPTIONS: { value: FocusArea; label: string }[] = [
   { value: 'chest', label: 'Chest' },
@@ -76,10 +67,13 @@ export default function LogPastWorkoutPage() {
   const [workoutDate, setWorkoutDate] = useState(formatDateForInput(new Date()))
   const [startTime, setStartTime] = useState('09:00')
   const [durationMinutes, setDurationMinutes] = useState(45)
-  const [sessionName, setSessionName] = useState('')
   const [focus, setFocus] = useState<FocusArea>('full_body')
   const [goal, setGoal] = useState<Goal>('hypertrophy')
   const [bodyWeight, setBodyWeight] = useState('')
+  const [equipment, setEquipment] = useState<PlanInput['equipment']>(() => ({
+    preset: 'full_gym',
+    inventory: cloneInventory(equipmentPresets.full_gym)
+  }))
   
   // Readiness state
   const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurveyDraft>({
@@ -88,7 +82,6 @@ export default function LogPastWorkoutPage() {
     stress: null,
     motivation: null
   })
-  const [selectedIntensity, setSelectedIntensity] = useState<SessionIntensitySetting>(SESSION_INTENSITY_LEVELS[1])
   
   // UI state
   const [creating, setCreating] = useState(false)
@@ -108,12 +101,14 @@ export default function LogPastWorkoutPage() {
     return getReadinessLevel(readinessScore)
   }, [readinessScore])
   
-  // Generate default session name
-  useEffect(() => {
-    const focusLabel = FOCUS_OPTIONS.find(f => f.value === focus)?.label ?? 'Workout'
-    const goalLabel = GOAL_OPTIONS.find(g => g.value === goal)?.label ?? ''
-    setSessionName(`${focusLabel} ${goalLabel}`.trim())
-  }, [focus, goal])
+  const sessionName = useMemo(() => {
+    return buildWorkoutDisplayName({
+      focus,
+      style: goal,
+      minutes: durationMinutes,
+      fallback: 'Past Workout'
+    })
+  }, [focus, goal, durationMinutes])
   
   const handleReadinessChange = useCallback((field: keyof ReadinessSurvey, value: number) => {
     setReadinessSurvey(prev => ({ ...prev, [field]: value }))
@@ -140,16 +135,18 @@ export default function LogPastWorkoutPage() {
       
       // Use the goal directly since it's already typed correctly
       const sessionGoal: SessionGoal = goal
+      const sessionIntensity = readinessLevel ? getReadinessIntensity(readinessLevel) : 'moderate'
       
       const sessionNotes = JSON.stringify({
-        sessionIntensity: selectedIntensity.intensity,
+        sessionIntensity,
         minutesAvailable: durationMinutes,
         readiness: readinessLevel,
         readinessScore,
         readinessSurvey: readinessSurvey as ReadinessSurvey,
         source: 'log_past',
         goal: sessionGoal,
-        focus
+        focus,
+        equipmentInventory: equipment.inventory
       })
       
       // Create the session in the database
@@ -157,7 +154,10 @@ export default function LogPastWorkoutPage() {
         .from('sessions')
         .insert({
           user_id: user.id,
-          name: sessionName || 'Past Workout',
+          name: sessionName,
+          session_focus: focus,
+          session_goal: sessionGoal,
+          session_intensity: sessionIntensity,
           status: 'in_progress',
           started_at: startedAt.toISOString(),
           ended_at: null, // Will be set when completed
@@ -177,6 +177,7 @@ export default function LogPastWorkoutPage() {
       await supabase.from('session_readiness').insert({
         session_id: sessionData.id,
         user_id: user.id,
+        recorded_at: startedAt.toISOString(),
         sleep_quality: readinessSurvey.sleep!,
         muscle_soreness: readinessSurvey.soreness!,
         stress_level: readinessSurvey.stress!,
@@ -194,10 +195,10 @@ export default function LogPastWorkoutPage() {
       startSession({
         id: sessionData.id,
         userId: user.id,
-        name: sessionName || 'Past Workout',
+        name: sessionName,
         sessionFocus: focus,
         sessionGoal,
-        sessionIntensity: selectedIntensity.intensity,
+        sessionIntensity,
         startedAt: startedAt.toISOString(),
         status: 'in_progress',
         timezone,
@@ -314,13 +315,13 @@ export default function LogPastWorkoutPage() {
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <Label htmlFor="session-name">Session Name</Label>
+                <Label htmlFor="session-name">Session Name (auto)</Label>
                 <Input
                   id="session-name"
                   type="text"
                   value={sessionName}
-                  onChange={(e) => setSessionName(e.target.value)}
-                  placeholder="e.g., Push Day"
+                  readOnly
+                  aria-readonly="true"
                   className="mt-2"
                 />
               </div>
@@ -364,72 +365,31 @@ export default function LogPastWorkoutPage() {
             </div>
           </Card>
           
-          {/* Intensity */}
+          {/* Equipment */}
           <Card className="p-6">
             <h2 className="text-lg font-semibold text-strong mb-4 flex items-center gap-2">
-              <Clock className="h-5 w-5 text-accent" />
-              Session Intensity
+              <Dumbbell className="h-5 w-5 text-accent" />
+              Equipment & Weights
             </h2>
-            <div className="grid grid-cols-3 gap-3">
-              {SESSION_INTENSITY_LEVELS.map((level) => (
-                <button
-                  key={level.value}
-                  type="button"
-                  onClick={() => setSelectedIntensity(level)}
-                  className={`rounded-xl border-2 p-4 text-center transition-all ${
-                    selectedIntensity.value === level.value
-                      ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]'
-                      : 'border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
-                  }`}
-                >
-                  <div className="font-semibold text-strong">{level.label}</div>
-                  <div className="text-xs text-muted mt-1">{level.helper}</div>
-                </button>
-              ))}
-            </div>
+            <p className="text-sm text-muted mb-4">
+              Choose the equipment you had available. This keeps exercise options and weight shortcuts fully open for past sessions.
+            </p>
+            <EquipmentSelector
+              equipment={equipment}
+              isCardioStyle={focus === 'cardio'}
+              isMobilityStyle={focus === 'mobility'}
+              onUpdateEquipment={(updater) => setEquipment((prev) => updater(prev))}
+            />
           </Card>
           
           {/* Readiness Survey */}
           <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-strong">
-                Readiness Check <span className="text-sm text-muted font-normal">(required)</span>
-              </h2>
-              {readinessComplete && (
-                <span className="text-sm font-medium text-accent">
-                  Score: {readinessScore}/100 · {readinessLevel}
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-muted mb-4">
-              How were you feeling during this workout? Rate each metric 1-5.
-            </p>
-            <div className="space-y-4">
-              {READINESS_FIELDS.map((field) => (
-                <div key={field.key} className="rounded-xl border border-[var(--color-border)] p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-strong">{field.label}</span>
-                    <span className="text-xs text-muted">{field.helper}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((val) => (
-                      <button
-                        key={val}
-                        type="button"
-                        onClick={() => handleReadinessChange(field.key, val)}
-                        className={`flex-1 py-3 rounded-lg font-bold transition-all ${
-                          readinessSurvey[field.key] === val
-                            ? 'bg-[var(--color-primary)] text-white'
-                            : 'bg-[var(--color-surface-muted)] text-muted hover:bg-[var(--color-surface-muted)]/80'
-                        }`}
-                      >
-                        {val}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ReadinessCheck
+              survey={readinessSurvey}
+              onUpdateField={handleReadinessChange}
+              score={readinessScore}
+              level={readinessLevel}
+            />
           </Card>
           
           {/* Continue Button */}

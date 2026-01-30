@@ -1,22 +1,26 @@
 {
   "hooks": {
-    "BeforeAgent": [
+    "beforeAgent": [
       {
         "command": ".gemini/hooks/inject-schema.sh",
         "description": "Inject database schema context for DB-related prompts"
       }
     ],
-    "BeforeTool": [
+    "beforeTool": [
       {
         "command": ".gemini/hooks/migration-guard.sh",
         "description": "Prevent overwriting existing migration files"
       }
-    ],
-    "AfterTool": [
-      {
-        "command": ".gemini/hooks/run-test.sh",
-        "description": "Run corresponding tests after file edits"
-      }
-    ]
-  }
+!!x!x--'!x!],xit
+~
+!!
+"afterTool": [
+{
+"command": ".gemini/hooks/run-test.sh",
+"description": "Run corresponding tests after file edits"
 }
+]
+}
+}
+
+

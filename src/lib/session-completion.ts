@@ -24,6 +24,7 @@ export type CompleteSessionParams = {
   sessionGoal?: SessionGoal | null
   equipmentInventory?: EquipmentInventory | null
   exerciseCatalog?: ExerciseCatalogEntry[]
+  endedAtOverride?: string
 }
 
 export type CompleteSessionResult = {
@@ -51,9 +52,12 @@ export async function completeSession({
   bodyWeightLb,
   sessionGoal,
   equipmentInventory,
-  exerciseCatalog
+  exerciseCatalog,
+  endedAtOverride
 }: CompleteSessionParams): Promise<CompleteSessionResult> {
-  const endedAt = new Date().toISOString()
+  const resolvedEndedAt = endedAtOverride && Number.isFinite(new Date(endedAtOverride).getTime())
+    ? endedAtOverride
+    : new Date().toISOString()
 
   try {
     // Fetch user preferences for snapshot
@@ -73,7 +77,7 @@ export async function completeSession({
     // Build the immutability snapshot
     const completionSnapshot = buildCompletionSnapshot({
       session,
-      endedAt,
+      endedAt: resolvedEndedAt,
       bodyWeightLb,
       preferences,
       equipmentInventory,
@@ -81,7 +85,7 @@ export async function completeSession({
     })
 
     // Calculate impact for legacy field (still useful for quick queries)
-    const impact = calculateSessionImpactFromSets(session, endedAt)
+    const impact = calculateSessionImpactFromSets(session, resolvedEndedAt)
 
     // Build final session name
     let finalName = session.name
@@ -95,7 +99,7 @@ export async function completeSession({
     // Update session with completion data
     const sessionUpdate = {
       name: finalName,
-      ended_at: endedAt,
+      ended_at: resolvedEndedAt,
       status: 'completed',
       impact,
       body_weight_lb: bodyWeightLb,
@@ -116,14 +120,14 @@ export async function completeSession({
         supabase.from('body_measurements').insert({
           user_id: userId,
           weight_lb: bodyWeightLb,
-          recorded_at: endedAt
+          recorded_at: resolvedEndedAt
         })
       ])
     }
 
     return {
       success: true,
-      endedAt,
+      endedAt: resolvedEndedAt,
       finalName
     }
   } catch (error) {

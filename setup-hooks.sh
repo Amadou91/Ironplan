@@ -165,19 +165,19 @@ echo ""
 cat << 'SETTINGS'
 {
   "hooks": {
-    "beforeAgent": [
+    "BeforeAgent": [
       {
         "command": ".gemini/hooks/inject-schema.sh",
         "description": "Inject database schema context for DB-related prompts"
       }
     ],
-    "beforeTool": [
+    "BeforeTool": [
       {
         "command": ".gemini/hooks/migration-guard.sh",
         "description": "Prevent overwriting existing migration files"
       }
     ],
-    "afterTool": [
+    "AfterTool": [
       {
         "command": ".gemini/hooks/run-test.sh",
         "description": "Run corresponding tests after file edits"

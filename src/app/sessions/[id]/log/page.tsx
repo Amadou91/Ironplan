@@ -108,12 +108,6 @@ function SessionLogContent() {
       const startTime = new Date(activeSession.startedAt).getTime()
       const endedAt = new Date(startTime + durationMinutes * 60 * 1000).toISOString()
       
-      // First update the session with the calculated end time
-      await supabase
-        .from('sessions')
-        .update({ ended_at: endedAt })
-        .eq('id', currentSessionId)
-      
       // Create a modified session with the end time for the snapshot
       const sessionWithEnd = {
         ...activeSession,
@@ -128,7 +122,8 @@ function SessionLogContent() {
         bodyWeightLb: bodyWeightRef.current,
         sessionGoal,
         equipmentInventory,
-        exerciseCatalog: catalog.map((e) => ({ name: e.name, e1rmEligible: e.e1rmEligible }))
+        exerciseCatalog: catalog.map((e) => ({ name: e.name, e1rmEligible: e.e1rmEligible })),
+        endedAtOverride: endedAt
       })
       
       if (!result.success) {
