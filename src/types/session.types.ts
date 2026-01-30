@@ -94,6 +94,8 @@ export interface WorkoutSession {
   timezone?: string | null
   sessionNotes?: string | null
   weightUnit?: WeightUnit
+  /** Body weight in pounds, set during readiness check before session starts */
+  bodyWeightLb?: number | null
   exercises: SessionExercise[]
   /** Immutable snapshot captured at session completion - only present for completed sessions */
   completionSnapshot?: CompletionSnapshot

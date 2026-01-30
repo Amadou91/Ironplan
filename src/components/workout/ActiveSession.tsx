@@ -24,8 +24,6 @@ import { isTimeBasedExercise, toMuscleLabel, toMuscleSlug, getMetricProfile } fr
 
 import { buildWeightOptions } from '@/lib/equipment';
 
-import { convertWeight } from '@/lib/units';
-
 import type { 
 
   EquipmentInventory, 
@@ -56,8 +54,6 @@ type ActiveSessionProps = {
 
   equipmentInventory?: EquipmentInventory | null;
 
-  onBodyWeightChange?: (weight: number | null) => void;
-
   onFinish?: () => void;
 
   onCancel?: () => void;
@@ -77,8 +73,6 @@ export default function ActiveSession({
   sessionId, 
 
   equipmentInventory, 
-
-  onBodyWeightChange, 
 
   onFinish, 
 
@@ -100,21 +94,13 @@ export default function ActiveSession({
 
     setErrorMessage,
 
-    sessionBodyWeight,
-
-    setSessionBodyWeight,
-
     preferredUnit,
-
-    togglePreferredUnit,
 
     profileWeightLb,
 
     exerciseTargets,
 
     handleSetUpdate,
-
-    handleBodyWeightUpdate,
 
     addSet,
 
@@ -163,36 +149,6 @@ export default function ActiveSession({
       const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
 
       window.scrollTo({ top: y, behavior: 'smooth' });
-
-    }
-
-  };
-
-
-
-  const handleBodyWeightChange = (value: string) => {
-
-    setSessionBodyWeight(value);
-
-    if (!activeSession) return;
-
-    const weightVal = parseFloat(value);
-
-    const validWeight = !isNaN(weightVal) ? weightVal : null;
-
-    const lbWeight = (validWeight !== null && preferredUnit === 'kg') 
-
-      ? convertWeight(validWeight, 'kg', 'lb') 
-
-      : validWeight;
-
-    onBodyWeightChange?.(lbWeight);
-
-    // Use the hook's handleBodyWeightUpdate which has proper error handling
-
-    if (lbWeight !== null) {
-
-      handleBodyWeightUpdate(lbWeight);
 
     }
 
@@ -449,13 +405,9 @@ export default function ActiveSession({
 
         }}
 
-        sessionBodyWeight={sessionBodyWeight}
+        sessionBodyWeight={activeSession.bodyWeightLb}
 
         preferredUnit={preferredUnit}
-
-        onBodyWeightUpdate={handleBodyWeightChange}
-
-        onToggleUnit={togglePreferredUnit}
 
         onCancel={onCancel}
 

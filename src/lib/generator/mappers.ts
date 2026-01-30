@@ -2,6 +2,8 @@ import type {
   Exercise, 
   EquipmentOption, 
   EquipmentOrGroup,
+  EquipmentRequirementMode,
+  AdditionalEquipmentMode,
   ExerciseCategory, 
   FocusArea, 
   MetricProfile, 
@@ -21,6 +23,8 @@ type ExerciseRow = {
   e1rm_eligible: boolean | null;
   is_interval: boolean;
   or_group?: string | null;
+  equipment_mode?: string | null;
+  additional_equipment_mode?: string | null;
 };
 
 function inferCategory(row: ExerciseRow): ExerciseCategory {
@@ -51,6 +55,8 @@ export function mapCatalogRowToExercise(row: ExerciseRow): Exercise {
     metricProfile: (row.metric_profile || 'reps_weight') as MetricProfile,
     equipment: row.equipment,
     orGroup: row.or_group as EquipmentOrGroup | undefined,
+    equipmentMode: (row.equipment_mode as EquipmentRequirementMode) ?? 'or',
+    additionalEquipmentMode: (row.additional_equipment_mode as AdditionalEquipmentMode) ?? 'required',
     movementPattern: row.movement_pattern as MovementPattern | undefined,
     primaryMuscle: row.primary_muscle || 'full_body',
     secondaryMuscles: row.secondary_muscles,

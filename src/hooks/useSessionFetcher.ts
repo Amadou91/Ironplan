@@ -85,6 +85,7 @@ export function useSessionFetcher(sessionId?: string | null) {
       endedAt: payload.ended_at ?? undefined,
       status: (payload.status as WorkoutSession['status']) ?? 'in_progress',
       sessionNotes: payload.session_notes ?? undefined,
+      bodyWeightLb: payload.body_weight_lb ?? null,
       exercises: payload.session_exercises
         .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
         .map((exercise, idx) => ({

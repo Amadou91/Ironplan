@@ -345,7 +345,8 @@ export function ExerciseForm({ initialData, muscleOptions, onSubmit, onCancel }:
                     formData={formData}
                     exerciseType={exerciseType}
                     onEquipmentChange={handleEquipmentChange}
-                    onOrGroupChange={(orGroup) => setFormData({...formData, orGroup})}
+                    onEquipmentModeChange={(mode) => setFormData({...formData, equipmentMode: mode})}
+                    onAdditionalEquipmentModeChange={(mode) => setFormData({...formData, additionalEquipmentMode: mode})}
                   />
                 )}
 

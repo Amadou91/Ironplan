@@ -237,7 +237,8 @@ export default function WorkoutStartPage() {
         impact, 
         exercises, 
         timezone, 
-        sessionNotes 
+        sessionNotes,
+        bodyWeightLb: bodyWeightLb ?? null
       })
       router.push(`/exercises/${template.id}/active?sessionId=${sessionId}&from=start`)
     } catch (err) { 

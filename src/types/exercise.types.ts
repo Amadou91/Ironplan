@@ -11,7 +11,7 @@ import type {
   ExerciseCategory,
   WeightUnit
 } from './core.types'
-import type { EquipmentOption, EquipmentOrGroup } from './equipment.types'
+import type { EquipmentOption, EquipmentOrGroup, EquipmentRequirementMode, AdditionalEquipmentMode } from './equipment.types'
 
 export type GroupType = 'superset' | 'circuit' | 'giant_set' | 'dropset'
 
@@ -59,6 +59,18 @@ export interface Exercise {
    * Group is combined with other equipment requirements via AND logic.
    */
   orGroup?: EquipmentOrGroup
+  /**
+   * Determines how free-weight equipment is evaluated.
+   * - 'or' (default): Any selected free-weight equipment satisfies the requirement
+   * - 'and': All selected free-weight equipment must be available
+   */
+  equipmentMode?: EquipmentRequirementMode
+  /**
+   * Determines if bench/machine equipment is required or optional.
+   * - 'required': Must be available (AND logic)
+   * - 'optional': Preferred but not required
+   */
+  additionalEquipmentMode?: AdditionalEquipmentMode
   movementPattern?: MovementPattern
   load?: ExerciseLoad
   primaryMuscle?: MuscleGroup | string

@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useRef, useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { X } from 'lucide-react'
@@ -42,7 +42,6 @@ function WorkoutActiveContent() {
   const [validationErrors, setValidationErrors] = useState<SetValidationError[]>([])
   const [showValidationBlocker, setShowValidationBlocker] = useState(false)
   const [hasNoCompletedSets, setHasNoCompletedSets] = useState(false)
-  const bodyWeightRef = useRef<number | null>(null)
 
   const sessionId = searchParams.get('sessionId')
   const currentSessionId = activeSession?.id ?? sessionId
@@ -101,7 +100,7 @@ function WorkoutActiveContent() {
         sessionId: currentSessionId,
         session: activeSession,
         userId: user.id,
-        bodyWeightLb: bodyWeightRef.current,
+        bodyWeightLb: activeSession.bodyWeightLb ?? null,
         sessionGoal,
         equipmentInventory,
         exerciseCatalog: catalog.map((e) => ({ name: e.name, e1rmEligible: e.e1rmEligible }))
@@ -191,7 +190,6 @@ function WorkoutActiveContent() {
             <ActiveSession
               sessionId={currentSessionId}
               equipmentInventory={equipmentInventory}
-              onBodyWeightChange={(weight) => (bodyWeightRef.current = weight)}
               onFinish={requestFinish}
               onCancel={requestCancel}
               isFinishing={finishingSession}

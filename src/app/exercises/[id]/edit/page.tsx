@@ -33,7 +33,7 @@ export default function EditWorkoutPage() {
         .select(`
           id, name, category, focus, movement_pattern, metric_profile,
           primary_muscle, secondary_muscles, equipment,
-          e1rm_eligible, is_interval, or_group
+          e1rm_eligible, is_interval, or_group, equipment_mode, additional_equipment_mode
         `)
         .eq('id', id)
         .single();
@@ -69,6 +69,8 @@ export default function EditWorkoutPage() {
         primaryMuscle: data.primary_muscle,
         secondaryMuscles: data.secondary_muscles,
         isInterval: data.is_interval,
+        equipmentMode: data.equipment_mode ?? 'or',
+        additionalEquipmentMode: data.additional_equipment_mode ?? 'required',
       };
 
       setInitialData(exercise);
@@ -92,6 +94,8 @@ export default function EditWorkoutPage() {
       primary_muscle: data.primaryMuscle,
       secondary_muscles: data.secondaryMuscles,
       is_interval: data.isInterval,
+      equipment_mode: data.equipmentMode ?? 'or',
+      additional_equipment_mode: data.additionalEquipmentMode ?? 'required',
     };
 
     const { error } = await supabase

@@ -22,6 +22,25 @@ export type EquipmentKind =
   | 'strap'
 
 /**
+ * Equipment requirement mode for free-weight equipment.
+ * - 'or': Any selected equipment can satisfy the requirement (substitutable)
+ * - 'and': All selected equipment is required (no substitution)
+ */
+export type EquipmentRequirementMode = 'or' | 'and'
+
+/**
+ * Free-weight equipment kinds that support OR/AND logic.
+ * These are substitutable for strength exercises when in OR mode.
+ */
+export const FREE_WEIGHT_EQUIPMENT: EquipmentKind[] = [
+  'bodyweight',
+  'barbell',
+  'dumbbell',
+  'kettlebell',
+  'band'
+]
+
+/**
  * Equipment OR-groups for substitutable equipment.
  * Exercises can declare an OR-group to allow any equipment within the group.
  * Groups combine with other requirements via AND logic.
@@ -34,6 +53,13 @@ export type EquipmentOrGroup =
   | 'stationary_spin'            // Stationary Bike OR Spin Bike
   | 'rowing_machines'            // Row Erg OR Ski Erg
   | 'resistance_variable'        // Resistance Bands OR Cables
+
+/**
+ * Specifies if additional equipment like bench_press or machines are required or optional.
+ * - 'required': Equipment MUST be available (AND logic)
+ * - 'optional': Equipment is preferred but not required (soft requirement)
+ */
+export type AdditionalEquipmentMode = 'required' | 'optional'
 
 type EquipmentRequirement = { requires?: EquipmentKind[] }
 

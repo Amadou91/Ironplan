@@ -203,7 +203,8 @@ export default function LogPastWorkoutPage() {
         status: 'in_progress',
         timezone,
         sessionNotes,
-        exercises: []
+        exercises: [],
+        bodyWeightLb: bodyWeightLb ?? null
       })
       
       // Navigate to the active session page for logging

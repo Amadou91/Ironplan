@@ -38,8 +38,12 @@ export type {
   EquipmentKind,
   EquipmentOrGroup,
   EquipmentOption,
-  EquipmentInventory
+  EquipmentInventory,
+  EquipmentRequirementMode,
+  AdditionalEquipmentMode
 } from './equipment.types'
+
+export { FREE_WEIGHT_EQUIPMENT } from './equipment.types'
 
 // Exercise types
 export type {

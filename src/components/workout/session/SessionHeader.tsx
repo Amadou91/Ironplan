@@ -23,10 +23,9 @@ interface SessionHeaderProps {
     completedExercises: number;
     totalExercises: number;
   } | null;
-  sessionBodyWeight: string;
-  preferredUnit: WeightUnit;
-  onBodyWeightUpdate: (value: string) => void;
-  onToggleUnit?: () => void;
+  /** Session body weight (read-only, set from readiness check) */
+  sessionBodyWeight?: number | null;
+  preferredUnit?: WeightUnit;
   onCancel?: () => void;
   errorMessage?: string | null;
 }
@@ -40,9 +39,7 @@ export function SessionHeader({
   readinessScore,
   progressSummary,
   sessionBodyWeight,
-  preferredUnit,
-  onBodyWeightUpdate,
-  onToggleUnit,
+  preferredUnit = 'lb',
   onCancel,
   errorMessage,
 }: SessionHeaderProps) {
@@ -120,28 +117,14 @@ export function SessionHeader({
                 {progressSummary.completedExercises}/{progressSummary.totalExercises} exercises
               </span>
             </div>
-            <div className="flex items-center gap-2 border-l border-[var(--color-border)] pl-4">
-              <span className="font-medium text-muted">Weight:</span>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  step="0.1"
-                  placeholder={preferredUnit}
-                  value={sessionBodyWeight}
-                  onChange={(e) => onBodyWeightUpdate(e.target.value)}
-                  className="w-16 rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-center font-semibold text-strong outline-none transition-all focus:bg-[var(--color-surface)] focus:ring-1 focus:ring-[var(--color-primary)]"
-                />
-                <button
-                  type="button"
-                  onClick={onToggleUnit}
-                  className="text-[10px] uppercase font-bold text-accent hover:text-accent-strong transition-colors"
-                  title={`Switch to ${preferredUnit === 'lb' ? 'kg' : 'lb'}`}
-                >
-                  {preferredUnit}
-                </button>
+            {sessionBodyWeight != null && sessionBodyWeight > 0 && (
+              <div className="flex items-center gap-2 border-l border-[var(--color-border)] pl-4">
+                <span className="font-medium text-muted">Weight:</span>
+                <span className="font-semibold text-strong">
+                  {sessionBodyWeight} {preferredUnit}
+                </span>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>

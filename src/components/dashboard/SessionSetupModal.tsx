@@ -261,7 +261,8 @@ export function SessionSetupModal({
         impact, 
         exercises, 
         timezone, 
-        sessionNotes 
+        sessionNotes,
+        bodyWeightLb: bodyWeightLb ?? null
       })
       
       onClose()
