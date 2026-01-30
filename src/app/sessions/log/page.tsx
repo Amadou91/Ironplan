@@ -90,8 +90,8 @@ export default function LogPastWorkoutPage() {
   const [userGoal, setUserGoal] = useState<Goal>('hypertrophy')
   const [bodyWeight, setBodyWeight] = useState('')
   const [equipment, setEquipment] = useState<PlanInput['equipment']>(() => ({
-    preset: 'full_gym',
-    inventory: cloneInventory(equipmentPresets.full_gym)
+    preset: 'custom',
+    inventory: cloneInventory(equipmentPresets.custom)
   }))
   
   // Computed goal based on focus - cardio/mobility have fixed goals

@@ -14,8 +14,8 @@ export const DEFAULT_INPUT: PlanInput = {
   experienceLevel: 'intermediate',
   intensity: 'moderate',
   equipment: {
-    preset: 'full_gym',
-    inventory: equipmentPresets.full_gym
+    preset: 'custom',
+    inventory: equipmentPresets.custom
   },
   time: {
     minutesPerSession: 45

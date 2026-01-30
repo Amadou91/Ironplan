@@ -166,7 +166,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
   }, [activeSession, exerciseLibraryByName, targetExperienceLevel]);
 
   const resolvedInventory = useMemo(
-    () => equipmentInventory ?? equipmentPresets.full_gym,
+    () => equipmentInventory ?? equipmentPresets.custom,
     [equipmentInventory]
   );
 

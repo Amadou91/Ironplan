@@ -81,7 +81,7 @@ export function useGenerationFlow() {
       goals: { primary: 'strength', priority: 'primary' },
       experienceLevel: 'intermediate',
       intensity: 'moderate',
-      equipment: { preset: 'full_gym', inventory: cloneInventory(equipmentPresets.full_gym) },
+      equipment: { preset: 'custom', inventory: cloneInventory(equipmentPresets.custom) },
       time: { minutesPerSession: 45 },
       schedule: {
         daysAvailable: [0],
@@ -140,13 +140,13 @@ export function useGenerationFlow() {
         : isMobility
           ? { ...prev.equipment.inventory, bodyweight: true }
           : (wasCardio || wasMobility) && !isCardio && !isMobility
-            ? cloneInventory(lastStrengthInventoryRef.current ?? equipmentPresets.full_gym)
+            ? cloneInventory(lastStrengthInventoryRef.current ?? equipmentPresets.custom)
             : prev.equipment.inventory
 
       const nextPreset = isCardio || isMobility
         ? 'custom'
         : (wasCardio || wasMobility) && !isCardio && !isMobility
-          ? lastStrengthPresetRef.current ?? 'full_gym'
+          ? lastStrengthPresetRef.current ?? 'custom'
           : prev.equipment.preset
 
       const nextFocus = focus // We keep focus as 'cardio'/'mobility' if selected

@@ -94,7 +94,7 @@ export function useSessionEditor(sessionId?: string) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [preferredUnit] = useState<WeightUnit>('lb')
   const [profileWeightLb] = useState<number | null>(null)
-  const [resolvedInventory] = useState<EquipmentInventory>(equipmentPresets.full_gym)
+  const [resolvedInventory] = useState<EquipmentInventory>(equipmentPresets.custom)
 
   const mapSession = useCallback((payload: SessionQueryResult): EditableSession => {
     return {
