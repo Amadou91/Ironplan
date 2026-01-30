@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card'
 import { Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { SessionHistoryToolbar } from '@/components/progress/SessionHistoryToolbar'
 import { 
   formatDateTime, 
   formatDuration 
@@ -33,6 +34,7 @@ interface SessionHistoryListProps {
   onDeleteSuccess: (sessionId: string) => void
   onError: (msg: string) => void
   loading: boolean
+  onImportSuccess?: () => void
 }
 
 export function SessionHistoryList({
@@ -43,7 +45,8 @@ export function SessionHistoryList({
   onLoadMore,
   onDeleteSuccess,
   onError,
-  loading
+  loading,
+  onImportSuccess
 }: SessionHistoryListProps) {
   const supabase = createClient()
   const { displayUnit } = useUIStore()
@@ -156,7 +159,10 @@ export function SessionHistoryList({
             <h2 className="text-xl font-black text-strong tracking-tight uppercase">Session Logs</h2>
             <p className="text-[11px] font-bold text-subtle uppercase tracking-widest mt-1">Review your historical data</p>
           </div>
-          <span className="text-[10px] font-black text-subtle/60 uppercase tracking-widest bg-[var(--color-surface-muted)] px-3 py-1 rounded-lg border border-[var(--color-border)]">{sessions.length} session(s)</span>
+          <div className="flex items-center gap-4">
+            {onImportSuccess && <SessionHistoryToolbar onImportSuccess={onImportSuccess} />}
+            <span className="text-[10px] font-black text-subtle/60 uppercase tracking-widest bg-[var(--color-surface-muted)] px-3 py-1 rounded-lg border border-[var(--color-border)]">{sessions.length} session(s)</span>
+          </div>
         </div>
         <div className="divide-y divide-[var(--color-border)]/50">
           {sessions.length === 0 ? (
