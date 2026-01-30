@@ -8,9 +8,11 @@ import ActiveSession from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { ValidationBlockerModal } from '@/components/ui/ValidationBlockerModal'
 import { createClient } from '@/lib/supabase/client'
 import { formatFocusLabel, formatGoalLabel } from '@/lib/workout-metrics'
 import { completeSession } from '@/lib/session-completion'
+import { validateSessionForCompletion, type SetValidationError } from '@/lib/session-validation'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
@@ -37,6 +39,9 @@ function WorkoutActiveContent() {
   const [finishingSession, setFinishingSession] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+  const [validationErrors, setValidationErrors] = useState<SetValidationError[]>([])
+  const [showValidationBlocker, setShowValidationBlocker] = useState(false)
+  const [hasNoCompletedSets, setHasNoCompletedSets] = useState(false)
   const bodyWeightRef = useRef<number | null>(null)
 
   const sessionId = searchParams.get('sessionId')
@@ -50,6 +55,16 @@ function WorkoutActiveContent() {
   const sessionTitle = activeSession?.name ?? 'Active session'
 
   const requestFinish = () => {
+    // Validate session before showing finish confirmation
+    const validation = validateSessionForCompletion(activeSession)
+    
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors)
+      setHasNoCompletedSets(validation.hasNoCompletedSets)
+      setShowValidationBlocker(true)
+      return
+    }
+    
     setConfirmAction({
       type: 'finish',
       title: 'Finish Workout',
@@ -212,6 +227,13 @@ function WorkoutActiveContent() {
         confirmText={confirmAction?.confirmText}
         variant={confirmAction?.variant}
         isLoading={finishingSession}
+      />
+
+      <ValidationBlockerModal
+        isOpen={showValidationBlocker}
+        onClose={() => setShowValidationBlocker(false)}
+        errors={validationErrors}
+        hasNoCompletedSets={hasNoCompletedSets}
       />
     </div>
   )
