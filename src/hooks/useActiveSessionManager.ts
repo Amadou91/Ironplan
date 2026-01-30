@@ -11,13 +11,16 @@ import { useSetPersistence } from '@/hooks/useSetPersistence';
 import { enhanceExerciseData, toMuscleLabel } from '@/lib/muscle-utils';
 import { fetchExerciseHistory, type ExerciseHistoryPoint } from '@/lib/session-history';
 import { sessionQueryResultSchema, safeParseSingle } from '@/lib/validation/schemas';
+import { adaptPrescription } from '@/lib/generator/adaptation';
 import type { 
   WeightUnit, 
   WorkoutSession, 
   WorkoutSet, 
   EquipmentInventory,
   MetricProfile,
-  LoadType
+  LoadType,
+  Goal,
+  Intensity
 } from '@/types/domain';
 
 type SessionPayload = {
@@ -91,7 +94,6 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null);
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistoryPoint[]>([]);
-  const [exerciseTargets] = useState<Record<string, GeneratedExerciseTarget>>({});
   const [sessionBodyWeight, setSessionBodyWeight] = useState<string>('');
   const [isUpdating, setIsUpdating] = useState(false);
   
@@ -112,6 +114,31 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     () => new Map(exerciseLibrary.map((exercise) => [exercise.name.toLowerCase(), exercise])),
     [exerciseLibrary]
   );
+
+  // Compute exercise targets dynamically based on session goal/intensity and catalog metadata
+  const exerciseTargets = useMemo(() => {
+    if (!activeSession || !exerciseLibraryByName.size) return {} as Record<string, GeneratedExerciseTarget>;
+
+    const targets: Record<string, GeneratedExerciseTarget> = {};
+    const goal = (activeSession.sessionGoal || 'strength') as Goal;
+    const intensity = (activeSession.sessionIntensity || 'moderate') as Intensity;
+
+    activeSession.exercises.forEach(exercise => {
+      const match = exerciseLibraryByName.get(exercise.name.toLowerCase());
+      if (match) {
+        const prescription = adaptPrescription(match, goal, intensity, 'intermediate', {});
+        targets[exercise.name.toLowerCase()] = {
+          name: exercise.name,
+          sets: prescription.sets,
+          reps: prescription.reps,
+          rpe: prescription.rpe,
+          restSeconds: prescription.restSeconds
+        };
+      }
+    });
+
+    return targets;
+  }, [activeSession, exerciseLibraryByName]);
 
   const resolvedInventory = useMemo(
     () => equipmentInventory ?? equipmentPresets.full_gym,

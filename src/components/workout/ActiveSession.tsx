@@ -266,51 +266,107 @@ export default function ActiveSession({
 
 
 
-  const handleSwapExercise = async (exIdx: number, newExercise: Exercise) => {
-
-    if (!activeSession) return;
-
-    const oldExercise = activeSession.exercises[exIdx];
-
-    try {
-
-      const metricProfile = getMetricProfile(newExercise);
-
-      await supabase.from('session_exercises').update({
-
-        exercise_name: newExercise.name,
-
-        primary_muscle: toMuscleSlug(newExercise.primaryMuscle ?? 'full_body'),
-
-        secondary_muscles: newExercise.secondaryMuscles?.map(m => toMuscleSlug(m)) ?? [],
-
-        metric_profile: metricProfile
-
-      }).eq('id', oldExercise.id);
+    const handleSwapExercise = async (exIdx: number, newExercise: Exercise) => {
 
 
 
-      replaceSessionExercise(exIdx, {
+      if (!activeSession) return;
 
-        name: newExercise.name,
 
-        primaryMuscle: toMuscleLabel(newExercise.primaryMuscle ?? 'Full Body'),
 
-        secondaryMuscles: (newExercise.secondaryMuscles ?? []).map(m => toMuscleLabel(m)),
+      const oldExercise = activeSession.exercises[exIdx];
 
-        metricProfile: metricProfile
 
-      });
 
-      setSwappingExIdx(null);
+      try {
 
-    } catch {
 
-      setErrorMessage('Unable to swap exercise.');
 
-    }
+        const metricProfile = getMetricProfile(newExercise);
 
-  };
+
+
+        await supabase.from('session_exercises').update({
+
+
+
+          exercise_id: newExercise.id,
+
+
+
+          exercise_name: newExercise.name,
+
+
+
+          primary_muscle: toMuscleSlug(newExercise.primaryMuscle ?? 'full_body'),
+
+
+
+          secondary_muscles: newExercise.secondaryMuscles?.map(m => toMuscleSlug(m)) ?? [],
+
+
+
+          metric_profile: metricProfile
+
+
+
+        }).eq('id', oldExercise.id);
+
+
+
+  
+
+
+
+        replaceSessionExercise(exIdx, {
+
+
+
+          exerciseId: newExercise.id,
+
+
+
+          name: newExercise.name,
+
+
+
+          primaryMuscle: toMuscleLabel(newExercise.primaryMuscle ?? 'Full Body'),
+
+
+
+          secondaryMuscles: (newExercise.secondaryMuscles ?? []).map(m => toMuscleLabel(m)),
+
+
+
+          metricProfile: metricProfile
+
+
+
+        });
+
+
+
+        setSwappingExIdx(null);
+
+
+
+      } catch {
+
+
+
+        setErrorMessage('Unable to swap exercise.');
+
+
+
+      }
+
+
+
+    };
+
+
+
+  
 
 
 

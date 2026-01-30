@@ -58,12 +58,12 @@ const scoreCandidate = (current: Exercise, candidate: Exercise) => {
   let score = 0
 
   if (candidate.primaryMuscle && current.primaryMuscle && candidate.primaryMuscle === current.primaryMuscle) {
-    score += 4
+    score += 8
   }
   if (candidate.movementPattern && current.movementPattern && candidate.movementPattern === current.movementPattern) {
-    score += 3
+    score += 5
   } else if (candidate.movementPattern && current.movementPattern) {
-    score -= 2
+    score -= 5
   }
   if (candidate.focus === current.focus) {
     score += 2
@@ -114,12 +114,21 @@ export const getSwapSuggestions = ({
   const filtered = candidates.filter(
     (exercise) => !sessionNames.has(normalizeName(exercise.name))
   )
+
+  // Enforce body region (focus) alignment if defined
+  const focusFiltered = filtered.filter((exercise) => {
+    if (current.focus && exercise.focus && current.focus !== exercise.focus) {
+      return false
+    }
+    return true
+  })
+
   const muscleFiltered = allowedMuscles.size
-    ? filtered.filter((exercise) => {
+    ? focusFiltered.filter((exercise) => {
         const muscleGroups = getExerciseMuscles(exercise)
         return muscleGroups.size > 0 && hasMuscleOverlap(muscleGroups, allowedMuscles)
       })
-    : filtered
+    : focusFiltered
 
   const compatible = muscleFiltered.filter((exercise) => isExerciseEquipmentAvailable(inventory, exercise.equipment))
   const scored = (compatible.length > 0 ? compatible : muscleFiltered)
@@ -128,6 +137,8 @@ export const getSwapSuggestions = ({
       score: scoreCandidate(current, exercise)
     }))
     .sort((a, b) => b.score - a.score)
+    // Filter out suggestions with negative or zero scores to ensure quality
+    .filter((candidate) => candidate.score > 0)
 
   return {
     suggestions: scored.slice(0, limit),
