@@ -63,7 +63,8 @@ const scoreCandidate = (current: Exercise, candidate: Exercise) => {
   if (candidate.movementPattern && current.movementPattern && candidate.movementPattern === current.movementPattern) {
     score += 5
   } else if (candidate.movementPattern && current.movementPattern) {
-    score -= 5
+    // Reduced penalty for different movement patterns - still valid swaps
+    score -= 2
   }
   if (candidate.focus === current.focus) {
     score += 2
@@ -115,13 +116,9 @@ export const getSwapSuggestions = ({
     (exercise) => !sessionNames.has(normalizeName(exercise.name))
   )
 
-  // Enforce body region (focus) alignment if defined
-  const focusFiltered = filtered.filter((exercise) => {
-    if (current.focus && exercise.focus && current.focus !== exercise.focus) {
-      return false
-    }
-    return true
-  })
+  // Prefer body region (focus) alignment but don't exclude mismatches
+  // Score will naturally favor focus-aligned exercises
+  const focusFiltered = filtered
 
   const muscleFiltered = allowedMuscles.size
     ? focusFiltered.filter((exercise) => {
@@ -130,15 +127,22 @@ export const getSwapSuggestions = ({
       })
     : focusFiltered
 
-  const compatible = muscleFiltered.filter((exercise) => isExerciseEquipmentAvailable(inventory, exercise.equipment))
-  const scored = (compatible.length > 0 ? compatible : muscleFiltered)
+  // Only fall back if there are ZERO muscle-matched candidates
+  const effectiveCandidates = muscleFiltered.length > 0 ? muscleFiltered : focusFiltered
+
+  const compatible = effectiveCandidates.filter((exercise) => isExerciseEquipmentAvailable(inventory, exercise.equipment))
+  
+  // If equipment filter is too strict (< 3 results), include non-compatible options too
+  const scoreCandidates = compatible.length >= 3 ? compatible : effectiveCandidates
+  
+  const scored = scoreCandidates
     .map((exercise) => ({
       exercise,
       score: scoreCandidate(current, exercise)
     }))
     .sort((a, b) => b.score - a.score)
-    // Filter out suggestions with negative or zero scores to ensure quality
-    .filter((candidate) => candidate.score > 0)
+    // Relaxed filter: allow scores >= -1 to include more alternatives
+    .filter((candidate) => candidate.score >= -1)
 
   return {
     suggestions: scored.slice(0, limit),
