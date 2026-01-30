@@ -94,70 +94,93 @@ METERS_PER_KM = 1000
 
 ---
 
-## Volume Load (Tonnage)
+## Volume Load (Tonnage) - External Load Only
 
 **Purpose**: Measure total training volume as weight × reps.  
 **Used For**: Tracking volume trends, comparing workouts.  
 **Location**: [src/lib/session-metrics.ts](../src/lib/session-metrics.ts)
 
+### Core Principle: External Load Only
+
+**CORRECTNESS REQUIREMENT**: Tonnage is calculated from **EXTERNAL weight only**.
+
+This means:
+- ✅ User-entered explicit weight is used
+- ❌ No virtual/estimated bodyweight inference
+- ❌ No exercise name matching for bodyweight multipliers
+- ❌ No user bodyweight added to calculations
+
+**If no external weight is entered, tonnage = 0.**
+
 ### Formula
 
 ```
-Tonnage (lbs) = reps × effective_weight
+Tonnage (lbs) = reps × external_weight
 
 For weighted exercises:
-  effective_weight = weight (converted to lbs)
+  external_weight = weight (converted to lbs)
 
 For per-implement loads:
-  effective_weight = weight × implement_count
+  external_weight = weight × implement_count
 
-For bodyweight exercises:
-  effective_weight = virtual_bodyweight + external_weight
-  virtual_bodyweight = user_weight × multiplier
+For bodyweight-only exercises (no weight entered):
+  external_weight = 0
+  tonnage = 0
 ```
-
-### Virtual Bodyweight Multipliers
-
-| Exercise Type | Multiplier | Examples |
-|---------------|------------|----------|
-| Push | 0.66 | Push-ups, dips |
-| Pull | 0.90 | Pull-ups, chin-ups |
-| Default | 0.70 | Burpees, squats |
-
-**Default user weight**: 170 lbs (when not provided)
 
 ### Examples (Golden Fixtures)
 
 | ID | Scenario | Reps | Weight | Tonnage |
 |----|----------|------|--------|---------|
 | tonnage-001 | Standard weighted | 10 | 100 lb | 1,000 lbs |
-| tonnage-003 | Bodyweight push-up (170 lb user) | 20 | - | 2,244 lbs |
-| tonnage-004 | Bodyweight pull-up (170 lb user) | 10 | - | 1,530 lbs |
-| tonnage-005 | Weighted pull-up | 8 | +45 lb | 1,584 lbs |
+| tonnage-003 | Bodyweight push-up (no external weight) | 20 | - | 0 lbs |
+| tonnage-004 | Bodyweight pull-up (no external weight) | 10 | - | 0 lbs |
+| tonnage-005 | Weighted pull-up (external weight only) | 8 | 45 lb | 360 lbs |
+| tonnage-007 | Per-implement (2 dumbbells) | 10 | 40 lb each | 800 lbs |
+
+### Key Behaviors
+
+- **Bodyweight exercises**: Exercises like push-ups, pull-ups, dips that use no external weight contribute **0 tonnage**
+- **Weighted bodyweight exercises**: External weight only (e.g., weighted pull-up with +45lb = 45lb × reps, bodyweight is NOT added)
+- **Per-implement loads**: Weight is multiplied by implement count (e.g., 2×40lb DBs = 80lb total per rep)
 
 ### Invariants
 
 - Tonnage always ≥ 0
 - Linear scaling with reps (double reps = double tonnage)
 - Linear scaling with weight
+- No weight entered = 0 tonnage (pure accuracy)
 
 ---
 
-## Workload Score
+## Workload Score - External Load Only
 
 **Purpose**: Quantify physiological stress combining volume and intensity.  
 **Used For**: Training load management, acute:chronic ratio.  
 **Location**: [src/lib/session-metrics.ts](../src/lib/session-metrics.ts)
 
+### Core Principle: External Load Only
+
+**CORRECTNESS REQUIREMENT**: Workload uses ONLY explicit inputs.
+
+- External tonnage (from explicit weight entered by user)
+- Explicit durationSeconds (for cardio/mobility)
+- No estimated/inferred values
+
+**If no explicit weight AND no explicit duration: load = 0**
+
 ### Formula
 
 ```
-For strength sets:
-  Workload = Tonnage × IntensityFactor
+For strength sets (with external weight):
+  Workload = ExternalTonnage × IntensityFactor
 
-For cardio/duration sets:
+For cardio/mobility sets (with explicit duration):
   Workload = Minutes × IntensityFactor × TIME_LOAD_FACTOR
   TIME_LOAD_FACTOR = 215 (scales ~60min @ RPE 7 to ~7,500 load)
+
+For bodyweight-only sets (no weight, no duration):
+  Workload = 0 (pure accuracy - no estimation)
 ```
 
 ### Intensity Factor
