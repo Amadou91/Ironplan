@@ -268,7 +268,7 @@ export default function LogPastWorkoutPage() {
   
   return (
     <div className="page-shell">
-      <div className="w-full px-4 py-8 sm:px-6 lg:px-10 2xl:px-16 max-w-4xl mx-auto">
+      <div className="w-full px-4 py-8 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="mb-8">
           <Button variant="ghost" size="sm" onClick={() => router.push('/progress')}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Progress
@@ -288,166 +288,169 @@ export default function LogPastWorkoutPage() {
           </div>
         )}
         
-        <div className="space-y-6">
-          {/* Date & Time */}
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold text-strong mb-4 flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-accent" />
-              When did you work out?
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <Label htmlFor="workout-date">Date</Label>
-                <Input
-                  id="workout-date"
-                  type="date"
-                  value={workoutDate}
-                  onChange={(e) => setWorkoutDate(e.target.value)}
-                  className="mt-2"
-                />
+        <div className="grid gap-6 lg:grid-cols-3 items-start">
+          <div className="space-y-6 lg:col-span-2">
+            {/* Date & Time */}
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold text-strong mb-4 flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-accent" />
+                When did you work out?
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <Label htmlFor="workout-date">Date</Label>
+                  <Input
+                    id="workout-date"
+                    type="date"
+                    value={workoutDate}
+                    onChange={(e) => setWorkoutDate(e.target.value)}
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="start-time">Start Time</Label>
+                  <Input
+                    id="start-time"
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="duration">Duration (minutes)</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    min={1}
+                    max={300}
+                    value={durationMinutes}
+                    onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 45)}
+                    className="mt-2"
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="start-time">Start Time</Label>
-                <Input
-                  id="start-time"
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="mt-2"
-                />
-              </div>
-              <div>
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  min={1}
-                  max={300}
-                  value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 45)}
-                  className="mt-2"
-                />
-              </div>
-            </div>
-          </Card>
-          
-          {/* Session Details */}
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold text-strong mb-4 flex items-center gap-2">
-              <Target className="h-5 w-5 text-accent" />
-              Session Details
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <Label htmlFor="session-name">Session Name (auto)</Label>
-                <Input
-                  id="session-name"
-                  type="text"
-                  value={sessionName}
-                  readOnly
-                  aria-readonly="true"
-                  className="mt-2 bg-[var(--color-surface-muted)] cursor-not-allowed"
-                />
-              </div>
-              <div>
-                <Label htmlFor="focus">Focus Area</Label>
-                <select
-                  id="focus"
-                  value={focus}
-                  onChange={(e) => setFocus(e.target.value as FocusArea)}
-                  className="input-base mt-2"
-                >
-                  {FOCUS_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="goal">Training Goal</Label>
-                {showGoalSelector ? (
+            </Card>
+            
+            {/* Session Details */}
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold text-strong mb-4 flex items-center gap-2">
+                <Target className="h-5 w-5 text-accent" />
+                Session Details
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="session-name">Session Name (auto)</Label>
+                  <div 
+                    id="session-name"
+                    className="mt-2 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-base text-[var(--color-input-text)] break-words min-h-[2.6rem]"
+                    aria-readonly="true"
+                  >
+                    {sessionName}
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="focus">Focus Area</Label>
                   <select
-                    id="goal"
-                    value={userGoal}
-                    onChange={(e) => setUserGoal(e.target.value as Goal)}
+                    id="focus"
+                    value={focus}
+                    onChange={(e) => setFocus(e.target.value as FocusArea)}
                     className="input-base mt-2"
                   >
-                    {STRENGTH_GOAL_OPTIONS.map(opt => (
+                    {FOCUS_OPTIONS.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
-                ) : (
+                </div>
+                <div>
+                  <Label htmlFor="goal">Training Goal</Label>
+                  {showGoalSelector ? (
+                    <select
+                      id="goal"
+                      value={userGoal}
+                      onChange={(e) => setUserGoal(e.target.value as Goal)}
+                      className="input-base mt-2"
+                    >
+                      {STRENGTH_GOAL_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Input
+                      id="goal"
+                      type="text"
+                      value={focus === 'cardio' ? 'Cardio / Endurance' : 'Yoga / Mobility'}
+                      readOnly
+                      aria-readonly="true"
+                      className="mt-2 bg-[var(--color-surface-muted)] cursor-not-allowed"
+                    />
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="body-weight">Body Weight (lb)</Label>
                   <Input
-                    id="goal"
-                    type="text"
-                    value={focus === 'cardio' ? 'Cardio / Endurance' : 'Yoga / Mobility'}
-                    readOnly
-                    aria-readonly="true"
-                    className="mt-2 bg-[var(--color-surface-muted)] cursor-not-allowed"
+                    id="body-weight"
+                    type="number"
+                    value={bodyWeight}
+                    onChange={(e) => setBodyWeight(e.target.value)}
+                    placeholder="Optional"
+                    className="mt-2"
                   />
+                </div>
+              </div>
+            </Card>
+            
+            {/* Equipment */}
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold text-strong mb-4 flex items-center gap-2">
+                <Dumbbell className="h-5 w-5 text-accent" />
+                Equipment & Weights
+              </h2>
+              <p className="text-sm text-muted mb-4">
+                Choose the equipment you had available. This keeps exercise options and weight shortcuts fully open for past sessions.
+              </p>
+              <EquipmentSelector
+                equipment={equipment}
+                isCardioStyle={focus === 'cardio'}
+                isMobilityStyle={focus === 'mobility'}
+                onUpdateEquipment={(updater) => setEquipment((prev) => updater(prev))}
+              />
+            </Card>
+          </div>
+          
+          <div className="space-y-6 lg:sticky lg:top-6">
+            {/* Readiness Survey */}
+            <Card className="p-6">
+              <ReadinessCheck
+                survey={readinessSurvey}
+                onUpdateField={handleReadinessChange}
+                score={readinessScore}
+                level={readinessLevel}
+              />
+              
+              {/* Continue Button moved inside */}
+              <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
+                <Button
+                  onClick={handleCreateSession}
+                  disabled={creating || !readinessComplete}
+                  className="w-full justify-center py-6 text-lg"
+                >
+                  {creating ? (
+                    'Creating...'
+                  ) : (
+                    <>
+                      <Play className="h-5 w-5 mr-2" />
+                      Continue to Log
+                    </>
+                  )}
+                </Button>
+                {!readinessComplete && (
+                  <p className="mt-2 text-center text-sm text-muted">
+                    Complete the readiness check to continue.
+                  </p>
                 )}
               </div>
-              <div>
-                <Label htmlFor="body-weight">Body Weight (lb)</Label>
-                <Input
-                  id="body-weight"
-                  type="number"
-                  value={bodyWeight}
-                  onChange={(e) => setBodyWeight(e.target.value)}
-                  placeholder="Optional"
-                  className="mt-2"
-                />
-              </div>
-            </div>
-          </Card>
-          
-          {/* Equipment */}
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold text-strong mb-4 flex items-center gap-2">
-              <Dumbbell className="h-5 w-5 text-accent" />
-              Equipment & Weights
-            </h2>
-            <p className="text-sm text-muted mb-4">
-              Choose the equipment you had available. This keeps exercise options and weight shortcuts fully open for past sessions.
-            </p>
-            <EquipmentSelector
-              equipment={equipment}
-              isCardioStyle={focus === 'cardio'}
-              isMobilityStyle={focus === 'mobility'}
-              onUpdateEquipment={(updater) => setEquipment((prev) => updater(prev))}
-            />
-          </Card>
-          
-          {/* Readiness Survey */}
-          <Card className="p-6">
-            <ReadinessCheck
-              survey={readinessSurvey}
-              onUpdateField={handleReadinessChange}
-              score={readinessScore}
-              level={readinessLevel}
-            />
-          </Card>
-          
-          {/* Continue Button */}
-          <div className="pt-4">
-            <Button
-              onClick={handleCreateSession}
-              disabled={creating || !readinessComplete}
-              className="w-full justify-center py-6 text-lg"
-            >
-              {creating ? (
-                'Creating...'
-              ) : (
-                <>
-                  <Play className="h-5 w-5 mr-2" />
-                  Continue to Log Exercises
-                </>
-              )}
-            </Button>
-            {!readinessComplete && (
-              <p className="mt-2 text-center text-sm text-muted">
-                Complete the readiness check to continue.
-              </p>
-            )}
+            </Card>
           </div>
         </div>
       </div>

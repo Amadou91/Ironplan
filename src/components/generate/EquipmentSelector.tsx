@@ -187,7 +187,7 @@ export function EquipmentSelector({
             <div className="border-b border-[var(--color-border)] pb-3">
               <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-strong">Free weights</h3>
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="mt-4 space-y-6">
               <div className="space-y-5">
                 {WEIGHT_RANGE_CONFIG.map((fieldConfig) => (
                   <WeightRangeSelector
@@ -219,7 +219,7 @@ export function EquipmentSelector({
                     }))
                   }
                 />
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="flex flex-wrap gap-2">
                   {BARBELL_PLATE_OPTIONS.map((plate) => (
                     <Checkbox
                       key={`barbell-${plate}`}

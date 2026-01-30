@@ -4,7 +4,7 @@
  */
 
 import type { Exercise, FocusArea, Goal, PlanInput } from '@/types/domain'
-import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { buildWorkoutDisplayName, buildTemplateDisplayName } from '@/lib/workout-naming'
 
 /**
  * Formats a focus area for display.
@@ -100,7 +100,8 @@ export const buildSessionName = (
 }
 
 /**
- * Builds a plan title with focus, goal, and optional details.
+ * Builds a plan title with focus only.
+ * Templates represent reusable structure and should stay neutral.
  */
 export const buildPlanTitle = (
   focus: FocusArea,
@@ -108,11 +109,8 @@ export const buildPlanTitle = (
   intensity?: PlanInput['intensity'],
   minutes?: number
 ): string =>
-  buildWorkoutDisplayName({
+  buildTemplateDisplayName({
     focus,
-    style: goal,
-    intensity,
-    minutes,
     fallback: formatFocusLabel(focus)
   })
 

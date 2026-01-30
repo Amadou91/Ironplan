@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { buildWorkoutTemplate, normalizePlanInput } from '@/lib/generator'
-import { buildWorkoutDisplayName } from '@/lib/workout-naming'
+import { buildWorkoutDisplayName, buildTemplateDisplayName } from '@/lib/workout-naming'
 import { cloneInventory, equipmentPresets } from '@/lib/equipment'
 import { applyPreferencesToPlanInput, normalizePreferences } from '@/lib/preferences'
 import {
@@ -40,10 +40,8 @@ const buildCardioInventory = (
 })
 
 const buildWorkoutTitle = (template: WorkoutTemplateDraft) =>
-  buildWorkoutDisplayName({
+  buildTemplateDisplayName({
     focus: template.focus,
-    style: template.style,
-    intensity: template.inputs.intensity,
     fallback: template.title
   })
 
@@ -72,6 +70,7 @@ export function useGenerationFlow() {
   const [startingSessionKey, setStartingSessionKey] = useState<string | null>(null)
   const [preferencesApplied, setPreferencesApplied] = useState(false)
   const [hasUserEdits, setHasUserEdits] = useState(false)
+  const [templateSuffix, setTemplateSuffix] = useState('')
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const lastStrengthInventoryRef = useRef<PlanInput['equipment']['inventory'] | null>(null)
   const lastStrengthPresetRef = useRef<PlanInput['equipment']['preset'] | null>(null)
@@ -296,7 +295,11 @@ export function useGenerationFlow() {
         return
       }
 
-      const displayTitle = buildWorkoutTitle(template)
+      const baseTitle = buildWorkoutTitle(template)
+      const displayTitle = templateSuffix.trim() 
+        ? `${baseTitle} - ${templateSuffix.trim()}`
+        : baseTitle
+
       const newTemplate = {
         user_id: authUser.id,
         title: displayTitle,
@@ -317,6 +320,8 @@ export function useGenerationFlow() {
         setLoading(false)
         return
       }
+      
+      setTemplateSuffix('') // Reset suffix after save
 
       if (typeof window !== 'undefined') {
         try {
@@ -410,6 +415,8 @@ export function useGenerationFlow() {
     deletingHistoryIds,
     startSessionError,
     startingSessionKey,
+    templateSuffix,
+    setTemplateSuffix,
     updateFormData,
     handleFocusChange,
     handleHistoryLoad,

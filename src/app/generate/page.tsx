@@ -6,6 +6,8 @@ import { useUser } from '@/hooks/useUser'
 import { ArrowRight, Loader2, Wand2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import { Label } from '@/components/ui/Label'
 import { formatWeightList, bandLabels, machineLabels } from '@/lib/equipment'
 import { getFlowCompletion, isEquipmentValid } from '@/lib/generationFlow'
 import { EquipmentSelector, cardioMachineOptions, strengthMachineOptions } from '@/components/generate/EquipmentSelector'
@@ -32,6 +34,8 @@ export default function GeneratePage() {
     deletingHistoryIds,
     startSessionError,
     startingSessionKey,
+    templateSuffix,
+    setTemplateSuffix,
     updateFormData,
     handleFocusChange,
     handleHistoryLoad,
@@ -183,6 +187,19 @@ export default function GeneratePage() {
                 isMobilityStyle={isMobilityStyle}
                 equipmentSummary={equipmentSummary}
               />
+
+              <div className="space-y-2">
+                <Label htmlFor="template-suffix">Template Name Suffix (Optional)</Label>
+                <Input
+                  id="template-suffix"
+                  placeholder='e.g., "No Bench Press" or "Home Gym"'
+                  value={templateSuffix}
+                  onChange={(e) => setTemplateSuffix(e.target.value)}
+                />
+                <p className="text-xs text-muted">
+                  Added to the end of the template name (e.g. "Arms - No Bench Press")
+                </p>
+              </div>
 
               <div className="surface-card-subtle p-4" aria-live="polite">
                 {statusContent()}
