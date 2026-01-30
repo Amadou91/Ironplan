@@ -217,17 +217,58 @@ export function SessionHistoryList({
                   {isExpanded && (
                     <div className="space-y-4 pt-4 border-t border-[var(--color-border)]/30 animate-in slide-in-from-top-4 duration-300">
                       <div className="grid gap-4 md:grid-cols-2">
-                        {session.session_exercises.map((exercise) => (
+                        {session.session_exercises.map((exercise) => {
+                          // Calculate exercise totals using canonical functions
+                          let exerciseTonnage = 0
+                          let exerciseLoad = 0
+                          const completedSets = (exercise.sets ?? []).filter(s => s.completed !== false)
+                          
+                          const setMetrics = completedSets.map((set) => {
+                            const setData = {
+                              metricProfile: exercise.metric_profile ?? undefined,
+                              reps: set.reps ?? null,
+                              weight: set.weight ?? null,
+                              implementCount: set.implement_count ?? null,
+                              loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
+                              weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+                              rpe: typeof set.rpe === 'number' ? set.rpe : null,
+                              rir: typeof set.rir === 'number' ? set.rir : null,
+                              durationSeconds: set.duration_seconds ?? null
+                            }
+                            const tonnage = computeSetTonnage(setData)
+                            const load = computeSetLoad(setData)
+                            exerciseTonnage += tonnage
+                            exerciseLoad += load
+                            return { set, tonnage, load }
+                          })
+                          
+                          const displayTonnage = Math.round(isKg ? exerciseTonnage * KG_PER_LB : exerciseTonnage)
+                          const displayLoad = Math.round(exerciseLoad)
+                          
+                          return (
                           <div key={exercise.id} className="surface-card-muted p-5 rounded-2xl border border-[var(--color-border)] transition-all hover:bg-[var(--color-surface-muted)]/50">
-                            <p className="text-sm font-black text-strong uppercase tracking-tight mb-3">{exercise.exercise_name}</p>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 mb-4 text-[10px] font-bold uppercase tracking-widest text-subtle/70">
+                            <p className="text-sm font-black text-strong uppercase tracking-tight mb-2">{exercise.exercise_name}</p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-[10px] font-bold uppercase tracking-widest text-subtle/70">
                               <p>Primary: <span className="text-strong">{exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'N/A'}</span></p>
                               {exercise.secondary_muscles && exercise.secondary_muscles.length > 0 && (
                                 <p>Secondary: <span className="text-strong">{exercise.secondary_muscles.map((muscle: string) => toMuscleLabel(muscle)).join(', ')}</span></p>
                               )}
                             </div>
-                            <div className="space-y-2">
-                              {(exercise.sets ?? []).map((set) => {
+                            {/* Exercise Totals */}
+                            <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-[var(--color-border)]/30">
+                              <span className="inline-flex items-center rounded-md bg-[var(--color-bg)] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)]">
+                                {displayTonnage.toLocaleString()} {displayUnit} vol
+                              </span>
+                              <span className="inline-flex items-center rounded-md bg-[var(--color-primary-soft)]/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[var(--color-primary-strong)] border border-[var(--color-primary-border)]/30">
+                                {displayLoad.toLocaleString()} load
+                              </span>
+                              <span className="text-[9px] font-bold text-subtle/50 uppercase tracking-wider ml-auto">
+                                {completedSets.length} set{completedSets.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            {/* Per-Set Breakdown */}
+                            <div className="space-y-1.5">
+                              {setMetrics.map(({ set, tonnage, load }) => {
                                 const totalLabel = formatTotalWeightLabel({
                                   weight: set.weight ?? null,
                                   weightUnit: (set.weight_unit as WeightUnit) || 'lb',
@@ -236,16 +277,48 @@ export function SessionHistoryList({
                                   implementCount: set.implement_count ?? null
                                 });
                                 
+                                const setTonnageDisplay = Math.round(isKg ? tonnage * KG_PER_LB : tonnage)
+                                const setLoadDisplay = Math.round(load)
+                                const hasDuration = typeof set.duration_seconds === 'number' && set.duration_seconds > 0
+                                
                                 return (
-                                  <div key={set.id} className="rounded-xl border border-[var(--color-border)]/50 bg-[var(--color-surface-subtle)]/50 px-3 py-2.5 transition-colors hover:border-[var(--color-border-strong)]">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <span className="text-[10px] font-black uppercase tracking-widest text-subtle/60">Set {set.set_number ?? 'N/A'}</span>
-                                      <div className="text-xs font-black text-strong">
-                                        {totalLabel ?? 'N/A'} <span className="text-[var(--color-border-strong)] font-normal mx-1">×</span> {set.reps ?? 'N/A'}
-                                        <span className="ml-2 text-[10px] text-subtle tracking-normal">
-                                          {typeof set.rpe === 'number' ? ` RPE ${set.rpe}` : ''}
-                                          {typeof set.rir === 'number' ? ` RIR ${set.rir}` : ''}
-                                        </span>
+                                  <div key={set.id} className="rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-subtle)]/30 px-2.5 py-2 transition-colors hover:border-[var(--color-border)]">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                      {/* Set number */}
+                                      <span className="text-[9px] font-black uppercase tracking-widest text-subtle/50 w-10 shrink-0">Set {set.set_number ?? '?'}</span>
+                                      
+                                      {/* Inputs: weight × reps or duration */}
+                                      <div className="text-[11px] font-bold text-strong flex-1 min-w-0">
+                                        {totalLabel ? (
+                                          <>
+                                            {totalLabel} <span className="text-subtle/40 mx-0.5">×</span> {set.reps ?? 0}
+                                          </>
+                                        ) : hasDuration ? (
+                                          <span className="text-subtle">{Math.round(set.duration_seconds! / 60)}min</span>
+                                        ) : (
+                                          <span className="text-subtle/50 italic">No load data</span>
+                                        )}
+                                        {/* RPE/RIR inline */}
+                                        {(typeof set.rpe === 'number' || typeof set.rir === 'number') && (
+                                          <span className="ml-1.5 text-[9px] font-medium text-subtle/60">
+                                            {typeof set.rpe === 'number' ? `@${set.rpe}` : ''}
+                                            {typeof set.rir === 'number' ? `RIR${set.rir}` : ''}
+                                          </span>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Per-set computed values */}
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        {setTonnageDisplay > 0 && (
+                                          <span className="text-[9px] font-bold text-subtle/70 tabular-nums">
+                                            {setTonnageDisplay.toLocaleString()} {displayUnit}
+                                          </span>
+                                        )}
+                                        {setLoadDisplay > 0 && (
+                                          <span className="text-[9px] font-bold text-[var(--color-primary)] tabular-nums">
+                                            {setLoadDisplay.toLocaleString()} ld
+                                          </span>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
@@ -253,7 +326,7 @@ export function SessionHistoryList({
                               })}
                             </div>
                           </div>
-                        ))}
+                        )})}
                       </div>
                     </div>
                   )}
