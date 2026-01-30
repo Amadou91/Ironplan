@@ -179,7 +179,6 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
   isDumbbell = false
 }) => {
   const [implementError, setImplementError] = useState(false)
-  const [missingFields, setMissingFields] = useState<string[]>([])
 
   const {
     isEditing,
@@ -232,6 +231,42 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     })
   }, [set.weight, unitLabel, effectiveLoadType, hasImplementCount, set.implementCount])
 
+  // Compute missing fields for validation (reactive, not just on click)
+  const missingFields = useMemo(() => {
+    const missing: string[] = []
+    
+    // Check dumbbell toggle requirement first
+    if (showDumbbellToggle && !hasImplementCount) {
+      missing.push('dumbbells')
+    }
+    
+    if (['mobility_session', 'cardio_session', 'timed_strength'].includes(effectiveProfile)) {
+      if (!durationMinutes || Number(durationMinutes) <= 0) missing.push('duration')
+    }
+
+    if (effectiveProfile === 'strength') {
+      // Reps is required for strength exercises
+      if (set.reps === null || set.reps === undefined || set.reps === '' || set.reps === 0) missing.push('reps')
+      // Weight is required for strength exercises
+      if (set.weight === null || set.weight === undefined || set.weight === '') missing.push('weight')
+    }
+
+    if (effectiveProfile === 'timed_strength') {
+      // Weight is required for timed strength
+      if (set.weight === null || set.weight === undefined || set.weight === '') missing.push('weight')
+    }
+    
+    if (effectiveProfile === 'cardio_session') {
+      const dist = getExtra('distance_km') ?? set.distance
+      if (dist === null || dist === undefined || dist === '') missing.push('distance')
+    }
+
+    return missing
+  }, [effectiveProfile, durationMinutes, set.reps, set.weight, set.distance, getExtra, showDumbbellToggle, hasImplementCount])
+
+  // Check if set can be marked complete
+  const canComplete = missingFields.length === 0
+
   // If completed, show compact summary
   if (set.completed) {
     return (
@@ -269,45 +304,39 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
 
   const labelClass = "text-xs font-medium text-subtle"
 
-  const validateSet = () => {
-    const missing: string[] = []
-    
-    if (['mobility_session', 'cardio_session', 'timed_strength'].includes(effectiveProfile)) {
-      if (!durationMinutes || Number(durationMinutes) <= 0) missing.push('duration')
-    }
-
-    if (effectiveProfile === 'strength') {
-      if (set.reps === null || set.reps === undefined || set.reps === 0) missing.push('reps')
-    }
-
-    if (['strength', 'timed_strength'].includes(effectiveProfile)) {
-      if (set.weight === null || set.weight === undefined) missing.push('weight')
-    }
-    
-    if (effectiveProfile === 'cardio_session') {
-       const dist = (getExtra('distance_km') as number) ?? set.distance
-       if (dist === null || dist === undefined) missing.push('distance')
-    }
-
-    setMissingFields(missing)
-    return missing.length === 0
-  }
-
   const handleToggleComplete = () => {
     if (set.completed) {
       onToggleComplete()
       return
     }
 
+    // Check dumbbell toggle requirement
     if (showDumbbellToggle && !hasImplementCount) {
       setImplementError(true)
       return
     }
     setImplementError(false)
 
-    if (!validateSet()) return
+    // Only allow completion if all required fields are valid
+    if (!canComplete) return
 
     onToggleComplete()
+  }
+
+  // Generate human-readable list of missing fields
+  const getMissingFieldsText = () => {
+    if (missingFields.length === 0) return null
+    const fieldLabels: Record<string, string> = {
+      duration: 'Duration',
+      reps: 'Reps',
+      weight: 'Weight',
+      distance: 'Distance',
+      dumbbells: 'Dumbbell count'
+    }
+    const labels = missingFields.map(f => fieldLabels[f] || f)
+    if (labels.length === 1) return `${labels[0]} is required`
+    const last = labels.pop()
+    return `${labels.join(', ')} and ${last} are required`
   }
 
   const renderHeader = () => (
@@ -328,17 +357,34 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     </div>
   )
 
-  const renderCompletionButton = () => (
-    <div className="flex justify-end mt-4 pt-4 border-t border-[var(--color-border)]">
-      <button
-        onClick={handleToggleComplete}
-        className="flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[var(--color-primary-strong)] active:scale-[0.98]"
-      >
-        <Check size={16} strokeWidth={2.5} />
-        <span>Mark Complete</span>
-      </button>
-    </div>
-  )
+  const renderCompletionButton = () => {
+    const missingText = getMissingFieldsText()
+    
+    return (
+      <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-[var(--color-border)]">
+        {missingText && (
+          <p className="text-xs font-medium text-[var(--color-danger)] text-center">
+            {missingText}
+          </p>
+        )}
+        <div className="flex justify-end">
+          <button
+            onClick={handleToggleComplete}
+            disabled={!canComplete}
+            className={cn(
+              "flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold shadow-sm transition-all active:scale-[0.98]",
+              canComplete
+                ? "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-strong)]"
+                : "bg-[var(--color-surface-muted)] text-[var(--color-text-subtle)] cursor-not-allowed opacity-60"
+            )}
+          >
+            <Check size={16} strokeWidth={2.5} />
+            <span>Mark Complete</span>
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const renderDumbbellToggle = () => {
     if (!showDumbbellToggle) return null

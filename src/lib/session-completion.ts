@@ -25,6 +25,8 @@ export type CompleteSessionParams = {
   equipmentInventory?: EquipmentInventory | null
   exerciseCatalog?: ExerciseCatalogEntry[]
   endedAtOverride?: string
+  /** When editing a session, update the start time as well */
+  startedAtOverride?: string
 }
 
 export type CompleteSessionResult = {
@@ -53,11 +55,16 @@ export async function completeSession({
   sessionGoal,
   equipmentInventory,
   exerciseCatalog,
-  endedAtOverride
+  endedAtOverride,
+  startedAtOverride
 }: CompleteSessionParams): Promise<CompleteSessionResult> {
   const resolvedEndedAt = endedAtOverride && Number.isFinite(new Date(endedAtOverride).getTime())
     ? endedAtOverride
     : new Date().toISOString()
+
+  const resolvedStartedAt = startedAtOverride && Number.isFinite(new Date(startedAtOverride).getTime())
+    ? startedAtOverride
+    : session.startedAt
 
   try {
     // Fetch user preferences for snapshot
@@ -99,6 +106,7 @@ export async function completeSession({
     // Update session with completion data
     const sessionUpdate = {
       name: finalName,
+      started_at: resolvedStartedAt,
       ended_at: resolvedEndedAt,
       status: 'completed',
       impact,

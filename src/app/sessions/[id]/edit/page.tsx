@@ -1,187 +1,455 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+import { ArrowLeft, Save } from 'lucide-react'
+import ActiveSession from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { SetLogger } from '@/components/workout/SetLogger'
-import { ReadinessSurvey } from '@/components/workout/ReadinessSurvey'
-import { useSessionEditor } from '@/hooks/useSessionEditor'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { ValidationBlockerModal } from '@/components/ui/ValidationBlockerModal'
+import { createClient } from '@/lib/supabase/client'
+import { completeSession } from '@/lib/session-completion'
+import { validateSessionForCompletion, type SetValidationError } from '@/lib/session-validation'
+import { toMuscleLabel } from '@/lib/muscle-utils'
+import { useUser } from '@/hooks/useUser'
+import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
-import { enhanceExerciseData, isTimeBasedExercise, toMuscleSlug } from '@/lib/muscle-utils'
-import { buildWeightOptions } from '@/lib/equipment'
-import type { WorkoutSet, Exercise } from '@/types/domain'
+import type { SessionGoal, WorkoutSession, MetricProfile, LoadType, WeightUnit } from '@/types/domain'
 
-const formatDateTime = (value: string) => {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+type ConfirmAction = {
+  type: 'save' | 'cancel'
+  title: string
+  description: string
+  confirmText: string
+  variant: 'danger' | 'info' | 'warning'
 }
 
-const toDateTimeInputValue = (value: string | null) => {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+type SessionPayload = {
+  id: string
+  user_id: string | null
+  name: string
+  template_id: string | null
+  session_focus?: string | null
+  session_goal?: string | null
+  session_intensity?: string | null
+  started_at: string
+  ended_at: string | null
+  status: string | null
+  body_weight_lb?: number | null
+  session_notes?: string | null
+  weight_unit?: string | null
+  session_exercises: Array<{
+    id: string
+    exercise_name: string
+    primary_muscle: string | null
+    secondary_muscles: string[] | null
+    metric_profile: string | null
+    order_index: number | null
+    sets: Array<{
+      id: string
+      set_number: number | null
+      reps: number | null
+      weight: number | null
+      implement_count: number | null
+      load_type: string | null
+      rpe: number | null
+      rir: number | null
+      completed: boolean | null
+      performed_at: string | null
+      weight_unit: string | null
+      duration_seconds: number | null
+      distance: number | null
+      distance_unit: string | null
+      rest_seconds_actual: number | null
+      extras: Record<string, unknown> | null
+      extra_metrics: Record<string, unknown> | null
+    }>
+  }>
+}
+
+function mapPayloadToSession(payload: SessionPayload): WorkoutSession {
+  return {
+    id: payload.id,
+    userId: payload.user_id ?? '',
+    templateId: payload.template_id ?? undefined,
+    name: payload.name,
+    sessionFocus: (payload.session_focus as WorkoutSession['sessionFocus']) ?? null,
+    sessionGoal: (payload.session_goal as WorkoutSession['sessionGoal']) ?? null,
+    sessionIntensity: (payload.session_intensity as WorkoutSession['sessionIntensity']) ?? null,
+    startedAt: payload.started_at,
+    endedAt: payload.ended_at ?? undefined,
+    status: 'in_progress', // Allow editing
+    sessionNotes: payload.session_notes ?? undefined,
+    bodyWeightLb: payload.body_weight_lb ?? null,
+    weightUnit: (payload.weight_unit as WeightUnit) ?? 'lb',
+    exercises: payload.session_exercises
+      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+      .map((exercise, idx) => ({
+        id: exercise.id,
+        sessionId: payload.id,
+        name: exercise.exercise_name,
+        primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
+        secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
+        metricProfile: (exercise.metric_profile as MetricProfile) ?? undefined,
+        orderIndex: exercise.order_index ?? idx,
+        sets: (exercise.sets ?? [])
+          .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
+          .map((set, setIdx) => ({
+            id: set.id,
+            setNumber: set.set_number ?? setIdx + 1,
+            reps: set.reps ?? '',
+            weight: set.weight ?? '',
+            implementCount: set.implement_count ?? '',
+            loadType: (set.load_type as LoadType | null) ?? '',
+            rpe: set.rpe ?? '',
+            rir: set.rir ?? '',
+            performedAt: set.performed_at ?? undefined,
+            completed: set.completed ?? false,
+            weightUnit: (set.weight_unit as WeightUnit) ?? 'lb',
+            durationSeconds: set.duration_seconds ?? undefined,
+            distance: set.distance ?? undefined,
+            distanceUnit: set.distance_unit ?? undefined,
+            restSecondsActual: set.rest_seconds_actual ?? undefined,
+            extras: set.extras as Record<string, string | null> ?? undefined,
+            extraMetrics: set.extra_metrics ?? undefined
+          }))
+      }))
+  }
+}
+
+function SessionEditContent() {
+  const params = useParams()
+  const router = useRouter()
+  const supabase = createClient()
+  const { user } = useUser()
+  const activeSession = useWorkoutStore((state) => state.activeSession)
+  const startSession = useWorkoutStore((state) => state.startSession)
+  const endSession = useWorkoutStore((state) => state.endSession)
+  const { catalog } = useExerciseCatalog()
+  
+  const sessionId = params?.id as string
+  
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [savingSession, setSavingSession] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+  const [validationErrors, setValidationErrors] = useState<SetValidationError[]>([])
+  const [showValidationBlocker, setShowValidationBlocker] = useState(false)
+  const [hasNoCompletedSets, setHasNoCompletedSets] = useState(false)
+  
+  // Track original session data for duration calculation
+  const [originalEndedAt, setOriginalEndedAt] = useState<string | null>(null)
+  const [durationMinutes, setDurationMinutes] = useState(45)
+  const [startTimeOverride, setStartTimeOverride] = useState<string | null>(null)
+  
+  // Parse session notes for equipment inventory
+  const sessionNotes = useMemo(() => {
+    if (!activeSession?.sessionNotes) return null
+    try {
+      return typeof activeSession.sessionNotes === 'string' 
+        ? JSON.parse(activeSession.sessionNotes) 
+        : activeSession.sessionNotes
+    } catch {
+      return null
+    }
+  }, [activeSession?.sessionNotes])
+  
+  const sessionGoal = (activeSession?.sessionGoal ?? sessionNotes?.goal ?? null) as SessionGoal | null
+  const sessionFocus = activeSession?.sessionFocus ?? sessionNotes?.focus ?? null
+  const equipmentInventory = sessionNotes?.equipmentInventory ?? null
+  const sessionTitle = activeSession?.name ?? 'Edit Session'
+  
+  // Load existing session into store
+  const loadSession = useCallback(async () => {
+    if (!sessionId) return
+    
+    setLoading(true)
+    setLoadError(null)
+    
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select(`
+          id, user_id, name, template_id, session_focus, session_goal, session_intensity, 
+          started_at, ended_at, status, body_weight_lb, session_notes, weight_unit,
+          session_exercises(
+            id, exercise_name, primary_muscle, secondary_muscles, 
+            metric_profile, order_index, 
+            sets(
+              id, set_number, reps, weight, implement_count, load_type, 
+              rpe, rir, completed, performed_at, weight_unit, 
+              duration_seconds, distance, distance_unit, rest_seconds_actual, 
+              extras, extra_metrics
+            )
+          )
+        `)
+        .eq('id', sessionId)
+        .single()
+      
+      if (error) throw error
+      if (!data) throw new Error('Session not found')
+      
+      const payload = data as unknown as SessionPayload
+      const session = mapPayloadToSession(payload)
+      
+      // Calculate original duration
+      if (payload.started_at && payload.ended_at) {
+        const start = new Date(payload.started_at).getTime()
+        const end = new Date(payload.ended_at).getTime()
+        const mins = Math.round((end - start) / 60000)
+        setDurationMinutes(mins > 0 ? mins : 45)
+        setOriginalEndedAt(payload.ended_at)
+      }
+      
+      startSession(session)
+    } catch (err) {
+      console.error('Failed to load session:', err)
+      setLoadError('Unable to load session for editing.')
+    } finally {
+      setLoading(false)
+    }
+  }, [sessionId, supabase, startSession])
+  
+  // Load session on mount (only if not already in store with matching ID)
+  useEffect(() => {
+    if (activeSession?.id === sessionId) {
+      setLoading(false)
+      return
+    }
+    loadSession()
+  }, [sessionId, activeSession?.id, loadSession])
+  
+  const requestSave = () => {
+    // Validate session before showing save confirmation
+    const validation = validateSessionForCompletion(activeSession)
+    
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors)
+      setHasNoCompletedSets(validation.hasNoCompletedSets)
+      setShowValidationBlocker(true)
+      return
+    }
+    
+    setConfirmAction({
+      type: 'save',
+      title: 'Save Changes',
+      description: 'Save your edits to this workout? All metrics will be recalculated.',
+      confirmText: 'Save',
+      variant: 'info'
+    })
+  }
+  
+  const requestCancel = () => {
+    setConfirmAction({
+      type: 'cancel',
+      title: 'Discard Changes',
+      description: 'Are you sure you want to discard your changes? The original session will be preserved.',
+      confirmText: 'Discard',
+      variant: 'danger'
+    })
+  }
+  
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return
+    if (confirmAction.type === 'save') await executeSave()
+    if (confirmAction.type === 'cancel') executeCancel()
+    setConfirmAction(null)
+  }
+  
+  const executeSave = async () => {
+    if (!sessionId || !activeSession || !user?.id) return
+    setSaveError(null)
+    setSavingSession(true)
+    
+    try {
+      // Calculate end time based on start time + duration
+      const baseStartTime = startTimeOverride 
+        ? new Date(startTimeOverride).getTime()
+        : new Date(activeSession.startedAt).getTime()
+      const endedAt = new Date(baseStartTime + durationMinutes * 60 * 1000).toISOString()
+      const startedAtFinal = startTimeOverride ?? activeSession.startedAt
+      
+      // Create a modified session with the end time for the snapshot
+      const sessionWithEnd = {
+        ...activeSession,
+        startedAt: startedAtFinal,
+        endedAt
+      }
+      
+      // Use completeSession to update the session with recalculated metrics
+      const result = await completeSession({
+        supabase,
+        sessionId,
+        session: sessionWithEnd,
+        userId: user.id,
+        bodyWeightLb: activeSession.bodyWeightLb ?? null,
+        sessionGoal,
+        equipmentInventory,
+        exerciseCatalog: catalog.map((e) => ({ name: e.name, e1rmEligible: e.e1rmEligible })),
+        endedAtOverride: endedAt,
+        startedAtOverride: startedAtFinal
+      })
+      
+      if (!result.success) {
+        throw new Error(result.error ?? 'Failed to save changes')
+      }
+      
+      endSession()
+      router.push('/progress')
+    } catch (error) {
+      console.error('Failed to save session:', error)
+      setSaveError('Failed to save changes. Please try again.')
+    } finally {
+      setSavingSession(false)
+    }
+  }
+  
+  const executeCancel = () => {
+    endSession()
+    router.push('/progress')
+  }
+  
+  if (!user) {
+    return (
+      <div className="page-shell p-10 text-center text-muted">
+        <p className="mb-4">Sign in to edit sessions.</p>
+        <Button onClick={() => router.push('/auth/login')}>Sign in</Button>
+      </div>
+    )
+  }
+  
+  if (loading) {
+    return (
+      <div className="page-shell p-10 text-center text-muted">
+        Loading session...
+      </div>
+    )
+  }
+  
+  if (loadError || !activeSession) {
+    return (
+      <div className="page-shell p-10 text-center text-muted">
+        <p className="mb-4">{loadError ?? 'Session not found.'}</p>
+        <Button onClick={() => router.push('/progress')}>Return to Progress</Button>
+      </div>
+    )
+  }
+  
+  return (
+    <div className="page-shell">
+      <div className="w-full px-4 py-8 sm:px-6 lg:px-10 2xl:px-16">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+              <Link href="/progress" className="transition-colors hover:text-strong">
+                Progress
+              </Link>
+              <span>/</span>
+              <span className="text-subtle">Edit Session</span>
+            </div>
+            <h1 className="font-display text-2xl font-semibold text-strong">{sessionTitle}</h1>
+            <p className="text-sm text-muted">
+              Edit exercises and sets for this workout.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={requestCancel}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Cancel
+            </Button>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,_1fr)_320px]">
+          <div>
+            <ActiveSession
+              sessionId={sessionId}
+              equipmentInventory={equipmentInventory}
+              onFinish={requestSave}
+              onCancel={requestCancel}
+              isFinishing={savingSession}
+              focus={sessionFocus}
+              style={sessionGoal}
+              onStartTimeChange={setStartTimeOverride}
+            />
+          </div>
+          
+          <div className="space-y-4">
+            {/* Save Controls */}
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Save className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold text-strong">Save Changes</h2>
+              </div>
+              
+              {saveError && (
+                <div className="mb-4 rounded-lg border border-[var(--color-danger)] bg-[var(--color-danger-soft)]/10 p-3 text-xs text-[var(--color-danger)]">
+                  {saveError}
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={requestSave}
+                  disabled={savingSession}
+                  className="w-full justify-center"
+                >
+                  {savingSession ? 'Saving...' : 'Save Changes'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={requestCancel}
+                  className="w-full justify-center text-[var(--color-danger)] hover:text-[var(--color-danger)]"
+                >
+                  Cancel Edit
+                </Button>
+              </div>
+            </Card>
+            
+            {/* Tips */}
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold text-strong">Tips</h2>
+              <ul className="mt-2 space-y-2 text-sm text-muted">
+                <li>• Click &quot;Add Exercise&quot; to add new exercises</li>
+                <li>• Edit reps, weight, and RPE for any set</li>
+                <li>• Swap or remove exercises as needed</li>
+                <li>• All metrics will recalculate on save</li>
+              </ul>
+            </Card>
+          </div>
+        </div>
+      </div>
+      
+      <ConfirmDialog 
+        isOpen={Boolean(confirmAction)}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleConfirmAction}
+        title={confirmAction?.title ?? ''}
+        description={confirmAction?.description ?? ''}
+        confirmText={confirmAction?.confirmText}
+        variant={confirmAction?.variant}
+        isLoading={savingSession}
+      />
+      
+      <ValidationBlockerModal
+        isOpen={showValidationBlocker}
+        onClose={() => setShowValidationBlocker(false)}
+        errors={validationErrors}
+        hasNoCompletedSets={hasNoCompletedSets}
+      />
+    </div>
+  )
 }
 
 export default function SessionEditPage() {
-  const router = useRouter()
-  const params = useParams()
-  const {
-    session,
-    setSession,
-    loading,
-    saving,
-    errorMessage,
-    successMessage,
-    preferredUnit,
-    profileWeightLb,
-    resolvedInventory,
-    handleSave,
-    setDeletedSetIds,
-    setDeletedExerciseIds,
-    hasChanges
-  } = useSessionEditor(params?.id as string)
-
-  const [newExerciseName, setNewExerciseName] = useState('')
-  const { catalog } = useExerciseCatalog()
-
-  const exerciseLibraryByName = useMemo(() => new Map(catalog.map(ex => [ex.name.toLowerCase(), ex])), [catalog])
-
-  // Use session bodyweight as primary source, fall back to profile weight
-  const effectiveBodyWeightLb = session?.bodyWeightLb ?? profileWeightLb
-
-  const getWeightOptions = (exerciseName: string) => {
-    const match = exerciseLibraryByName.get(exerciseName.toLowerCase())
-    if (!match?.equipment?.length) return []
-    return buildWeightOptions(resolvedInventory, match.equipment, effectiveBodyWeightLb, preferredUnit)
-  }
-
-  const isDumbbellExercise = (exerciseName: string) =>
-    Boolean(exerciseLibraryByName.get(exerciseName.toLowerCase())?.equipment?.some(option => option.kind === 'dumbbell'))
-
-  const handleAddExercise = () => {
-    if (!newExerciseName.trim() || !session) return
-    const match = exerciseLibraryByName.get(newExerciseName.toLowerCase())
-    const base = match ?? enhanceExerciseData({ name: newExerciseName, focus: 'full_body' } as Partial<Exercise>)
-    setSession({
-      ...session,
-      exercises: [...session.exercises, {
-        id: `temp-exercise-${Date.now()}`,
-        name: base.name ?? newExerciseName,
-        primaryMuscle: toMuscleSlug(base.primaryMuscle ?? 'full_body'),
-        secondaryMuscles: (base.secondaryMuscles?.map(m => toMuscleSlug(m)).filter(Boolean) as string[]) ?? [],
-        orderIndex: session.exercises.length,
-        sets: []
-      }]
-    })
-    setNewExerciseName('')
-  }
-
-  if (loading) return <div className="p-10 text-center text-muted">Loading session...</div>
-  if (!session) return <div className="p-10 text-center text-muted"><p>Session not found.</p><Button onClick={() => router.push('/progress')}>Return</Button></div>
-
   return (
-    <div className="page-shell">
-      <div className="w-full space-y-8 px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-strong">Edit Session</h1>
-            <p className="text-sm text-muted">{formatDateTime(session.startedAt)}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => router.push('/progress')}>Close</Button>
-            <Button onClick={handleSave} disabled={saving || !hasChanges}>{saving ? 'Saving...' : 'Save changes'}</Button>
-          </div>
-        </div>
-
-        {(errorMessage || successMessage) && (
-          <div className={`rounded-lg border p-4 text-sm ${errorMessage ? 'alert-error' : 'alert-success'}`}>{errorMessage ?? successMessage}</div>
-        )}
-
-        <Card className="p-6">
-          <label className="text-xs text-subtle">Session name</label>
-          <input type="text" value={session.name} onChange={e => setSession({...session, name: e.target.value})} className="input-base mt-2" />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <label className="text-xs text-subtle">Started at</label>
-              <input type="datetime-local" value={toDateTimeInputValue(session.startedAt)} onChange={e => setSession({...session, startedAt: new Date(e.target.value).toISOString()})} className="input-base mt-2" />
-            </div>
-            <div>
-              <label className="text-xs text-subtle">Ended at</label>
-              <input type="datetime-local" value={toDateTimeInputValue(session.endedAt)} onChange={e => setSession({...session, endedAt: new Date(e.target.value).toISOString()})} className="input-base mt-2" />
-            </div>
-            <div>
-              <label className="text-xs text-subtle">Duration (min)</label>
-              <input 
-                type="number" 
-                min={1}
-                value={session.startedAt && session.endedAt ? Math.round((new Date(session.endedAt).getTime() - new Date(session.startedAt).getTime()) / 60000) : ''} 
-                onChange={e => {
-                  const minutes = parseInt(e.target.value, 10)
-                  if (!Number.isNaN(minutes) && minutes > 0) {
-                    const startTime = new Date(session.startedAt).getTime()
-                    setSession({...session, endedAt: new Date(startTime + minutes * 60000).toISOString()})
-                  }
-                }} 
-                className="input-base mt-2" 
-                placeholder="--"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-subtle">Body weight (lb)</label>
-              <input type="text" value={session.bodyWeightLb ?? ''} onChange={e => setSession({...session, bodyWeightLb: parseFloat(e.target.value) || null})} className="input-base mt-2" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-strong mb-4">Readiness Survey</h2>
-          <ReadinessSurvey data={session.readiness ?? null} onChange={r => setSession({...session, readiness: r})} />
-        </Card>
-
-        <div className="space-y-6">
-          {session.exercises.map(exercise => (
-            <Card key={exercise.id} className="p-6 space-y-4">
-              <div className="flex justify-between">
-                <h2 className="text-lg font-semibold text-strong">{exercise.name}</h2>
-                <button onClick={() => {
-                  setSession({...session, exercises: session.exercises.filter(e => e.id !== exercise.id)})
-                  if (!exercise.id.startsWith('temp-')) setDeletedExerciseIds(prev => [...prev, exercise.id])
-                }} className="text-xs text-[var(--color-danger)]">Delete</button>
-              </div>
-              <div className="space-y-3">
-                {exercise.sets.map(set => (
-                  <SetLogger
-                    key={set.id}
-                    set={set}
-                    weightOptions={getWeightOptions(exercise.name)}
-                    onUpdate={(f, v) => setSession({...session, exercises: session.exercises.map(e => e.id === exercise.id ? {...e, sets: e.sets.map(s => s.id === set.id ? {...s, [f]: v} : s)} : e)})}
-                    onDelete={() => {
-                      setSession({...session, exercises: session.exercises.map(e => e.id === exercise.id ? {...e, sets: e.sets.filter(s => s.id !== set.id)} : e)})
-                      if (!set.id.startsWith('temp-')) setDeletedSetIds(prev => [...prev, set.id])
-                    }}
-                    onToggleComplete={() => setSession({...session, exercises: session.exercises.map(e => e.id === exercise.id ? {...e, sets: e.sets.map(s => s.id === set.id ? {...s, completed: !s.completed} : s)} : e)})}
-                    metricProfile={exercise.metricProfile ?? undefined}
-                    isTimeBased={isTimeBasedExercise(exercise.name, exerciseLibraryByName.get(exercise.name.toLowerCase())?.reps)}
-                    isDumbbell={isDumbbellExercise(exercise.name)}
-                  />
-                ))}
-              </div>
-              <Button variant="outline" className="w-full" onClick={() => setSession({...session, exercises: session.exercises.map(e => e.id === exercise.id ? {...e, sets: [...e.sets, { id: `temp-${Date.now()}`, setNumber: e.sets.length + 1, reps: '', weight: '', implementCount: isDumbbellExercise(exercise.name) ? 2 : '', loadType: isDumbbellExercise(exercise.name) ? 'per_implement' : '', completed: false, weightUnit: preferredUnit } as WorkoutSet]} : e)})}>Add set</Button>
-            </Card>
-          ))}
-        </div>
-
-        <Card className="p-6">
-          <label className="text-xs text-subtle">Add exercise</label>
-          <div className="mt-3 flex gap-3">
-            <input type="text" value={newExerciseName} onChange={e => setNewExerciseName(e.target.value)} placeholder="Exercise name" className="input-base" />
-            <Button variant="outline" onClick={handleAddExercise}>Add</Button>
-          </div>
-        </Card>
-      </div>
-    </div>
+    <Suspense fallback={<div className="page-shell p-10 text-center text-muted">Loading...</div>}>
+      <SessionEditContent />
+    </Suspense>
   )
 }
