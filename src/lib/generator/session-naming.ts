@@ -63,7 +63,7 @@ export const buildSessionName = (
     return 'Yoga / Mobility Flow'
   }
 
-  if (focus === 'cardio' || goal === 'endurance' || goal === 'cardio') {
+  if (focus === 'cardio' || goal === 'cardio') {
     return 'Conditioning Circuit'
   }
 
