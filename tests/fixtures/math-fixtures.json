@@ -1,0 +1,176 @@
+{
+  "description": "Golden fixtures for core math utilities",
+  "clampFixtures": [
+    {
+      "id": "clamp-001",
+      "description": "Value within bounds",
+      "input": { "value": 5, "min": 0, "max": 10 },
+      "expected": 5
+    },
+    {
+      "id": "clamp-002",
+      "description": "Value below minimum",
+      "input": { "value": -5, "min": 0, "max": 10 },
+      "expected": 0
+    },
+    {
+      "id": "clamp-003",
+      "description": "Value above maximum",
+      "input": { "value": 15, "min": 0, "max": 10 },
+      "expected": 10
+    },
+    {
+      "id": "clamp-004",
+      "description": "Value equals minimum",
+      "input": { "value": 0, "min": 0, "max": 10 },
+      "expected": 0
+    },
+    {
+      "id": "clamp-005",
+      "description": "Value equals maximum",
+      "input": { "value": 10, "min": 0, "max": 10 },
+      "expected": 10
+    },
+    {
+      "id": "clamp-006",
+      "description": "Negative range",
+      "input": { "value": -5, "min": -10, "max": -2 },
+      "expected": -5
+    },
+    {
+      "id": "clamp-007",
+      "description": "Float values",
+      "input": { "value": 3.7, "min": 0.5, "max": 5.5 },
+      "expected": 3.7
+    }
+  ],
+  "weightedAverageFixtures": [
+    {
+      "id": "wavg-001",
+      "description": "Equal weights",
+      "input": { "values": [10, 20, 30], "weights": [1, 1, 1] },
+      "expected": 20
+    },
+    {
+      "id": "wavg-002",
+      "description": "Different weights",
+      "input": { "values": [10, 20, 30], "weights": [1, 2, 3] },
+      "expected": 23.33,
+      "tolerance": 0.01,
+      "calculation": "(10*1 + 20*2 + 30*3) / (1+2+3) = 140/6 = 23.33"
+    },
+    {
+      "id": "wavg-003",
+      "description": "With null values skipped",
+      "input": { "values": [10, null, 30], "weights": [1, 1, 1] },
+      "expected": 20,
+      "calculation": "(10*1 + 30*1) / (1+1) = 40/2 = 20"
+    },
+    {
+      "id": "wavg-004",
+      "description": "All null values returns null",
+      "input": { "values": [null, null, null], "weights": [1, 1, 1] },
+      "expected": null
+    },
+    {
+      "id": "wavg-005",
+      "description": "Zero weights treated as 1",
+      "input": { "values": [10, 20], "weights": [0, 0] },
+      "expected": 15
+    },
+    {
+      "id": "wavg-006",
+      "description": "Single value",
+      "input": { "values": [42], "weights": [5] },
+      "expected": 42
+    },
+    {
+      "id": "wavg-007",
+      "description": "Empty arrays return null",
+      "input": { "values": [], "weights": [] },
+      "expected": null
+    }
+  ],
+  "roundToFixtures": [
+    {
+      "id": "round-001",
+      "description": "Round to 2 decimals",
+      "input": { "value": 3.14159, "decimals": 2 },
+      "expected": 3.14
+    },
+    {
+      "id": "round-002",
+      "description": "Round to 0 decimals",
+      "input": { "value": 3.7, "decimals": 0 },
+      "expected": 4
+    },
+    {
+      "id": "round-003",
+      "description": "Round to 1 decimal",
+      "input": { "value": 2.55, "decimals": 1 },
+      "expected": 2.6
+    },
+    {
+      "id": "round-004",
+      "description": "Already rounded",
+      "input": { "value": 5.0, "decimals": 2 },
+      "expected": 5
+    }
+  ],
+  "isValidNumberFixtures": [
+    {
+      "id": "valid-001",
+      "description": "Positive number",
+      "input": 42,
+      "expected": true
+    },
+    {
+      "id": "valid-002",
+      "description": "Zero",
+      "input": 0,
+      "expected": true
+    },
+    {
+      "id": "valid-003",
+      "description": "Negative number",
+      "input": -10,
+      "expected": true
+    },
+    {
+      "id": "valid-004",
+      "description": "Float",
+      "input": 3.14,
+      "expected": true
+    },
+    {
+      "id": "valid-005",
+      "description": "NaN",
+      "input": "NaN",
+      "expected": false
+    },
+    {
+      "id": "valid-006",
+      "description": "Infinity",
+      "input": "Infinity",
+      "expected": false
+    },
+    {
+      "id": "valid-007",
+      "description": "String",
+      "input": "42",
+      "expected": false
+    },
+    {
+      "id": "valid-008",
+      "description": "Null",
+      "input": null,
+      "expected": false
+    },
+    {
+      "id": "valid-009",
+      "description": "Undefined",
+      "input": "undefined",
+      "expected": false
+    }
+  ]
+}

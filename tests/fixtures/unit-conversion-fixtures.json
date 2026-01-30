@@ -1,0 +1,104 @@
+{
+  "description": "Golden fixtures for weight and distance unit conversions",
+  "constants": {
+    "LBS_PER_KG": 2.20462262,
+    "KG_PER_LB": 0.45359237,
+    "METERS_PER_MILE": 1609.344,
+    "METERS_PER_KM": 1000
+  },
+  "weightConversions": [
+    {
+      "id": "weight-001",
+      "description": "100 kg to lbs",
+      "input": { "value": 100, "fromUnit": "kg", "toUnit": "lb" },
+      "expected": 220.462262,
+      "tolerance": 0.0001
+    },
+    {
+      "id": "weight-002",
+      "description": "225 lbs to kg",
+      "input": { "value": 225, "fromUnit": "lb", "toUnit": "kg" },
+      "expected": 102.0583,
+      "tolerance": 0.001
+    },
+    {
+      "id": "weight-003",
+      "description": "Same unit (kg to kg) - identity",
+      "input": { "value": 75.5, "fromUnit": "kg", "toUnit": "kg" },
+      "expected": 75.5,
+      "tolerance": 0
+    },
+    {
+      "id": "weight-004",
+      "description": "Same unit (lb to lb) - identity",
+      "input": { "value": 185.0, "fromUnit": "lb", "toUnit": "lb" },
+      "expected": 185.0,
+      "tolerance": 0
+    },
+    {
+      "id": "weight-005",
+      "description": "Round-trip: kg -> lb -> kg",
+      "input": { "value": 100, "roundTrip": ["kg", "lb", "kg"] },
+      "expected": 100,
+      "tolerance": 0.0001
+    },
+    {
+      "id": "weight-006",
+      "description": "Round-trip: lb -> kg -> lb",
+      "input": { "value": 225, "roundTrip": ["lb", "kg", "lb"] },
+      "expected": 225,
+      "tolerance": 0.0001
+    },
+    {
+      "id": "weight-007",
+      "description": "Zero value",
+      "input": { "value": 0, "fromUnit": "kg", "toUnit": "lb" },
+      "expected": 0,
+      "tolerance": 0
+    },
+    {
+      "id": "weight-008",
+      "description": "toKg with null unit defaults to lb",
+      "input": { "value": 100, "fromUnit": null, "toUnit": "kg" },
+      "expected": 45.359237,
+      "tolerance": 0.0001
+    }
+  ],
+  "distanceConversions": [
+    {
+      "id": "dist-001",
+      "description": "1 mile to meters",
+      "input": { "value": 1, "unit": "miles" },
+      "expected": 1609.344,
+      "tolerance": 0.001
+    },
+    {
+      "id": "dist-002",
+      "description": "5 km to meters",
+      "input": { "value": 5, "unit": "km" },
+      "expected": 5000,
+      "tolerance": 0
+    },
+    {
+      "id": "dist-003",
+      "description": "100 meters (identity)",
+      "input": { "value": 100, "unit": "m" },
+      "expected": 100,
+      "tolerance": 0
+    }
+  ],
+  "edgeCases": [
+    {
+      "id": "edge-001",
+      "description": "NaN input returns 0",
+      "input": { "value": "NaN", "fromUnit": "kg", "toUnit": "lb" },
+      "expected": 0
+    },
+    {
+      "id": "edge-002",
+      "description": "Infinity input returns 0",
+      "input": { "value": "Infinity", "fromUnit": "kg", "toUnit": "lb" },
+      "expected": 0
+    }
+  ]
+}

@@ -1,0 +1,163 @@
+{
+  "description": "Golden fixtures for Readiness Score and Intensity Normalization",
+  "readinessFormula": "((sleep + motivation + (6-soreness) + (6-stress) - 4) / 16) * 100",
+  "readinessScale": {
+    "inputRange": [1, 5],
+    "outputRange": [0, 100],
+    "levels": {
+      "high": ">= 70",
+      "low": "< 40",
+      "steady": "40-69"
+    }
+  },
+  "intensityFormula": "(effectiveRpe - 3) / 7 for RPE >= 4, else 0.1",
+  "readinessFixtures": [
+    {
+      "id": "ready-001",
+      "description": "Perfect readiness - all positive",
+      "input": { "sleep": 5, "soreness": 1, "stress": 1, "motivation": 5 },
+      "expected": { "score": 100, "level": "high" },
+      "calculation": "(5 + 5 + 5 + 5 - 4) / 16 * 100 = 100"
+    },
+    {
+      "id": "ready-002",
+      "description": "Worst readiness - all negative",
+      "input": { "sleep": 1, "soreness": 5, "stress": 5, "motivation": 1 },
+      "expected": { "score": 0, "level": "low" },
+      "calculation": "(1 + 1 + 1 + 1 - 4) / 16 * 100 = 0"
+    },
+    {
+      "id": "ready-003",
+      "description": "Moderate readiness - mixed signals",
+      "input": { "sleep": 3, "soreness": 3, "stress": 3, "motivation": 3 },
+      "expected": { "score": 50, "level": "steady" },
+      "calculation": "(3 + 3 + 3 + 3 - 4) / 16 * 100 = 50"
+    },
+    {
+      "id": "ready-004",
+      "description": "Good sleep, sore and stressed",
+      "input": { "sleep": 5, "soreness": 4, "stress": 4, "motivation": 3 },
+      "expected": { "score": 50, "level": "steady" },
+      "calculation": "rawSum = 5 + 3 + (6-4) + (6-4) = 5 + 3 + 2 + 2 = 12, score = (12-4)/16*100 = 50"
+    },
+    {
+      "id": "ready-005",
+      "description": "High motivation, poor recovery",
+      "input": { "sleep": 2, "soreness": 5, "stress": 4, "motivation": 5 },
+      "expected": { "score": 38, "level": "low" },
+      "calculation": "rawSum = 2 + 5 + (6-5) + (6-4) = 2 + 5 + 1 + 2 = 10, score = (10-4)/16*100 = 37.5 ≈ 38"
+    },
+    {
+      "id": "ready-006",
+      "description": "Boundary: exactly at 81 (high)",
+      "input": { "sleep": 5, "soreness": 2, "stress": 2, "motivation": 4 },
+      "expected": { "score": 81, "level": "high" },
+      "calculation": "rawSum = 5 + 4 + (6-2) + (6-2) = 5 + 4 + 4 + 4 = 17, score = (17-4)/16*100 = 81.25 ≈ 81"
+    },
+    {
+      "id": "ready-007",
+      "description": "Steady range at 44",
+      "input": { "sleep": 3, "soreness": 4, "stress": 3, "motivation": 3 },
+      "expected": { "score": 44, "level": "steady" },
+      "calculation": "rawSum = 3 + 3 + (6-4) + (6-3) = 3 + 3 + 2 + 3 = 11, score = (11-4)/16*100 = 43.75 ≈ 44"
+    }
+  ],
+  "intensityFixtures": [
+    {
+      "id": "intens-001",
+      "description": "RPE 10 - maximum intensity",
+      "input": { "rpe": 10 },
+      "expected": 1.0,
+      "calculation": "(10 - 3) / 7 = 1.0"
+    },
+    {
+      "id": "intens-002",
+      "description": "RPE 7 - moderate intensity",
+      "input": { "rpe": 7 },
+      "expected": 0.571,
+      "tolerance": 0.001,
+      "calculation": "(7 - 3) / 7 = 0.571"
+    },
+    {
+      "id": "intens-003",
+      "description": "RPE 4 - threshold intensity",
+      "input": { "rpe": 4 },
+      "expected": 0.143,
+      "tolerance": 0.001,
+      "calculation": "(4 - 3) / 7 = 0.143"
+    },
+    {
+      "id": "intens-004",
+      "description": "RPE 3 - below threshold",
+      "input": { "rpe": 3 },
+      "expected": 0.1,
+      "calculation": "RPE < 4 returns 0.1"
+    },
+    {
+      "id": "intens-005",
+      "description": "RPE 0 - no effort",
+      "input": { "rpe": 0 },
+      "expected": 0.1,
+      "calculation": "RPE < 4 returns 0.1"
+    },
+    {
+      "id": "intens-006",
+      "description": "null RPE - default moderate",
+      "input": { "rpe": null },
+      "expected": 0.5,
+      "calculation": "null returns 0.5 default"
+    },
+    {
+      "id": "intens-007",
+      "description": "RPE > 10 - clamped to 10",
+      "input": { "rpe": 12 },
+      "expected": 1.0,
+      "calculation": "Clamped to 10, (10 - 3) / 7 = 1.0"
+    },
+    {
+      "id": "intens-008",
+      "description": "Negative RPE - clamped to 0",
+      "input": { "rpe": -5 },
+      "expected": 0.1,
+      "calculation": "Clamped to 0, RPE < 4 returns 0.1"
+    }
+  ],
+  "rirRpeMappingFixtures": [
+    {
+      "id": "rir-001",
+      "description": "RIR 0 -> RPE 10",
+      "input": { "rir": 0 },
+      "expected": { "rpe": 10 }
+    },
+    {
+      "id": "rir-002",
+      "description": "RIR 2 -> RPE 8",
+      "input": { "rir": 2 },
+      "expected": { "rpe": 8 }
+    },
+    {
+      "id": "rir-003",
+      "description": "RIR 4 -> RPE 6",
+      "input": { "rir": 4 },
+      "expected": { "rpe": 6 }
+    },
+    {
+      "id": "rpe-001",
+      "description": "RPE 10 -> RIR 0",
+      "input": { "rpe": 10 },
+      "expected": { "rir": 0 }
+    },
+    {
+      "id": "rpe-002",
+      "description": "RPE 8 -> RIR 2",
+      "input": { "rpe": 8 },
+      "expected": { "rir": 2 }
+    },
+    {
+      "id": "rpe-003",
+      "description": "RPE 5 -> RIR null (below threshold)",
+      "input": { "rpe": 5 },
+      "expected": { "rir": 5 }
+    }
+  ]
+}

@@ -466,8 +466,7 @@ test('repeated runs vary while avoiding back-to-back duplicates', () => {
 test('calculates a stable impact score for a known fixture', () => {
   const impact = calculateWorkoutImpact([
     {
-      dayOfWeek: 1,
-      timeWindow: 'morning',
+      order: 1,
       focus: 'upper',
       durationMinutes: 30,
       rationale: 'Test day',

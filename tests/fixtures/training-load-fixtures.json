@@ -1,0 +1,130 @@
+{
+  "description": "Golden fixtures for Training Load (ACR - Acute:Chronic Ratio) calculations",
+  "formula": "loadRatio = acuteLoad (7 days) / chronicWeeklyAvg (chronicLoad / 4)",
+  "thresholds": {
+    "overreaching": 1.3,
+    "undertraining": 0.8,
+    "minHistoryDays": 14,
+    "minSessionCount": 4
+  },
+  "fixtures": [
+    {
+      "id": "acr-001",
+      "description": "Balanced training - ratio near 1.0",
+      "sessions": [
+        { "daysAgo": 1, "workload": 5000 },
+        { "daysAgo": 3, "workload": 5000 },
+        { "daysAgo": 5, "workload": 5000 },
+        { "daysAgo": 8, "workload": 5000 },
+        { "daysAgo": 10, "workload": 5000 },
+        { "daysAgo": 15, "workload": 5000 },
+        { "daysAgo": 18, "workload": 5000 },
+        { "daysAgo": 22, "workload": 5000 }
+      ],
+      "expected": {
+        "acuteLoad": 15000,
+        "chronicLoad": 40000,
+        "chronicWeeklyAvg": 10000,
+        "loadRatio": 1.5,
+        "status": "overreaching"
+      },
+      "note": "Actually overreaching due to 3 sessions in acute window vs steady chronic"
+    },
+    {
+      "id": "acr-002",
+      "description": "Clear overreaching - spike in recent training",
+      "sessions": [
+        { "daysAgo": 1, "workload": 8000 },
+        { "daysAgo": 2, "workload": 8000 },
+        { "daysAgo": 3, "workload": 8000 },
+        { "daysAgo": 15, "workload": 5000 },
+        { "daysAgo": 18, "workload": 5000 },
+        { "daysAgo": 22, "workload": 5000 },
+        { "daysAgo": 25, "workload": 5000 }
+      ],
+      "expected": {
+        "acuteLoad": 24000,
+        "chronicLoad": 44000,
+        "chronicWeeklyAvg": 11000,
+        "loadRatio": 2.18,
+        "status": "overreaching"
+      },
+      "note": "Ratio > 1.3 triggers overreaching"
+    },
+    {
+      "id": "acr-003",
+      "description": "Undertraining - low recent activity",
+      "sessions": [
+        { "daysAgo": 6, "workload": 3000 },
+        { "daysAgo": 15, "workload": 8000 },
+        { "daysAgo": 18, "workload": 8000 },
+        { "daysAgo": 22, "workload": 8000 },
+        { "daysAgo": 25, "workload": 8000 }
+      ],
+      "expected": {
+        "acuteLoad": 3000,
+        "chronicLoad": 35000,
+        "chronicWeeklyAvg": 8750,
+        "loadRatio": 0.34,
+        "status": "undertraining"
+      },
+      "note": "Ratio < 0.8 with chronic > 0 triggers undertraining"
+    },
+    {
+      "id": "acr-004",
+      "description": "Initial phase - insufficient data (< 14 days)",
+      "sessions": [
+        { "daysAgo": 1, "workload": 5000 },
+        { "daysAgo": 3, "workload": 5000 },
+        { "daysAgo": 5, "workload": 5000 },
+        { "daysAgo": 7, "workload": 5000 }
+      ],
+      "expected": {
+        "isInitialPhase": true,
+        "status": "balanced"
+      },
+      "note": "< 14 days history means no status classification"
+    },
+    {
+      "id": "acr-005",
+      "description": "Initial phase - insufficient sessions (< 4)",
+      "sessions": [
+        { "daysAgo": 1, "workload": 5000 },
+        { "daysAgo": 15, "workload": 5000 },
+        { "daysAgo": 20, "workload": 5000 }
+      ],
+      "expected": {
+        "isInitialPhase": true,
+        "status": "balanced"
+      },
+      "note": "< 4 sessions means no status classification"
+    },
+    {
+      "id": "acr-006",
+      "description": "No recent sessions - daysSinceLast tracked",
+      "sessions": [
+        { "daysAgo": 10, "workload": 5000 },
+        { "daysAgo": 15, "workload": 5000 },
+        { "daysAgo": 18, "workload": 5000 },
+        { "daysAgo": 22, "workload": 5000 }
+      ],
+      "expected": {
+        "daysSinceLast": 10,
+        "acuteLoad": 0
+      },
+      "note": "No sessions in acute window"
+    },
+    {
+      "id": "acr-007",
+      "description": "Empty sessions array",
+      "sessions": [],
+      "expected": {
+        "acuteLoad": 0,
+        "chronicLoad": 0,
+        "loadRatio": 0,
+        "daysSinceLast": null,
+        "insufficientData": true
+      }
+    }
+  ]
+}

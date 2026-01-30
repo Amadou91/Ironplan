@@ -1,0 +1,134 @@
+{
+  "description": "Golden fixtures for Body Metrics (BMI, BMR, Age) calculations",
+  "formulas": {
+    "bmi": "(weight_lb / height_in^2) * 703",
+    "bmr_male": "10 * weight_kg + 6.25 * height_cm - 5 * age + 5",
+    "bmr_female": "10 * weight_kg + 6.25 * height_cm - 5 * age - 161"
+  },
+  "bmiFixtures": [
+    {
+      "id": "bmi-001",
+      "description": "Average adult male",
+      "input": { "weightLb": 180, "heightIn": 70 },
+      "expected": 25.82,
+      "tolerance": 0.01,
+      "calculation": "(180 / 4900) * 703 = 25.82"
+    },
+    {
+      "id": "bmi-002",
+      "description": "Average adult female",
+      "input": { "weightLb": 140, "heightIn": 64 },
+      "expected": 24.03,
+      "tolerance": 0.01,
+      "calculation": "(140 / 4096) * 703 = 24.03"
+    },
+    {
+      "id": "bmi-003",
+      "description": "Underweight",
+      "input": { "weightLb": 120, "heightIn": 72 },
+      "expected": 16.28,
+      "tolerance": 0.01
+    },
+    {
+      "id": "bmi-004",
+      "description": "Obese category",
+      "input": { "weightLb": 250, "heightIn": 68 },
+      "expected": 38.01,
+      "tolerance": 0.01
+    },
+    {
+      "id": "bmi-005",
+      "description": "Zero weight returns null",
+      "input": { "weightLb": 0, "heightIn": 70 },
+      "expected": null
+    },
+    {
+      "id": "bmi-006",
+      "description": "Zero height returns null",
+      "input": { "weightLb": 180, "heightIn": 0 },
+      "expected": null
+    },
+    {
+      "id": "bmi-007",
+      "description": "Null inputs return null",
+      "input": { "weightLb": null, "heightIn": null },
+      "expected": null
+    }
+  ],
+  "bmrFixtures": [
+    {
+      "id": "bmr-001",
+      "description": "30-year-old male, 180 lbs, 70 in",
+      "input": { "weightLb": 180, "heightIn": 70, "age": 30, "sex": "male" },
+      "expected": 1783,
+      "tolerance": 1,
+      "calculation": "10 * 81.6 + 6.25 * 177.8 - 5 * 30 + 5 = 1783"
+    },
+    {
+      "id": "bmr-002",
+      "description": "30-year-old female, 140 lbs, 64 in",
+      "input": { "weightLb": 140, "heightIn": 64, "age": 30, "sex": "female" },
+      "expected": 1340,
+      "tolerance": 1,
+      "calculation": "10 * 63.5 + 6.25 * 162.56 - 5 * 30 - 161 = 1340"
+    },
+    {
+      "id": "bmr-003",
+      "description": "50-year-old male",
+      "input": { "weightLb": 200, "heightIn": 72, "age": 50, "sex": "male" },
+      "expected": 1805,
+      "tolerance": 1
+    },
+    {
+      "id": "bmr-004",
+      "description": "25-year-old female",
+      "input": { "weightLb": 130, "heightIn": 66, "age": 25, "sex": "female" },
+      "expected": 1351,
+      "tolerance": 5
+    },
+    {
+      "id": "bmr-005",
+      "description": "Invalid sex returns null",
+      "input": { "weightLb": 180, "heightIn": 70, "age": 30, "sex": "other" },
+      "expected": null
+    },
+    {
+      "id": "bmr-006",
+      "description": "Missing age returns null",
+      "input": { "weightLb": 180, "heightIn": 70, "age": null, "sex": "male" },
+      "expected": null
+    }
+  ],
+  "ageFixtures": [
+    {
+      "id": "age-001",
+      "description": "Simple age calculation",
+      "input": { "birthdate": "1990-01-15", "now": "2026-01-29" },
+      "expected": 36
+    },
+    {
+      "id": "age-002",
+      "description": "Birthday not yet occurred this year",
+      "input": { "birthdate": "1990-06-15", "now": "2026-01-29" },
+      "expected": 35
+    },
+    {
+      "id": "age-003",
+      "description": "Birthday today",
+      "input": { "birthdate": "1990-01-29", "now": "2026-01-29" },
+      "expected": 36
+    },
+    {
+      "id": "age-004",
+      "description": "Invalid birthdate returns null",
+      "input": { "birthdate": "invalid-date", "now": "2026-01-29" },
+      "expected": null
+    },
+    {
+      "id": "age-005",
+      "description": "Null birthdate returns null",
+      "input": { "birthdate": null, "now": "2026-01-29" },
+      "expected": null
+    }
+  ]
+}
