@@ -34,6 +34,12 @@ export function useSetEditor({
         return 'strength'
       }, [metricProfile, isMobility, isCardio, isTimeBased])
 
+  const timeLabel = useMemo(() => {
+    if (!set.performedAt) return 'Not logged yet'
+    const date = new Date(set.performedAt)
+    return Number.isNaN(date.getTime()) ? 'Not logged yet' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }, [set.performedAt])
+
   const validateAndUpdate = (field: keyof WorkoutSet, val: string) => {
     if (val === '') {
       onUpdate(field, '')
@@ -108,6 +114,7 @@ export function useSetEditor({
   return {
     isEditing,
     effectiveProfile,
+    timeLabel,
     weightError,
     repsError,
     validateAndUpdate,

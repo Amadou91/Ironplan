@@ -1,59 +1,156 @@
-import React, { useMemo, useState, memo } from 'react';
-import { WorkoutSet, MetricProfile } from '@/types/domain';
-import { Trash2, Check } from 'lucide-react';
-import { RIR_OPTIONS, RPE_OPTIONS } from '@/constants/intensityOptions';
-import type { WeightOption } from '@/lib/equipment';
-import { mapRirToRpe, formatTotalWeightLabel } from '@/lib/session-metrics';
-import { useSetEditor } from '@/hooks/useSetEditor';
-import { cn } from '@/lib/utils';
+'use client'
+
+import React, { useMemo, useState, memo } from 'react'
+import type { WorkoutSet, MetricProfile, WeightUnit, LoadType } from '@/types/domain'
+import { Trash2, Check } from 'lucide-react'
+import { RIR_OPTIONS, RPE_OPTIONS } from '@/constants/intensityOptions'
+import type { WeightOption } from '@/lib/equipment'
+import { mapRirToRpe, formatTotalWeightLabel } from '@/lib/session-metrics'
+import { useSetEditor } from '@/hooks/useSetEditor'
+import { cn } from '@/lib/utils'
 
 interface SetLoggerProps {
-  set: WorkoutSet;
-  weightOptions?: WeightOption[];
-  onUpdate: (field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => void;
-  onDelete: () => void;
-  onToggleComplete: () => void;
-  metricProfile?: MetricProfile;
-  isCardio?: boolean;
-  isMobility?: boolean;
-  isTimeBased?: boolean;
-  repsLabel?: string;
-  isDumbbell?: boolean;
+  set: WorkoutSet
+  weightOptions?: WeightOption[]
+  onUpdate: (field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]) => void
+  onDelete: () => void
+  onToggleComplete: () => void
+  metricProfile?: MetricProfile
+  isCardio?: boolean
+  isMobility?: boolean
+  isTimeBased?: boolean
+  repsLabel?: string
+  isDumbbell?: boolean
 }
 
-const NumericInput = memo(function NumericInput({ 
-  value, 
-  onChange, 
-  placeholder, 
-  mode = "decimal" as const,
-  inputClassName,
-  isEditing
-}: { 
-  value: string | number; 
-  onChange: (val: string) => void; 
-  placeholder: string;
-  hasError?: boolean;
-  mode?: "decimal" | "numeric";
-  inputClassName: string;
-  isEditing: boolean;
+// Compact summary shown when set is completed
+const CompletedSetSummary = memo(function CompletedSetSummary({
+  set,
+  effectiveProfile,
+  effectiveLoadType,
+  unitLabel,
+  onToggleComplete,
+  onDelete,
+  getExtra,
+  durationMinutes
+}: {
+  set: WorkoutSet
+  effectiveProfile: string
+  effectiveLoadType: LoadType | null
+  unitLabel: WeightUnit
+  onToggleComplete: () => void
+  onDelete: () => void
+  getExtra: (key: string) => unknown
+  durationMinutes: string | number
 }) {
+  const totalWeightLabel = useMemo(() => {
+    if (typeof set.weight !== 'number' || !Number.isFinite(set.weight)) return null
+    const hasImplementCount = typeof set.implementCount === 'number' && (set.implementCount === 1 || set.implementCount === 2)
+    return formatTotalWeightLabel({
+      weight: set.weight,
+      weightUnit: unitLabel,
+      displayUnit: unitLabel,
+      loadType: effectiveLoadType ?? 'total',
+      implementCount: hasImplementCount ? set.implementCount as number : null
+    })
+  }, [set.weight, unitLabel, effectiveLoadType, set.implementCount])
+
+  const derivedRpe = typeof set.rir === 'number' ? mapRirToRpe(set.rir) : set.rpe
+
+  const renderMetrics = () => {
+    if (effectiveProfile === 'mobility_session') {
+      return (
+        <>
+          <MetricPill label="Duration" value={`${durationMinutes} min`} />
+          {set.rpe && <MetricPill label="Intensity" value={String(set.rpe)} />}
+          {getExtra('style') && <MetricPill label="Style" value={String(getExtra('style'))} />}
+        </>
+      )
+    }
+
+    if (effectiveProfile === 'cardio_session') {
+      return (
+        <>
+          <MetricPill label="Duration" value={`${durationMinutes} min`} />
+          {set.rpe && <MetricPill label="Intensity" value={String(set.rpe)} />}
+          {(getExtra('distance_km') ?? set.distance) && (
+            <MetricPill label="Distance" value={`${getExtra('distance_km') ?? set.distance} km`} />
+          )}
+        </>
+      )
+    }
+
+    if (effectiveProfile === 'timed_strength') {
+      return (
+        <>
+          <MetricPill label="Duration" value={`${durationMinutes} min`} />
+          {totalWeightLabel && <MetricPill label="Weight" value={totalWeightLabel} />}
+          {derivedRpe && <MetricPill label="RPE" value={String(derivedRpe)} />}
+        </>
+      )
+    }
+
+    // Default strength profile
+    return (
+      <>
+        {totalWeightLabel && <MetricPill label="Weight" value={totalWeightLabel} />}
+        {set.reps && <MetricPill label="Reps" value={String(set.reps)} />}
+        {derivedRpe && <MetricPill label="RPE" value={String(derivedRpe)} />}
+      </>
+    )
+  }
+
   return (
-    <input
-      type="text"
-      inputMode={mode}
-      placeholder={placeholder}
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      className={inputClassName}
-      disabled={!isEditing}
-      readOnly={!isEditing}
-    />
-  );
-});
+    <div className="flex items-center gap-3 rounded-xl border border-[var(--color-success-border)] bg-[var(--color-success-soft)]/20 px-4 py-3 transition-all">
+      {/* Set Number */}
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-success)]/20 text-sm font-bold text-[var(--color-success)]">
+        {set.setNumber}
+      </div>
+
+      {/* Metrics Summary */}
+      <div className="flex flex-1 flex-wrap items-center gap-2">
+        {renderMetrics()}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onToggleComplete}
+          className="flex items-center gap-1.5 rounded-lg bg-[var(--color-success)] px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-[var(--color-success-strong)] active:scale-95"
+          title="Edit set"
+        >
+          <Check size={14} strokeWidth={3} />
+          <span className="hidden sm:inline">Logged</span>
+        </button>
+        <button
+          onClick={onDelete}
+          className="rounded-lg p-2 text-[var(--color-text-subtle)] transition-all hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)] active:scale-95"
+          title="Delete set"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    </div>
+  )
+})
+
+// Small pill for displaying completed set metrics
+const MetricPill = memo(function MetricPill({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-surface-muted)] px-2.5 py-1 text-xs">
+      <span className="font-medium text-[var(--color-text-subtle)]">{label}:</span>
+      <span className="font-semibold text-[var(--color-text)]">{value}</span>
+    </span>
+  )
+})
 
 /**
  * SetLogger component for logging individual workout sets.
- * Memoized to prevent unnecessary re-renders when parent state changes.
+ * Redesigned to match the app's visual standards with:
+ * - Consistent typography (text-xs text-subtle labels)
+ * - Proper spacing (gap-3, gap-4 patterns)
+ * - Compact completed state
+ * - Proportional input sizing
  */
 const SetLoggerComponent: React.FC<SetLoggerProps> = ({
   set,
@@ -68,7 +165,9 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
   repsLabel = 'Reps',
   isDumbbell = false
 }) => {
-  const [implementError, setImplementError] = useState(false);
+  const [implementError, setImplementError] = useState(false)
+  const [missingFields, setMissingFields] = useState<string[]>([])
+
   const {
     isEditing,
     effectiveProfile,
@@ -90,319 +189,491 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     isMobility,
     isTimeBased,
     onUpdate
-  });
+  })
 
-  const inputClassName = (hasError?: boolean) => cn(
-    "input-base h-12 text-base font-bold transition-all duration-200 text-center truncate",
-    "bg-[var(--color-surface)] border-2 border-[var(--color-border-strong)]",
-    "focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]",
-    !isEditing && "opacity-60 grayscale-[0.5] cursor-not-allowed bg-[var(--color-surface-muted)] border-transparent",
-    hasError && "border-[var(--color-danger)] ring-2 ring-[var(--color-danger-soft)]"
-  );
-
-  const labelStyle = "mb-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--color-text-subtle)] text-center";
-  const totalLabelStyle = "text-[10px] font-black uppercase tracking-[0.2em] text-[var(--color-text-subtle)]";
-  const totalValueStyle = "text-sm font-black text-[var(--color-text)]";
-  const unitLabel = set.weightUnit ?? 'lb';
-  const hasImplementCount = typeof set.implementCount === 'number' && (set.implementCount === 1 || set.implementCount === 2);
+  const unitLabel: WeightUnit = set.weightUnit ?? 'lb'
+  const hasImplementCount = typeof set.implementCount === 'number' && (set.implementCount === 1 || set.implementCount === 2)
   
   // Determine the equipment kind of the currently selected weight
   const selectedEquipmentKind = useMemo(() => {
-    if (typeof set.weight !== 'number' || !weightOptions) return null;
-    const match = weightOptions.find(opt => opt.value === set.weight);
-    return match?.equipmentKind ?? null;
-  }, [set.weight, weightOptions]);
+    if (typeof set.weight !== 'number' || !weightOptions) return null
+    const match = weightOptions.find(opt => opt.value === set.weight)
+    return match?.equipmentKind ?? null
+  }, [set.weight, weightOptions])
   
-  // Show dumbbell toggle only when dumbbell weight is selected (not just when exercise can use dumbbells)
-  const showDumbbellToggle = selectedEquipmentKind === 'dumbbell' || (isDumbbell && hasImplementCount && !selectedEquipmentKind);
+  // Show dumbbell toggle only when dumbbell weight is selected
+  const showDumbbellToggle = selectedEquipmentKind === 'dumbbell' || (isDumbbell && hasImplementCount && !selectedEquipmentKind)
   
-  const effectiveLoadType = set.loadType === 'per_implement'
+  const effectiveLoadType: LoadType = set.loadType === 'per_implement'
     ? 'per_implement'
-    : (showDumbbellToggle && hasImplementCount ? 'per_implement' : 'total');
+    : (showDumbbellToggle && hasImplementCount ? 'per_implement' : 'total')
+
   const totalWeightLabel = useMemo(() => {
-    if (typeof set.weight !== 'number' || !Number.isFinite(set.weight)) return null;
+    if (typeof set.weight !== 'number' || !Number.isFinite(set.weight)) return null
     return formatTotalWeightLabel({
       weight: set.weight,
       weightUnit: unitLabel,
       displayUnit: unitLabel,
       loadType: effectiveLoadType,
       implementCount: hasImplementCount ? set.implementCount as number : null
-    });
-  }, [set.weight, unitLabel, effectiveLoadType, hasImplementCount, set.implementCount]);
-  const handleToggleComplete = () => {
-    // Only require implement count selection when dumbbell is actually selected
-    if (showDumbbellToggle && !hasImplementCount) {
-      setImplementError(true);
-      return;
-    }
-    setImplementError(false);
-    onToggleComplete();
-  };
+    })
+  }, [set.weight, unitLabel, effectiveLoadType, hasImplementCount, set.implementCount])
 
-  const renderCompletionControl = () => (
-    <div className="flex justify-end mt-6 pt-4 border-t border-[var(--color-border)]/50">
-       <button
-        onClick={handleToggleComplete}
-        className={cn(
-          "flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all duration-300",
-          set.completed 
-            ? "bg-[var(--color-success)] text-white shadow-lg shadow-[var(--color-success-soft)] scale-[0.98]" 
-            : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border-2 border-[var(--color-border-strong)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary-strong)] active:scale-[0.97]"
-        )}
-        style={{ minHeight: '48px', minWidth: '160px', justifyContent: 'center' }}
-      >
-        {set.completed ? (
-          <>
-            <Check size={20} strokeWidth={4} />
-            <span className="uppercase tracking-tight text-sm">Log Entry</span>
-          </>
-        ) : (
-          <span className="uppercase tracking-tight text-sm text-[var(--color-text)]">Mark Complete</span>
-        )}
-      </button>
-    </div>
-  );
+  // If completed, show compact summary
+  if (set.completed) {
+    return (
+      <div className="mb-3">
+        <CompletedSetSummary
+          set={set}
+          effectiveProfile={effectiveProfile}
+          effectiveLoadType={effectiveLoadType}
+          unitLabel={unitLabel}
+          onToggleComplete={onToggleComplete}
+          onDelete={onDelete}
+          getExtra={getExtra}
+          durationMinutes={durationMinutes}
+        />
+      </div>
+    )
+  }
+
+  // Form input styles - consistent with Input/Select components
+  const inputBaseClass = cn(
+    "input-base h-10 text-sm font-medium text-center",
+    "disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--color-input-muted)]"
+  )
+
+  const inputErrorClass = (hasError?: boolean) => cn(
+    inputBaseClass,
+    hasError && "border-[var(--color-danger)] ring-2 ring-[var(--color-danger-soft)]"
+  )
+
+  // Compact input for small values (rest time, etc.)
+  const inputCompactClass = cn(
+    "input-base input-compact h-9 w-20 text-sm font-medium text-center",
+    "disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--color-input-muted)]"
+  )
+
+  const labelClass = "text-xs font-medium text-subtle"
+
+  const validateSet = () => {
+    const missing: string[] = []
+    
+    if (['mobility_session', 'cardio_session', 'timed_strength'].includes(effectiveProfile)) {
+      if (!durationMinutes || Number(durationMinutes) <= 0) missing.push('duration')
+    }
+
+    if (effectiveProfile === 'strength') {
+      if (set.reps === null || set.reps === undefined || set.reps === 0) missing.push('reps')
+    }
+
+    if (['strength', 'timed_strength'].includes(effectiveProfile)) {
+      if (set.weight === null || set.weight === undefined) missing.push('weight')
+    }
+    
+    if (effectiveProfile === 'cardio_session') {
+       const dist = (getExtra('distance_km') as number) ?? set.distance
+       if (dist === null || dist === undefined) missing.push('distance')
+    }
+
+    setMissingFields(missing)
+    return missing.length === 0
+  }
+
+  const handleToggleComplete = () => {
+    if (set.completed) {
+      onToggleComplete()
+      return
+    }
+
+    if (showDumbbellToggle && !hasImplementCount) {
+      setImplementError(true)
+      return
+    }
+    setImplementError(false)
+
+    if (!validateSet()) return
+
+    onToggleComplete()
+  }
 
   const renderHeader = () => (
-     <div className="flex items-center gap-3 mb-5">
-        <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--color-surface-muted)] font-black text-[var(--color-text)] border border-[var(--color-border)] shadow-inner">
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-sm font-bold text-[var(--color-text)] border border-[var(--color-border)]">
           {set.setNumber}
         </div>
-        <span className="text-sm font-semibold text-[var(--color-text-muted)]">Set {set.setNumber}</span>
-        <div className="ml-auto">
-           <button
-            onClick={onDelete}
-            className="p-2.5 rounded-lg text-[var(--color-text-subtle)] transition-all hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)] active:scale-90"
-            title="Delete set"
-          >
-            <Trash2 size={18} />
-          </button>
-        </div>
+        <span className="text-sm font-semibold text-muted">Set {set.setNumber}</span>
       </div>
-  );
+      <button
+        onClick={onDelete}
+        className="rounded-lg p-2 text-[var(--color-text-subtle)] transition-all hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)] active:scale-95"
+        title="Delete set"
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
+  )
 
+  const renderCompletionButton = () => (
+    <div className="flex justify-end mt-4 pt-4 border-t border-[var(--color-border)]">
+      <button
+        onClick={handleToggleComplete}
+        className="flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[var(--color-primary-strong)] active:scale-[0.98]"
+      >
+        <Check size={16} strokeWidth={2.5} />
+        <span>Mark Complete</span>
+      </button>
+    </div>
+  )
+
+  const renderDumbbellToggle = () => {
+    if (!showDumbbellToggle) return null
+    
+    return (
+      <div className="flex flex-col gap-1.5">
+        <label className={labelClass}>Dumbbells</label>
+        <div className={cn(
+          "grid grid-cols-2 rounded-lg border p-0.5 transition-all",
+          implementError ? "border-[var(--color-danger)] bg-[var(--color-danger-soft)]/40" : "border-[var(--color-border)] bg-[var(--color-surface-muted)]"
+        )}>
+          {[1, 2].map((count) => (
+            <button
+              key={count}
+              type="button"
+              onClick={() => { onUpdate('implementCount', count as 1 | 2); onUpdate('loadType', 'per_implement'); setImplementError(false) }}
+              className={cn(
+                "h-9 rounded-md text-xs font-semibold transition-all",
+                hasImplementCount && set.implementCount === count
+                  ? "bg-[var(--color-primary)] text-white shadow-sm"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-primary)]"
+              )}
+              disabled={!isEditing}
+            >
+              {count} DB
+            </button>
+          ))}
+        </div>
+        {implementError && (
+          <p className="text-[10px] font-medium text-[var(--color-danger)]">Select 1 or 2</p>
+        )}
+      </div>
+    )
+  }
+
+  // Mobility Session Form
   if (effectiveProfile === 'mobility_session') {
     return (
-      <div className={cn(
-        "flex flex-col mb-4 rounded-2xl border-2 p-5 transition-all duration-300",
-        set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
-      )}>
+      <div className="surface-card mb-3 p-4">
         {renderHeader()}
-        <div className="grid gap-5 grid-cols-1 sm:grid-cols-3">
-          <div className="flex flex-col">
-            <label className={labelStyle}>Duration (min)</label>
-            <NumericInput placeholder="0" value={durationMinutes} onChange={handleDurationChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="flex flex-col gap-1.5">
+            <label className={labelClass}>Duration (min)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="0"
+              value={durationMinutes}
+              onChange={(e) => handleDurationChange(e.target.value)}
+              className={inputErrorClass(missingFields.includes('duration'))}
+              disabled={!isEditing}
+            />
           </div>
-          <div className="flex flex-col">
-            <label className={labelStyle}>Intensity</label>
-            <select value={set.rpe ?? ''} onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelClass}>Intensity (1-10)</label>
+            <select
+              value={set.rpe ?? ''}
+              onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))}
+              className={inputBaseClass}
+              disabled={!isEditing}
+            >
               <option value="">--</option>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((val) => (
                 <option key={val} value={val}>{val}</option>
               ))}
             </select>
           </div>
-           <div className="flex flex-col">
-             <label className={labelStyle}>Category</label>
-             <select value={(getExtra('style') as string) ?? ''} onChange={(e) => updateExtra('style', e.target.value)} className={inputClassName()} disabled={!isEditing}>
-                <option value="">Select style</option>
-                <option value="Flow">Flow</option>
-                <option value="Power">Power</option>
-                <option value="Restorative">Restorative</option>
-                <option value="Yin">Yin</option>
-                <option value="Mobility">Mobility</option>
-                <option value="Breathwork">Breathwork</option>
-             </select>
-           </div>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelClass}>Category</label>
+            <select
+              value={(getExtra('style') as string) ?? ''}
+              onChange={(e) => updateExtra('style', e.target.value)}
+              className={inputBaseClass}
+              disabled={!isEditing}
+            >
+              <option value="">Select</option>
+              <option value="Flow">Flow</option>
+              <option value="Power">Power</option>
+              <option value="Restorative">Restorative</option>
+              <option value="Yin">Yin</option>
+              <option value="Mobility">Mobility</option>
+              <option value="Breathwork">Breathwork</option>
+            </select>
+          </div>
         </div>
-        {renderCompletionControl()}
+        {renderCompletionButton()}
       </div>
-    );
+    )
   }
 
+  // Cardio Session Form
   if (effectiveProfile === 'cardio_session') {
     return (
-      <div className={cn(
-        "flex flex-col mb-4 rounded-2xl border-2 p-5 transition-all duration-300",
-        set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
-      )}>
+      <div className="surface-card mb-3 p-4">
         {renderHeader()}
-        <div className="grid gap-5 grid-cols-1 sm:grid-cols-3">
-          <div className="flex flex-col">
-            <label className={labelStyle}>Duration (min)</label>
-            <NumericInput placeholder="0" value={durationMinutes} onChange={handleDurationChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="flex flex-col gap-1.5">
+            <label className={labelClass}>Duration (min)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="0"
+              value={durationMinutes}
+              onChange={(e) => handleDurationChange(e.target.value)}
+              className={inputErrorClass(missingFields.includes('duration'))}
+              disabled={!isEditing}
+            />
           </div>
-          <div className="flex flex-col">
-            <label className={labelStyle}>Intensity</label>
-            <select value={set.rpe ?? ''} onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelClass}>Intensity (1-10)</label>
+            <select
+              value={set.rpe ?? ''}
+              onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))}
+              className={inputBaseClass}
+              disabled={!isEditing}
+            >
               <option value="">--</option>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((val) => (
                 <option key={val} value={val}>{val}</option>
               ))}
             </select>
           </div>
-          <div className="flex flex-col">
-            <label className={labelStyle}>Distance (km)</label>
-             <NumericInput placeholder="0.0" value={(getExtra('distance_km') as string) ?? set.distance ?? ''} onChange={(val) => { validateAndUpdate('distance', val); const num = val === '' ? null : Number(val); if (!isNaN(num as number)) updateExtra('distance_km', num); }} inputClassName={inputClassName()} isEditing={isEditing} />
+          <div className="flex flex-col gap-1.5">
+            <label className={labelClass}>Distance (km)</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="0.0"
+              value={(getExtra('distance_km') as string) ?? set.distance ?? ''}
+              onChange={(e) => {
+                validateAndUpdate('distance', e.target.value)
+                const num = e.target.value === '' ? null : Number(e.target.value)
+                if (!isNaN(num as number)) updateExtra('distance_km', num)
+              }}
+              className={inputErrorClass(missingFields.includes('distance'))}
+              disabled={!isEditing}
+            />
           </div>
         </div>
-        {renderCompletionControl()}
+        {renderCompletionButton()}
       </div>
-    );
+    )
   }
 
+  // Timed Strength Form
   if (effectiveProfile === 'timed_strength') {
     return (
-      <div className={cn(
-        "flex flex-col mb-4 rounded-2xl border-2 p-5 transition-all duration-300",
-        set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
-      )}>
+      <div className="surface-card mb-3 p-4">
         {renderHeader()}
+        
         {showDumbbellToggle && (
-          <div className="mb-5">
-            <label className={labelStyle}>Dumbbells</label>
-            <div className={cn(
-              "grid grid-cols-2 rounded-xl border-2 p-1 transition-all",
-              implementError ? "border-[var(--color-danger)] bg-[var(--color-danger-soft)]/40" : "border-[var(--color-border-strong)] bg-[var(--color-surface-muted)]"
-            )}>
-              {[1, 2].map((count) => (
-                <button
-                  key={count}
-                  type="button"
-                  onClick={() => { onUpdate('implementCount', count as 1 | 2); onUpdate('loadType', 'per_implement'); setImplementError(false); }}
-                  className={cn(
-                    "h-10 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
-                    hasImplementCount && set.implementCount === count
-                      ? "bg-[var(--color-primary)] text-white shadow-sm"
-                      : "text-[var(--color-text-subtle)] hover:text-[var(--color-primary-strong)]"
-                  )}
-                  disabled={!isEditing}
-                >
-                  {count} DB
-                </button>
-              ))}
-            </div>
-            {implementError && (
-              <p className="mt-2 text-[10px] font-bold text-center text-[var(--color-danger)] uppercase tracking-widest">Select 1 or 2</p>
-            )}
+          <div className="mb-4">
+            {renderDumbbellToggle()}
           </div>
         )}
-        <div className="flex flex-wrap gap-4">
-          <div className="flex flex-col flex-1 min-w-[130px]">
-            <label className={labelStyle}>Duration</label>
-            <NumericInput placeholder="0" value={durationMinutes} onChange={handleDurationChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
+        
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-col gap-1.5">
+            <label className={labelClass}>Duration (min)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="0"
+              value={durationMinutes}
+              onChange={(e) => handleDurationChange(e.target.value)}
+              className={inputErrorClass(missingFields.includes('duration'))}
+              disabled={!isEditing}
+            />
           </div>
-          <div className="flex flex-col flex-1 min-w-[130px]">
-            <label className={labelStyle}>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelClass}>
               {effectiveLoadType === 'per_implement' ? `Wt/DB (${unitLabel})` : `Weight (${unitLabel})`}
             </label>
             {weightChoices.length > 0 ? (
-              <select value={typeof set.weight === 'number' ? String(set.weight) : ''} onChange={(e) => { const v = e.target.value === '' ? '' : Number(e.target.value); onUpdate('weight', v); const opt = weightChoices.find(c => c.value === v); if (opt?.unit) onUpdate('weightUnit', opt.unit); }} className={inputClassName()} disabled={!isEditing}>
-                <option value="">Select weight</option>
-                {weightChoices.map(opt => <option key={`${opt.label}-${opt.value}`} value={opt.value}>{opt.label}</option>)}
+              <select
+                value={typeof set.weight === 'number' ? String(set.weight) : ''}
+                onChange={(e) => {
+                  const v = e.target.value === '' ? '' : Number(e.target.value)
+                  onUpdate('weight', v)
+                  const opt = weightChoices.find(c => c.value === v)
+                  if (opt?.unit) onUpdate('weightUnit', opt.unit)
+                }}
+                className={inputErrorClass(missingFields.includes('weight'))}
+                disabled={!isEditing}
+              >
+                <option value="">Select</option>
+                {weightChoices.map(opt => (
+                  <option key={`${opt.label}-${opt.value}`} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             ) : (
-              <NumericInput placeholder="0" value={set.weight ?? ''} onChange={(val) => validateAndUpdate('weight', val)} hasError={weightError} inputClassName={inputClassName(weightError)} isEditing={isEditing} />
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={set.weight ?? ''}
+                onChange={(e) => validateAndUpdate('weight', e.target.value)}
+                className={inputErrorClass(weightError || missingFields.includes('weight'))}
+                disabled={!isEditing}
+              />
             )}
           </div>
-          <div className="flex flex-col flex-1 min-w-[130px]">
-            <label className={labelStyle}>RPE</label>
-            <select value={typeof set.rpe === 'number' ? String(set.rpe) : ''} onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelClass}>RPE</label>
+            <select
+              value={typeof set.rpe === 'number' ? String(set.rpe) : ''}
+              onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))}
+              className={inputBaseClass}
+              disabled={!isEditing}
+            >
               <option value="">--</option>
-              {RPE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label} ({opt.value})</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col flex-1 min-w-[130px]">
-            <label className={labelStyle}>Reserve</label>
-            <select value={typeof set.rir === 'number' ? String(set.rir) : ''} onChange={(e) => onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value))} className={inputClassName()} disabled={!isEditing}>
-              <option value="">--</option>
-              {RIR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </select>
-          </div>
-                  <div className="flex flex-col flex-1 min-w-[130px]">
-                    <label className={labelStyle}>Rest (min)</label>
-                    <NumericInput placeholder="0" value={restMinutes} onChange={handleRestChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
-                  </div>        </div>
-        <div className="mt-5 flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 px-4 py-3">
-          <span className={totalLabelStyle}>Total Weight</span>
-          <span className={totalValueStyle}>{totalWeightLabel ?? '—'}</span>
-        </div>
-        {renderCompletionControl()}
-      </div>
-    );
-  }
-
-  const derivedRpe = typeof set.rir === 'number' ? mapRirToRpe(set.rir) : null;
-  const derivedRpeLabel = RPE_OPTIONS.find((opt) => opt.value === derivedRpe)?.label ?? null;
-
-  return (
-    <div className={cn(
-      "flex flex-col mb-4 rounded-2xl border-2 p-5 transition-all duration-300",
-      set.completed ? "border-[var(--color-success-border)] bg-[var(--color-success-soft)]/30" : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm"
-    )}>
-      {renderHeader()}
-      <div className="flex flex-wrap gap-4">
-        {showDumbbellToggle && (
-          <div className="flex flex-col flex-1 min-w-[130px]">
-            <label className={labelStyle}>Dumbbells</label>
-            <div className={cn(
-              "grid grid-cols-2 rounded-xl border-2 p-1 transition-all",
-              implementError ? "border-[var(--color-danger)] bg-[var(--color-danger-soft)]/40" : "border-[var(--color-border-strong)] bg-[var(--color-surface-muted)]"
-            )}>
-              {[1, 2].map((count) => (
-                <button
-                  key={count}
-                  type="button"
-                  onClick={() => { onUpdate('implementCount', count as 1 | 2); onUpdate('loadType', 'per_implement'); setImplementError(false); }}
-                  className={cn(
-                    "h-10 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
-                    hasImplementCount && set.implementCount === count
-                      ? "bg-[var(--color-primary)] text-white shadow-sm"
-                      : "text-[var(--color-text-subtle)] hover:text-[var(--color-primary-strong)]"
-                  )}
-                  disabled={!isEditing}
-                >
-                  {count} DB
-                </button>
+              {RPE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.value}</option>
               ))}
-            </div>
-            {implementError && (
-              <p className="mt-2 text-[10px] font-bold text-center text-[var(--color-danger)] uppercase tracking-widest">Select 1 or 2</p>
-            )}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelClass}>Rest (min)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="0"
+              value={restMinutes}
+              onChange={(e) => handleRestChange(e.target.value)}
+              className={inputCompactClass}
+              disabled={!isEditing}
+            />
+          </div>
+        </div>
+
+        {totalWeightLabel && (
+          <div className="mt-4 flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)]/50 px-4 py-2.5">
+            <span className="text-xs font-medium text-subtle">Total Weight</span>
+            <span className="text-sm font-bold text-strong">{totalWeightLabel}</span>
           </div>
         )}
-        <div className="flex flex-col flex-1 min-w-[130px]">
-          <label className={labelStyle}>
+        
+        {renderCompletionButton()}
+      </div>
+    )
+  }
+
+  // Default Strength Form
+  const derivedRpe = typeof set.rir === 'number' ? mapRirToRpe(set.rir) : null
+  const derivedRpeLabel = RPE_OPTIONS.find((opt) => opt.value === derivedRpe)?.label ?? null
+
+  return (
+    <div className="surface-card mb-3 p-4">
+      {renderHeader()}
+      
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {showDumbbellToggle && renderDumbbellToggle()}
+        
+        <div className="flex flex-col gap-1.5">
+          <label className={labelClass}>
             {effectiveLoadType === 'per_implement' ? `Wt/DB (${unitLabel})` : `Weight (${unitLabel})`}
           </label>
           {weightChoices.length > 0 ? (
-            <select value={typeof set.weight === 'number' ? String(set.weight) : ''} onChange={(e) => { const v = e.target.value === '' ? '' : Number(e.target.value); onUpdate('weight', v); const opt = weightChoices.find(c => c.value === v); if (opt?.unit) onUpdate('weightUnit', opt.unit); }} className={inputClassName()} disabled={!isEditing}>
+            <select
+              value={typeof set.weight === 'number' ? String(set.weight) : ''}
+              onChange={(e) => {
+                const v = e.target.value === '' ? '' : Number(e.target.value)
+                onUpdate('weight', v)
+                const opt = weightChoices.find(c => c.value === v)
+                if (opt?.unit) onUpdate('weightUnit', opt.unit)
+              }}
+              className={inputErrorClass(missingFields.includes('weight'))}
+              disabled={!isEditing}
+            >
               <option value="">--</option>
-              {weightChoices.map(opt => <option key={`${opt.label}-${opt.value}`} value={opt.value}>{opt.label}</option>)}
+              {weightChoices.map(opt => (
+                <option key={`${opt.label}-${opt.value}`} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           ) : (
-            <NumericInput placeholder="0" value={set.weight ?? ''} onChange={(v) => validateAndUpdate('weight', v)} hasError={weightError} inputClassName={inputClassName(weightError)} isEditing={isEditing} />
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="0"
+              value={set.weight ?? ''}
+              onChange={(e) => validateAndUpdate('weight', e.target.value)}
+              className={inputErrorClass(weightError || missingFields.includes('weight'))}
+              disabled={!isEditing}
+            />
           )}
         </div>
-        <div className="flex flex-col flex-1 min-w-[130px]">
-          <label className={labelStyle}>{repsLabel}</label>
-          <NumericInput placeholder={repsLabel === 'Reps' ? '0' : '--'} value={set.reps ?? ''} onChange={(v) => validateAndUpdate('reps', v)} hasError={repsError} mode={repsLabel === 'Reps' ? 'numeric' : 'decimal'} inputClassName={inputClassName(repsError)} isEditing={isEditing} />
+
+        <div className="flex flex-col gap-1.5">
+          <label className={labelClass}>{repsLabel}</label>
+          <input
+            type="text"
+            inputMode={repsLabel === 'Reps' ? 'numeric' : 'decimal'}
+            placeholder={repsLabel === 'Reps' ? '0' : '--'}
+            value={set.reps ?? ''}
+            onChange={(e) => validateAndUpdate('reps', e.target.value)}
+            className={inputErrorClass(repsError || missingFields.includes('reps'))}
+            disabled={!isEditing}
+          />
         </div>
-        <div className="flex flex-col flex-1 min-w-[130px]">
-          <label className={labelStyle}>Reserve</label>
-          <select value={typeof set.rir === 'number' ? String(set.rir) : ''} onChange={(e) => { onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value)); onUpdate('rpe', ''); }} className={inputClassName()} disabled={!isEditing}>
+
+        <div className="flex flex-col gap-1.5">
+          <label className={labelClass}>RIR</label>
+          <select
+            value={typeof set.rir === 'number' ? String(set.rir) : ''}
+            onChange={(e) => { onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value)); onUpdate('rpe', '') }}
+            className={inputBaseClass}
+            disabled={!isEditing}
+          >
             <option value="">--</option>
-            {RIR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            {RIR_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.value}</option>
+            ))}
           </select>
-          {derivedRpe && <p className="mt-2 text-[10px] font-bold text-center text-[var(--color-text-subtle)] uppercase tracking-tighter italic">RPE {derivedRpe}{derivedRpeLabel ? ` · ${derivedRpeLabel}` : ''}</p>}
+          {derivedRpe && (
+            <p className="text-[10px] font-medium text-subtle">
+              RPE {derivedRpe}{derivedRpeLabel ? ` · ${derivedRpeLabel}` : ''}
+            </p>
+          )}
         </div>
-                <div className="flex flex-col flex-1 min-w-[130px]">
-                  <label className={labelStyle}>Rest (min)</label>
-                  <NumericInput placeholder="0" value={restMinutes} onChange={handleRestChange} mode="numeric" inputClassName={inputClassName()} isEditing={isEditing} />
-                </div>      </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className={labelClass}>Rest</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="0"
+              value={restMinutes}
+              onChange={(e) => handleRestChange(e.target.value)}
+              className={inputCompactClass}
+              disabled={!isEditing}
+            />
+            <span className="text-xs text-subtle">min</span>
+          </div>
+        </div>
+      </div>
+
+      {totalWeightLabel && (
+        <div className="mt-4 flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)]/50 px-4 py-2.5">
+          <span className="text-xs font-medium text-subtle">Total Weight</span>
+          <span className="text-sm font-bold text-strong">{totalWeightLabel}</span>
+        </div>
+      )}
+      
+      {renderCompletionButton()}
     </div>
-  );
-};
+  )
+}
 
 // Export memoized component to prevent unnecessary re-renders
-export const SetLogger = memo(SetLoggerComponent);
+export const SetLogger = memo(SetLoggerComponent)
