@@ -9,9 +9,11 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { createClient } from '@/lib/supabase/client'
-import { calculateSessionImpactFromSets, formatFocusLabel, formatGoalLabel } from '@/lib/workout-metrics'
+import { formatFocusLabel, formatGoalLabel } from '@/lib/workout-metrics'
+import { completeSession } from '@/lib/session-completion'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
+import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import type { SessionGoal } from '@/types/domain'
 
 type ConfirmAction = {
@@ -30,6 +32,7 @@ function WorkoutActiveContent() {
   const { user } = useUser()
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const endSession = useWorkoutStore((state) => state.endSession)
+  const { catalog } = useExerciseCatalog()
   const [finishError, setFinishError] = useState<string | null>(null)
   const [finishingSession, setFinishingSession] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
@@ -75,49 +78,25 @@ function WorkoutActiveContent() {
   }
 
   const executeFinish = async () => {
-    if (!currentSessionId) return
+    if (!currentSessionId || !activeSession || !user?.id) return
     setFinishError(null)
     setFinishingSession(true)
     try {
-      const endedAt = new Date().toISOString()
-      
-      if (bodyWeightRef.current && user?.id) {
-        await Promise.all([
-          supabase.from('profiles').update({ weight_lb: bodyWeightRef.current }).eq('id', user.id),
-          supabase.from('body_measurements').insert({ 
-            user_id: user.id, 
-            weight_lb: bodyWeightRef.current,
-            recorded_at: endedAt 
-          })
-        ])
+      const result = await completeSession({
+        supabase,
+        sessionId: currentSessionId,
+        session: activeSession,
+        userId: user.id,
+        bodyWeightLb: bodyWeightRef.current,
+        sessionGoal,
+        equipmentInventory,
+        exerciseCatalog: catalog.map((e) => ({ name: e.name, e1rmEligible: e.e1rmEligible }))
+      })
+
+      if (!result.success) {
+        throw new Error(result.error ?? 'Failed to complete session')
       }
 
-      const recalculatedImpact = activeSession
-        ? calculateSessionImpactFromSets(activeSession, endedAt)
-        : null
-
-      let finalName = activeSession?.name;
-      if (sessionGoal === 'cardio' && activeSession?.exercises?.length) {
-        const firstExName = activeSession.exercises[0].name;
-        // Only append if it's not already in the name
-        if (!finalName?.includes(firstExName)) {
-          finalName = `Cardio ${firstExName}`;
-        }
-      }
-
-      const sessionUpdate = {
-        name: finalName,
-        ended_at: endedAt,
-        status: 'completed',
-        impact: recalculatedImpact,
-        body_weight_lb: bodyWeightRef.current
-      }
-      const { error } = await supabase
-        .from('sessions')
-        .update(sessionUpdate)
-        .eq('id', currentSessionId)
-
-      if (error) throw error
       endSession()
       if (params.id) {
         router.push(`/workouts/${params.id}/summary?sessionId=${currentSessionId}`)

@@ -111,6 +111,7 @@ create table if not exists public.sessions (
   timezone text,
   session_notes text,
   body_weight_lb numeric(6,2),
+  completion_snapshot jsonb,
   created_at timestamptz not null default now()
 );
 

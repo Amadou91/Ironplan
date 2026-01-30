@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { computeSetE1rm, computeSetTonnage } from '@/lib/session-metrics'
 import { computeSessionMetrics, type ReadinessSurvey } from '@/lib/training-metrics'
+import { getSnapshotMetrics } from '@/lib/session-snapshot'
 import { useUser } from '@/hooks/useUser'
 import { useUIStore } from '@/store/uiStore'
 import { Button } from '@/components/ui/Button'
-import type { FocusArea, SessionGoal, Intensity, WeightUnit, MetricProfile, Exercise } from '@/types/domain'
+import type { FocusArea, SessionGoal, Intensity, WeightUnit, MetricProfile, Exercise, CompletionSnapshot } from '@/types/domain'
 import { SummaryHeader } from '@/components/workout/SummaryHeader'
 import { SessionHighlights } from '@/components/workout/SessionHighlights'
 import { ExerciseHighlights } from '@/components/workout/ExerciseHighlights'
@@ -23,6 +24,8 @@ type SessionDetail = {
   session_notes: string | null
   session_goal?: SessionGoal | null
   body_weight_lb: number | null
+  /** Immutable snapshot captured at session completion */
+  completion_snapshot?: CompletionSnapshot | null
   impact: {
     score?: number
     breakdown?: {
@@ -123,7 +126,7 @@ export default function WorkoutSummaryPage() {
       const [sessionRes, catalogRes] = await Promise.all([
         supabase
           .from('sessions')
-          .select('id, name, started_at, ended_at, status, session_notes, session_goal, body_weight_lb, impact, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, rest_seconds_actual))')
+          .select('id, name, started_at, ended_at, status, session_notes, session_goal, body_weight_lb, impact, completion_snapshot, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, rest_seconds_actual))')
           .eq('id', sessionId).single(),
         supabase.from('exercise_catalog').select(`
           id, name, category, focus, movement_pattern, metric_profile,
@@ -145,6 +148,15 @@ export default function WorkoutSummaryPage() {
 
   const sessionMetrics = useMemo(() => {
     if (!session) return null
+    
+    // For completed sessions, prefer immutable snapshot metrics when available
+    // This ensures historical data is never affected by algorithm changes
+    const snapshotMetrics = getSnapshotMetrics(session.completion_snapshot)
+    if (snapshotMetrics && session.status === 'completed') {
+      return snapshotMetrics
+    }
+    
+    // Fallback: calculate metrics from set data (for in-progress or legacy sessions)
     const sessionGoal = (session.session_goal ?? parsedNotes?.goal ?? null) as SessionGoal | undefined
     const exerciseLibraryByName = new Map(catalog.map(ex => [ex.name.toLowerCase(), ex]))
     const metricSets = session.session_exercises.flatMap(exercise => {

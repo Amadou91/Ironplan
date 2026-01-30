@@ -12,6 +12,7 @@ import type {
   LoadType,
   MovementPattern
 } from './core.types'
+import type { EquipmentInventory } from './equipment.types'
 import type { ExerciseVariation, GroupType } from './exercise.types'
 
 export interface WorkoutImpact {
@@ -21,6 +22,60 @@ export interface WorkoutImpact {
     intensity: number
     density: number
   }
+}
+
+/**
+ * Immutable snapshot of user data captured at session completion.
+ * Ensures historical sessions are never affected by subsequent changes
+ * to user profiles, preferences, or calculation algorithms.
+ */
+export interface CompletionSnapshot {
+  /** User's body weight in pounds at completion time */
+  bodyWeightLb: number | null
+  /** User preferences snapshot (units, RPE baselines, etc.) */
+  preferences: {
+    units: WeightUnit
+    customRpeBaselines?: {
+      low: number
+      moderate: number
+      high: number
+    }
+  }
+  /** Equipment inventory available at time of session */
+  equipmentInventory?: EquipmentInventory
+  /** Algorithm version used for E1RM calculations */
+  e1rmFormulaVersion: string
+  /** Pre-calculated session metrics that should never change */
+  computedMetrics: {
+    /** Total volume load in pounds */
+    tonnage: number
+    /** Total number of completed sets */
+    totalSets: number
+    /** Total number of reps across all sets */
+    totalReps: number
+    /** Workload score (volume * intensity factor) */
+    workload: number
+    /** Number of sets with RPE >= 8 */
+    hardSets: number
+    /** Average effort score (RPE/RIR based) */
+    avgEffort: number | null
+    /** Average intensity (weight / E1RM) */
+    avgIntensity: number | null
+    /** Average rest between sets in seconds */
+    avgRestSeconds: number | null
+    /** Session density (workload / duration) */
+    density: number | null
+    /** sRPE-based load score */
+    sRpeLoad: number | null
+    /** Best estimated 1RM in kg */
+    bestE1rm: number | null
+    /** Exercise name for best E1RM */
+    bestE1rmExercise: string | null
+    /** Duration in minutes */
+    durationMinutes: number | null
+  }
+  /** Timestamp when snapshot was created */
+  capturedAt: string
 }
 
 export interface WorkoutSession {
@@ -40,6 +95,8 @@ export interface WorkoutSession {
   sessionNotes?: string | null
   weightUnit?: WeightUnit
   exercises: SessionExercise[]
+  /** Immutable snapshot captured at session completion - only present for completed sessions */
+  completionSnapshot?: CompletionSnapshot
 }
 
 export interface WorkoutLog {

@@ -64,7 +64,8 @@ export type {
   WorkoutSet,
   BodyMeasurement,
   SessionHistory,
-  FocusConstraint
+  FocusConstraint,
+  CompletionSnapshot
 } from './session.types'
 
 // Plan types
