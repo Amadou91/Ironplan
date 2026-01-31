@@ -63,7 +63,7 @@ interface ProgressChartsProps {
 
 function ChartHeader({ title, isZoomed, onReset, children }: { title: string; isZoomed?: boolean; onReset?: () => void; children?: React.ReactNode }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between min-h-[48px]">
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between min-h-[48px] antialiased">
       <div className="flex flex-col gap-2.5">
         <h3 className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.22em] text-strong leading-none">{title}</h3>
         {children}
@@ -184,7 +184,7 @@ export function ProgressCharts({
   }, [readinessTrendLine, correlationZoom.left, correlationZoom.right])
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 antialiased">
       <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader 
           title="Volume & load" 
@@ -202,7 +202,7 @@ export function ProgressCharts({
                   <span className="text-[10px] font-black uppercase tracking-wider text-subtle/70">Training Load</span>
                </div>
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/60">{volumeCadenceLabel} • dashed = trend</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">{volumeCadenceLabel} • dashed = trend</p>
           </div>
         </ChartHeader>
         <WeeklyVolumeChart data={volumeTrend} zoomProps={volumeZoom} />
@@ -210,7 +210,7 @@ export function ProgressCharts({
 
       <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title="Effort trend" isZoomed={effortZoom.isZoomed} onReset={effortZoom.zoomOut}>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/60">Avg session effort (RPE 1-10)</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">Avg session effort (RPE 1-10)</p>
         </ChartHeader>
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -262,7 +262,7 @@ export function ProgressCharts({
       {exerciseTrend.length > 0 && (
         <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
           <ChartHeader title={`e1RM trend (${displayUnit})`} isZoomed={exerciseZoom.isZoomed} onReset={exerciseZoom.zoomOut}>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/60">Daily bests • dashed = 7-day trend</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">Daily bests • dashed = 7-day trend</p>
           </ChartHeader>
           <div 
             className="h-64 w-full outline-none mt-auto"
@@ -315,7 +315,7 @@ export function ProgressCharts({
 
       <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title={`Bodyweight trend (${displayUnit})`} isZoomed={weightZoom.isZoomed} onReset={weightZoom.zoomOut}>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/60">Dashed = linear trend</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">Dashed = linear trend</p>
         </ChartHeader>
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -368,7 +368,7 @@ export function ProgressCharts({
 
       <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title="Readiness score trend" isZoomed={readinessZoom.isZoomed} onReset={readinessZoom.zoomOut}>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/60">0-100 score</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">0-100 score</p>
         </ChartHeader>
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -419,7 +419,7 @@ export function ProgressCharts({
 
       <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title="Readiness components">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/60">1-5 scale • dots = ideal</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">1-5 scale • dots = ideal</p>
         </ChartHeader>
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -462,7 +462,7 @@ export function ProgressCharts({
           isZoomed={correlationZoom.isZoomed} 
           onReset={correlationZoom.zoomOut} 
         >
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/60">Quadrants highlight recovery vs overreach • dashed = trend</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">Quadrants highlight recovery vs overreach • dashed = trend</p>
         </ChartHeader>
         <div 
           className="h-64 w-full outline-none mt-auto"

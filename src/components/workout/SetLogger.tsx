@@ -8,6 +8,7 @@ import type { WeightOption } from '@/lib/equipment'
 import { mapRirToRpe, formatTotalWeightLabel } from '@/lib/session-metrics'
 import { useSetEditor } from '@/hooks/useSetEditor'
 import { cn } from '@/lib/utils'
+import { FastRepsInput, FastRirInput, FastRestInput } from './FastEntryControls'
 
 interface SetLoggerProps {
   set: WorkoutSet
@@ -255,11 +256,15 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
       if (typeof set.weight !== 'number') missing.push('weight')
       // RIR is required for strength exercises
       if (typeof set.rir !== 'number') missing.push('rir')
+      // Rest is required for strength exercises (must be set, assuming 0 is valid but null/undefined is not)
+      if (set.restSecondsActual === null || set.restSecondsActual === undefined) missing.push('rest')
     }
 
     if (effectiveProfile === 'timed_strength') {
       // Weight is required for timed strength (must be explicitly selected)
       if (typeof set.weight !== 'number') missing.push('weight')
+      // Rest is required for timed strength
+      if (set.restSecondsActual === null || set.restSecondsActual === undefined) missing.push('rest')
     }
     
     if (effectiveProfile === 'cardio_session') {
@@ -268,7 +273,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     }
 
     return missing
-  }, [effectiveProfile, durationMinutes, set.reps, set.weight, set.rir, set.distance, getExtra, showDumbbellToggle, hasImplementCount])
+  }, [effectiveProfile, durationMinutes, set.reps, set.weight, set.rir, set.distance, getExtra, showDumbbellToggle, hasImplementCount, set.restSecondsActual])
 
   // Check if set can be marked complete
   const canComplete = missingFields.length === 0
@@ -344,7 +349,8 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
       weight: 'Weight',
       rir: 'RIR',
       distance: 'Distance',
-      dumbbells: 'Dumbbell count'
+      dumbbells: 'Dumbbell count',
+      rest: 'Rest'
     }
     const labels = missingFields.map(f => fieldLabels[f] || f)
     if (labels.length === 1) return `${labels[0]} is required`
@@ -622,21 +628,14 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
             </select>
           </div>
 
-          {/* Rest - compact numeric field */}
-          <div className="flex w-20 shrink-0 flex-col gap-1.5">
+          {/* Rest - Fast Timer Input */}
+          <div className="flex w-28 shrink-0 flex-col gap-1.5">
             <label className={labelClass}>Rest</label>
-            <div className="flex items-center gap-1">
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="0"
-                value={restMinutes}
-                onChange={(e) => handleRestChange(e.target.value)}
-                className={cn(inputCompactClass, "w-12")}
-                disabled={!isEditing}
-              />
-              <span className="text-xs text-subtle">min</span>
-            </div>
+            <FastRestInput
+              value={restMinutes}
+              onChange={handleRestChange}
+              disabled={!isEditing}
+            />
           </div>
         </div>
 
@@ -664,7 +663,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
       
       <div className="flex flex-wrap items-end gap-3">
         {/* Weight - primary field, takes available space */}
-        <div className="flex min-w-[140px] flex-1 flex-col gap-1.5">
+        <div className="flex min-w-[120px] flex-1 flex-col gap-1.5">
           <label className={labelClass}>
             {effectiveLoadType === 'per_implement' ? `Wt/DB (${unitLabel})` : `Weight (${unitLabel})`}
           </label>
@@ -706,53 +705,38 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
           )}
         </div>
 
-        {/* Reps - compact numeric field */}
-        <div className="flex w-16 shrink-0 flex-col gap-1.5">
+        {/* Reps - Fast Stepper Input */}
+        <div className="flex w-28 shrink-0 flex-col gap-1.5">
           <label className={labelClass}>{repsLabel}</label>
-          <input
-            type="text"
-            inputMode={repsLabel === 'Reps' ? 'numeric' : 'decimal'}
-            placeholder="0"
+          <FastRepsInput
             value={set.reps ?? ''}
-            onChange={(e) => validateAndUpdate('reps', e.target.value)}
-            className={cn(inputCompactClass, (repsError || missingFields.includes('reps')) && "border-[var(--color-danger)] ring-2 ring-[var(--color-danger-soft)]")}
+            onChange={(val) => validateAndUpdate('reps', val)}
             disabled={!isEditing}
+            className={cn((repsError || missingFields.includes('reps')) && "ring-2 ring-[var(--color-danger-soft)] border-[var(--color-danger)]")}
           />
         </div>
 
-        {/* RIR - compact dropdown */}
-        <div className="flex w-20 shrink-0 flex-col gap-1.5">
+        {/* RIR - Fast Segmented Control */}
+        <div className="flex min-w-[200px] flex-1 flex-col gap-1.5">
           <label className={labelClass} title="Reps in Reserve – How many more reps could you have done?">
-            RIR
+            RIR (Reps in Reserve)
           </label>
-          <select
-            value={typeof set.rir === 'number' ? String(set.rir) : ''}
-            onChange={(e) => { onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value)); onUpdate('rpe', '') }}
-            className={cn(selectCompactClass, missingFields.includes('rir') && "border-[var(--color-danger)] ring-2 ring-[var(--color-danger-soft)]")}
+          <FastRirInput
+            value={set.rir ?? ''}
+            onChange={(val) => { onUpdate('rir', val); onUpdate('rpe', '') }}
             disabled={!isEditing}
-          >
-            <option value="">--</option>
-            {RIR_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.value}</option>
-            ))}
-          </select>
+            className={cn(missingFields.includes('rir') && "ring-2 ring-[var(--color-danger-soft)] border-[var(--color-danger)]")}
+          />
         </div>
 
-        {/* Rest - compact numeric field */}
-        <div className="flex w-20 shrink-0 flex-col gap-1.5">
+        {/* Rest - Fast Timer Input */}
+        <div className="flex w-28 shrink-0 flex-col gap-1.5">
           <label className={labelClass}>Rest</label>
-          <div className="flex items-center gap-1">
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="0"
-              value={restMinutes}
-              onChange={(e) => handleRestChange(e.target.value)}
-              className={cn(inputCompactClass, "w-12")}
-              disabled={!isEditing}
-            />
-            <span className="text-xs text-subtle">min</span>
-          </div>
+          <FastRestInput
+            value={restMinutes}
+            onChange={handleRestChange}
+            disabled={!isEditing}
+          />
         </div>
       </div>
 

@@ -595,6 +595,7 @@ export default function ActiveSession({
                         weight: lastSet.weight,
                         rpe: lastSet.rpe,
                         rir: lastSet.rir,
+                        restSecondsActual: lastSet.restSecondsActual,
                         loadType: lastSet.loadType,
                         implementCount: lastSet.implementCount
                       }

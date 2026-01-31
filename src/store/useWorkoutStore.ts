@@ -94,6 +94,7 @@ export const useWorkoutStore = create<WorkoutState>()(
           loadType: initial.loadType ?? options?.loadType ?? '',
           rpe: initial.rpe ?? '',
           rir: initial.rir ?? '',
+          restSecondsActual: initial.restSecondsActual ?? 120,
           performedAt: new Date().toISOString(),
           completed: false,
           weightUnit: weightUnit ?? state.activeSession.weightUnit ?? 'lb'

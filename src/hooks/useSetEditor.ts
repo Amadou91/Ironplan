@@ -86,26 +86,26 @@ export function useSetEditor({
   }, [set.weight, set.weightUnit, weightOptions, set.extraMetrics])
 
   const durationMinutes = useMemo(() => {
-    if (typeof set.durationSeconds === 'number') return Math.round(set.durationSeconds / 60)
+    if (typeof set.durationSeconds === 'number') return Number((set.durationSeconds / 60).toFixed(2))
     if (['timed_strength', 'cardio_session', 'mobility_session'].includes(effectiveProfile) && typeof set.reps === 'number') {
-      return Math.round(set.reps / 60)
+      return Number((set.reps / 60).toFixed(2))
     }
     return ''
   }, [set.durationSeconds, set.reps, effectiveProfile])
 
   const handleDurationChange = (val: string) => {
-    onUpdate('durationSeconds', val === '' ? '' : Number(val) * 60)
+    onUpdate('durationSeconds', val === '' ? '' : Math.round(Number(val) * 60))
   }
 
   const restMinutes = useMemo(() => {
     if (typeof set.restSecondsActual === 'number' && set.restSecondsActual > 0) {
-      return Math.round(set.restSecondsActual / 60)
+      return Number((set.restSecondsActual / 60).toFixed(2))
     }
     return ''
   }, [set.restSecondsActual])
 
   const handleRestChange = (val: string) => {
-    onUpdate('restSecondsActual', val === '' ? null : Number(val) * 60)
+    onUpdate('restSecondsActual', val === '' ? null : Math.round(Number(val) * 60))
   }
 
   const rirValue = (['cardio_session', 'mobility_session'].includes(effectiveProfile))
