@@ -65,7 +65,7 @@ function ChartHeader({ title, isZoomed, onReset, children }: { title: string; is
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between min-h-[48px]">
       <div className="flex flex-col gap-2.5">
-        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-subtle/80 leading-none">{title}</h3>
+        <h3 className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.22em] text-strong leading-none">{title}</h3>
         {children}
       </div>
       {isZoomed && (
