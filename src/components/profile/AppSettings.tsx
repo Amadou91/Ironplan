@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Ruler, Bell, Settings2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
@@ -219,6 +220,11 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
           </div>
           {devActionMessage && <p className="mt-3 text-xs text-accent font-medium">{devActionMessage}</p>}
           <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/exercises">
+              <Button type="button" size="sm" variant="outline">
+                Exercise Catalog
+              </Button>
+            </Link>
             <Button
               type="button"
               size="sm"

@@ -63,213 +63,71 @@ const isMissingTableError = (error: unknown) => {
   return e?.code === '42P01' || e?.message?.includes('does not exist')
 }
 
-export async function seedExerciseCatalog(supabase: SupabaseClient): Promise<number> {
-  const exercises = [
-    // PUSH
-    {
-      name: 'Bench Press',
-      focus: 'upper',
-      movement_pattern: 'push',
-      primary_muscle: 'chest',
-      secondary_muscles: ['triceps', 'shoulders'],
-      equipment: [{ kind: 'barbell', requires: ['bench_press'] }],
-      metric_profile: 'reps_weight',
-      sets: 3, reps: '8', rpe: 8, e1rm_eligible: true
-    },
-    {
-      name: 'Overhead Press',
-      focus: 'upper',
-      movement_pattern: 'push',
-      primary_muscle: 'shoulders',
-      secondary_muscles: ['triceps', 'core'],
-      equipment: [{ kind: 'barbell' }],
-      metric_profile: 'reps_weight',
-      sets: 3, reps: '10', rpe: 8, e1rm_eligible: true
-    },
-    {
-      name: 'Incline Dumbbell Press',
-      focus: 'upper',
-      movement_pattern: 'push',
-      primary_muscle: 'chest',
-      secondary_muscles: ['shoulders', 'triceps'],
-      equipment: [{ kind: 'dumbbell', requires: ['bench_press'] }],
-      metric_profile: 'reps_weight',
-      sets: 3, reps: '12', rpe: 7
-    },
-    // PULL
-    {
-      name: 'Barbell Row',
-      focus: 'upper',
-      movement_pattern: 'pull',
-      primary_muscle: 'back',
-      secondary_muscles: ['biceps', 'forearms', 'core'],
-      equipment: [{ kind: 'barbell' }],
-      metric_profile: 'reps_weight',
-      sets: 3, reps: '8', rpe: 8, e1rm_eligible: true
-    },
-    {
-      name: 'Lat Pulldown',
-      focus: 'upper',
-      movement_pattern: 'pull',
-      primary_muscle: 'back',
-      secondary_muscles: ['biceps', 'shoulders'],
-      equipment: [{ kind: 'machine', machineType: 'cable' }],
-      metric_profile: 'reps_weight',
-      sets: 3, reps: '10', rpe: 7
-    },
-    {
-      name: 'Bicep Curl',
-      focus: 'upper',
-      movement_pattern: 'pull',
-      primary_muscle: 'biceps',
-      secondary_muscles: ['forearms'],
-      equipment: [{ kind: 'dumbbell' }],
-      metric_profile: 'reps_weight',
-      sets: 3, reps: '12', rpe: 8
-    },
-    // SQUAT
-    {
-      name: 'Barbell Back Squat',
-      focus: 'lower',
-      movement_pattern: 'squat',
-      primary_muscle: 'quads',
-      secondary_muscles: ['glutes', 'hamstrings', 'core', 'calves'],
-      equipment: [{ kind: 'barbell' }],
-      metric_profile: 'reps_weight',
-      sets: 3, reps: '5', rpe: 8, e1rm_eligible: true
-    },
-    {
-      name: 'Leg Press',
-      focus: 'lower',
-      movement_pattern: 'squat',
-      primary_muscle: 'quads',
-      secondary_muscles: ['glutes', 'calves'],
-      equipment: [{ kind: 'machine', machineType: 'leg_press' }],
-      metric_profile: 'reps_weight',
-      sets: 3, reps: '12', rpe: 8
-    },
-    {
-      name: 'Bulgarian Split Squats',
-      focus: 'lower',
-      movement_pattern: 'squat',
-      primary_muscle: 'quads',
-      secondary_muscles: ['glutes', 'hamstrings', 'calves'],
-      equipment: [{ kind: 'dumbbell' }, { kind: 'bodyweight' }],
-      metric_profile: 'reps_weight',
-      sets: 3, reps: '8', rpe: 8
-    },
-    {
-      name: 'Step Ups',
-      focus: 'lower',
-      movement_pattern: 'squat',
-      primary_muscle: 'quads',
-      secondary_muscles: ['glutes', 'hamstrings', 'calves'],
-      equipment: [{ kind: 'dumbbell' }, { kind: 'bodyweight' }],
-      metric_profile: 'reps_weight',
-      sets: 3, reps: '10', rpe: 7
-    },
-    // HINGE
-    {
-      name: 'Romanian Deadlift',
-      focus: 'lower',
-      movement_pattern: 'hinge',
-      primary_muscle: 'hamstrings',
-      secondary_muscles: ['glutes', 'back', 'core', 'forearms'],
-      equipment: [{ kind: 'barbell' }],
-      metric_profile: 'reps_weight',
-      sets: 3, reps: '10', rpe: 8, e1rm_eligible: true
-    },
-    {
-      name: 'Hip Thrusts',
-      focus: 'lower',
-      movement_pattern: 'hinge',
-      primary_muscle: 'glutes',
-      secondary_muscles: ['hamstrings', 'core'],
-      equipment: [{ kind: 'barbell' }],
-      metric_profile: 'reps_weight',
-      sets: 3, reps: '10', rpe: 8
-    },
-    {
-      name: 'Kettlebell Swing',
-      focus: 'lower',
-      movement_pattern: 'hinge',
-      primary_muscle: 'glutes',
-      secondary_muscles: ['hamstrings', 'back', 'core', 'shoulders'],
-      equipment: [{ kind: 'kettlebell' }],
-      metric_profile: 'reps_weight',
-      sets: 4, reps: '15', rpe: 7
-    },
-    // CORE
-    {
-      name: 'Plank',
-      focus: 'core',
-      movement_pattern: 'core',
-      primary_muscle: 'core',
-      secondary_muscles: ['shoulders', 'glutes'],
-      equipment: [{ kind: 'bodyweight' }],
-      metric_profile: 'timed_strength',
-      sets: 3, reps: '60s', rpe: 7
-    },
-    // CARDIO / MOBILITY
-    {
-      name: 'Indoor Ride',
-      focus: 'cardio',
-      movement_pattern: 'cardio',
-      primary_muscle: 'full_body',
-      secondary_muscles: ['quads', 'calves'],
-      equipment: [{ kind: 'machine', machineType: 'indoor_bicycle' }],
-      metric_profile: 'cardio_session',
-      sets: 1, reps: '30m', rpe: 6
-    },
-    {
-      name: 'Yoga Flow',
-      focus: 'mobility',
-      movement_pattern: 'mobility',
-      primary_muscle: 'full_body',
-      secondary_muscles: ['core', 'shoulders', 'hamstrings'],
-      equipment: [{ kind: 'bodyweight' }],
-      metric_profile: 'mobility_session',
-      sets: 1, reps: '30m', rpe: 5
-    }
-  ];
+/**
+ * Required exercises for dev seeding.
+ * These must already exist in the exercise_catalog.
+ * The seed process will NOT create exercises - it only creates session data.
+ */
+const REQUIRED_EXERCISE_NAMES = [
+  'Bench Press',
+  'Overhead Press',
+  'Lat Pulldown',
+  'Bicep Curl',
+  'Barbell Back Squat',
+  'Romanian Deadlift',
+  'Yoga Flow',
+  'Stationary Bike'
+] as const
 
-  // Map to only columns that exist in the database after migration 20260530000000
-  // Removed columns: focus (now generated), sets, reps, rpe, duration_minutes, rest_seconds, load_target, video_url, instructions, interval_duration, interval_rest
-  const toInsert = exercises.map(({ name, movement_pattern, primary_muscle, secondary_muscles, equipment, metric_profile, e1rm_eligible }) => ({
-    name,
-    movement_pattern,
-    primary_muscle,
-    secondary_muscles,
-    equipment,
-    metric_profile,
-    e1rm_eligible: e1rm_eligible ?? false,
-    is_interval: false
-  }));
+type CatalogExercise = {
+  id: string
+  name: string
+  primary_muscle: string | null
+  secondary_muscles: string[] | null
+  metric_profile: string | null
+}
 
-  // Check which exercises already exist
-  const existingNames = new Set<string>();
-  const { data: existing } = await supabase
+/**
+ * Looks up required exercises from the existing catalog.
+ * Does NOT insert any exercises - fails if required exercises are missing.
+ * 
+ * @returns Map of exercise name (lowercase) to catalog exercise data
+ * @throws Error if any required exercises are missing from the catalog
+ */
+async function lookupRequiredExercises(
+  supabase: SupabaseClient
+): Promise<Map<string, CatalogExercise>> {
+  const { data: exercises, error } = await supabase
     .from('exercise_catalog')
-    .select('name')
-    .in('name', toInsert.map(e => e.name));
-  
-  existing?.forEach(e => existingNames.add(e.name));
+    .select('id, name, primary_muscle, secondary_muscles, metric_profile')
+    .in('name', REQUIRED_EXERCISE_NAMES)
 
-  // Only insert exercises that don't already exist
-  const newExercises = toInsert.filter(e => !existingNames.has(e.name));
-
-  if (newExercises.length > 0) {
-    const { error } = await supabase
-      .from('exercise_catalog')
-      .insert(newExercises);
-
-    if (error) {
-      console.error('Seed exercise catalog error:', error);
-      return 0;
-    }
+  if (error) {
+    console.error('Failed to lookup exercises from catalog:', error)
+    throw new Error(`Failed to lookup exercises: ${error.message}`)
   }
 
-  return newExercises.length;
+  const exerciseMap = new Map<string, CatalogExercise>()
+  exercises?.forEach((ex) => {
+    exerciseMap.set(ex.name.toLowerCase(), ex)
+  })
+
+  // Validate all required exercises exist
+  const missingExercises: string[] = []
+  REQUIRED_EXERCISE_NAMES.forEach((name) => {
+    if (!exerciseMap.has(name.toLowerCase())) {
+      missingExercises.push(name)
+    }
+  })
+
+  if (missingExercises.length > 0) {
+    throw new Error(
+      `Dev seed requires exercises that are missing from the catalog: ${missingExercises.join(', ')}. ` +
+      `Please ensure these exercises exist in the exercise_catalog before running dev seed.`
+    )
+  }
+
+  return exerciseMap
 }
 
 export async function seedDevData(supabase: SupabaseClient, userId: string): Promise<SeedResult> {
@@ -278,8 +136,8 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     return { templates: 0, sessions: 0, exercises: 0, sets: 0, readiness: 0 }
   }
 
-  // 0. Seed Exercise Catalog first
-  await seedExerciseCatalog(supabase);
+  // 0. Lookup required exercises from catalog (does NOT insert any)
+  const catalogExercises = await lookupRequiredExercises(supabase);
 
   // Tuesday Jan 27, 2026 is "Today"
   const todayStart = new Date('2026-01-27T00:00:00Z').getTime()
@@ -402,10 +260,9 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     0: [
       {
         name: 'Bench Press',
-        primaryMuscle: 'chest',
-        secondaryMuscles: ['triceps', 'shoulders'],
-        movementPattern: 'push',
-        metricProfile: 'reps_weight',
+        primaryMuscle: '', // Will be populated from catalog
+        secondaryMuscles: [],
+        metricProfile: '',
         sets: [
           { reps: 8, weight: 155, weightUnit: 'lb', rpe: 7 },
           { reps: 8, weight: 155, weightUnit: 'lb', rpe: 8 },
@@ -414,10 +271,9 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       },
       {
         name: 'Overhead Press',
-        primaryMuscle: 'shoulders',
-        secondaryMuscles: ['triceps', 'core'],
-        movementPattern: 'push',
-        metricProfile: 'reps_weight',
+        primaryMuscle: '',
+        secondaryMuscles: [],
+        metricProfile: '',
         sets: [
           { reps: 10, weight: 95, weightUnit: 'lb', rpe: 8 },
           { reps: 10, weight: 95, weightUnit: 'lb', rpe: 8 }
@@ -427,10 +283,9 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     1: [
       {
         name: 'Lat Pulldown',
-        primaryMuscle: 'back',
-        secondaryMuscles: ['biceps', 'forearms'],
-        movementPattern: 'pull',
-        metricProfile: 'reps_weight',
+        primaryMuscle: '',
+        secondaryMuscles: [],
+        metricProfile: '',
         sets: [
           { reps: 10, weight: 120, weightUnit: 'lb', rpe: 7 },
           { reps: 10, weight: 120, weightUnit: 'lb', rpe: 8 },
@@ -439,10 +294,9 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       },
       {
         name: 'Bicep Curl',
-        primaryMuscle: 'biceps',
-        secondaryMuscles: ['forearms'],
-        movementPattern: 'pull',
-        metricProfile: 'reps_weight',
+        primaryMuscle: '',
+        secondaryMuscles: [],
+        metricProfile: '',
         sets: [
           { reps: 12, weight: 30, weightUnit: 'lb', rpe: 8 },
           { reps: 12, weight: 30, weightUnit: 'lb', rpe: 9 }
@@ -452,10 +306,9 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     2: [
       {
         name: 'Barbell Back Squat',
-        primaryMuscle: 'quads',
-        secondaryMuscles: ['glutes', 'hamstrings', 'core'],
-        movementPattern: 'squat',
-        metricProfile: 'reps_weight',
+        primaryMuscle: '',
+        secondaryMuscles: [],
+        metricProfile: '',
         sets: [
           { reps: 5, weight: 225, weightUnit: 'lb', rpe: 8 },
           { reps: 5, weight: 225, weightUnit: 'lb', rpe: 8.5 },
@@ -464,10 +317,9 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
       },
       {
         name: 'Romanian Deadlift',
-        primaryMuscle: 'hamstrings',
-        secondaryMuscles: ['glutes', 'core', 'back'],
-        movementPattern: 'hinge',
-        metricProfile: 'reps_weight',
+        primaryMuscle: '',
+        secondaryMuscles: [],
+        metricProfile: '',
         sets: [
           { reps: 10, weight: 185, weightUnit: 'lb', rpe: 7.5 },
           { reps: 10, weight: 185, weightUnit: 'lb', rpe: 8 }
@@ -477,10 +329,9 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     3: [
       {
         name: 'Yoga Flow',
-        primaryMuscle: 'full_body',
-        secondaryMuscles: ['core', 'shoulders', 'hamstrings'],
-        movementPattern: 'mobility',
-        metricProfile: 'mobility_session',
+        primaryMuscle: '',
+        secondaryMuscles: [],
+        metricProfile: '',
         sets: [
           { reps: null, weight: null, weightUnit: 'lb', rpe: 5, durationSeconds: 1200, extraMetrics: { style: 'Vinyasa' } }
         ]
@@ -489,10 +340,9 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     4: [
       {
         name: 'Stationary Bike',
-        primaryMuscle: 'full_body',
-        secondaryMuscles: ['quads', 'calves'],
-        movementPattern: 'cardio',
-        metricProfile: 'cardio_session',
+        primaryMuscle: '',
+        secondaryMuscles: [],
+        metricProfile: '',
         sets: [
           { reps: null, weight: null, weightUnit: 'lb', rpe: 7, durationSeconds: 2400, extraMetrics: { machine: 'bike' } }
         ]
@@ -590,12 +440,18 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     const seed = seedByName.get(session.name)
     if (!seed) return
     seed.exercises.forEach((exercise, index) => {
+      // Lookup exercise from catalog to get correct muscle/profile data
+      const catalogExercise = catalogExercises.get(exercise.name.toLowerCase())
+      if (!catalogExercise) {
+        console.warn(`Skipping exercise "${exercise.name}" - not found in catalog`)
+        return
+      }
       sessionExerciseRows.push({
         session_id: session.id,
-        exercise_name: exercise.name,
-        primary_muscle: exercise.primaryMuscle,
-        secondary_muscles: exercise.secondaryMuscles ?? [],
-        metric_profile: exercise.metricProfile ?? 'reps_weight',
+        exercise_name: catalogExercise.name,
+        primary_muscle: catalogExercise.primary_muscle ?? 'unknown',
+        secondary_muscles: catalogExercise.secondary_muscles ?? [],
+        metric_profile: catalogExercise.metric_profile ?? 'reps_weight',
         order_index: index
       })
     })

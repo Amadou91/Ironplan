@@ -77,12 +77,8 @@ export default function Sidebar() {
         )}
 
         <div className="flex items-center gap-1">
-          {!isCollapsed && (
-            <>
-              <UnitToggle />
-              <ThemeToggle />
-            </>
-          )}
+          <UnitToggle compact={isCollapsed} />
+          {!isCollapsed && <ThemeToggle />}
           <button
             onClick={toggleSidebar}
             className={`flex h-8 w-8 items-center justify-center rounded-lg text-subtle transition-all hover:bg-[var(--color-surface-muted)] hover:text-strong ${isCollapsed ? 'absolute -right-4 top-6 z-50 bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm opacity-0 group-hover:opacity-100 hover:scale-110' : ''}`}
