@@ -181,6 +181,7 @@ src/
 1. Run: \`npx tsc --noEmit\`
 2. Run: \`npm test\`
 3. Check for circular dependencies
+4. Do not run npm run build or any build commands
 
 ---
 
