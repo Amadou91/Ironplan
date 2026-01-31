@@ -76,7 +76,7 @@ const REQUIRED_EXERCISE_NAMES = [
   'Barbell Back Squat',
   'Romanian Deadlift',
   'Yoga Flow',
-  'Stationary Bike'
+  'Indoor Ride'
 ] as const
 
 type CatalogExercise = {
@@ -339,7 +339,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     ],
     4: [
       {
-        name: 'Stationary Bike',
+        name: 'Indoor Ride',
         primaryMuscle: '',
         secondaryMuscles: [],
         metricProfile: '',
