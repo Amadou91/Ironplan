@@ -587,7 +587,7 @@ export default function ActiveSession({
                 <button 
                   onClick={() => {
                     const lastSet = exercise.sets[exercise.sets.length - 1];
-                    addSet(exIdx, preferredUnit, profileWeightLb, {
+                    addSet(exIdx, preferredUnit, null, {
                       loadType: lastSet.loadType || (isDumbbellExercise(exercise) ? 'per_implement' : undefined),
                       implementCount: typeof lastSet.implementCount === 'number' ? lastSet.implementCount : (isDumbbellExercise(exercise) ? 2 : undefined),
                       initialValues: {
@@ -606,7 +606,7 @@ export default function ActiveSession({
                 </button>
               )}
               <button 
-                onClick={() => addSet(exIdx, preferredUnit, profileWeightLb, isDumbbellExercise(exercise) ? { loadType: 'per_implement', implementCount: 2 } : undefined)} 
+                onClick={() => addSet(exIdx, preferredUnit, null, isDumbbellExercise(exercise) ? { loadType: 'per_implement', implementCount: 2 } : undefined)} 
                 className="flex-1 py-2 border-2 border-dashed border-[var(--color-border-strong)] rounded-xl text-sm font-medium text-muted hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)]"
               >
                 + Add Set

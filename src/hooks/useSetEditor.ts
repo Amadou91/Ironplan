@@ -75,14 +75,15 @@ export function useSetEditor({
   const weightChoices = useMemo(() => {
     const options = weightOptions ?? []
     if (typeof set.weight === 'number' && Number.isFinite(set.weight)) {
-      const existing = options.some((option) => option.value === set.weight)
+      const storedKind = (set.extraMetrics as Record<string, unknown> | null)?.equipmentKind as string | undefined
+      const existing = options.some((option) => option.value === set.weight && option.equipmentKind === storedKind)
       if (!existing) {
         const unitLabel = set.weightUnit ?? 'lb'
-        return [...options, { value: set.weight, label: `${set.weight} ${unitLabel} (logged)` }]
+        return [...options, { key: `logged-${set.weight}`, value: set.weight, label: `${set.weight} ${unitLabel} (logged)` }]
       }
     }
     return options
-  }, [set.weight, set.weightUnit, weightOptions])
+  }, [set.weight, set.weightUnit, weightOptions, set.extraMetrics])
 
   const durationMinutes = useMemo(() => {
     if (typeof set.durationSeconds === 'number') return Math.round(set.durationSeconds / 60)

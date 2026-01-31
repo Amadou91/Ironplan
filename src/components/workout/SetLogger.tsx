@@ -207,21 +207,25 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
   const hasImplementCount = typeof set.implementCount === 'number' && (set.implementCount === 1 || set.implementCount === 2)
   
   // Determine the equipment kind of the currently selected weight
+  // First check extraMetrics (set when user selects from dropdown), then fallback to matching by value
   const selectedEquipmentKind = useMemo(() => {
+    const storedKind = (set.extraMetrics as Record<string, unknown> | null)?.equipmentKind
+    if (typeof storedKind === 'string') return storedKind
     if (typeof set.weight !== 'number' || !weightOptions) return null
     const match = weightOptions.find(opt => opt.value === set.weight)
     return match?.equipmentKind ?? null
-  }, [set.weight, weightOptions])
+  }, [set.weight, weightOptions, set.extraMetrics])
   
-  // Show dumbbell toggle only when dumbbell weight is selected
-  const showDumbbellToggle = selectedEquipmentKind === 'dumbbell' || (isDumbbell && hasImplementCount && !selectedEquipmentKind)
+  // Show dumbbell toggle only when a dumbbell weight is actually selected
+  const showDumbbellToggle = selectedEquipmentKind === 'dumbbell'
   
   const effectiveLoadType: LoadType = set.loadType === 'per_implement'
     ? 'per_implement'
     : (showDumbbellToggle && hasImplementCount ? 'per_implement' : 'total')
 
   const totalWeightLabel = useMemo(() => {
-    if (typeof set.weight !== 'number' || !Number.isFinite(set.weight)) return null
+    // Hide total weight display for bodyweight (0) or invalid weight
+    if (typeof set.weight !== 'number' || !Number.isFinite(set.weight) || set.weight === 0) return null
     return formatTotalWeightLabel({
       weight: set.weight,
       weightUnit: unitLabel,
@@ -247,13 +251,15 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     if (effectiveProfile === 'strength') {
       // Reps is required for strength exercises
       if (set.reps === null || set.reps === undefined || set.reps === '' || set.reps === 0) missing.push('reps')
-      // Weight is required for strength exercises
-      if (set.weight === null || set.weight === undefined || set.weight === '') missing.push('weight')
+      // Weight is required for strength exercises (must be explicitly selected, not just "--")
+      if (typeof set.weight !== 'number') missing.push('weight')
+      // RIR is required for strength exercises
+      if (typeof set.rir !== 'number') missing.push('rir')
     }
 
     if (effectiveProfile === 'timed_strength') {
-      // Weight is required for timed strength
-      if (set.weight === null || set.weight === undefined || set.weight === '') missing.push('weight')
+      // Weight is required for timed strength (must be explicitly selected)
+      if (typeof set.weight !== 'number') missing.push('weight')
     }
     
     if (effectiveProfile === 'cardio_session') {
@@ -262,7 +268,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     }
 
     return missing
-  }, [effectiveProfile, durationMinutes, set.reps, set.weight, set.distance, getExtra, showDumbbellToggle, hasImplementCount])
+  }, [effectiveProfile, durationMinutes, set.reps, set.weight, set.rir, set.distance, getExtra, showDumbbellToggle, hasImplementCount])
 
   // Check if set can be marked complete
   const canComplete = missingFields.length === 0
@@ -330,6 +336,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
       duration: 'Duration',
       reps: 'Reps',
       weight: 'Weight',
+      rir: 'RIR',
       distance: 'Distance',
       dumbbells: 'Dumbbell count'
     }
@@ -390,11 +397,11 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     if (!showDumbbellToggle) return null
     
     return (
-      <div className="flex flex-col gap-1.5">
-        <label className={labelClass}>Dumbbells</label>
+      <div className="mt-4 flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)]/50 px-4 py-2.5">
+        <span className="text-xs font-medium text-subtle">How many dumbbells?</span>
         <div className={cn(
-          "grid grid-cols-2 rounded-lg border p-0.5 transition-all",
-          implementError ? "border-[var(--color-danger)] bg-[var(--color-danger-soft)]/40" : "border-[var(--color-border)] bg-[var(--color-surface-muted)]"
+          "grid grid-cols-2 rounded-lg border p-0.5 transition-all w-28",
+          implementError ? "border-[var(--color-danger)] bg-[var(--color-danger-soft)]/40" : "border-[var(--color-border)] bg-[var(--color-surface)]"
         )}>
           {[1, 2].map((count) => (
             <button
@@ -402,7 +409,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
               type="button"
               onClick={() => { onUpdate('implementCount', count as 1 | 2); onUpdate('loadType', 'per_implement'); setImplementError(false) }}
               className={cn(
-                "h-9 rounded-md text-xs font-semibold transition-all",
+                "h-8 rounded-md text-xs font-semibold transition-all",
                 hasImplementCount && set.implementCount === count
                   ? "bg-[var(--color-primary)] text-white shadow-sm"
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-primary)]"
@@ -413,9 +420,6 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
             </button>
           ))}
         </div>
-        {implementError && (
-          <p className="text-[10px] font-medium text-[var(--color-danger)]">Select 1 or 2</p>
-        )}
       </div>
     )
   }
@@ -535,12 +539,6 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
       <div className="surface-card mb-3 p-4">
         {renderHeader()}
         
-        {showDumbbellToggle && (
-          <div className="mb-4">
-            {renderDumbbellToggle()}
-          </div>
-        )}
-        
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col gap-1.5">
             <label className={labelClass}>Duration (min)</label>
@@ -560,19 +558,27 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
             </label>
             {weightChoices.length > 0 ? (
               <select
-                value={typeof set.weight === 'number' ? String(set.weight) : ''}
+                value={weightChoices.find(c => c.value === set.weight && c.equipmentKind === selectedEquipmentKind)?.key ?? ''}
                 onChange={(e) => {
-                  const v = e.target.value === '' ? '' : Number(e.target.value)
-                  onUpdate('weight', v)
-                  const opt = weightChoices.find(c => c.value === v)
-                  if (opt?.unit) onUpdate('weightUnit', opt.unit)
+                  const selectedKey = e.target.value
+                  if (selectedKey === '') {
+                    onUpdate('weight', '')
+                    updateExtra('equipmentKind', null)
+                    return
+                  }
+                  const opt = weightChoices.find(c => c.key === selectedKey)
+                  if (opt) {
+                    onUpdate('weight', opt.value)
+                    if (opt.unit) onUpdate('weightUnit', opt.unit)
+                    updateExtra('equipmentKind', opt.equipmentKind ?? null)
+                  }
                 }}
                 className={inputErrorClass(missingFields.includes('weight'))}
                 disabled={!isEditing}
               >
                 <option value="">Select</option>
                 {weightChoices.map(opt => (
-                  <option key={`${opt.label}-${opt.value}`} value={opt.value}>{opt.label}</option>
+                  <option key={opt.key} value={opt.key}>{opt.label}</option>
                 ))}
               </select>
             ) : (
@@ -615,6 +621,8 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
           </div>
         </div>
 
+        {renderDumbbellToggle()}
+
         {totalWeightLabel && (
           <div className="mt-4 flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)]/50 px-4 py-2.5">
             <span className="text-xs font-medium text-subtle">Total Weight</span>
@@ -635,28 +643,34 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     <div className="surface-card mb-3 p-4">
       {renderHeader()}
       
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {showDumbbellToggle && renderDumbbellToggle()}
-        
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col gap-1.5">
           <label className={labelClass}>
             {effectiveLoadType === 'per_implement' ? `Wt/DB (${unitLabel})` : `Weight (${unitLabel})`}
           </label>
           {weightChoices.length > 0 ? (
             <select
-              value={typeof set.weight === 'number' ? String(set.weight) : ''}
+              value={weightChoices.find(c => c.value === set.weight && c.equipmentKind === selectedEquipmentKind)?.key ?? ''}
               onChange={(e) => {
-                const v = e.target.value === '' ? '' : Number(e.target.value)
-                onUpdate('weight', v)
-                const opt = weightChoices.find(c => c.value === v)
-                if (opt?.unit) onUpdate('weightUnit', opt.unit)
+                const selectedKey = e.target.value
+                if (selectedKey === '') {
+                  onUpdate('weight', '')
+                  updateExtra('equipmentKind', null)
+                  return
+                }
+                const opt = weightChoices.find(c => c.key === selectedKey)
+                if (opt) {
+                  onUpdate('weight', opt.value)
+                  if (opt.unit) onUpdate('weightUnit', opt.unit)
+                  updateExtra('equipmentKind', opt.equipmentKind ?? null)
+                }
               }}
               className={inputErrorClass(missingFields.includes('weight'))}
               disabled={!isEditing}
             >
               <option value="">--</option>
               {weightChoices.map(opt => (
-                <option key={`${opt.label}-${opt.value}`} value={opt.value}>{opt.label}</option>
+                <option key={opt.key} value={opt.key}>{opt.label}</option>
               ))}
             </select>
           ) : (
@@ -723,6 +737,8 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
           </div>
         </div>
       </div>
+
+      {renderDumbbellToggle()}
 
       {totalWeightLabel && (
         <div className="mt-4 flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)]/50 px-4 py-2.5">

@@ -2,6 +2,8 @@ import type { BandResistance, EquipmentInventory, EquipmentOption, EquipmentPres
 import { convertWeight, roundWeight } from '@/lib/units'
 
 export type WeightOption = {
+  /** Unique key for this option (e.g., 'dumbbell-30', 'kettlebell-30') */
+  key: string
   value: number
   label: string
   unit?: WeightUnit
@@ -217,9 +219,13 @@ export const buildWeightOptions = (
   if (!availableOptions.length) return []
   const kindCount = new Set(availableOptions.map((option) => option.kind)).size
   const showKindLabel = kindCount > 1
-  const options: WeightOption[] = []
-  const toPreferred = (value: number) => roundWeight(convertWeight(value, 'lb', preferredUnit))
   const unitLabel = preferredUnit
+  
+  // Always include bodyweight (0) option at the top
+  const options: WeightOption[] = [
+    { key: 'bodyweight-0', value: 0, label: `0 ${unitLabel} (Bodyweight)`, unit: preferredUnit, equipmentKind: 'bodyweight' }
+  ]
+  const toPreferred = (value: number) => roundWeight(convertWeight(value, 'lb', preferredUnit))
 
   availableOptions.forEach((option) => {
     switch (option.kind) {
@@ -227,9 +233,10 @@ export const buildWeightOptions = (
         inventory.dumbbells.forEach((weight) => {
           const converted = toPreferred(weight)
           options.push({
+            key: `dumbbell-${converted}`,
             value: converted,
             unit: preferredUnit,
-            label: showKindLabel ? `${converted} ${unitLabel} dumbbell (per DB)` : `${converted} ${unitLabel} per DB`,
+            label: `${converted} ${unitLabel} dumbbell each`,
             equipmentKind: 'dumbbell'
           })
         })
@@ -238,6 +245,7 @@ export const buildWeightOptions = (
         inventory.kettlebells.forEach((weight) => {
           const converted = toPreferred(weight)
           options.push({
+            key: `kettlebell-${converted}`,
             value: converted,
             unit: preferredUnit,
             label: showKindLabel ? `${converted} ${unitLabel} kettlebell` : `${converted} ${unitLabel}`,
@@ -249,6 +257,7 @@ export const buildWeightOptions = (
         buildBarbellLoadOptions(inventory).forEach((option) => {
           const converted = toPreferred(option.value)
           options.push({
+            key: `barbell-${converted}`,
             value: converted,
             unit: preferredUnit,
             label: showKindLabel ? `${converted} ${unitLabel} barbell (total)` : `${converted} ${unitLabel} (total)`,
@@ -261,6 +270,7 @@ export const buildWeightOptions = (
           const value = bandLoadMap[band] ?? 10
           const converted = toPreferred(value)
           options.push({
+            key: `band-${band}-${converted}`,
             value: converted,
             unit: preferredUnit,
             label: showKindLabel
