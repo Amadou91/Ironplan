@@ -138,16 +138,17 @@ export async function completeSession({
     // DB CLEANUP: Remove incomplete sets to prevent them from reappearing on edit
     // We do this asynchronously to not block the UI response
     // We also don't await it to fail the request if it fails, but we log it
-    supabase.from('sets')
-      .delete()
-      .eq('session_exercise_id', session.exercises.map(e => e.id)) // This syntax might be wrong for deep nested? No, can't join in delete.
-      // Better: Delete sets where session_exercise.session_id = sessionId AND completed = false
-      // But Supabase/Postgres delete with join is tricky.
-      // Simplest: Delete sets where ID is in the list of incomplete sets we know about
-      .in('id', session.exercises.flatMap(e => e.sets.filter(s => !s.completed).map(s => s.id)))
-      .then(({ error }) => {
-        if (error) console.error('Failed to cleanup incomplete sets:', error)
-      })
+    const incompleteSetIds = session.exercises
+      .flatMap(e => e.sets.filter(s => !s.completed).map(s => s.id));
+
+    if (incompleteSetIds.length > 0) {
+      supabase.from('sets')
+        .delete()
+        .in('id', incompleteSetIds)
+        .then(({ error }) => {
+          if (error) console.error('Failed to cleanup incomplete sets:', error)
+        })
+    }
 
     // Update profile and record body measurement if weight provided
     if (bodyWeightLb && userId) {

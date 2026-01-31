@@ -16,7 +16,7 @@ import { toMuscleLabel } from '@/lib/muscle-utils'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
-import type { SessionGoal, WorkoutSession, MetricProfile, LoadType, WeightUnit } from '@/types/domain'
+import type { SessionGoal, WorkoutSession, MetricProfile, LoadType, WeightUnit, SessionExercise, WorkoutSet } from '@/types/domain'
 
 type ConfirmAction = {
   type: 'save' | 'cancel'
@@ -84,38 +84,62 @@ function mapPayloadToSession(payload: SessionPayload): WorkoutSession {
     sessionNotes: payload.session_notes ?? undefined,
     bodyWeightLb: payload.body_weight_lb ?? null,
     weightUnit: (payload.weight_unit as WeightUnit) ?? 'lb',
-    exercises: payload.session_exercises
-      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-      .map((exercise, idx) => ({
-        id: exercise.id,
-        sessionId: payload.id,
-        name: exercise.exercise_name,
-        primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
-        secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
-        metricProfile: (exercise.metric_profile as MetricProfile) ?? undefined,
-        orderIndex: exercise.order_index ?? idx,
-        sets: (exercise.sets ?? [])
-          .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
-          .map((set, setIdx) => ({
-            id: set.id,
-            setNumber: set.set_number ?? setIdx + 1,
-            reps: set.reps ?? '',
-            weight: set.weight ?? '',
-            implementCount: set.implement_count ?? '',
-            loadType: (set.load_type as LoadType | null) ?? '',
-            rpe: set.rpe ?? '',
-            rir: set.rir ?? '',
-            performedAt: set.performed_at ?? undefined,
-            completed: set.completed ?? false,
-            weightUnit: (set.weight_unit as WeightUnit) ?? 'lb',
-            durationSeconds: set.duration_seconds ?? undefined,
-            distance: set.distance ?? undefined,
-            distanceUnit: set.distance_unit ?? undefined,
-            restSecondsActual: set.rest_seconds_actual ?? undefined,
-            extras: set.extras as Record<string, string | null> ?? undefined,
-            extraMetrics: set.extra_metrics ?? undefined
-          }))
-      }))
+    exercises: (() => {
+      // First, map all raw exercises
+      const rawExercises = payload.session_exercises
+        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+        .map((exercise, idx) => ({
+          id: exercise.id,
+          sessionId: payload.id,
+          name: exercise.exercise_name,
+          primaryMuscle: exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'Full Body',
+          secondaryMuscles: (exercise.secondary_muscles ?? []).map((muscle) => toMuscleLabel(muscle)),
+          metricProfile: (exercise.metric_profile as MetricProfile) ?? undefined,
+          orderIndex: exercise.order_index ?? idx,
+                      sets: (exercise.sets ?? [])
+                      .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
+                      .map((set, setIdx) => ({
+                        id: set.id,
+                        setNumber: set.set_number ?? setIdx + 1,
+                        reps: set.reps ?? '',
+                        weight: set.weight ?? '',
+                        implementCount: set.implement_count ?? '',
+                        loadType: (set.load_type as LoadType | null) ?? '',
+                        rpe: set.rpe ?? '',
+                        rir: set.rir ?? '',
+                        performedAt: set.performed_at ?? undefined,
+                        completed: set.completed ?? false,
+                        weightUnit: (set.weight_unit as WeightUnit) ?? 'lb',
+                        durationSeconds: set.duration_seconds ?? undefined,
+                        distance: set.distance ?? undefined,
+                        distanceUnit: set.distance_unit ?? undefined,
+                        restSecondsActual: set.rest_seconds_actual ?? undefined,
+                        extras: set.extras as Record<string, string | null> ?? undefined,
+                        extraMetrics: set.extra_metrics ?? undefined
+                      })) as WorkoutSet[]
+                  })) as SessionExercise[]
+      // Deduplicate exercises by name
+      const exerciseMap = new Map<string, typeof rawExercises[0]>()
+      
+      for (const ex of rawExercises) {
+        const key = ex.name.toLowerCase()
+        if (exerciseMap.has(key)) {
+          // Merge sets
+          const existing = exerciseMap.get(key)!
+          const combinedSets = [...existing.sets, ...ex.sets]
+          // Sort merged sets by set number (or id if set number missing)
+          combinedSets.sort((a, b) => a.setNumber - b.setNumber)
+          // Renumber
+          combinedSets.forEach((s, i) => s.setNumber = i + 1)
+          existing.sets = combinedSets
+        } else {
+          exerciseMap.set(key, ex)
+        }
+      }
+
+      return Array.from(exerciseMap.values())
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+    })()
   }
 }
 
@@ -206,7 +230,10 @@ function SessionEditContent() {
       
       startSession(session)
     } catch (err) {
-      console.error('Failed to load session:', err)
+      const errorDetails = err && typeof err === 'object' 
+        ? JSON.stringify(err, Object.getOwnPropertyNames(err), 2)
+        : String(err)
+      console.error('Failed to load session:', errorDetails)
       setLoadError('Unable to load session for editing.')
     } finally {
       setLoading(false)
