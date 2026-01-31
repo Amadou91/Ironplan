@@ -184,11 +184,11 @@ export function ProgressCharts({
         >
           <div className="flex gap-5">
              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />
+                <div className="w-2 h-2 rounded-full bg-[var(--color-chart-volume)]" />
                 <span className="text-[10px] font-black uppercase tracking-wider text-subtle/70">Volume ({displayUnit})</span>
              </div>
              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-[var(--color-warning)]" />
+                <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />
                 <span className="text-[10px] font-black uppercase tracking-wider text-subtle/70">Training Load</span>
              </div>
           </div>

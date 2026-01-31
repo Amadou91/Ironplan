@@ -30,6 +30,9 @@
   --color-success-border: oklch(90% 0.1 150);
   --color-warning: oklch(75% 0.15 75);
   
+  /* Chart Colors */
+  --color-chart-volume: oklch(65% 0.08 250);
+  
   /* Text - Softer than pure black */
   --color-text: oklch(25% 0.02 85);
   --color-text-muted: oklch(55% 0.02 85);
@@ -94,6 +97,9 @@
   --color-input-text: oklch(92% 0.01 260);
   --color-input-placeholder: oklch(60% 0.01 260);
   --color-input-muted: oklch(22% 0.02 260);
+
+  /* Chart Colors */
+  --color-chart-volume: oklch(58% 0.08 175);
 
   color-scheme: dark;
 }
