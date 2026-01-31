@@ -9,6 +9,7 @@ import type { UserPreferences } from '@/lib/preferences'
 import { normalizePreferences } from '@/lib/preferences'
 import { buildCompletionSnapshot } from '@/lib/session-snapshot'
 import { calculateSessionImpactFromSets } from '@/lib/workout-metrics'
+import { stripPlannedDuration } from '@/lib/workout-naming'
 
 type ExerciseCatalogEntry = {
   name: string
@@ -114,6 +115,17 @@ export async function completeSession({
       const firstExName = session.exercises[0].name
       if (!finalName?.includes(firstExName)) {
         finalName = `Cardio ${firstExName}`
+      }
+    }
+
+    // Ensure name reflects actual duration
+    const start = new Date(resolvedStartedAt).getTime()
+    const end = new Date(resolvedEndedAt).getTime()
+    if (!Number.isNaN(start) && !Number.isNaN(end) && end > start) {
+      const durationMinutes = Math.round((end - start) / 60000)
+      if (durationMinutes > 0) {
+        const baseName = stripPlannedDuration(finalName)
+        finalName = `${baseName} · ${durationMinutes} min`
       }
     }
 
