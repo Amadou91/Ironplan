@@ -3,16 +3,27 @@
 import React, { useState } from 'react'
 import {
   Cell,
-  Pie,
-  PieChart,
+  BarChart,
+  Bar,
   ResponsiveContainer,
-  Tooltip
+  Tooltip,
+  XAxis,
+  YAxis,
+  CartesianGrid
 } from 'recharts'
 import { ChartInfoTooltip } from '@/components/ui/ChartInfoTooltip'
 import { useUIStore } from '@/store/uiStore'
 import { KG_PER_LB } from '@/lib/units'
 
 const chartColors = ['#f05a28', '#1f9d55', '#0ea5e9', '#f59e0b', '#ec4899']
+const COMPACT_LIMIT = 3
+
+const formatCompactNumber = (value: number) => {
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`
+  if (abs >= 1_000) return `${(value / 1_000).toFixed(1).replace(/\.0$/, '')}k`
+  return `${Math.round(value)}`
+}
 
 export interface MuscleBreakdownPoint {
   muscle: string
@@ -50,6 +61,33 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
     })
   }, [convertedData, muscleVizMode])
 
+  const chartData = React.useMemo(() => {
+    return sortedData
+      .map(entry => {
+        const value = muscleVizMode === 'absolute'
+          ? entry.volume
+          : muscleVizMode === 'relative'
+            ? entry.relativePct
+            : (entry.imbalanceIndex ?? 0)
+        return { ...entry, value }
+      })
+      .filter(entry => entry.value > 0)
+  }, [sortedData, muscleVizMode])
+
+  const displayData = isCompact ? chartData.slice(0, COMPACT_LIMIT) : chartData
+  const axisDomain = muscleVizMode === 'relative' ? [0, 100] : [0, 'dataMax']
+  const axisFormatter = (value: number) => {
+    if (muscleVizMode === 'absolute') return formatCompactNumber(value)
+    if (muscleVizMode === 'relative') return `${value}%`
+    return `${value}`
+  }
+  const tooltipFormatter = (value: number | string) => {
+    if (typeof value !== 'number') return value
+    if (muscleVizMode === 'absolute') return `${value.toLocaleString()} ${displayUnit}`
+    if (muscleVizMode === 'relative') return `${value}%`
+    return value
+  }
+
   return (
     <div className={isCompact ? 'flex flex-col h-full relative' : 'space-y-6'}>
       <div className="flex items-center justify-between mb-4">
@@ -57,7 +95,7 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
           <h3 className={`font-black uppercase tracking-[0.15em] text-strong ${isCompact ? 'text-[10px]' : 'text-sm'}`}>Muscle Distribution</h3>
           {!isCompact && (
             <ChartInfoTooltip 
-              description="Shows how much work each muscle group did. The bigger the slice, the more work that muscle did."
+              description="Shows how much work each muscle group did. The longer the bar, the more work that muscle did."
               goal="Try to keep things even so you don't over-train one spot and under-train another."
             />
           )}
@@ -83,30 +121,38 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
       <div className={`flex items-center gap-4 ${isCompact ? 'flex-col' : 'flex-col xl:flex-row'}`}>
         <div className={isCompact ? 'h-32 w-full' : 'h-[280px] w-full xl:w-5/12'}>
           <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-            <PieChart>
-              <Pie 
-                data={sortedData.map(m => ({
-                  ...m,
-                  value: muscleVizMode === 'absolute' ? m.volume : muscleVizMode === 'relative' ? m.relativePct : (m.imbalanceIndex ?? 0)
-                })).filter(m => m.value > 0)} 
-                dataKey="value" 
-                nameKey="muscle" 
-                outerRadius={isCompact ? 60 : 110}
-                innerRadius={isCompact ? 40 : 75}
-                paddingAngle={2}
-                stroke="none"
-              >
-                {sortedData.map((entry, index) => (
-                  <Cell key={entry.muscle} fill={chartColors[index % chartColors.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                formatter={(value: number | undefined) => {
-                  if (typeof value !== 'number') return []
-                  if (muscleVizMode === 'absolute') return [`${value.toLocaleString()} ${displayUnit}`, 'Volume']
-                  if (muscleVizMode === 'relative') return [`${value}%`, 'Relative %']
-                  return [value, 'Imbalance Index']
-                }}
+            <BarChart
+              data={displayData}
+              layout="vertical"
+              margin={{ top: 8, right: 16, left: isCompact ? 0 : 12, bottom: 4 }}
+            >
+              {!isCompact && (
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+              )}
+              <XAxis
+                type="number"
+                domain={axisDomain as [number, number] | [number, 'dataMax']}
+                tickFormatter={axisFormatter}
+                stroke="var(--color-text-subtle)"
+                fontSize={10}
+                fontWeight={800}
+                tickLine={false}
+                axisLine={false}
+                hide={isCompact}
+              />
+              <YAxis
+                type="category"
+                dataKey="muscle"
+                stroke="var(--color-text-subtle)"
+                fontSize={isCompact ? 9 : 10}
+                fontWeight={900}
+                tickLine={false}
+                axisLine={false}
+                width={isCompact ? 0 : 80}
+                hide={isCompact}
+              />
+              <Tooltip
+                formatter={tooltipFormatter}
                 contentStyle={{ 
                   background: 'var(--color-surface)', 
                   border: '1px solid var(--color-border)', 
@@ -118,7 +164,12 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
                   boxShadow: 'var(--shadow-md)'
                 }} 
               />
-            </PieChart>
+              <Bar dataKey="value" radius={[6, 6, 6, 6]} barSize={isCompact ? 12 : 16}>
+                {displayData.map((entry, index) => (
+                  <Cell key={entry.muscle} fill={chartColors[index % chartColors.length]} />
+                ))}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </div>
         
@@ -132,7 +183,7 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
             <p className="text-sm text-subtle italic font-medium">No data available.</p>
           ) : (
             sortedData
-              .slice(0, isCompact ? 3 : undefined)
+              .slice(0, isCompact ? COMPACT_LIMIT : undefined)
               .map((entry, idx) => {
                 const displayVal = muscleVizMode === 'absolute' 
                   ? `${entry.volume.toLocaleString()} ${displayUnit}`
@@ -154,13 +205,13 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
                 )
               })
           )}
-          {isCompact && data.length > 3 && (
+          {isCompact && data.length > COMPACT_LIMIT && (
             <button 
               type="button"
               onClick={() => setIsExpanded(true)}
               className="w-full text-[9px] text-[var(--color-primary)] hover:text-strong text-center mt-3 uppercase font-black tracking-[0.15em] py-2 border border-dashed border-[var(--color-primary)]/30 rounded-xl transition-all hover:bg-[var(--color-primary-soft)]/20"
             >
-              + {data.length - 3} More Groups
+              + {data.length - COMPACT_LIMIT} More Groups
             </button>
           )}
         </div>

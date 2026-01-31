@@ -11,25 +11,34 @@ type CustomTooltipProps = {
   label?: string | number
   type?: 'volume' | 'effort' | 'bodyweight' | 'readiness'
   unit?: string
+  labelFormatter?: (label: string | number) => string
 }
 
 export function CustomTooltip(props: CustomTooltipProps) {
-  const { active, payload, label, type, unit } = props
+  const { active, payload, label, type, unit, labelFormatter } = props
   if (active && payload && payload.length) {
+    const formattedLabel = labelFormatter && label !== undefined ? labelFormatter(label) : label
+    const displayLabel = type === 'readiness' && typeof label === 'number' && !labelFormatter
+      ? `Readiness ${Math.round(label)}`
+      : formattedLabel
+
     return (
       <div className="pointer-events-none rounded-2xl border border-[var(--color-border)] glass-panel p-4 shadow-2xl">
-        <p className="mb-2.5 text-[11px] font-black uppercase tracking-[0.1em] text-subtle opacity-70">{label}</p>
+        <p className="mb-2.5 text-[11px] font-black uppercase tracking-[0.1em] text-subtle opacity-70">{displayLabel}</p>
         <div className="space-y-2">
           {payload.map((entry: PayloadItem, index: number) => {
             const isTrend = entry.dataKey === 'trend'
+            const displayName = type === 'readiness' && entry.name === 'Session' ? 'Effort' : entry.name
+            const valueLabel = typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value ?? '--'
+            const readinessSuffix = type === 'readiness' && displayName === 'Effort' ? '/10' : ''
             return (
               <div key={index} className="flex items-center justify-between gap-6">
                 <div className="flex items-center gap-2.5">
                   <div className="h-2 w-2 rounded-full shadow-sm" style={{ background: entry.color }} />
-                  <span className="text-xs font-black text-strong opacity-80 uppercase tracking-tight">{entry.name}:</span>
+                  <span className="text-xs font-black text-strong opacity-80 uppercase tracking-tight">{displayName}:</span>
                 </div>
                 <span className="text-xs font-black text-strong tabular-nums">
-                  {entry.value?.toLocaleString()} {!isTrend && unit ? unit : ''}
+                  {valueLabel}{readinessSuffix}{!isTrend && unit ? ` ${unit}` : ''}
                 </span>
               </div>
             )

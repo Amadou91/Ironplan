@@ -236,7 +236,7 @@ export const buildWeightOptions = (
             key: `dumbbell-${converted}`,
             value: converted,
             unit: preferredUnit,
-            label: `${converted} ${unitLabel} dumbbell each`,
+            label: `${converted} ${unitLabel} dumbbell`,
             equipmentKind: 'dumbbell'
           })
         })

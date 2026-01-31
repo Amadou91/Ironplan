@@ -4,7 +4,8 @@ import React from 'react'
 import {
   CartesianGrid,
   Line,
-  LineChart,
+  ComposedChart,
+  Bar,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -37,6 +38,31 @@ interface WeeklyVolumeChartProps {
 
 const CHART_MARGIN = { top: 10, right: 10, left: 0, bottom: 30 }
 const Y_AXIS_WIDTH = 45
+const MIN_TICK_GAP = 16
+
+const formatCompactNumber = (value: number) => {
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`
+  if (abs >= 1_000) return `${(value / 1_000).toFixed(1).replace(/\.0$/, '')}k`
+  return `${Math.round(value)}`
+}
+
+const parseWeekLabel = (label: string | number) => {
+  if (typeof label !== 'string') return null
+  const match = label.match(/^(\d{4})-W(\d{1,2})$/)
+  if (!match) return null
+  return { year: match[1], week: match[2].padStart(2, '0') }
+}
+
+const formatWeekTick = (label: string | number) => {
+  const parsed = parseWeekLabel(label)
+  return parsed ? `W${parsed.week}` : String(label)
+}
+
+const formatWeekLabel = (label: string | number) => {
+  const parsed = parseWeekLabel(label)
+  return parsed ? `Week ${parsed.week}, ${parsed.year}` : String(label)
+}
 
 /**
  * Calculate linear regression trend line values
@@ -69,6 +95,7 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
       return data.map(p => ({
         ...p,
         volume: Math.round(p.volume * KG_PER_LB),
+        load: Math.round(p.load * KG_PER_LB)
       }))
     }
     return data
@@ -102,6 +129,8 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
     return dataWithTrends.slice(start, end + 1)
   }, [dataWithTrends, zoom.left, zoom.right])
 
+  const isDailyView = zoomedData[0]?.isDaily ?? false
+
   return (
     <div className="flex flex-col h-full">
       <div 
@@ -112,7 +141,7 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
         draggable="false"
       >
         <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
-          <LineChart 
+          <ComposedChart 
             data={zoomedData}
             margin={CHART_MARGIN}
             onMouseDown={(e) => { if (e?.activeLabel) zoom.setRefAreaLeft(e.activeLabel) }}
@@ -128,6 +157,9 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               tickLine={false}
               axisLine={false}
               allowDataOverflow
+              tickFormatter={isDailyView ? undefined : formatWeekTick}
+              minTickGap={MIN_TICK_GAP}
+              tickMargin={8}
               dy={10}
             />
             <YAxis 
@@ -137,7 +169,7 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               fontWeight={800}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(val) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val}
+              tickFormatter={formatCompactNumber}
               width={Y_AXIS_WIDTH}
             />
             <YAxis 
@@ -148,10 +180,21 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               fontWeight={800}
               tickLine={false}
               axisLine={false}
+              tickFormatter={formatCompactNumber}
               width={Y_AXIS_WIDTH}
             />
-            <Tooltip content={<CustomTooltip unit={displayUnit} type="volume" />} />
+            <Tooltip content={<CustomTooltip unit={displayUnit} type="volume" labelFormatter={isDailyView ? undefined : formatWeekLabel} />} />
             
+            <Bar 
+              yAxisId="left"
+              dataKey="volume" 
+              name="Volume" 
+              fill="var(--color-chart-volume)"
+              fillOpacity={0.35}
+              radius={[6, 6, 0, 0]}
+              barSize={18}
+            />
+
             {/* Volume trend line - subtle dashed line */}
             <Line 
               yAxisId="left"
@@ -166,18 +209,6 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               activeDot={false}
               animationDuration={300}
               legendType="none"
-            />
-            
-            <Line 
-              yAxisId="left"
-              type="monotone" 
-              dataKey="volume" 
-              name="Volume" 
-              stroke="var(--color-chart-volume)" 
-              strokeWidth={3} 
-              dot={{ r: 0 }}
-              activeDot={{ r: 6, strokeWidth: 0 }}
-              animationDuration={300}
             />
             
             {/* Load trend line - subtle dashed line */}
@@ -198,7 +229,7 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
             
             <Line 
               yAxisId="right"
-              type="monotone" 
+              type="linear" 
               dataKey="load" 
               name="Load" 
               stroke="var(--color-primary)" 
@@ -211,7 +242,7 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
             {zoom.refAreaLeft && zoom.refAreaRight ? (
               <ReferenceArea yAxisId="left" x1={zoom.refAreaLeft} x2={zoom.refAreaRight} stroke="none" strokeWidth={0} fill="var(--color-chart-volume)" fillOpacity={0.1} />
             ) : null}
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>

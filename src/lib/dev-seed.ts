@@ -72,10 +72,10 @@ const REQUIRED_EXERCISE_NAMES = [
   'Bench Press',
   'Overhead Press',
   'Lat Pulldown',
-  'Bicep Curl',
+  'Dumbbell Biceps Curl',
   'Barbell Back Squat',
   'Romanian Deadlift',
-  'Yoga Flow',
+  'Yoga / Mobility',
   'Indoor Ride'
 ] as const
 
@@ -293,7 +293,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
         ]
       },
       {
-        name: 'Bicep Curl',
+        name: 'Dumbbell Biceps Curl',
         primaryMuscle: '',
         secondaryMuscles: [],
         metricProfile: '',
@@ -328,7 +328,7 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     ],
     3: [
       {
-        name: 'Yoga Flow',
+        name: 'Yoga / Mobility',
         primaryMuscle: '',
         secondaryMuscles: [],
         metricProfile: '',

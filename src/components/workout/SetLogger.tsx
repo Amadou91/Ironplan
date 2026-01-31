@@ -302,9 +302,15 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     hasError && "border-[var(--color-danger)] ring-2 ring-[var(--color-danger-soft)]"
   )
 
-  // Compact input for small values (rest time, etc.)
+  // Compact input for small numeric values (reps, RIR, rest)
   const inputCompactClass = cn(
-    "input-base input-compact h-9 w-20 text-sm font-medium text-center",
+    "input-base input-compact h-10 w-16 text-sm font-medium text-center",
+    "disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--color-input-muted)]"
+  )
+
+  // Compact select for small value dropdowns (RIR)
+  const selectCompactClass = cn(
+    "input-base h-10 w-20 text-sm font-medium text-center",
     "disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--color-input-muted)]"
   )
 
@@ -539,20 +545,9 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
       <div className="surface-card mb-3 p-4">
         {renderHeader()}
         
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="flex flex-col gap-1.5">
-            <label className={labelClass}>Duration (min)</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="0"
-              value={durationMinutes}
-              onChange={(e) => handleDurationChange(e.target.value)}
-              className={inputErrorClass(missingFields.includes('duration'))}
-              disabled={!isEditing}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-end gap-3">
+          {/* Weight - primary field, takes available space */}
+          <div className="flex min-w-[140px] flex-1 flex-col gap-1.5">
             <label className={labelClass}>
               {effectiveLoadType === 'per_implement' ? `Wt/DB (${unitLabel})` : `Weight (${unitLabel})`}
             </label>
@@ -576,7 +571,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
                 className={inputErrorClass(missingFields.includes('weight'))}
                 disabled={!isEditing}
               >
-                <option value="">Select</option>
+                <option value="">--</option>
                 {weightChoices.map(opt => (
                   <option key={opt.key} value={opt.key}>{opt.label}</option>
                 ))}
@@ -593,12 +588,31 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
               />
             )}
           </div>
-          <div className="flex flex-col gap-1.5">
+
+          {/* Duration - compact numeric field */}
+          <div className="flex w-20 shrink-0 flex-col gap-1.5">
+            <label className={labelClass}>Duration</label>
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="0"
+                value={durationMinutes}
+                onChange={(e) => handleDurationChange(e.target.value)}
+                className={cn(inputCompactClass, "w-12", missingFields.includes('duration') && "border-[var(--color-danger)] ring-2 ring-[var(--color-danger-soft)]")}
+                disabled={!isEditing}
+              />
+              <span className="text-xs text-subtle">min</span>
+            </div>
+          </div>
+
+          {/* RPE - compact dropdown */}
+          <div className="flex w-16 shrink-0 flex-col gap-1.5">
             <label className={labelClass}>RPE</label>
             <select
               value={typeof set.rpe === 'number' ? String(set.rpe) : ''}
               onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))}
-              className={inputBaseClass}
+              className={selectCompactClass}
               disabled={!isEditing}
             >
               <option value="">--</option>
@@ -607,17 +621,22 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
               ))}
             </select>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className={labelClass}>Rest (min)</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="0"
-              value={restMinutes}
-              onChange={(e) => handleRestChange(e.target.value)}
-              className={inputCompactClass}
-              disabled={!isEditing}
-            />
+
+          {/* Rest - compact numeric field */}
+          <div className="flex w-20 shrink-0 flex-col gap-1.5">
+            <label className={labelClass}>Rest</label>
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="0"
+                value={restMinutes}
+                onChange={(e) => handleRestChange(e.target.value)}
+                className={cn(inputCompactClass, "w-12")}
+                disabled={!isEditing}
+              />
+              <span className="text-xs text-subtle">min</span>
+            </div>
           </div>
         </div>
 
@@ -643,8 +662,9 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     <div className="surface-card mb-3 p-4">
       {renderHeader()}
       
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-end gap-3">
+        {/* Weight - primary field, takes available space */}
+        <div className="flex min-w-[140px] flex-1 flex-col gap-1.5">
           <label className={labelClass}>
             {effectiveLoadType === 'per_implement' ? `Wt/DB (${unitLabel})` : `Weight (${unitLabel})`}
           </label>
@@ -686,57 +706,62 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        {/* Reps - compact numeric field */}
+        <div className="flex w-16 shrink-0 flex-col gap-1.5">
           <label className={labelClass}>{repsLabel}</label>
           <input
             type="text"
             inputMode={repsLabel === 'Reps' ? 'numeric' : 'decimal'}
-            placeholder={repsLabel === 'Reps' ? '0' : '--'}
+            placeholder="0"
             value={set.reps ?? ''}
             onChange={(e) => validateAndUpdate('reps', e.target.value)}
-            className={inputErrorClass(repsError || missingFields.includes('reps'))}
+            className={cn(inputCompactClass, (repsError || missingFields.includes('reps')) && "border-[var(--color-danger)] ring-2 ring-[var(--color-danger-soft)]")}
             disabled={!isEditing}
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        {/* RIR - compact dropdown */}
+        <div className="flex w-20 shrink-0 flex-col gap-1.5">
           <label className={labelClass} title="Reps in Reserve – How many more reps could you have done?">
-            RIR <span className="text-[10px] text-subtle">(reps left)</span>
+            RIR
           </label>
           <select
             value={typeof set.rir === 'number' ? String(set.rir) : ''}
             onChange={(e) => { onUpdate('rir', e.target.value === '' ? '' : Number(e.target.value)); onUpdate('rpe', '') }}
-            className={inputBaseClass}
+            className={cn(selectCompactClass, missingFields.includes('rir') && "border-[var(--color-danger)] ring-2 ring-[var(--color-danger-soft)]")}
             disabled={!isEditing}
           >
             <option value="">--</option>
             {RIR_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option key={opt.value} value={opt.value}>{opt.value}</option>
             ))}
           </select>
-          {derivedRpe && (
-            <p className="text-[10px] font-medium text-subtle">
-              RPE {derivedRpe}{derivedRpeLabel ? ` · ${derivedRpeLabel}` : ''}
-            </p>
-          )}
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        {/* Rest - compact numeric field */}
+        <div className="flex w-20 shrink-0 flex-col gap-1.5">
           <label className={labelClass}>Rest</label>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <input
               type="text"
               inputMode="numeric"
               placeholder="0"
               value={restMinutes}
               onChange={(e) => handleRestChange(e.target.value)}
-              className={inputCompactClass}
+              className={cn(inputCompactClass, "w-12")}
               disabled={!isEditing}
             />
             <span className="text-xs text-subtle">min</span>
           </div>
         </div>
       </div>
+
+      {/* RPE derivation hint - shown below fields when RIR is set */}
+      {derivedRpe && (
+        <p className="mt-2 text-[10px] font-medium text-subtle">
+          RPE {derivedRpe}{derivedRpeLabel ? ` · ${derivedRpeLabel}` : ''}
+        </p>
+      )}
 
       {renderDumbbellToggle()}
 
