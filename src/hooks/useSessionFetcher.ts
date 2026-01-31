@@ -128,7 +128,12 @@ export function useSessionFetcher(sessionId?: string | null) {
           if (exerciseMap.has(key)) {
             // Merge sets
             const existing = exerciseMap.get(key)!
-            const combinedSets = [...existing.sets, ...ex.sets]
+            
+            // Deduplicate sets by ID
+            const setMap = new Map(existing.sets.map(s => [s.id, s]))
+            ex.sets.forEach(s => setMap.set(s.id, s))
+            const combinedSets = Array.from(setMap.values())
+
             combinedSets.sort((a, b) => a.setNumber - b.setNumber)
             combinedSets.forEach((s, i) => s.setNumber = i + 1)
             existing.sets = combinedSets

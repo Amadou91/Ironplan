@@ -126,7 +126,12 @@ function mapPayloadToSession(payload: SessionPayload): WorkoutSession {
         if (exerciseMap.has(key)) {
           // Merge sets
           const existing = exerciseMap.get(key)!
-          const combinedSets = [...existing.sets, ...ex.sets]
+          
+          // Deduplicate sets by ID
+          const setMap = new Map(existing.sets.map(s => [s.id, s]))
+          ex.sets.forEach(s => setMap.set(s.id, s))
+          const combinedSets = Array.from(setMap.values())
+          
           // Sort merged sets by set number (or id if set number missing)
           combinedSets.sort((a, b) => a.setNumber - b.setNumber)
           // Renumber
@@ -198,7 +203,7 @@ function SessionEditContent() {
         .from('sessions')
         .select(`
           id, user_id, name, template_id, session_focus, session_goal, session_intensity, 
-          started_at, ended_at, status, body_weight_lb, session_notes, weight_unit,
+          started_at, ended_at, status, body_weight_lb, session_notes,
           session_exercises(
             id, exercise_name, primary_muscle, secondary_muscles, 
             metric_profile, order_index, 

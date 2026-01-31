@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { createClient } from '@/lib/supabase/client';
 import { equipmentPresets } from '@/lib/equipment';
@@ -115,6 +115,9 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
   const [sessionBodyWeight, setSessionBodyWeight] = useState<string>('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [templateExperienceLevel, setTemplateExperienceLevel] = useState<PlanInput['experienceLevel'] | null>(null);
+  
+  // Track pending set creations to prevent duplicate insertions
+  const creationPromises = useRef<Map<string, Promise<string | undefined>>>(new Map());
   
   // Hooks
   const supabase = createClient();
@@ -235,7 +238,12 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
           if (exerciseMap.has(key)) {
             // Merge sets
             const existing = exerciseMap.get(key)!;
-            const combinedSets = [...existing.sets, ...ex.sets];
+            
+            // Deduplicate sets by ID to prevent duplicates if DB returns redundant data
+            const setMap = new Map(existing.sets.map(s => [s.id, s]));
+            ex.sets.forEach(s => setMap.set(s.id, s));
+            const combinedSets = Array.from(setMap.values());
+            
             // Sort merged sets by set number (or id if set number missing)
             combinedSets.sort((a, b) => a.setNumber - b.setNumber);
             // Renumber
@@ -388,8 +396,37 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     setIsUpdating(true);
 
     try {
-      const nextSet = { ...currentSet, [field]: value };
-      const result = await persistSet(exercise, nextSet);
+      let targetSetId = currentSet.id;
+
+      // Check if we are already creating this set to avoid duplicate inserts
+      if (targetSetId.startsWith('temp-') && creationPromises.current.has(targetSetId)) {
+        const realId = await creationPromises.current.get(targetSetId);
+        if (realId) {
+          targetSetId = realId;
+        }
+      }
+
+      const nextSet = { ...currentSet, [field]: value, id: targetSetId };
+      let result;
+
+      if (targetSetId.startsWith('temp-')) {
+        // Create new set
+        const promise = persistSet(exercise, nextSet).then(res => res.id);
+        creationPromises.current.set(targetSetId, promise);
+        
+        const newId = await promise;
+        creationPromises.current.delete(targetSetId);
+        
+        if (newId) {
+          updateSet(exIdx, setIdx, 'id', newId);
+          result = { success: true, id: newId, performedAt: nextSet.performedAt };
+        } else {
+          result = { success: false, error: 'Failed to create set' };
+        }
+      } else {
+        // Update existing set
+        result = await persistSet(exercise, nextSet);
+      }
       
       if (!result.success) {
         // Rollback on failure
@@ -398,11 +435,9 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
         return;
       }
       
-      // Update with server-generated values if this was a new set
-      if (result.id && currentSet.id.startsWith('temp-')) {
-        updateSet(exIdx, setIdx, 'id', result.id);
-      }
-      if (result.performedAt) {
+      // Update with server-generated values if this was a new set (handled above) 
+      // or if performedAt changed
+      if (result.performedAt && result.performedAt !== currentSet.performedAt) {
         updateSet(exIdx, setIdx, 'performedAt', result.performedAt);
       }
     } catch (error) {
