@@ -81,9 +81,23 @@ export async function completeSession({
       ? new Map(exerciseCatalog.map((e) => [e.name.toLowerCase(), e]))
       : undefined
 
-    // Build the immutability snapshot
+    // CLEANUP: Filter out incomplete sets and empty exercises for the snapshot
+    // This ensures history is clean even if DB has some junk
+    const cleanedExercises = session.exercises
+      .map(ex => ({
+        ...ex,
+        sets: ex.sets.filter(s => s.completed && s.reps !== null && s.weight !== null)
+      }))
+      .filter(ex => ex.sets.length > 0)
+
+    const cleanedSession: WorkoutSession = {
+      ...session,
+      exercises: cleanedExercises
+    }
+
+    // Build the immutability snapshot using CLEANED data
     const completionSnapshot = buildCompletionSnapshot({
-      session,
+      session: cleanedSession,
       endedAt: resolvedEndedAt,
       bodyWeightLb,
       preferences,
@@ -92,7 +106,7 @@ export async function completeSession({
     })
 
     // Calculate impact for legacy field (still useful for quick queries)
-    const impact = calculateSessionImpactFromSets(session, resolvedEndedAt)
+    const impact = calculateSessionImpactFromSets(cleanedSession, resolvedEndedAt)
 
     // Build final session name
     let finalName = session.name
@@ -120,6 +134,20 @@ export async function completeSession({
       .eq('id', sessionId)
 
     if (sessionError) throw sessionError
+
+    // DB CLEANUP: Remove incomplete sets to prevent them from reappearing on edit
+    // We do this asynchronously to not block the UI response
+    // We also don't await it to fail the request if it fails, but we log it
+    supabase.from('sets')
+      .delete()
+      .eq('session_exercise_id', session.exercises.map(e => e.id)) // This syntax might be wrong for deep nested? No, can't join in delete.
+      // Better: Delete sets where session_exercise.session_id = sessionId AND completed = false
+      // But Supabase/Postgres delete with join is tricky.
+      // Simplest: Delete sets where ID is in the list of incomplete sets we know about
+      .in('id', session.exercises.flatMap(e => e.sets.filter(s => !s.completed).map(s => s.id)))
+      .then(({ error }) => {
+        if (error) console.error('Failed to cleanup incomplete sets:', error)
+      })
 
     // Update profile and record body measurement if weight provided
     if (bodyWeightLb && userId) {

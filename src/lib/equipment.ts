@@ -221,10 +221,19 @@ export const buildWeightOptions = (
   const showKindLabel = kindCount > 1
   const unitLabel = preferredUnit
   
-  // Always include bodyweight (0) option at the top
-  const options: WeightOption[] = [
-    { key: 'bodyweight-0', value: 0, label: `0 ${unitLabel} (Bodyweight)`, unit: preferredUnit, equipmentKind: 'bodyweight' }
-  ]
+  const options: WeightOption[] = []
+
+  // Add bodyweight option only if it's a valid option for this exercise
+  if (equipmentOptions.some(opt => opt.kind === 'bodyweight')) {
+    options.push({ 
+      key: 'bodyweight-0', 
+      value: 0, 
+      label: `0 ${unitLabel} (Bodyweight)`, 
+      unit: preferredUnit, 
+      equipmentKind: 'bodyweight' 
+    })
+  }
+
   const toPreferred = (value: number) => roundWeight(convertWeight(value, 'lb', preferredUnit))
 
   availableOptions.forEach((option) => {

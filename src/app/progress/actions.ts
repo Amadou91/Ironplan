@@ -111,8 +111,60 @@ export async function getSessionHistoryBackupAction() {
   )
 
   // Transform to export format (camelCase domain objects)
+  // Deduplicate and clean data
   const exportedSessions: ExportedSession[] = (sessions ?? []).map(session => {
     const readiness = readinessMap.get(session.id)
+    
+    // Group exercises by name to handle duplicates
+    const exerciseMap = new Map<string, any>()
+    
+    const rawExercises = session.session_exercises ?? []
+    // Sort by order_index to preserve sequence
+    rawExercises.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+
+    for (const exercise of rawExercises) {
+      // Filter sets: only include completed sets with valid data
+      // We strictly require completed=true for history
+      const validSets = (exercise.sets ?? [])
+        .filter(set => set.completed && set.reps !== null && set.weight !== null)
+        .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
+        .map((set, idx) => ({
+          setNumber: idx + 1, // Renumber sequentially
+          reps: set.reps,
+          weight: set.weight,
+          implementCount: set.implement_count,
+          loadType: set.load_type,
+          weightUnit: set.weight_unit,
+          rpe: set.rpe,
+          rir: set.rir,
+          completed: true,
+          performedAt: set.performed_at,
+          durationSeconds: set.duration_seconds,
+          restSecondsActual: set.rest_seconds_actual,
+          notes: set.notes
+        }))
+
+      if (validSets.length === 0) continue
+
+      const key = exercise.exercise_name.toLowerCase()
+      if (exerciseMap.has(key)) {
+        // Merge sets if duplicate exercise exists
+        const existing = exerciseMap.get(key)
+        const combinedSets = [...existing.sets, ...validSets]
+        // Renumber merged sets
+        existing.sets = combinedSets.map((s: any, idx: number) => ({ ...s, setNumber: idx + 1 }))
+      } else {
+        exerciseMap.set(key, {
+          exerciseName: exercise.exercise_name,
+          primaryMuscle: exercise.primary_muscle,
+          secondaryMuscles: exercise.secondary_muscles ?? [],
+          metricProfile: exercise.metric_profile,
+          orderIndex: exercise.order_index ?? 0,
+          sets: validSets
+        })
+      }
+    }
+
     return {
       name: session.name,
       startedAt: session.started_at,
@@ -121,32 +173,7 @@ export async function getSessionHistoryBackupAction() {
       bodyWeightLb: session.body_weight_lb,
       timezone: session.timezone,
       sessionNotes: session.session_notes,
-      exercises: (session.session_exercises ?? [])
-        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-        .map(exercise => ({
-          exerciseName: exercise.exercise_name,
-          primaryMuscle: exercise.primary_muscle,
-          secondaryMuscles: exercise.secondary_muscles ?? [],
-          metricProfile: exercise.metric_profile,
-          orderIndex: exercise.order_index ?? 0,
-          sets: (exercise.sets ?? [])
-            .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
-            .map(set => ({
-              setNumber: set.set_number,
-              reps: set.reps,
-              weight: set.weight,
-              implementCount: set.implement_count,
-              loadType: set.load_type,
-              weightUnit: set.weight_unit,
-              rpe: set.rpe,
-              rir: set.rir,
-              completed: set.completed ?? false,
-              performedAt: set.performed_at,
-              durationSeconds: set.duration_seconds,
-              restSecondsActual: set.rest_seconds_actual,
-              notes: set.notes
-            }))
-        })),
+      exercises: Array.from(exerciseMap.values()),
       readiness: readiness ? {
         sleepQuality: readiness.sleep_quality,
         muscleSoreness: readiness.muscle_soreness,
