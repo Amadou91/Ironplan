@@ -27,18 +27,18 @@ export default function AppShell({ children }: AppShellProps) {
   return (
     <div className="min-h-screen lg:flex">
       <Sidebar />
-      <div className="min-h-screen flex-1 min-w-0">
-        <header className="flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 lg:hidden">
+      <div className="min-h-screen flex-1 min-w-0 bg-transparent">
+        <header className="sticky top-0 z-[var(--z-nav)] flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_8%)] px-4 backdrop-blur lg:hidden">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]">
               <span className="font-display text-sm font-semibold">IP</span>
             </div>
-            <span className="font-display font-semibold tracking-tight">Ironplan</span>
+            <span className="font-display font-semibold tracking-tight" aria-label="Ironplan">Ironplan</span>
           </div>
           <ThemeToggle />
         </header>
         <main className="min-h-screen pb-28 lg:pb-10">
-          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+          <div className="app-container py-6 lg:py-8">
             {children}
           </div>
         </main>

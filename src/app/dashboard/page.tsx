@@ -9,6 +9,10 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Alert } from '@/components/ui/Alert'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
 import { RecommendedSession } from '@/components/dashboard/RecommendedSession'
 import { TemplateInventory } from '@/components/dashboard/TemplateInventory'
@@ -85,36 +89,47 @@ export default function DashboardPage() {
   const recommendedTemplate = templates.find((template) => template.id === recommendedTemplateId) ?? templates[0]
 
   if (userLoading || loading) {
-    return <div className="page-shell p-10 text-center text-muted">Loading today...</div>
+    return (
+      <div className="page-shell">
+        <div className="page-stack">
+          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      </div>
+    )
   }
 
   if (!user) {
     return (
-      <div className="page-shell p-10 text-center text-muted">
-        <p className="mb-4">Sign in to view your dashboard.</p>
-        <Button onClick={() => router.push('/auth/login')}>Sign in</Button>
+      <div className="page-shell page-stack">
+        <EmptyState
+          title="Sign in to view your dashboard"
+          description="Get your training status, active session, and recommendations in one place."
+          action={<Button onClick={() => router.push('/auth/login')}>Sign in</Button>}
+        />
       </div>
     )
   }
 
   return (
     <div className="page-shell">
-      <div className="w-full space-y-10 py-4">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.4em] text-subtle font-bold">Today</p>
-            <h1 className="font-display text-4xl lg:text-5xl font-extrabold text-strong mt-2">Welcome back, {greetingName}</h1>
-            <p className="mt-3 text-lg text-muted max-w-2xl">Ready to train? We have a smart session queued up for your recovery profile.</p>
-          </div>
-          <Link href="/generate">
-            <Button size="md" className="shadow-lg shadow-[var(--color-primary-soft)]">
-              <Sparkles className="h-5 w-5 mr-2" /> Create New Plan
-            </Button>
-          </Link>
-        </div>
+      <div className="page-stack">
+        <PageHeader
+          eyebrow="Today"
+          title={`Welcome back, ${greetingName}`}
+          description="Ready to train? We have a smart session queued up for your recovery profile."
+          actions={
+            <Link href="/generate">
+              <Button size="md" className="shadow-lg shadow-[var(--color-primary-soft)]">
+                <Sparkles className="h-5 w-5 mr-2" /> Create new plan
+              </Button>
+            </Link>
+          }
+        />
 
-        {error && <div className="alert-error p-6 text-base font-medium">{error}</div>}
-        {cancelError && <div className="alert-error p-6 text-base font-medium">{cancelError}</div>}
+        {error ? <Alert variant="error">{error}</Alert> : null}
+        {cancelError ? <Alert variant="error">{cancelError}</Alert> : null}
 
         {latestActiveSession && (
           <Card className="p-8 border-2 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]/50 backdrop-blur-sm">
@@ -154,7 +169,7 @@ export default function DashboardPage() {
           isLoading={cancelingSession}
         />
 
-        <div className="grid grid-cols-1 gap-12">
+        <div className="grid grid-cols-1 gap-8">
           <TrainingStatusCard
             status={trainingLoadSummary.status}
             loadRatio={trainingLoadSummary.loadRatio}

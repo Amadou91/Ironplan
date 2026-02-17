@@ -4,8 +4,11 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Loader2, Dumbbell } from 'lucide-react'
-import { Button } from '@/components/ui/Button' // Adjust based on your Button export (default vs named)
-import { Card } from '@/components/ui/Card'     // Adjust based on your Card export
+import { Button } from '@/components/ui/Button'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import { Label } from '@/components/ui/Label'
+import { Alert } from '@/components/ui/Alert'
 import { toAuthUser, useAuthStore } from '@/store/authStore'
 
 export default function LoginPage() {
@@ -63,21 +66,23 @@ export default function LoginPage() {
     <div className="page-shell flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] shadow-[var(--shadow-sm)]">
             <Dumbbell className="h-8 w-8 text-accent" />
           </div>
-          <h2 className="mt-6 text-3xl font-semibold tracking-tight text-strong">Ironplan</h2>
-          <p className="mt-2 text-sm text-muted">Log in to your account</p>
+          <h1 className="mt-6 text-3xl font-semibold tracking-tight text-strong">Ironplan</h1>
+          <p className="mt-2 text-sm text-muted">Welcome back. Log in to continue training.</p>
         </div>
 
-        <Card className="p-8">
-          <form className="space-y-6">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-strong">
-                Email address
-              </label>
-              <div className="mt-1">
-                <input
+        <Card>
+          <CardHeader>
+            <CardTitle>Log in</CardTitle>
+            <CardDescription>Use your email and password to access your account.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-5">
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email address</Label>
+                <Input
                   id="email"
                   name="email"
                   type="email"
@@ -85,17 +90,12 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="input-base"
                 />
               </div>
-            </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-strong">
-                Password
-              </label>
-              <div className="mt-1">
-                <input
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Password</Label>
+                <Input
                   id="password"
                   name="password"
                   type="password"
@@ -103,35 +103,30 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input-base"
                 />
               </div>
-            </div>
 
-            {error && (
-              <div className="alert-error p-2 text-center text-sm">
-                {error}
+              {error ? <Alert variant="error">{error}</Alert> : null}
+
+              <div className="flex flex-col gap-3">
+                <Button 
+                  onClick={handleLogin}
+                  disabled={loading}
+                  className="w-full justify-center"
+                >
+                  {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Log in'}
+                </Button>
+                <Button 
+                  onClick={handleSignUp}
+                  disabled={loading}
+                  variant="outline"
+                  className="w-full justify-center"
+                >
+                  Create account
+                </Button>
               </div>
-            )}
-
-            <div className="flex flex-col gap-3">
-              <Button 
-                onClick={handleLogin}
-                disabled={loading}
-                className="w-full justify-center"
-              >
-                {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Log In'}
-              </Button>
-              <Button 
-                onClick={handleSignUp}
-                disabled={loading}
-                variant="outline"
-                className="w-full justify-center"
-              >
-                Sign Up
-              </Button>
-            </div>
-          </form>
+            </form>
+          </CardContent>
         </Card>
       </div>
     </div>

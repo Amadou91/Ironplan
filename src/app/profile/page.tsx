@@ -4,6 +4,10 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Alert } from '@/components/ui/Alert'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { ProfileHeader } from '@/components/profile/ProfileHeader'
 import { PhysicalStatsForm } from '@/components/profile/PhysicalStatsForm'
 import { AppSettings } from '@/components/profile/AppSettings'
@@ -52,41 +56,42 @@ export default function ProfilePage() {
 
   if (userLoading) {
     return (
-      <div className="page-shell flex items-center justify-center p-10">
-        <p className="text-sm text-subtle animate-pulse">Loading profile...</p>
+      <div className="page-shell page-stack">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-72 w-full" />
       </div>
     )
   }
 
   if (!user) {
     return (
-      <div className="page-shell flex flex-col items-center justify-center p-10 text-center">
-        <p className="mb-6 text-muted">Sign in to manage your profile and training metrics.</p>
-        <Button onClick={() => router.push('/auth/login')}>Sign in</Button>
+      <div className="page-shell page-stack">
+        <EmptyState
+          title="Sign in to manage your profile"
+          description="Access your physical stats, app preferences, and training metrics settings."
+          action={<Button onClick={() => router.push('/auth/login')}>Sign in</Button>}
+        />
       </div>
     )
   }
 
   return (
     <div className="page-shell">
-      <div className="w-full space-y-10 py-4">
+      <div className="page-stack">
+        <PageHeader
+          eyebrow="Account"
+          title="Profile & Settings"
+          description="Keep your training profile current and tune your app experience."
+        />
+
         <ProfileHeader 
           user={user} 
           onToggleDevTools={toggleDevTools} 
           devToolsNotice={devToolsNotice} 
         />
 
-        {(error || success) && (
-          <div
-            className={`rounded-xl border p-4 text-sm font-medium transition-all ${
-              error
-                ? 'alert-error shadow-sm'
-                : 'alert-success shadow-sm'
-            }`}
-          >
-            {error ?? success}
-          </div>
-        )}
+        {error ? <Alert variant="error">{error}</Alert> : null}
+        {!error && success ? <Alert variant="success">{success}</Alert> : null}
 
         <section className="space-y-6">
           <PhysicalStatsForm 

@@ -12,7 +12,7 @@ export default function MobileNav() {
     (path === '/exercises' && pathname.startsWith('/workout/'))
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 pb-[calc(env(safe-area-inset-bottom)_+_0.5rem)] pt-3 backdrop-blur lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-[var(--z-nav)] border-t border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_5%)] px-4 pb-[calc(env(safe-area-inset-bottom)_+_0.5rem)] pt-3 backdrop-blur lg:hidden" aria-label="Primary">
       <div className="mx-auto flex max-w-lg items-center justify-between">
         {primaryNavItems.map((item) => {
           const Icon = item.icon
@@ -21,15 +21,16 @@ export default function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-1 text-[11px] font-semibold transition-colors ${
+              aria-current={active ? 'page' : undefined}
+              className={`flex flex-col items-center gap-1 text-[11px] font-semibold transition-colors focus-visible:outline-none ${
                 active ? 'text-[var(--color-primary-strong)]' : 'text-muted'
               }`}
             >
               <span
                 className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
                   active
-                    ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]'
-                    : 'text-muted'
+                    ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] shadow-[var(--shadow-sm)]'
+                    : 'text-muted hover:bg-[var(--color-surface-muted)]'
                 }`}
               >
                 <Icon className="h-5 w-5" />

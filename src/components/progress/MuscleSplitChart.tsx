@@ -81,11 +81,11 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
     if (muscleVizMode === 'relative') return `${value}%`
     return `${value}`
   }
-  const tooltipFormatter = (value: number | string) => {
-    if (typeof value !== 'number') return value
+  const tooltipFormatter = (value: number | string | undefined) => {
+    if (typeof value !== 'number') return value ?? ''
     if (muscleVizMode === 'absolute') return `${value.toLocaleString()} ${displayUnit}`
     if (muscleVizMode === 'relative') return `${value}%`
-    return value
+    return `${value}`
   }
 
   return (

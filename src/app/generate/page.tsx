@@ -8,6 +8,9 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Alert } from '@/components/ui/Alert'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { formatWeightList, bandLabels, machineLabels } from '@/lib/equipment'
 import { getFlowCompletion, isEquipmentValid } from '@/lib/generationFlow'
 import { EquipmentSelector, cardioMachineOptions, strengthMachineOptions } from '@/components/generate/EquipmentSelector'
@@ -117,26 +120,18 @@ export default function GeneratePage() {
 
   return (
     <div className="page-shell">
-      <div className="mb-8 px-4 pt-8 sm:px-6 lg:px-10 2xl:px-16">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="flex items-center text-3xl font-semibold text-strong">
-              <Wand2 className="mr-3 h-8 w-8 text-accent" />
-              Generate Workout Plan
-            </h1>
-            <p className="mt-2 text-muted">
-              Answer each step to create a template that matches your training style, schedule, and preferences.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
+      <div className="page-stack">
+        <PageHeader
+          eyebrow="Plan builder"
+          title="Generate Workout Plan"
+          description="Answer each step to create a template that matches your training style, schedule, and preferences."
+          actions={
             <Button type="button" variant="ghost" onClick={() => router.push('/dashboard')}>
               <X className="h-4 w-4" /> Close
             </Button>
-          </div>
-        </div>
-      </div>
+          }
+        />
 
-      <div className="px-4 pb-10 sm:px-6 lg:px-10 2xl:px-16">
         <Card className="p-6">
           <div className="space-y-10">
             <section className="space-y-4" id="step-intent">
@@ -197,7 +192,7 @@ export default function GeneratePage() {
                   onChange={(e) => setTemplateSuffix(e.target.value)}
                 />
                 <p className="text-xs text-muted">
-                  Added to the end of the template name (e.g. "Arms - No Bench Press")
+                  Added to the end of the template name (e.g. &quot;Arms - No Bench Press&quot;)
                 </p>
               </div>
 
@@ -246,6 +241,13 @@ export default function GeneratePage() {
           deletingHistoryIds={deletingHistoryIds}
         />
 
+        {historyEntries.length === 0 ? (
+          <EmptyState
+            title="No saved templates yet"
+            description="Complete the flow above to save your first reusable training template."
+          />
+        ) : null}
+
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs text-subtle">Done here? Head back to your workouts or jump into your latest template.</div>
           <div className="flex flex-wrap gap-2">
@@ -262,6 +264,7 @@ export default function GeneratePage() {
           </div>
         </div>
       </div>
+      {saveError ? <Alert variant="error" className="mt-2">{saveError}</Alert> : null}
 
       {lastSavedTemplate && (
         <SessionSetupModal

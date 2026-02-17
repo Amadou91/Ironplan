@@ -58,6 +58,11 @@ export type TemplateRow = {
   template_inputs: PlanInput | null
 }
 
+type QueryResult = {
+  data: unknown
+  error: { code?: string } | null
+}
+
 export function useDashboardData() {
   const supabase = createClient()
   const { user, loading: userLoading } = useUser()
@@ -95,8 +100,8 @@ export function useDashboardData() {
         return
       }
 
-      let sessionResult: any
-      let templateResult: any
+      let sessionResult: QueryResult | null = null
+      let templateResult: QueryResult | null = null
       let attempt = 0
       const MAX_RETRIES = 3
 
@@ -134,8 +139,9 @@ export function useDashboardData() {
         break
       }
 
-      const { data: sessionRows, error: sessionError } = sessionResult
-      const { data: templateRows } = templateResult
+      const sessionRows = sessionResult?.data
+      const sessionError = sessionResult?.error
+      const templateRows = templateResult?.data
 
       if (sessionError) {
         console.error('Failed to load sessions', JSON.stringify(sessionError, null, 2))

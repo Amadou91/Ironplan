@@ -47,6 +47,9 @@ export interface ExportedSession {
   } | null
 }
 
+type ExportedExercise = ExportedSession['exercises'][number]
+type ExportedSet = ExportedExercise['sets'][number]
+
 export async function getSessionHistoryBackupAction() {
   const supabase = await createClient()
 
@@ -116,7 +119,7 @@ export async function getSessionHistoryBackupAction() {
     const readiness = readinessMap.get(session.id)
     
     // Group exercises by name to handle duplicates
-    const exerciseMap = new Map<string, any>()
+    const exerciseMap = new Map<string, ExportedExercise>()
     
     const rawExercises = session.session_exercises ?? []
     // Sort by order_index to preserve sequence
@@ -150,9 +153,10 @@ export async function getSessionHistoryBackupAction() {
       if (exerciseMap.has(key)) {
         // Merge sets if duplicate exercise exists
         const existing = exerciseMap.get(key)
+        if (!existing) continue
         const combinedSets = [...existing.sets, ...validSets]
         // Renumber merged sets
-        existing.sets = combinedSets.map((s: any, idx: number) => ({ ...s, setNumber: idx + 1 }))
+        existing.sets = combinedSets.map((s: ExportedSet, idx: number) => ({ ...s, setNumber: idx + 1 }))
       } else {
         exerciseMap.set(key, {
           exerciseName: exercise.exercise_name,

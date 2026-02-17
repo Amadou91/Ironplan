@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useRef, useState, useEffect } from 'react'
-import { Minus, Plus, Clock } from 'lucide-react'
+import React, { useRef, useState } from 'react'
+import { Minus, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { RIR_OPTIONS } from '@/constants/intensityOptions'
 
@@ -131,13 +131,6 @@ export function FastRestInput({ value, onChange, disabled, className }: FastRest
     const s = totalSeconds % 60
     return `${m}:${s.toString().padStart(2, '0')}`
   }
-
-  // Sync internal display with prop value when not editing
-  useEffect(() => {
-    if (!isFocused) {
-      setDisplayValue(formatTime(value))
-    }
-  }, [value, isFocused])
 
   const handleAdjust = (deltaMinutes: number) => {
     if (disabled) return

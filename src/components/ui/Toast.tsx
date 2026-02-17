@@ -1,9 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { CheckCircle2, XCircle, X } from 'lucide-react';
 
-type ToastType = 'success' | 'error';
+type ToastType = 'success' | 'error' | 'info';
 
 interface Toast {
   id: string;
@@ -12,7 +12,7 @@ interface Toast {
 }
 
 interface ToastContextType {
-  toast: (message: string, type?: ToastType) => void;
+  toast: (message: string, type?: ToastType, durationMs?: number) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -24,40 +24,54 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const toast = useCallback((message: string, type: ToastType = 'success') => {
+  const toast = useCallback((message: string, type: ToastType = 'success', durationMs = 3200) => {
     const id = Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev, { id, message, type }]);
     
-    // Auto-dismiss after 3 seconds
     setTimeout(() => {
       removeToast(id);
-    }, 3000);
+    }, durationMs);
   }, [removeToast]);
+
+  const regionLabel = useMemo(() => 'Notifications', [])
 
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none">
+      <div
+        className="fixed bottom-4 right-4 z-[var(--z-toast)] flex max-w-sm flex-col gap-2.5 pointer-events-none sm:bottom-6 sm:right-6"
+        role="region"
+        aria-label={regionLabel}
+        aria-live="polite"
+        aria-relevant="additions text"
+      >
         {toasts.map((t) => (
           <div
             key={t.id}
             className={`
-              pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border animate-in slide-in-from-bottom-5 fade-in duration-300
+              pointer-events-auto flex items-start gap-3 rounded-[var(--radius-lg)] border px-4 py-3 shadow-[var(--shadow-md)] transition-all duration-[var(--motion-fast)] ease-[var(--ease-emphasized)]
+              motion-safe:animate-in motion-safe:slide-in-from-bottom-3 motion-safe:fade-in
               ${t.type === 'success' 
-                ? 'bg-[var(--color-surface)] border-[var(--color-success)] text-[var(--color-success-strong)]' 
-                : 'bg-[var(--color-surface)] border-[var(--color-danger)] text-[var(--color-danger)]'
+                ? 'bg-[var(--color-surface)] border-[var(--color-success-border)] text-[var(--color-success-strong)]' 
+                : t.type === 'info'
+                  ? 'bg-[var(--color-surface)] border-[color-mix(in_oklch,var(--color-info),white_65%)] text-[var(--color-info)]'
+                  : 'bg-[var(--color-surface)] border-[var(--color-danger-border)] text-[var(--color-danger)]'
               }
             `}
+            role="status"
           >
             {t.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5" />
+            ) : t.type === 'info' ? (
               <CheckCircle2 className="w-5 h-5" />
             ) : (
               <XCircle className="w-5 h-5" />
             )}
-            <p className="text-sm font-semibold text-[var(--color-text)]">{t.message}</p>
+            <p className="flex-1 text-sm font-semibold text-[var(--color-text)] leading-5">{t.message}</p>
             <button 
               onClick={() => removeToast(t.id)}
-              className="ml-2 text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
+              className="rounded-md p-1 text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+              aria-label="Dismiss notification"
             >
               <X className="w-4 h-4" />
             </button>

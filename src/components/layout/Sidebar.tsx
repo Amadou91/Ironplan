@@ -52,12 +52,12 @@ export default function Sidebar() {
 
   if (!hasMounted) {
     return (
-      <aside className="group hidden sticky top-0 h-screen w-72 flex-col border-r border-[var(--color-border)] nav-surface lg:flex z-40" />
+      <aside className="group hidden sticky top-0 h-screen w-72 flex-col border-r border-[var(--color-border)] nav-surface lg:flex z-[var(--z-nav)]" />
     );
   }
 
   return (
-    <aside className={`group hidden sticky top-0 h-screen flex-col nav-surface text-strong transition-all duration-300 ease-in-out lg:flex z-40 ${isCollapsed ? 'w-20' : 'w-72'}`}>
+    <aside className={`group hidden sticky top-0 h-screen flex-col nav-surface text-strong transition-all duration-300 ease-in-out lg:flex z-[var(--z-nav)] ${isCollapsed ? 'w-20' : 'w-72'}`}>
       {/* Header section */}
       <div className={`flex h-20 shrink-0 items-center border-b border-[var(--color-border)] px-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
         <Link href="/dashboard" className={`flex items-center gap-3 transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>
@@ -97,7 +97,7 @@ export default function Sidebar() {
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted/50">Core</span>
             </div>
           )}
-          <nav className="space-y-1">
+          <nav className="space-y-1" aria-label="Primary navigation">
             {primaryNavItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
@@ -105,6 +105,7 @@ export default function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={active ? 'page' : undefined}
                   className={`group relative flex items-center rounded-xl py-2.5 transition-all duration-200 ${
                     isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'
                   } ${
@@ -135,7 +136,7 @@ export default function Sidebar() {
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted/50">Explore</span>
               </div>
             )}
-            <nav className="space-y-1">
+            <nav className="space-y-1" aria-label="Secondary navigation">
               {secondaryNavItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
@@ -143,6 +144,7 @@ export default function Sidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={active ? 'page' : undefined}
                     className={`group relative flex items-center rounded-xl py-2.5 transition-all duration-200 ${
                       isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'
                     } ${

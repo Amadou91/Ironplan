@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
@@ -28,23 +28,34 @@ export function ConfirmDialog({
   variant = 'danger',
   isLoading = false
 }: ConfirmDialogProps) {
-  const [isVisible, setIsVisible] = useState(false)
-
-  if (isOpen && !isVisible) {
-    setIsVisible(true)
-  }
-
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
-    } else {
-      const timer = setTimeout(() => setIsVisible(false), 200)
+    }
+
+    if (!isOpen) {
       document.body.style.overflow = ''
-      return () => clearTimeout(timer)
+    }
+
+    return () => {
+      document.body.style.overflow = ''
     }
   }, [isOpen])
 
-  if (!isVisible && !isOpen) return null
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isLoading) {
+        onClose()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isLoading, isOpen, onClose])
+
+  if (!isOpen) return null
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -75,21 +86,24 @@ export function ConfirmDialog({
   return (
     <div 
       className={cn(
-        "fixed inset-0 z-[100] flex items-center justify-center p-4 transition-all duration-200",
-        isOpen ? "bg-black/60 backdrop-blur-sm opacity-100" : "bg-black/0 backdrop-blur-none opacity-0 pointer-events-none"
+        "fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all duration-200"
       )}
       onClick={handleBackdropClick}
     >
       <div 
         className={cn(
-          "w-full max-w-md bg-[var(--color-surface)] rounded-3xl shadow-2xl border border-[var(--color-border-strong)] overflow-hidden transition-all duration-200 transform",
-          isOpen ? "scale-100 opacity-100 translate-y-0" : "scale-95 opacity-0 translate-y-4"
+          "w-full max-w-md bg-[var(--color-surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] border border-[var(--color-border-strong)] overflow-hidden transition-all duration-200 transform scale-100 opacity-100 translate-y-0"
         )}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby="confirm-dialog-description"
       >
         <div className="relative p-6 sm:p-8">
           <button 
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] rounded-xl transition-all"
+              className="absolute top-4 right-4 p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+              aria-label="Close dialog"
           >
             <X className="w-5 h-5" />
           </button>
@@ -100,8 +114,8 @@ export function ConfirmDialog({
             </div>
             
             <div className="space-y-2">
-              <h2 className="text-xl font-black text-strong tracking-tight">{title}</h2>
-              <p className="text-sm text-muted font-medium leading-relaxed">
+              <h2 id="confirm-dialog-title" className="text-xl font-black text-strong tracking-tight">{title}</h2>
+              <p id="confirm-dialog-description" className="text-sm text-muted font-medium leading-relaxed">
                 {description}
               </p>
             </div>
