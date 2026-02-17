@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { Activity, Gauge } from 'lucide-react'
+import { Activity } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { createClient } from '@/lib/supabase/client'
@@ -133,49 +133,32 @@ export default function WorkoutDetailPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="p-6">
-              <div className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold text-strong">Template overview</h2>
+        <div className="space-y-6">
+          <Card className="p-6">
+            <div className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-accent" />
+              <h2 className="text-lg font-semibold text-strong">Template overview</h2>
+            </div>
+            <p className="mt-2 text-sm text-muted">
+              Use this session when you want a focused, repeatable workout with smart adjustments.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
+                <p className="text-xs text-subtle">Focus</p>
+                <p className="font-semibold text-strong">{toMuscleLabel(template.focus)}</p>
               </div>
-              <p className="mt-2 text-sm text-muted">
-                Use this session when you want a focused, repeatable workout with smart adjustments.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
-                  <p className="text-xs text-subtle">Focus</p>
-                  <p className="font-semibold text-strong">{toMuscleLabel(template.focus)}</p>
-                </div>
-                <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
-                  <p className="text-xs text-subtle">Style</p>
-                  <p className="font-semibold text-strong">{template.style.replace('_', ' ')}</p>
-                </div>
+              <div className="rounded-lg border border-[var(--color-border)] p-3 text-sm">
+                <p className="text-xs text-subtle">Style</p>
+                <p className="font-semibold text-strong">{template.style.replace('_', ' ')}</p>
               </div>
-              {equipmentSummary.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-xs text-subtle">Equipment</p>
-                  <p className="text-sm text-muted">{equipmentSummary.join(' · ')}</p>
-                </div>
-              )}
-            </Card>
-          </div>
-
-          <div className="space-y-4">
-            <Card className="p-6">
-              <div className="flex items-center gap-2">
-                <Gauge className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold text-strong">How it works</h2>
+            </div>
+            {equipmentSummary.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs text-subtle">Equipment</p>
+                <p className="text-sm text-muted">{equipmentSummary.join(' · ')}</p>
               </div>
-              <p className="mt-2 text-sm text-muted">
-                We will adapt exercises based on your time, equipment, and recent training load.
-              </p>
-              <Link href={`/exercises/${template.id}/start`} className="mt-4 inline-flex text-sm font-semibold text-accent">
-                Configure session
-              </Link>
-            </Card>
-          </div>
+            )}
+          </Card>
         </div>
       </div>
     </div>
