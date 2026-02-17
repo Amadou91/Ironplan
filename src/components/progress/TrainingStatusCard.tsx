@@ -4,6 +4,9 @@ import { Card } from '@/components/ui/Card'
 import { ChartInfoTooltip } from '@/components/ui/ChartInfoTooltip'
 import { useUIStore } from '@/store/uiStore'
 import { KG_PER_LB } from '@/lib/units'
+import { ACR_THRESHOLDS } from '@/constants/training'
+
+const ACR_CHART_MAX = 2.0
 
 interface TrainingStatusCardProps {
   status: string
@@ -76,7 +79,7 @@ export function TrainingStatusCard({
               }`}>
                 {insufficientData ? 'Insufficient Data' :
                  isInitialPhase ? 'Building Baseline' :
-                 status === 'overreaching' ? 'overtraining' : status.replace('_', ' ')}
+                 status === 'overreaching' ? 'overreaching' : status.replace('_', ' ')}
               </span>
             </div>
           </div>
@@ -95,9 +98,9 @@ export function TrainingStatusCard({
             <div className="lg:col-span-2 space-y-5">
               <div className="relative pt-3">
                 <div className="h-4 w-full bg-[var(--color-surface-muted)] rounded-full overflow-hidden flex shadow-inner border border-[var(--color-border)]/50">
-                  <div className="h-full bg-[var(--color-warning)] opacity-20" style={{ width: '40%' }} />
-                  <div className="h-full bg-[var(--color-success)] opacity-30" style={{ width: '25%' }} />
-                  <div className="h-full bg-[var(--color-danger)] opacity-20" style={{ width: '35%' }} />
+                  <div className="h-full bg-[var(--color-warning)] opacity-20" style={{ width: `${(ACR_THRESHOLDS.undertraining / ACR_CHART_MAX) * 100}%` }} />
+                  <div className="h-full bg-[var(--color-success)] opacity-30" style={{ width: `${((ACR_THRESHOLDS.overreaching - ACR_THRESHOLDS.undertraining) / ACR_CHART_MAX) * 100}%` }} />
+                  <div className="h-full bg-[var(--color-danger)] opacity-20" style={{ width: `${((ACR_CHART_MAX - ACR_THRESHOLDS.overreaching) / ACR_CHART_MAX) * 100}%` }} />
                 </div>
                 {!insufficientData && !isInitialPhase && (
                   <div 
@@ -107,7 +110,7 @@ export function TrainingStatusCard({
                       'bg-[var(--color-primary)]'
                     }`}
                     style={{
-                      left: `${Math.min(100, (numericRatio / 2.0) * 100)}%`,
+                      left: `${Math.min(100, (numericRatio / ACR_CHART_MAX) * 100)}%`,
                       transform: 'translateX(-50%)'
                     }}
                   />
@@ -116,15 +119,15 @@ export function TrainingStatusCard({
               <div className="flex justify-between px-1">
                 <div className="text-center">
                   <span className="block text-[10px] font-black text-subtle/30 uppercase tracking-widest">Low</span>
-                  <span className="text-[11px] font-black text-subtle/60">0.0</span>
+                  <span className="text-[11px] font-black text-subtle/60">0.0-{ACR_THRESHOLDS.undertraining}</span>
                 </div>
                 <div className="text-center">
                   <span className="block text-[10px] font-black text-[var(--color-success)]/50 uppercase tracking-widest">Sweet Spot</span>
-                  <span className="text-[11px] font-black text-subtle/60">1.0</span>
+                  <span className="text-[11px] font-black text-subtle/60">{ACR_THRESHOLDS.undertraining}-{ACR_THRESHOLDS.overreaching}</span>
                 </div>
                 <div className="text-center">
                   <span className="block text-[10px] font-black text-[var(--color-danger)]/50 uppercase tracking-widest">High</span>
-                  <span className="text-[11px] font-black text-subtle/60">2.0+</span>
+                  <span className="text-[11px] font-black text-subtle/60">{ACR_THRESHOLDS.overreaching}+</span>
                 </div>
               </div>
             </div>

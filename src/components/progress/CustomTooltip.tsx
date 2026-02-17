@@ -2,6 +2,10 @@
 
 import React from 'react'
 import type { Payload } from 'recharts/types/component/DefaultTooltipContent'
+import { READINESS_HIGH_THRESHOLD, READINESS_LOW_THRESHOLD } from '@/constants/training'
+
+const READINESS_EFFORT_SPLIT = Math.round((READINESS_LOW_THRESHOLD + READINESS_HIGH_THRESHOLD) / 2)
+const EFFORT_HIGH_THRESHOLD = 5
 
 type PayloadItem = Payload<number | string, string>
 
@@ -54,11 +58,11 @@ export function CustomTooltip(props: CustomTooltipProps) {
                   let status = { label: 'Optimal', color: 'text-[var(--color-success)]', icon: '✅' }
                   
                   // Quadrant Logic
-                  if (readiness < 50 && effort >= 5) {
+                  if (readiness < READINESS_EFFORT_SPLIT && effort >= EFFORT_HIGH_THRESHOLD) {
                     status = { label: 'Overreaching', color: 'text-[var(--color-danger)]', icon: '⚠️' }
-                  } else if (readiness >= 50 && effort >= 5) {
+                  } else if (readiness >= READINESS_EFFORT_SPLIT && effort >= EFFORT_HIGH_THRESHOLD) {
                     status = { label: 'Optimal', color: 'text-[var(--color-success)]', icon: '🔥' }
-                  } else if (readiness < 50 && effort < 5) {
+                  } else if (readiness < READINESS_EFFORT_SPLIT && effort < EFFORT_HIGH_THRESHOLD) {
                     status = { label: 'Recovery', color: 'text-blue-500', icon: '💤' }
                   } else {
                     status = { label: 'Undertraining', color: 'text-[var(--color-warning)]', icon: '📉' }

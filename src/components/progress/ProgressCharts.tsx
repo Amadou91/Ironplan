@@ -21,6 +21,7 @@ import { Card } from '@/components/ui/Card'
 import { WeeklyVolumeChart } from '@/components/progress/WeeklyVolumeChart'
 import { useUIStore } from '@/store/uiStore'
 import { LBS_PER_KG, KG_PER_LB } from '@/lib/units'
+import { READINESS_HIGH_THRESHOLD, READINESS_LOW_THRESHOLD } from '@/constants/training'
 import { useChartZoom } from '@/hooks/useChartZoom'
 import { CustomTooltip } from '@/components/progress/CustomTooltip'
 import { Button } from '@/components/ui/Button'
@@ -86,6 +87,7 @@ function ChartHeader({ title, isZoomed, onReset, children }: { title: string; is
 const CHART_MARGIN = { top: 10, right: 10, left: 0, bottom: 30 }
 const Y_AXIS_WIDTH = 45
 const MIN_TICK_GAP = 16
+const READINESS_EFFORT_SPLIT = Math.round((READINESS_LOW_THRESHOLD + READINESS_HIGH_THRESHOLD) / 2)
 
 const formatCompactNumber = (value: number) => {
   const abs = Math.abs(value)
@@ -384,7 +386,9 @@ export function ProgressCharts({
 
       <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title="Readiness score trend" isZoomed={readinessZoom.isZoomed} onReset={readinessZoom.zoomOut}>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">0-100 score</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">
+            0-100 score • low &lt; {READINESS_LOW_THRESHOLD} • high ≥ {READINESS_HIGH_THRESHOLD}
+          </p>
         </ChartHeader>
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -424,6 +428,8 @@ export function ProgressCharts({
                 width={Y_AXIS_WIDTH}
               />
               <Tooltip content={<CustomTooltip />} />
+              <ReferenceLine y={READINESS_LOW_THRESHOLD} stroke="var(--color-warning)" strokeDasharray="4 4" />
+              <ReferenceLine y={READINESS_HIGH_THRESHOLD} stroke="var(--color-success)" strokeDasharray="4 4" />
               <Line type="linear" dataKey="score" name="Score" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} animationDuration={300} />
               {readinessZoom.refAreaLeft && readinessZoom.refAreaRight && (
                 <ReferenceArea x1={readinessZoom.refAreaLeft} x2={readinessZoom.refAreaRight} stroke="none" fill="var(--color-primary)" fillOpacity={0.1} />
@@ -468,7 +474,7 @@ export function ProgressCharts({
           isZoomed={correlationZoom.isZoomed} 
           onReset={correlationZoom.zoomOut} 
         >
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">Quadrants highlight recovery vs overreach • dashed = trend</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">Quadrants highlight recovery vs overreach • readiness split at {READINESS_EFFORT_SPLIT}</p>
         </ChartHeader>
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -515,22 +521,22 @@ export function ProgressCharts({
               />
               <Tooltip content={<CustomTooltip type="readiness" />} cursor={{ strokeDasharray: '3 3' }} />
               {/* Overreaching: Low Readiness, High Effort */}
-              <ReferenceArea x1={0} x2={50} y1={5} y2={10} fill="var(--color-danger)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
+              <ReferenceArea x1={0} x2={READINESS_EFFORT_SPLIT} y1={5} y2={10} fill="var(--color-danger)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Overreaching" position="insideTopLeft" offset={10} fill="var(--color-danger)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               {/* Optimal: High Readiness, High Effort */}
-              <ReferenceArea x1={50} x2={100} y1={5} y2={10} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
+              <ReferenceArea x1={READINESS_EFFORT_SPLIT} x2={100} y1={5} y2={10} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Optimal" position="insideTopRight" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               {/* Recovery: Low Readiness, Low Effort */}
-              <ReferenceArea x1={0} x2={50} y1={0} y2={5} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
+              <ReferenceArea x1={0} x2={READINESS_EFFORT_SPLIT} y1={0} y2={5} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Recovery" position="insideBottomLeft" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               {/* Undertraining: High Readiness, Low Effort */}
-              <ReferenceArea x1={50} x2={100} y1={0} y2={5} fill="var(--color-warning)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
+              <ReferenceArea x1={READINESS_EFFORT_SPLIT} x2={100} y1={0} y2={5} fill="var(--color-warning)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Undertraining" position="insideBottomRight" offset={10} fill="var(--color-warning)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
-              <ReferenceLine x={50} stroke="var(--color-border)" strokeDasharray="3 3" />
+              <ReferenceLine x={READINESS_EFFORT_SPLIT} stroke="var(--color-border)" strokeDasharray="3 3" />
               <ReferenceLine y={5} stroke="var(--color-border)" strokeDasharray="3 3" />
               <Scatter data={zoomedCorrelation} name="Session" fill="var(--color-primary)" />
               {!correlationZoom.isZoomed && (

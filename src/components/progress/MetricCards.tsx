@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { ChartInfoTooltip } from '@/components/ui/ChartInfoTooltip'
 import { useUIStore } from '@/store/uiStore'
 import { LBS_PER_KG, KG_PER_LB } from '@/lib/units'
+import { READINESS_HIGH_THRESHOLD, READINESS_LOW_THRESHOLD } from '@/constants/training'
 import { MuscleSplitChart, type MuscleBreakdownPoint } from '@/components/progress/MuscleSplitChart'
 
 interface MetricCardsProps {
@@ -163,8 +164,8 @@ export function MetricCards({
                 <div className="h-2 w-full bg-[var(--color-surface-muted)] rounded-full overflow-hidden shadow-inner">
                   <div 
                     className={`h-full transition-all duration-1000 ${
-                      readinessAverages.score >= 70 ? 'bg-[var(--color-success)]' :
-                      readinessAverages.score >= 40 ? 'bg-[var(--color-warning)]' :
+                      readinessAverages.score >= READINESS_HIGH_THRESHOLD ? 'bg-[var(--color-success)]' :
+                      readinessAverages.score >= READINESS_LOW_THRESHOLD ? 'bg-[var(--color-warning)]' :
                       'bg-[var(--color-danger)]'
                     }`}
                     style={{ width: `${readinessAverages.score}%` }} 
