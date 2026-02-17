@@ -94,6 +94,22 @@ const formatCompactNumber = (value: number) => {
   return `${Math.round(value)}`
 }
 
+const IDEAL_TOLERANCE = 0.6
+
+function getReadinessComponentColor(entry: ReadinessComponentPoint) {
+  const distanceFromIdeal = Math.abs(entry.value - entry.ideal)
+
+  if (distanceFromIdeal <= IDEAL_TOLERANCE) {
+    return 'var(--color-success)'
+  }
+
+  if (distanceFromIdeal <= IDEAL_TOLERANCE + 0.7) {
+    return 'var(--color-warning)'
+  }
+
+  return 'var(--color-danger)'
+}
+
 export function ProgressCharts({
   volumeTrend,
   effortTrend,
@@ -436,17 +452,7 @@ export function ProgressCharts({
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="value" name="Score" radius={[4, 4, 0, 0]}>
                 {readinessComponents.map((entry: ReadinessComponentPoint) => {
-                  let color = 'var(--color-primary)'
-                  if (entry.metric === 'Sleep' || entry.metric === 'Motivation') {
-                    if (entry.value >= 4) color = 'var(--color-success)'
-                    else if (entry.value >= 3) color = 'var(--color-warning)'
-                    else color = 'var(--color-danger)'
-                  } else {
-                    // Lower is better for Soreness and Stress
-                    if (entry.value <= 2) color = 'var(--color-success)'
-                    else if (entry.value <= 3) color = 'var(--color-warning)'
-                    else color = 'var(--color-danger)'
-                  }
+                  const color = getReadinessComponentColor(entry)
                   return <Cell key={entry.metric} fill={color} />
                 })}
               </Bar>
@@ -479,7 +485,7 @@ export function ProgressCharts({
               onMouseMove={(e) => { if (correlationZoom.refAreaLeft && e?.activeLabel) correlationZoom.setRefAreaRight(e.activeLabel) }}
               style={{ outline: 'none' }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} horizontal={false} />
               <XAxis 
                 dataKey="readiness" 
                 type="number" 
