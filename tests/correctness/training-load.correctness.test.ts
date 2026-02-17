@@ -435,3 +435,49 @@ test('ACR Consistency: Missing implementCount defaults correctly', () => {
   // 100 lb * 10 reps = 1000 lb tonnage base, with intensity multiplier
   assert.ok(result.acuteLoad > 0, 'acuteLoad should calculate without implement_count');
 });
+
+test('ACR Consistency: Cardio duration contributes load through mapping', () => {
+  const startedAt = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString();
+  const sessions = [{
+    started_at: startedAt,
+    ended_at: null,
+    session_exercises: [{
+      metric_profile: 'cardio_session',
+      sets: [{
+        reps: null,
+        weight: null,
+        weight_unit: null,
+        rpe: 7,
+        rir: null,
+        completed: true,
+        performed_at: startedAt,
+        duration_seconds: 1800,
+        rest_seconds_actual: null
+      }]
+    }]
+  }];
+
+  const mappedResult = progressData.calculateTrainingStatus(sessions);
+  assert.ok(mappedResult.acuteLoad > 0, 'cardio duration should produce positive load');
+
+  const directResult = trainingMetrics.summarizeTrainingLoad([
+    {
+      startedAt,
+      sets: [{
+        metricProfile: 'cardio_session' as const,
+        reps: null,
+        weight: null,
+        weightUnit: null,
+        rpe: 7,
+        rir: null,
+        durationSeconds: 1800,
+        performedAt: startedAt
+      }]
+    }
+  ]);
+
+  assert.ok(
+    Math.abs(mappedResult.acuteLoad - directResult.acuteLoad) < 0.001,
+    `mapped acuteLoad (${mappedResult.acuteLoad}) should match direct summarizeTrainingLoad (${directResult.acuteLoad})`
+  );
+});

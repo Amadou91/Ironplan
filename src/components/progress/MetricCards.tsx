@@ -16,6 +16,10 @@ interface MetricCardsProps {
     bestE1rm: number
     tonnage: number
     workload: number
+    strengthLoad: number
+    recoveryLoad: number
+    strengthLoadPct: number
+    recoveryLoadPct: number
     avgWorkload: number
     hardSets: number
     avgEffort: number | null
@@ -54,6 +58,14 @@ export function MetricCards({
   const displayWorkload = isKg
     ? Math.round(aggregateMetrics.workload * KG_PER_LB)
     : Math.round(aggregateMetrics.workload)
+
+  const displayStrengthLoad = isKg
+    ? Math.round(aggregateMetrics.strengthLoad * KG_PER_LB)
+    : Math.round(aggregateMetrics.strengthLoad)
+
+  const displayRecoveryLoad = isKg
+    ? Math.round(aggregateMetrics.recoveryLoad * KG_PER_LB)
+    : Math.round(aggregateMetrics.recoveryLoad)
 
   const displayAvgWorkload = isKg
     ? Math.round(aggregateMetrics.avgWorkload * KG_PER_LB)
@@ -102,7 +114,7 @@ export function MetricCards({
           </div>
         </div>
         <div className="mt-8 pt-6 border-t border-[var(--color-border)]">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2 mb-4">
             <div className="flex flex-col">
               <span className="text-[10px] uppercase font-black text-subtle/60 tracking-wider mb-1.5">Workload</span>
               <span className="text-base font-bold text-strong leading-none">{displayWorkload.toLocaleString()}</span>
@@ -114,6 +126,19 @@ export function MetricCards({
             <div className="flex flex-col text-right">
               <span className="text-[10px] uppercase font-black text-subtle/60 tracking-wider mb-1.5">Hard Sets</span>
               <span className="text-base font-bold text-strong leading-none">{aggregateMetrics.hardSets}</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-subtle/70">
+              <span>Strength vs Recovery Load</span>
+              <span>{aggregateMetrics.strengthLoadPct}% / {aggregateMetrics.recoveryLoadPct}%</span>
+            </div>
+            <div className="h-2.5 w-full bg-[var(--color-surface-muted)] rounded-full overflow-hidden border border-[var(--color-border)]/40">
+              <div className="h-full bg-[var(--color-primary)]" style={{ width: `${aggregateMetrics.strengthLoadPct}%` }} />
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-subtle/80">
+              <span>Strength: {displayStrengthLoad.toLocaleString()} {displayUnit}</span>
+              <span className="text-right">Recovery: {displayRecoveryLoad.toLocaleString()} {displayUnit}</span>
             </div>
           </div>
         </div>

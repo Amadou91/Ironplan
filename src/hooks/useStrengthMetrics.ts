@@ -16,10 +16,13 @@ import {
 import { isMuscleMatch } from '@/lib/muscle-utils'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import {
+  computeLoadComposition,
+  mapSetLikeToMetricsSet
+} from '@/lib/transformers/metric-set'
+import {
   aggregateHardSets,
   aggregateTonnage,
   computeSetE1rm,
-  computeSetLoad,
   getEffortScore,
   getWeekKey,
   toWeightInPounds,
@@ -172,15 +175,7 @@ export function useStrengthMetrics(options: {
   }, [filteredSessions, getSessionTitle, selectedMuscle, exerciseLibraryByName])
 
   const aggregateMetrics = useMemo(() => {
-    const metricSets = allSets.map(set => ({
-      reps: set.reps ?? null,
-      weight: set.weight ?? null,
-      implementCount: set.implement_count ?? null,
-      loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
-      weightUnit: (set.weight_unit as WeightUnit) ?? null,
-      rpe: typeof set.rpe === 'number' ? set.rpe : null,
-      rir: typeof set.rir === 'number' ? set.rir : null
-    }))
+    const metricSets = allSets.map((set) => mapSetLikeToMetricsSet(set))
     const effortTotals = metricSets.reduce((acc, set) => {
       const effort = getEffortScore({ rpe: set.rpe, rir: set.rir })
       if (typeof effort === 'number') { acc.total += effort; acc.count += 1 }
@@ -190,6 +185,7 @@ export function useStrengthMetrics(options: {
     let bestE1rmValue = 0, bestE1rmExercise = ''
     allSets.forEach(set => {
       const e1rm = computeSetE1rm({
+        metricProfile: set.metricProfile ?? undefined,
         reps: set.reps ?? null,
         weight: set.weight ?? null,
         implementCount: set.implement_count ?? null,
@@ -203,12 +199,12 @@ export function useStrengthMetrics(options: {
     })
 
     const tonnage = Math.round(aggregateTonnage(metricSets))
-    const workload = Math.round(metricSets.reduce((sum, set) => {
-      return sum + computeSetLoad({
-        ...set,
-        metricProfile: undefined // We don't have it easily here, computeSetLoad defaults to strength
-      })
-    }, 0))
+    const loadComposition = computeLoadComposition(metricSets)
+    const workload = Math.round(loadComposition.totalLoad)
+    const strengthLoad = Math.round(loadComposition.strengthLoad)
+    const recoveryLoad = Math.round(loadComposition.recoveryLoad)
+    const strengthLoadPct = workload > 0 ? Math.round((strengthLoad / workload) * 100) : 0
+    const recoveryLoadPct = workload > 0 ? Math.round((recoveryLoad / workload) * 100) : 0
     const avgWorkload = effortTotals.count ? Math.round(workload / effortTotals.count) : 0
 
     return {
@@ -217,6 +213,10 @@ export function useStrengthMetrics(options: {
       bestE1rm: Math.round(bestE1rmValue),
       bestE1rmExercise,
       workload,
+      strengthLoad,
+      recoveryLoad,
+      strengthLoadPct,
+      recoveryLoadPct,
       avgWorkload,
       avgEffort: effortTotals.count ? Number((effortTotals.total / effortTotals.count).toFixed(1)) : null
     }
@@ -232,6 +232,7 @@ export function useStrengthMetrics(options: {
       maxWeight = Math.max(maxWeight, normalizedWeight)
       bestReps = Math.max(bestReps, reps)
       const e1rm = computeSetE1rm({
+        metricProfile: set.metricProfile ?? undefined,
         reps: set.reps ?? null,
         weight: set.weight ?? null,
         implementCount: set.implement_count ?? null,

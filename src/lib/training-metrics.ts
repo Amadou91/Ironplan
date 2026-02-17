@@ -10,6 +10,16 @@ import {
   isHardSet,
   type MetricsSet
 } from '@/lib/session-metrics'
+import {
+  ACUTE_LOAD_WINDOW_DAYS,
+  CHRONIC_LOAD_WINDOW_DAYS,
+  MS_PER_DAY,
+  ACR_THRESHOLDS,
+  READINESS_MIN,
+  READINESS_MAX,
+  READINESS_HIGH_THRESHOLD,
+  READINESS_LOW_THRESHOLD
+} from '@/constants/training'
 
 export type ReadinessSurvey = {
   sleep: number
@@ -227,7 +237,7 @@ export const computeReadinessScore = (survey: ReadinessSurvey) => {
   const values = Object.values(survey)
   if (values.some((value) => !Number.isFinite(value))) return null
   
-  const normalize = (value: number) => clamp(value, 1, 5)
+  const normalize = (value: number) => clamp(value, READINESS_MIN, READINESS_MAX)
   
   // Raw sum range is 4 (all worst) to 20 (all best)
   const rawSum = 
@@ -243,8 +253,8 @@ export const computeReadinessScore = (survey: ReadinessSurvey) => {
 
 export const getReadinessLevel = (score: number | null): ReadinessLevel => {
   if (typeof score !== 'number') return 'steady'
-  if (score >= 70) return 'high'
-  if (score < 40) return 'low'
+  if (score >= READINESS_HIGH_THRESHOLD) return 'high'
+  if (score < READINESS_LOW_THRESHOLD) return 'low'
   return 'steady'
 }
 
@@ -262,8 +272,8 @@ export const summarizeTrainingLoad = (sessions: TrainingSession[], now = new Dat
   const sessionTimes = sessions.map((session) => new Date(session.startedAt).getTime()).filter(Number.isFinite)
   const lastSessionTime = sessionTimes.length ? Math.max(...sessionTimes) : null
   const firstSessionTime = sessionTimes.length ? Math.min(...sessionTimes) : null
-  const daysSinceLast = lastSessionTime ? Math.max(0, (nowTime - lastSessionTime) / 86400000) : null
-  const historyDays = firstSessionTime ? (nowTime - firstSessionTime) / 86400000 : 0
+  const daysSinceLast = lastSessionTime ? Math.max(0, (nowTime - lastSessionTime) / MS_PER_DAY) : null
+  const historyDays = firstSessionTime ? (nowTime - firstSessionTime) / MS_PER_DAY : 0
   const sessionCount = sessions.length
 
   sessions.forEach((session) => {
@@ -275,8 +285,8 @@ export const summarizeTrainingLoad = (sessions: TrainingSession[], now = new Dat
     weeklyLoads.set(weekKey, (weeklyLoads.get(weekKey) ?? 0) + sessionMetrics.workload)
   })
 
-  const acuteWindow = 7 * 86400000
-  const chronicWindow = 28 * 86400000
+  const acuteWindow = ACUTE_LOAD_WINDOW_DAYS * MS_PER_DAY
+  const chronicWindow = CHRONIC_LOAD_WINDOW_DAYS * MS_PER_DAY
   let acuteLoad = 0
   let chronicLoad = 0
 
@@ -299,9 +309,9 @@ export const summarizeTrainingLoad = (sessions: TrainingSession[], now = new Dat
 
   let status: 'undertraining' | 'balanced' | 'overreaching' = 'balanced'
   if (!isInitialPhase) {
-    if (loadRatio >= 1.3) {
+    if (loadRatio >= ACR_THRESHOLDS.overreaching) {
       status = 'overreaching'
-    } else if (loadRatio <= 0.8 && chronicLoad > 0) {
+    } else if (loadRatio <= ACR_THRESHOLDS.undertraining && chronicLoad > 0) {
       status = 'undertraining'
     }
   }

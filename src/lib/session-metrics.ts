@@ -2,6 +2,15 @@ import type { SessionGoal, GroupType, WeightUnit, MetricProfile, LoadType } from
 import { toKg, toLbs, normalizeIntensity, convertWeight } from '@/lib/units'
 import { clamp, isValidNumber } from '@/lib/math'
 import { getWeekKey } from '@/lib/date-utils'
+import {
+  E1RM_MAX_REPS,
+  E1RM_MIN_RPE,
+  E1RM_MAX_RIR,
+  E1RM_DIVISOR,
+  HARD_SET_RPE_THRESHOLD,
+  RIR_MAX,
+  TIME_LOAD_FACTOR
+} from '@/constants/training'
 
 // Re-export getWeekKey for backwards compatibility
 export { getWeekKey }
@@ -44,15 +53,15 @@ export const isSetE1rmEligible = (
 ): boolean => {
   if (!exerciseEligible) return false
   if (!set || set.completed === false) return false
-  if (typeof set.reps !== 'number' || set.reps <= 0 || set.reps > 12) return false
+  if (typeof set.reps !== 'number' || set.reps <= 0 || set.reps > E1RM_MAX_REPS) return false
 
   const rpe = typeof set.rpe === 'number' ? set.rpe : null
   const rir = typeof set.rir === 'number' ? set.rir : null
 
   // Relaxed filtering: allow RPE >= 6 (instead of 8) for broader E1RM data
   // Lower RPE sets will have reduced confidence but still contribute
-  if (rpe !== null && rpe < 6) return false
-  if (rir !== null && rir > 4) return false
+  if (rpe !== null && rpe < E1RM_MIN_RPE) return false
+  if (rir !== null && rir > E1RM_MAX_RIR) return false
   if (rpe === null && rir === null) return false
 
   return true
@@ -168,12 +177,19 @@ export const computeSetTonnage = (set: MetricsSet): number => {
 /** Metric profiles that are eligible for E1RM calculations */
 const E1RM_ELIGIBLE_PROFILES: MetricProfile[] = ['reps_weight']
 
+const normalizeMetricProfile = (profile?: MetricProfile | string | null) => {
+  if (!profile) return null
+  if (profile === 'strength' || profile === 'weight-reps' || profile === 'weight_reps') {
+    return 'reps_weight'
+  }
+  return profile
+}
+
 /** Check if a metric profile is eligible for E1RM calculations (treats legacy 'strength' as 'reps_weight') */
 const isE1rmEligibleProfile = (profile?: MetricProfile | string | null): boolean => {
-  if (!profile) return true // Default to eligible if not specified
-  // Legacy 'strength' profile should be treated as 'reps_weight'
-  if (profile === 'strength') return true
-  return E1RM_ELIGIBLE_PROFILES.includes(profile as MetricProfile)
+  const normalizedProfile = normalizeMetricProfile(profile)
+  if (!normalizedProfile) return true // Default to eligible if not specified
+  return E1RM_ELIGIBLE_PROFILES.includes(normalizedProfile as MetricProfile)
 }
 
 export const computeSetE1rm = (
@@ -195,9 +211,9 @@ export const computeSetE1rm = (
       : typeof set.rpe === 'number' && Number.isFinite(set.rpe)
         ? mapRpeToRir(set.rpe)
         : null
-  const rirValue = typeof derivedRir === 'number' ? clamp(derivedRir, 0, 6) : 0
+  const rirValue = typeof derivedRir === 'number' ? clamp(derivedRir, 0, RIR_MAX) : 0
   const repsAtFailure = set.reps + rirValue
-  return weight * (1 + repsAtFailure / 30)
+  return weight * (1 + repsAtFailure / E1RM_DIVISOR)
 }
 
 export const getEffortScore = (set: MetricsSet) => {
@@ -211,16 +227,15 @@ const HARD_SET_ELIGIBLE_PROFILES: MetricProfile[] = ['reps_weight', 'timed_stren
 
 /** Check if a metric profile is eligible for hard set tracking (treats legacy 'strength' as 'reps_weight') */
 const isHardSetEligibleProfile = (profile?: MetricProfile | string | null): boolean => {
-  if (!profile) return true // Default to eligible if not specified
-  // Legacy 'strength' profile should be treated as 'reps_weight'
-  if (profile === 'strength') return true
-  return HARD_SET_ELIGIBLE_PROFILES.includes(profile as MetricProfile)
+  const normalizedProfile = normalizeMetricProfile(profile)
+  if (!normalizedProfile) return true // Default to eligible if not specified
+  return HARD_SET_ELIGIBLE_PROFILES.includes(normalizedProfile as MetricProfile)
 }
 
 export const isHardSet = (set: MetricsSet) => {
   if (!isHardSetEligibleProfile(set.metricProfile)) return false
   const effort = getEffortScore(set)
-  return typeof effort === 'number' ? effort >= 8 : false
+  return typeof effort === 'number' ? effort >= HARD_SET_RPE_THRESHOLD : false
 }
 
 export const computeSetIntensity = (set: MetricsSet) => {
@@ -260,8 +275,7 @@ export const computeSetLoad = (set: MetricsSet): number => {
 
   // Strategy 2: Duration-based (Cardio/Mobility)
   // Only applies if explicit durationSeconds was entered
-  // CONSTANT: 215 scales ~60min cardio @ RPE 7 to ~7,500 Load
-  const TIME_LOAD_FACTOR = 215
+  // TIME_LOAD_FACTOR imported from @/constants/training
 
   if (typeof set.durationSeconds === 'number' && set.durationSeconds > 0) {
     const minutes = set.durationSeconds / 60

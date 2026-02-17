@@ -19,6 +19,11 @@ export const DEFAULT_REST_SECONDS = 90
 export const ESTIMATED_SET_TIME_SECONDS = 45
 export const SECONDS_PER_REP = 3
 
+// Workload scaling constants
+// Scales ~60min cardio at moderate/high effort into the same order of magnitude
+// as multi-set strength workloads for cross-modality trend analysis.
+export const TIME_LOAD_FACTOR = 215
+
 // Pagination limits
 export const SESSION_PAGE_SIZE = 50
 export const DASHBOARD_SESSION_LIMIT = 24
@@ -81,6 +86,10 @@ export const CHART_DAILY_THRESHOLD_DAYS = 14
 // Readiness survey bounds
 export const READINESS_MIN = 1
 export const READINESS_MAX = 5
+
+// Readiness level thresholds
+export const READINESS_HIGH_THRESHOLD = 70
+export const READINESS_LOW_THRESHOLD = 40
 
 // Volume targets per muscle group (weekly sets)
 export const WEEKLY_VOLUME_TARGETS: Record<string, number> = {

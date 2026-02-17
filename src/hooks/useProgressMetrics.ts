@@ -19,82 +19,27 @@ export function useProgressMetrics() {
   const [selectedMuscle, setSelectedMuscle] = useState('all')
   const [selectedExercise, setSelectedExercise] = useState('all')
 
-    const strength = useStrengthMetrics({ startDate, endDate, selectedMuscle, selectedExercise })
+  const strength = useStrengthMetrics({ startDate, endDate, selectedMuscle, selectedExercise })
+  const recovery = useRecoveryMetrics({ startDate, endDate, sessions: strength.sessions })
 
-    const recovery = useRecoveryMetrics({ startDate, endDate, sessions: strength.sessions })
-
-  
-
-      return {
-
-  
-
-        ...strength,
-
-  
-
-        ...recovery,
-
-  
-
-        user: strength.user,
-
-  
-
-        userLoading: strength.userLoading,
-
-  
-
-        setError: strength.setError,
-
-  
-
-        setSessions: strength.setSessions,
-
-  
-
-            setSessionPage: strength.setSessionPage,
-
-  
-
-            ensureSession: strength.ensureSession,
-
-  
-
-            getSessionTitle: strength.getSessionTitle,
-
-  
-
-            exerciseLibraryByName: strength.exerciseLibraryByName,
-
-  
-
-        
-
-  
-
-        startDate,
-
-  
-
-    
-
-      setStartDate,
-
-      endDate,
-
-      setEndDate,
-
-      selectedMuscle,
-
-      setSelectedMuscle,
-
-      selectedExercise,
-
-      setSelectedExercise
-
-    }
-
+  return {
+    ...strength,
+    ...recovery,
+    user: strength.user,
+    userLoading: strength.userLoading,
+    setError: strength.setError,
+    setSessions: strength.setSessions,
+    setSessionPage: strength.setSessionPage,
+    ensureSession: strength.ensureSession,
+    getSessionTitle: strength.getSessionTitle,
+    exerciseLibraryByName: strength.exerciseLibraryByName,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    selectedMuscle,
+    setSelectedMuscle,
+    selectedExercise,
+    setSelectedExercise
   }
-
-  
+}

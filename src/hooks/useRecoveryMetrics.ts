@@ -10,7 +10,7 @@ import {
 } from '@/lib/transformers/chart-data'
 import { type SessionRow } from '@/lib/transformers/progress-data'
 import { computeSessionMetrics } from '@/lib/training-metrics'
-import type { WeightUnit } from '@/types/domain'
+import { mapSetLikeToMetricsSet } from '@/lib/transformers/metric-set'
 
 export type ReadinessRow = {
   id: string
@@ -122,14 +122,11 @@ export function useRecoveryMetrics(options: {
 
   const readinessCorrelation = useMemo(() => {
     return readinessSessions.map(({ session, entry }) => {
-      const metricSets = session.session_exercises.flatMap(e => e.sets.filter(s => s.completed !== false).map(s => ({
-        reps: s.reps ?? null, weight: s.weight ?? null,
-        weightUnit: (s.weight_unit as WeightUnit) ?? null,
-        rpe: typeof s.rpe === 'number' ? s.rpe : null,
-        rir: typeof s.rir === 'number' ? s.rir : null,
-        performedAt: s.performed_at ?? null,
-        restSecondsActual: s.rest_seconds_actual ?? null
-      })))
+      const metricSets = session.session_exercises.flatMap((exercise) =>
+        exercise.sets
+          .filter((set) => set.completed !== false)
+          .map((set) => mapSetLikeToMetricsSet({ ...set, metricProfile: exercise.metric_profile }))
+      )
       const metrics = computeSessionMetrics({ startedAt: session.started_at, endedAt: session.ended_at, sets: metricSets })
       return { readiness: entry.readiness_score, effort: metrics.avgEffort, workload: metrics.workload }
     }).filter((p): p is { readiness: number; effort: number; workload: number } => typeof p.readiness === 'number' && typeof p.effort === 'number')

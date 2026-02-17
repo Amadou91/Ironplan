@@ -1,4 +1,5 @@
 import { computeSetLoad, computeSetTonnage, getWeekKey, getEffortScore, computeSetE1rm } from '@/lib/session-metrics'
+import { mapSetLikeToMetricsSet } from '@/lib/transformers/metric-set'
 import { toMuscleSlug, toMuscleLabel, PRESET_MAPPINGS } from '@/lib/muscle-utils'
 import {
   formatDate,
@@ -7,7 +8,6 @@ import {
   formatChartDate,
   formatDateForInput
 } from '@/lib/date-utils'
-import type { MetricProfile } from '@/types/domain'
 
 // Re-export date utilities for backwards compatibility
 export { formatDate, formatDateTime, formatDuration, formatChartDate, formatDateForInput }
@@ -131,26 +131,10 @@ export function transformSessionsToVolumeTrend(
     const date = set.performed_at ?? set.startedAt
     if (!date) return
     const key = useDaily ? formatDate(date) : getWeekKey(date)
-    
-    const tonnage = computeSetTonnage({
-      metricProfile: set.metricProfile as MetricProfile,
-      reps: set.reps ?? null,
-      weight: set.weight ?? null,
-      implementCount: set.implement_count ?? null,
-      loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
-      weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null
-    })
-    const load = computeSetLoad({
-      metricProfile: set.metricProfile as MetricProfile,
-      reps: set.reps ?? null,
-      weight: set.weight ?? null,
-      implementCount: set.implement_count ?? null,
-      loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
-      weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null,
-      rpe: typeof set.rpe === 'number' ? set.rpe : null,
-      rir: typeof set.rir === 'number' ? set.rir : null,
-      durationSeconds: set.duration_seconds ?? null
-    })
+
+    const metricsSet = mapSetLikeToMetricsSet(set)
+    const tonnage = computeSetTonnage(metricsSet)
+    const load = computeSetLoad(metricsSet)
     if (!tonnage && !load) return
     const entry = totals.get(key) ?? { volume: 0, load: 0 }
     entry.volume += tonnage
@@ -205,13 +189,7 @@ export function transformSessionsToExerciseTrend(
 
     const isEligible = exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible
 
-    const e1rm = computeSetE1rm({
-      ...set,
-      metricProfile: set.metricProfile as MetricProfile,
-      implementCount: set.implement_count ?? null,
-      loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
-      weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null
-    }, null, isEligible)
+    const e1rm = computeSetE1rm(mapSetLikeToMetricsSet(set), null, isEligible)
     if (!e1rm) return
     const date = set.performed_at ?? set.startedAt
     if (!date) return
@@ -249,14 +227,7 @@ export function transformSetsToMuscleBreakdown(
 ): MuscleBreakdownItem[] {
   const totals = new Map<string, number>()
   allSets.forEach((set) => {
-    const tonnage = computeSetTonnage({
-      metricProfile: set.metricProfile as MetricProfile,
-      reps: set.reps ?? null,
-      weight: set.weight ?? null,
-      implementCount: set.implement_count ?? null,
-      loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
-      weightUnit: (set.weight_unit ?? set.weightUnit) as 'lb' | 'kg' | null
-    })
+    const tonnage = computeSetTonnage(mapSetLikeToMetricsSet(set))
     if (!tonnage) return
     
     const primary = toMuscleSlug(set.primaryMuscle ?? 'unknown')
