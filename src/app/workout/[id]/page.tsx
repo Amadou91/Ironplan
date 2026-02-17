@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Activity } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import { createClient } from '@/lib/supabase/client'
 import { toMuscleLabel } from '@/lib/muscle-utils'
 import { buildTemplateDisplayName } from '@/lib/workout-naming'
@@ -27,12 +28,14 @@ type WorkoutTemplate = {
 
 export default function WorkoutDetailPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const supabase = createClient()
   const { user } = useUser()
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const [template, setTemplate] = useState<WorkoutTemplate | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false)
 
   useEffect(() => {
     const fetchTemplate = async () => {
@@ -56,6 +59,13 @@ export default function WorkoutDetailPage() {
 
     if (params.id) fetchTemplate()
   }, [params.id, supabase])
+
+  useEffect(() => {
+    const shouldOpenSetup = searchParams.get('start') === '1'
+    if (template && user && shouldOpenSetup) {
+      setIsSetupModalOpen(true)
+    }
+  }, [searchParams, template, user])
 
   const equipmentSummary = useMemo(() => {
     const inventory = template?.template_inputs?.equipment?.inventory
@@ -108,9 +118,9 @@ export default function WorkoutDetailPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {user ? (
-              <Link href={`/exercises/${template.id}/start`}>
-                <Button size="sm">Start session</Button>
-              </Link>
+              <Button size="sm" onClick={() => setIsSetupModalOpen(true)}>
+                Start session
+              </Button>
             ) : (
               <Button size="sm" onClick={() => router.push('/auth/login')}>
                 Sign in to start
@@ -161,6 +171,20 @@ export default function WorkoutDetailPage() {
           </Card>
         </div>
       </div>
+
+      {template && user && (
+        <SessionSetupModal
+          isOpen={isSetupModalOpen}
+          onClose={() => setIsSetupModalOpen(false)}
+          templateId={template.id}
+          templateTitle={displayTitle}
+          templateFocus={template.focus}
+          templateStyle={template.style}
+          templateIntensity={template.intensity}
+          templateInputs={template.template_inputs}
+          templateExperienceLevel={template.experience_level}
+        />
+      )}
     </div>
   )
 }

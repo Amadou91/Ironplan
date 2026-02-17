@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
@@ -46,7 +45,6 @@ const buildWorkoutTitle = (template: WorkoutTemplateDraft) =>
   })
 
 export function useGenerationFlow() {
-  const router = useRouter()
   const { user } = useUser()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
@@ -66,8 +64,6 @@ export function useGenerationFlow() {
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [historyEntries, setHistoryEntries] = useState<ReturnType<typeof loadWorkoutHistory>>([])
   const [deletingHistoryIds, setDeletingHistoryIds] = useState<Record<string, boolean>>({})
-  const [startSessionError, setStartSessionError] = useState<string | null>(null)
-  const [startingSessionKey, setStartingSessionKey] = useState<string | null>(null)
   const [preferencesApplied, setPreferencesApplied] = useState(false)
   const [hasUserEdits, setHasUserEdits] = useState(false)
   const [templateSuffix, setTemplateSuffix] = useState('')
@@ -102,7 +98,6 @@ export function useGenerationFlow() {
     if (saveError) setSaveError(null)
     if (saveSummary) setSaveSummary(null)
     if (historyError) setHistoryError(null)
-    if (startSessionError) setStartSessionError(null)
   }
 
   const updateFormData = (updater: (prev: PlanInput) => PlanInput) => {
@@ -244,22 +239,6 @@ export function useGenerationFlow() {
       }
       setDeletingHistoryIds((prev) => ({ ...prev, [entry.id]: false }))
     }
-  }
-
-  const handleStartSession = ({ templateId, sessionKey }: { templateId: string; sessionKey: string }) => {
-    if (!user) return
-    if (activeSession) {
-      setStartSessionError('Finish your current session before starting a new one.')
-      if (activeSession.templateId && activeSession.id) {
-        router.push(`/exercises/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=generate`)
-      } else if (activeSession.id) {
-        router.push(`/exercises/active?sessionId=${activeSession.id}&from=generate`)
-      }
-      return
-    }
-    setStartSessionError(null)
-    setStartingSessionKey(sessionKey)
-    router.push(`/exercises/${templateId}/start`)
   }
 
   const generatePlanHandler = async () => {
@@ -413,15 +392,12 @@ export function useGenerationFlow() {
     historyError,
     historyEntries,
     deletingHistoryIds,
-    startSessionError,
-    startingSessionKey,
     templateSuffix,
     setTemplateSuffix,
     updateFormData,
     handleFocusChange,
     handleHistoryLoad,
     handleHistoryDelete,
-    handleStartSession,
     generatePlanHandler
   }
 }

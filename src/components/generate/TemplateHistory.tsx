@@ -12,10 +12,7 @@ interface TemplateHistoryProps {
   historyEntries: WorkoutHistoryEntry[]
   onLoadHistory: (entry: WorkoutHistoryEntry) => void
   onDeleteHistory: (entry: WorkoutHistoryEntry) => Promise<void>
-  onStartSession: (params: { templateId: string; sessionKey: string }) => void
-  startingSessionKey: string | null
   historyError: string | null
-  startSessionError: string | null
   deletingHistoryIds: Record<string, boolean>
 }
 

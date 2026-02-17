@@ -72,7 +72,7 @@ const shiftExperienceLevel = (base: PlanInput['experienceLevel'], delta: -1 | 0 
   return EXPERIENCE_LEVELS[nextIndex]
 }
 
-export default function WorkoutStartPage() {
+function LegacyWorkoutStartPage() {
   const params = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -458,4 +458,18 @@ export default function WorkoutStartPage() {
       )}
     </div>
   )
+}
+
+export default function ExerciseStartRedirectPage() {
+  const params = useParams()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!params.id) return
+    const templateId = Array.isArray(params.id) ? params.id[0] : params.id
+    if (!templateId) return
+    router.replace(`/workout/${templateId}?start=1`)
+  }, [params.id, router])
+
+  return <div className="page-shell p-10 text-center text-muted">Redirecting to session setup…</div>
 }
