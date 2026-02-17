@@ -149,6 +149,9 @@ export function SessionHistoryList({
     return totals
   }
 
+  const metricBadgeBaseClass =
+    'inline-flex h-7 items-center rounded-lg px-2.5 py-0 text-[10px] leading-none font-black uppercase tracking-wider whitespace-nowrap shadow-sm'
+
   return (
     <>
       <Card className="glass-panel">
@@ -171,8 +174,8 @@ export function SessionHistoryList({
               const isExpanded = Boolean(expandedSessions[session.id])
               return (
                 <div key={session.id} className="space-y-5 p-6 transition-all hover:bg-[var(--color-surface-subtle)]/40 group">
-                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="space-y-1.5">
+                  <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(16rem,1.2fr)_minmax(0,1.7fr)_auto] lg:items-center lg:gap-4">
+                    <div className="space-y-1.5 lg:min-w-[16rem]">
                       <p className="text-base font-black text-strong tracking-tight group-hover:text-[var(--color-primary)] transition-colors">{formatSessionDisplayTitle(getSessionTitle(session), session.started_at, session.ended_at)}</p>
                       <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-bold text-subtle uppercase tracking-wider">
                         <span className="text-strong opacity-80">{formatDateTime(session.started_at)}</span>
@@ -184,14 +187,14 @@ export function SessionHistoryList({
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center rounded-lg bg-[var(--color-bg)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)] shadow-sm">{totals.exercises} exercises</span>
-                      <span className="inline-flex items-center rounded-lg bg-[var(--color-bg)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)] shadow-sm">{totals.sets} sets</span>
-                      <span className="inline-flex items-center rounded-lg bg-[var(--color-bg)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)] shadow-sm">{Math.round(isKg ? totals.volume * KG_PER_LB : totals.volume).toLocaleString()} {displayUnit} vol</span>
-                      <span className="inline-flex items-center rounded-lg bg-[var(--color-primary-soft)]/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--color-primary-strong)] border border-[var(--color-primary-border)]/30 shadow-sm">{Math.round(totals.workload).toLocaleString()} load</span>
-                      <span className="inline-flex items-center rounded-lg bg-[var(--color-success-soft)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--color-success-strong)] border border-[var(--color-success-border)] shadow-sm">{totals.hardSets} hard sets</span>
+                    <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:gap-2">
+                      <span className={`${metricBadgeBaseClass} border border-[var(--color-border)] bg-[var(--color-bg)] text-subtle/80`}>{totals.exercises} exercises</span>
+                      <span className={`${metricBadgeBaseClass} border border-[var(--color-border)] bg-[var(--color-bg)] text-subtle/80`}>{totals.sets} sets</span>
+                      <span className={`${metricBadgeBaseClass} border border-[var(--color-border)] bg-[var(--color-bg)] text-subtle/80`}>{Math.round(isKg ? totals.volume * KG_PER_LB : totals.volume).toLocaleString()} {displayUnit} vol</span>
+                      <span className={`${metricBadgeBaseClass} border border-[var(--color-primary-border)]/30 bg-[var(--color-primary-soft)]/30 text-[var(--color-primary-strong)]`}>{Math.round(totals.workload).toLocaleString()} load</span>
+                      <span className={`${metricBadgeBaseClass} border border-[var(--color-success-border)] bg-[var(--color-success-soft)] text-[var(--color-success-strong)]`}>{totals.hardSets} hard sets</span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3 lg:justify-end">
                       <Link href={`/sessions/${session.id}/edit`}>
                         <Button variant="outline" className="h-10 px-4 text-[11px] font-black uppercase tracking-widest border-2">Edit</Button>
                       </Link>

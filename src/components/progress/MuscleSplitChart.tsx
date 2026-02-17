@@ -16,7 +16,7 @@ import { useUIStore } from '@/store/uiStore'
 import { KG_PER_LB } from '@/lib/units'
 
 const chartColors = ['#f05a28', '#1f9d55', '#0ea5e9', '#f59e0b', '#ec4899']
-const COMPACT_LIMIT = 3
+const COMPACT_LIMIT = 5
 
 const formatCompactNumber = (value: number) => {
   const abs = Math.abs(value)
@@ -119,7 +119,7 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
       </div>
 
       <div className={`flex items-center gap-4 ${isCompact ? 'flex-col' : 'flex-col xl:flex-row'}`}>
-        <div className={isCompact ? 'h-32 w-full' : 'h-[280px] w-full xl:w-5/12'}>
+        <div className={isCompact ? 'h-40 w-full' : 'h-[280px] w-full xl:w-5/12'}>
           <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <BarChart
               data={displayData}
