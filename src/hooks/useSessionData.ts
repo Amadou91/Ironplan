@@ -109,8 +109,8 @@ export function useSessionData(sessionId?: string | null) {
 
   // Load template experience level
   useEffect(() => {
-    if (!activeSession?.templateId) { setTemplateExpLevel(null); return }
     const load = async () => {
+      if (!activeSession?.templateId) { setTemplateExpLevel(null); return }
       const { data, error } = await supabase
         .from('workout_templates').select('experience_level, template_inputs')
         .eq('id', activeSession.templateId).maybeSingle()
