@@ -2,53 +2,38 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [ "**" ]
   pull_request:
-    branches: [main, master]
 
 jobs:
-  test:
-    name: Type Check & Tests
+  build-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ matrix.node }}
+          cache: npm
 
-      - name: Install dependencies
+      - name: Install
         run: npm ci
 
-      - name: Type check
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
         run: npm run typecheck
 
-      - name: Run all tests
+      - name: Test
         run: npm test
 
-      - name: Run correctness tests (explicit)
-        run: node --test --experimental-vm-modules tests/correctness/*.ts
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run ESLint
-        run: npm run lint
+      - name: Build
+        run: npm run build
