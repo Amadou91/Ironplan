@@ -138,11 +138,6 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
     throw new Error('Unauthorized developer tools access')
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    console.warn('Dev seed operations are disabled in production.')
-    return { templates: 0, sessions: 0, exercises: 0, sets: 0, readiness: 0 }
-  }
-
   // 0. Lookup required exercises from catalog (does NOT insert any)
   const catalogExercises = await lookupRequiredExercises(supabase);
 
@@ -615,11 +610,6 @@ export async function clearDevData(supabase: SupabaseClient, userId: string): Pr
 
   if (user.id !== userId) {
     throw new Error('Unauthorized developer tools access')
-  }
-
-  if (process.env.NODE_ENV === 'production') {
-    console.warn('Dev seed operations are disabled in production.')
-    return { templates: 0, sessions: 0, exercises: 0, sets: 0, readiness: 0 }
   }
 
   const result: ClearResult = {

@@ -12,7 +12,6 @@ import { EquipmentSelector } from '@/components/generate/EquipmentSelector'
 import { cloneInventory, equipmentPresets } from '@/lib/equipment'
 import { defaultPreferences, normalizePreferences, type SettingsPreferences } from '@/lib/preferences'
 import { seedDevData, clearDevData } from '@/lib/dev-seed'
-import { isDeveloperToolsUser } from '@/lib/developer-access'
 import { useUIStore } from '@/store/uiStore'
 import type { PlanInput } from '@/types/domain'
 
@@ -47,9 +46,7 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
   const [devActionState, setDevActionState] = useState<'idle' | 'seeding' | 'clearing'>('idle')
   const [devActionMessage, setDevActionMessage] = useState<string | null>(null)
   const [confirmDevAction, setConfirmDevAction] = useState<DevAction | null>(null)
-  const isDevMode = process.env.NODE_ENV !== 'production'
-  const isAuthorizedDevUser = isDeveloperToolsUser(user?.email)
-  const canUseDevTools = devToolsEnabled && isDevMode && isAuthorizedDevUser
+  const canUseDevTools = devToolsEnabled
 
   useEffect(() => {
     if (!user) return
@@ -334,19 +331,19 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
             <p className="text-[10px] text-accent font-medium">Preferences saved</p>
           )}
         </div>
-
-        <div className="mt-4 md:hidden sticky bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-20 rounded-xl border border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_8%)] p-2 backdrop-blur">
-          <Button
-            type="button"
-            size="md"
-            className="w-full"
-            onClick={handleSavePreferences}
-            disabled={!hasUnsavedChanges || saveSettingsState === 'saving'}
-          >
-            {saveSettingsState === 'saving' ? 'Saving...' : 'Save preferences'}
-          </Button>
-        </div>
       </Card>
+
+      <div className="md:hidden sticky bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-20 rounded-xl border border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_8%)] p-2 backdrop-blur">
+        <Button
+          type="button"
+          size="md"
+          className="w-full"
+          onClick={handleSavePreferences}
+          disabled={!hasUnsavedChanges || saveSettingsState === 'saving'}
+        >
+          {saveSettingsState === 'saving' ? 'Saving...' : 'Save preferences'}
+        </Button>
+      </div>
 
       <ConfirmDialog 
         isOpen={Boolean(confirmDevAction)}
