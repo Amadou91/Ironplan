@@ -124,9 +124,9 @@ export function DataManagementToolbar() {
   return (
     <div className="flex items-center gap-2">
       {/* Export */}
-      <Button variant="outline" size="sm" onClick={handleExport} title="Export to JSON">
-        <Download className="h-4 w-4 mr-2" />
-        Backup
+      <Button variant="outline" size="sm" onClick={handleExport} title="Export to JSON" className="px-2 sm:px-3">
+        <Download className="h-4 w-4 sm:mr-2" />
+        <span className="hidden sm:inline">Backup</span>
       </Button>
 
       {/* Import */}
@@ -143,20 +143,21 @@ export function DataManagementToolbar() {
         onClick={handleImportClick} 
         disabled={importLoading}
         title="Import from JSON"
+        className="px-2 sm:px-3"
       >
-        {importLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-        Restore
+        {importLoading ? <Loader2 className="h-4 w-4 animate-spin sm:mr-2" /> : <Upload className="h-4 w-4 sm:mr-2" />}
+        <span className="hidden sm:inline">Restore</span>
       </Button>
 
       {/* Reset */}
       <Button 
         variant="outline" 
         size="sm"
-        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:hover:bg-red-900/20"
+        className="px-2 sm:px-3 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:hover:bg-red-900/20"
         onClick={() => setIsResetOpen(true)}
       >
-        <AlertTriangle className="mr-2 h-4 w-4" />
-        Reset
+        <AlertTriangle className="sm:mr-2 h-4 w-4" />
+        <span className="hidden sm:inline">Reset</span>
       </Button>
 
       {/* Reset Modal (Custom implementation kept as requested structure was unique) */}

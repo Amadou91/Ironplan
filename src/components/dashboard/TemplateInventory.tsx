@@ -39,9 +39,9 @@ export function TemplateInventory({
   return (
     <>
       <Card className="p-8 md:p-10 lg:p-12">
-        <div className="flex items-center justify-between mb-10">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-surface-muted)] text-strong shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[var(--color-surface-muted)] text-strong shadow-sm">
               <Dumbbell className="h-6 w-6" />
             </div>
             <div>

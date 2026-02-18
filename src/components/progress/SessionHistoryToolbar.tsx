@@ -114,14 +114,14 @@ export function SessionHistoryToolbar({ onImportSuccess }: SessionHistoryToolbar
           onClick={handleExport}
           disabled={exporting}
           title="Export session history to JSON"
-          className="h-9 px-3 text-[10px] font-bold uppercase tracking-widest"
+          className="h-9 px-2 sm:px-3 text-[10px] font-bold uppercase tracking-widest"
         >
           {exporting ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
           ) : (
-            <Download className="h-4 w-4 mr-2" />
+            <Download className="h-4 w-4 sm:mr-2" />
           )}
-          Export
+          <span className="hidden sm:inline">Export</span>
         </Button>
 
         <input
@@ -137,14 +137,14 @@ export function SessionHistoryToolbar({ onImportSuccess }: SessionHistoryToolbar
           onClick={handleImportClick}
           disabled={importing}
           title="Import session history from JSON"
-          className="h-9 px-3 text-[10px] font-bold uppercase tracking-widest"
+          className="h-9 px-2 sm:px-3 text-[10px] font-bold uppercase tracking-widest"
         >
           {importing ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
           ) : (
-            <Upload className="h-4 w-4 mr-2" />
+            <Upload className="h-4 w-4 sm:mr-2" />
           )}
-          Import
+          <span className="hidden sm:inline">Import</span>
         </Button>
       </div>
 

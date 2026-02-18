@@ -155,14 +155,14 @@ export function SessionHistoryList({
   return (
     <>
       <Card className="glass-panel">
-        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-5">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-6 py-5">
+          <div className="min-w-0">
             <h2 className="text-xl font-black text-strong tracking-tight uppercase">Session Logs</h2>
             <p className="text-[11px] font-bold text-subtle uppercase tracking-widest mt-1">Review your historical data</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {onImportSuccess && <SessionHistoryToolbar onImportSuccess={onImportSuccess} />}
-            <span className="text-[10px] font-black text-subtle/60 uppercase tracking-widest bg-[var(--color-surface-muted)] px-3 py-1 rounded-lg border border-[var(--color-border)]">{sessions.length} session(s)</span>
+            <span className="flex-shrink-0 text-[10px] font-black text-subtle/60 uppercase tracking-widest bg-[var(--color-surface-muted)] px-3 py-1 rounded-lg border border-[var(--color-border)]">{sessions.length} session(s)</span>
           </div>
         </div>
         <div className="divide-y divide-[var(--color-border)]/50">
