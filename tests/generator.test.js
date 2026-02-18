@@ -301,7 +301,7 @@ test('chest focus stays chest-dominant with allowed accessories', () => {
   assert.ok(chestSets / totalSets >= 0.75)
 })
 
-test('returns an error when chest focus cannot be satisfied by equipment', () => {
+test('falls back to bodyweight exercises when equipment inventory is completely empty', () => {
   const input = normalizePlanInput({
     intent: { mode: 'body_part', bodyParts: ['chest'] },
     preferences: { focusAreas: ['chest'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' },
@@ -319,7 +319,9 @@ test('returns an error when chest focus cannot be satisfied by equipment', () =>
     }
   })
   const exercises = generateSessionExercises(mockCatalog, input, 'chest', 45, input.goals.primary, { seed: 'seed-empty' })
-  assert.equal(exercises.length, 0)
+  // With empty inventory the generator applies a bodyweight-only fallback, so
+  // exercises must always be non-empty (never silently 0).
+  assert.ok(exercises.length > 0, `Expected at least 1 bodyweight exercise, got ${exercises.length}`)
 })
 
 test('back focus avoids unrelated primary muscles', () => {

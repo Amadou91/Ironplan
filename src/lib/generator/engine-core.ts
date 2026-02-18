@@ -50,6 +50,7 @@ import {
 } from './validation'
 import { filterExercises, orderPool, reorderForVariety } from './selection-logic'
 import { createPlannedExercise, adjustSessionVolume } from './volume-math'
+import { hasEquipment, bodyweightOnlyInventory } from '@/lib/equipment'
 
 /**
  * Core generation logic for a single training session.
@@ -286,20 +287,39 @@ export const buildSessionExercises = (
   const targetGoal = goalOverride ?? input.goals.primary
   const baseFocus = focusMuscleMap[focus]?.baseFocus
   const focusConstraint = focusMuscleMap[focus]?.constraint
+
+  // Bodyweight-only fallback: if the user has no equipment configured at all,
+  // substitute a bodyweight-only inventory so the generator always produces
+  // a non-empty exercise list instead of silently returning nothing.
+  const effectiveInventory = hasEquipment(input.equipment.inventory)
+    ? input.equipment.inventory
+    : (() => {
+        logEvent('info', 'generator_bodyweight_fallback', {
+          reason: 'empty_equipment_inventory',
+          focus,
+          goal: targetGoal
+        })
+        return bodyweightOnlyInventory()
+      })()
+
+  const effectiveInput: PlanInput = effectiveInventory === input.equipment.inventory
+    ? input
+    : { ...input, equipment: { ...input.equipment, inventory: effectiveInventory } }
+
   let primaryPool = filterExercises(
     catalog,
     focus,
-    input.equipment.inventory,
-    input.preferences.dislikedActivities,
-    input.preferences.accessibilityConstraints,
+    effectiveInventory,
+    effectiveInput.preferences.dislikedActivities,
+    effectiveInput.preferences.accessibilityConstraints,
     targetGoal
   )
   const secondaryPool = filterExercises(
     catalog,
     focus,
-    input.equipment.inventory,
-    input.preferences.dislikedActivities,
-    input.preferences.accessibilityConstraints,
+    effectiveInventory,
+    effectiveInput.preferences.dislikedActivities,
+    effectiveInput.preferences.accessibilityConstraints,
     targetGoal === 'general_fitness' ? targetGoal : undefined
   )
   if (focusConstraint && primaryPool.length === 0) {
@@ -309,9 +329,9 @@ export const buildSessionExercises = (
     ? filterExercises(
         catalog,
         baseFocus,
-        input.equipment.inventory,
-        input.preferences.dislikedActivities,
-        input.preferences.accessibilityConstraints
+        effectiveInventory,
+        effectiveInput.preferences.dislikedActivities,
+        effectiveInput.preferences.accessibilityConstraints
       )
     : []
 
@@ -331,7 +351,7 @@ export const buildSessionExercises = (
     primaryPool,
     secondaryPool,
     accessoryPool,
-    input,
+    effectiveInput,
     duration,
     targetGoal,
     focusConstraint,

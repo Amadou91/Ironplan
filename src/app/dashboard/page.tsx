@@ -34,7 +34,8 @@ export default function DashboardPage() {
     sessions,
     loading,
     error,
-    trainingLoadSummary
+    trainingLoadSummary,
+    refresh
   } = useDashboardData()
 
   const latestActiveSession = useMemo(() => {
@@ -71,15 +72,19 @@ export default function DashboardPage() {
         .eq('id', latestActiveSession.id)
 
       if (updateError) throw updateError
+      // Clear the Zustand store immediately so the UI reacts without waiting
       endSession()
       setCancelDialogOpen(false)
+      // Re-fetch sessions so the stale in_progress entry is removed from
+      // the sessions list that latestActiveSession also reads from.
+      await refresh()
     } catch (err) {
       console.error('Failed to cancel workout:', err)
       setCancelError('Failed to cancel workout. Please try again.')
     } finally {
       setCancelingSession(false)
     }
-  }, [latestActiveSession?.id, supabase, endSession])
+  }, [latestActiveSession?.id, supabase, endSession, refresh])
 
   const greetingName = user?.email?.split('@')[0] || 'there'
   const recentSessions = sessions.slice(0, 3)

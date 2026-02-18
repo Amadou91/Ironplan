@@ -87,6 +87,72 @@ export function useDashboardData() {
     return data.session
   }, [setUser, supabase])
 
+  const loadTodayData = useCallback(async () => {
+    if (userLoading || !user) return
+    setLoading(true)
+    const session = await ensureSession()
+    if (!session) {
+      setLoading(false)
+      return
+    }
+
+    let sessionResult: QueryResult | null = null
+    let templateResult: QueryResult | null = null
+    let attempt = 0
+    const MAX_RETRIES = 3
+
+    while (attempt < MAX_RETRIES) {
+      ;[sessionResult, templateResult] = await Promise.all([
+        supabase
+          .from('sessions')
+          .select(
+            'id, name, template_id, session_focus, started_at, ended_at, status, minutes_available, timezone, body_weight_lb, session_focus_areas(focus_area), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, rest_seconds_actual))'
+          )
+          .eq('user_id', user.id)
+          .order('started_at', { ascending: false })
+          .limit(24),
+        supabase
+          .from('workout_templates')
+          .select('id, title, focus, style, experience_level, intensity, template_inputs, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(12)
+      ])
+
+      const sessionError = sessionResult.error
+      const templateError = templateResult.error
+
+      // PGRST303: JWT issued at future (clock skew)
+      if (
+        (sessionError?.code === 'PGRST303' || templateError?.code === 'PGRST303') &&
+        attempt < MAX_RETRIES - 1
+      ) {
+        console.warn(`Clock skew detected (JWT future). Retrying attempt ${attempt + 2}...`)
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        attempt++
+        continue
+      }
+      break
+    }
+
+    const sessionRows = sessionResult?.data
+    const sessionError = sessionResult?.error
+    const templateRows = templateResult?.data
+
+    if (sessionError) {
+      console.error('Failed to load sessions', JSON.stringify(sessionError, null, 2))
+      setError('Unable to load today overview. Please try again.')
+    }
+
+    // Validate response data with Zod schemas
+    const validatedSessions = safeParseArray(sessionRowSchema, sessionRows ?? [], 'useDashboardData.sessions')
+    const validatedTemplates = safeParseArray(templateRowSchema, templateRows ?? [], 'useDashboardData.templates')
+
+    setSessions(validatedSessions as SessionRow[])
+    setTemplates(validatedTemplates as TemplateRow[])
+    setLoading(false)
+  }, [ensureSession, supabase, user, userLoading])
+
   useEffect(() => {
     if (userLoading) return
     if (!user) {
@@ -94,73 +160,8 @@ export function useDashboardData() {
       return
     }
 
-    const loadTodayData = async () => {
-      setLoading(true)
-      const session = await ensureSession()
-      if (!session) {
-        setLoading(false)
-        return
-      }
-
-      let sessionResult: QueryResult | null = null
-      let templateResult: QueryResult | null = null
-      let attempt = 0
-      const MAX_RETRIES = 3
-
-      while (attempt < MAX_RETRIES) {
-        ;[sessionResult, templateResult] = await Promise.all([
-          supabase
-            .from('sessions')
-            .select(
-              'id, name, template_id, session_focus, started_at, ended_at, status, minutes_available, timezone, body_weight_lb, session_focus_areas(focus_area), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, rest_seconds_actual))'
-            )
-            .eq('user_id', user.id)
-            .order('started_at', { ascending: false })
-            .limit(24),
-          supabase
-            .from('workout_templates')
-            .select('id, title, focus, style, experience_level, intensity, template_inputs, created_at')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(12)
-        ])
-
-        const sessionError = sessionResult.error
-        const templateError = templateResult.error
-
-        // PGRST303: JWT issued at future (clock skew)
-        if (
-          (sessionError?.code === 'PGRST303' || templateError?.code === 'PGRST303') &&
-          attempt < MAX_RETRIES - 1
-        ) {
-          console.warn(`Clock skew detected (JWT future). Retrying attempt ${attempt + 2}...`)
-          await new Promise((resolve) => setTimeout(resolve, 1000))
-          attempt++
-          continue
-        }
-        break
-      }
-
-      const sessionRows = sessionResult?.data
-      const sessionError = sessionResult?.error
-      const templateRows = templateResult?.data
-
-      if (sessionError) {
-        console.error('Failed to load sessions', JSON.stringify(sessionError, null, 2))
-        setError('Unable to load today overview. Please try again.')
-      }
-      
-      // Validate response data with Zod schemas
-      const validatedSessions = safeParseArray(sessionRowSchema, sessionRows ?? [], 'useDashboardData.sessions')
-      const validatedTemplates = safeParseArray(templateRowSchema, templateRows ?? [], 'useDashboardData.templates')
-      
-      setSessions(validatedSessions as SessionRow[])
-      setTemplates(validatedTemplates as TemplateRow[])
-      setLoading(false)
-    }
-
     loadTodayData()
-  }, [ensureSession, supabase, user, userLoading])
+  }, [loadTodayData, userLoading, user])
 
   useEffect(() => {
     if (!activeSession || !user) return
@@ -316,6 +317,7 @@ export function useDashboardData() {
     deletingWorkoutIds,
     trainingLoadSummary,
     recommendedTemplateId,
-    handleDeleteTemplate
+    handleDeleteTemplate,
+    refresh: loadTodayData
   }
 }

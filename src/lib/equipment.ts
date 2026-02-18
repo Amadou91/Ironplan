@@ -95,6 +95,35 @@ export const cloneInventory = (inventory: EquipmentInventory): EquipmentInventor
   machines: { ...inventory.machines }
 })
 
+/**
+ * Normalizes a potentially partial/legacy inventory object by merging it with
+ * the empty custom preset defaults. Ensures all machine keys are present and
+ * all array fields exist, preventing phantom entries from partial DB data.
+ */
+export const normalizeInventory = (partial: Partial<EquipmentInventory>): EquipmentInventory => ({
+  bodyweight: partial.bodyweight ?? false,
+  benchPress: partial.benchPress ?? false,
+  dumbbells: Array.isArray(partial.dumbbells) ? [...partial.dumbbells] : [],
+  kettlebells: Array.isArray(partial.kettlebells) ? [...partial.kettlebells] : [],
+  bands: Array.isArray(partial.bands) ? [...partial.bands] : [],
+  barbell: {
+    available: partial.barbell?.available ?? false,
+    plates: Array.isArray(partial.barbell?.plates) ? [...partial.barbell.plates] : []
+  },
+  machines: {
+    ...equipmentPresets.custom.machines,
+    ...(partial.machines ?? {})
+  }
+})
+
+/**
+ * Returns a bodyweight-only fallback inventory.
+ * Used when a user has no equipment configured to ensure the generator
+ * can always produce a non-empty exercise list.
+ */
+export const bodyweightOnlyInventory = (): EquipmentInventory =>
+  cloneInventory({ ...equipmentPresets.custom, bodyweight: true })
+
 export const formatWeightList = (weights: number[]) => [...weights].sort((a, b) => a - b).join(', ')
 
 export const hasEquipment = (inventory: EquipmentInventory) =>

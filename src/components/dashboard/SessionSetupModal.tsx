@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { cloneInventory, equipmentPresets } from '@/lib/equipment'
+import { cloneInventory, equipmentPresets, bodyweightOnlyInventory } from '@/lib/equipment'
 import { createClient } from '@/lib/supabase/client'
 import { normalizePlanInput } from '@/lib/generator'
 import { normalizePreferences } from '@/lib/preferences'
@@ -165,6 +165,10 @@ export function SessionSetupModal({
       const normalizedPreferences = normalizePreferences(data?.preferences)
       if (normalizedPreferences.equipment?.inventory) {
         setEquipmentInventory(cloneInventory(normalizedPreferences.equipment.inventory))
+      } else {
+        // No equipment configured in profile: default to bodyweight-only so
+        // the generator always produces a non-empty exercise list.
+        setEquipmentInventory(bodyweightOnlyInventory())
       }
     }
 

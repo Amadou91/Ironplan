@@ -6,7 +6,7 @@ import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { EquipmentSelector } from '@/components/generate/EquipmentSelector'
-import { cloneInventory, equipmentPresets } from '@/lib/equipment'
+import { cloneInventory, equipmentPresets, normalizeInventory } from '@/lib/equipment'
 import { normalizePreferences } from '@/lib/preferences'
 import type { PlanInput } from '@/types/domain'
 
@@ -40,7 +40,9 @@ export function EquipmentSettingsForm({ onSuccess, onError }: EquipmentSettingsF
       if (!error && data?.preferences) {
         const normalized = normalizePreferences(data.preferences)
         if (normalized.equipment?.inventory) {
-          setEquipment({ preset: 'custom', inventory: cloneInventory(normalized.equipment.inventory) })
+          // Use normalizeInventory to merge with full defaults, preventing
+          // phantom entries from partial/legacy DB data (e.g. old 4-machine schema).
+          setEquipment({ preset: 'custom', inventory: normalizeInventory(normalized.equipment.inventory) })
         }
       }
       setHasUnsavedChanges(false)
@@ -139,7 +141,14 @@ export function EquipmentSettingsForm({ onSuccess, onError }: EquipmentSettingsF
             </p>
             <p className="mt-1 text-sm text-muted">{summary.join(' · ')}</p>
           </div>
-        ) : null}
+        ) : (
+          <div className="mt-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle">
+              Current selection
+            </p>
+            <p className="mt-1 text-sm text-muted italic">None selected — workouts will use bodyweight movements</p>
+          </div>
+        )}
 
         <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
           <EquipmentSelector
