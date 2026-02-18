@@ -205,7 +205,7 @@ function WorkoutSummaryContent() {
 
   if (loading) return <div className="page-shell p-10 text-center text-muted">Loading session summary...</div>
   if (!user) return <div className="page-shell p-10 text-center text-muted"><p className="mb-4">Sign in to view your summary.</p><Button onClick={() => router.push('/auth/login')}>Sign in</Button></div>
-  if (!sessionId || !session || !sessionMetrics) return <div className="page-shell p-10 text-center text-muted"><p className="mb-4">Session summary unavailable.</p><Button onClick={() => router.push('/dashboard')}>Back to Today</Button></div>
+  if (!sessionId || !session || !sessionMetrics) return <div className="page-shell p-10 text-center text-muted"><p className="mb-4">Session summary unavailable.</p><Button onClick={() => router.push('/dashboard')}>Back to Dashboard</Button></div>
 
   return (
     <div className="page-shell">

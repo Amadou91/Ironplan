@@ -170,15 +170,29 @@ export default function Sidebar() {
           <div className="h-12 w-full animate-pulse rounded-xl bg-[var(--color-surface-muted)]" />
         ) : user ? (
           <div className="space-y-3">
-            {!isCollapsed && (
-              <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 shadow-sm transition-all hover:shadow-md">
+            {!isCollapsed ? (
+              <Link
+                href="/profile"
+                aria-label="Profile settings"
+                className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 shadow-sm transition-all hover:shadow-md hover:border-[var(--color-primary-border)]"
+              >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-muted transition-colors hover:text-strong">
                   <UserRound className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-strong tracking-tight">{user.email?.split('@')[0] ?? 'Member'}</p>
+                  <p className="text-[10px] text-subtle truncate">{user.email}</p>
                 </div>
-              </div>
+              </Link>
+            ) : (
+              <Link
+                href="/profile"
+                aria-label="Profile settings"
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-muted transition-all hover:bg-[var(--color-surface-muted)] hover:text-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                title="Profile"
+              >
+                <UserRound className="h-5 w-5" />
+              </Link>
             )}
             
             <div className={`flex items-center gap-2 ${isCollapsed ? 'flex-col' : 'justify-between'}`}>

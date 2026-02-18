@@ -58,7 +58,7 @@ export function SummaryHeader({
       </div>
       <div className="flex flex-wrap gap-2">
         <Link href="/dashboard">
-          <Button size="sm">Back to Today</Button>
+          <Button size="sm">Dashboard</Button>
         </Link>
         <Link href="/progress">
           <Button variant="secondary" size="sm">View Progress</Button>

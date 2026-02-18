@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
+import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
 import { useDashboardData } from '@/hooks/useDashboardData'
 
 export default function DashboardPage() {
@@ -110,9 +111,8 @@ export default function DashboardPage() {
     <div className="page-shell">
       <div className="page-stack">
         <PageHeader
-          eyebrow="Today"
+          eyebrow="Dashboard"
           title={`Welcome back, ${greetingName}`}
-          description="Ready to train? We have a smart session queued up for your recovery profile."
           actions={
             <Button size="md" className="shadow-lg shadow-[var(--color-primary-soft)]" onClick={() => setQuickStartOpen(true)}>
               <Sparkles className="h-5 w-5 mr-2" /> Quick start session
@@ -122,6 +122,8 @@ export default function DashboardPage() {
 
         {error ? <Alert variant="error">{error}</Alert> : null}
         {cancelError ? <Alert variant="error">{cancelError}</Alert> : null}
+
+        <ProfileCompletionBanner />
 
         {latestActiveSession && (
           <Card className="p-8 border-2 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]/50 backdrop-blur-sm">

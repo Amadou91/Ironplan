@@ -1,7 +1,9 @@
 'use client'
 
 import { type ReactNode } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { UserRound } from 'lucide-react'
 import Sidebar from '@/components/layout/Sidebar'
 import MobileNav from '@/components/layout/MobileNav'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
@@ -35,7 +37,16 @@ export default function AppShell({ children }: AppShellProps) {
             </div>
             <span className="font-display font-semibold tracking-tight" aria-label="Ironplan">Ironplan</span>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <Link
+              href="/profile"
+              aria-label="Profile"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-muted transition-colors hover:bg-[var(--color-surface-muted)] hover:text-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+            >
+              <UserRound className="h-5 w-5" />
+            </Link>
+          </div>
         </header>
         <main className="min-h-screen pb-28 lg:pb-10">
           <div className="app-container py-6 lg:py-8">

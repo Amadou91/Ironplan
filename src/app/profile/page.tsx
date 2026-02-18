@@ -64,7 +64,6 @@ export default function ProfilePage() {
         <PageHeader
           eyebrow="Account"
           title="Profile & Settings"
-          description="Keep your training profile current and tune your app experience."
         />
 
         <ProfileHeader user={user} />

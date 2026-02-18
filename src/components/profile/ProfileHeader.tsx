@@ -18,9 +18,6 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
           <p className="text-sm text-subtle font-medium mt-1">{user.email}</p>
         )}
       </div>
-      <p className="mt-3 text-lg text-muted max-w-2xl">
-        Set your training defaults first (especially equipment), then keep body stats current for smarter recommendations.
-      </p>
     </div>
   )
 }
