@@ -121,6 +121,7 @@ export default function ProfilePage() {
             title="Training defaults"
             description="Units and training preferences."
             missingCount={0}
+            defaultOpen={false}
           >
             <AppSettings onSuccess={handleSuccess} onError={handleError} />
           </ProfileSection>
@@ -129,6 +130,7 @@ export default function ProfilePage() {
             title="Body metrics"
             description="Weight, height, and body composition."
             missingCount={completion.metrics ?? undefined}
+            defaultOpen={false}
           >
             <PhysicalStatsForm onSuccess={handleSuccess} onError={handleError} />
           </ProfileSection>
@@ -137,6 +139,7 @@ export default function ProfilePage() {
             title="Workout equipment"
             description="Equipment defaults used for workout generation."
             missingCount={completion.equipment ?? undefined}
+            defaultOpen={false}
           >
             <EquipmentSettingsForm onSuccess={handleSuccess} onError={handleError} />
           </ProfileSection>
