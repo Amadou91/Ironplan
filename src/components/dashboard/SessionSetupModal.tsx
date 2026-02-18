@@ -88,6 +88,17 @@ const SESSION_INTENSITY_LEVELS: SessionIntensitySetting[] = [
 
 const EXPERIENCE_LEVELS: PlanInput['experienceLevel'][] = ['beginner', 'intermediate', 'advanced']
 
+const FOCUS_AREA_COLORS: Record<string, { active: string; inactive: string }> = {
+  chest:     { active: 'bg-red-500/10 border-red-400/50 text-red-600 dark:text-red-400',     inactive: 'border-[var(--color-border)] text-muted hover:bg-red-500/5 hover:border-red-400/30 hover:text-red-600 dark:hover:text-red-400' },
+  back:      { active: 'bg-red-500/10 border-red-400/50 text-red-600 dark:text-red-400',     inactive: 'border-[var(--color-border)] text-muted hover:bg-red-500/5 hover:border-red-400/30 hover:text-red-600 dark:hover:text-red-400' },
+  shoulders: { active: 'bg-red-500/10 border-red-400/50 text-red-600 dark:text-red-400',     inactive: 'border-[var(--color-border)] text-muted hover:bg-red-500/5 hover:border-red-400/30 hover:text-red-600 dark:hover:text-red-400' },
+  arms:      { active: 'bg-red-500/10 border-red-400/50 text-red-600 dark:text-red-400',     inactive: 'border-[var(--color-border)] text-muted hover:bg-red-500/5 hover:border-red-400/30 hover:text-red-600 dark:hover:text-red-400' },
+  legs:      { active: 'bg-red-500/10 border-red-400/50 text-red-600 dark:text-red-400',     inactive: 'border-[var(--color-border)] text-muted hover:bg-red-500/5 hover:border-red-400/30 hover:text-red-600 dark:hover:text-red-400' },
+  core:      { active: 'bg-red-500/10 border-red-400/50 text-red-600 dark:text-red-400',     inactive: 'border-[var(--color-border)] text-muted hover:bg-red-500/5 hover:border-red-400/30 hover:text-red-600 dark:hover:text-red-400' },
+  cardio:    { active: 'bg-emerald-500/10 border-emerald-400/50 text-emerald-700 dark:text-emerald-400', inactive: 'border-[var(--color-border)] text-muted hover:bg-emerald-500/5 hover:border-emerald-400/30 hover:text-emerald-700 dark:hover:text-emerald-400' },
+  mobility:  { active: 'bg-purple-500/10 border-purple-400/50 text-purple-700 dark:text-purple-400', inactive: 'border-[var(--color-border)] text-muted hover:bg-purple-500/5 hover:border-purple-400/30 hover:text-purple-700 dark:hover:text-purple-400' },
+}
+
 const shiftExperienceLevel = (base: PlanInput['experienceLevel'], delta: -1 | 0 | 1) => {
   const index = EXPERIENCE_LEVELS.indexOf(base)
   if (index === -1) return base
@@ -501,26 +512,33 @@ export function SessionSetupModal({
               <Target className="w-3.5 h-3.5" /> Focus Areas
             </Label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {SESSION_FOCUS_SELECTION_OPTIONS.map((option) => (
-                <Checkbox
-                  key={option.value}
-                  label={option.label}
-                  checked={focusAreas.includes(option.value)}
-                  disabled={startingSession}
-                  onCheckedChange={() => {
-                    setFocusAreas((previous) => {
-                      const next = toggleSessionFocusSelection(previous, option.value)
-                      if (!next.length) {
-                        return previous
+              {SESSION_FOCUS_SELECTION_OPTIONS.map((option) => {
+                const checked = focusAreas.includes(option.value)
+                const colors = FOCUS_AREA_COLORS[option.value]
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    disabled={startingSession}
+                    aria-pressed={checked}
+                    onClick={() => {
+                      setFocusAreas((previous) => {
+                        const next = toggleSessionFocusSelection(previous, option.value)
+                        if (!next.length) return previous
+                        return next
+                      })
+                      if (option.value === 'arms' && focusAreas.includes('arms')) {
+                        setArmFocusTargets([])
                       }
-                      return next
-                    })
-                    if (option.value === 'arms' && focusAreas.includes('arms')) {
-                      setArmFocusTargets([])
-                    }
-                  }}
-                />
-              ))}
+                    }}
+                    className={`rounded-lg border px-3 py-2.5 text-xs font-bold text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                      checked ? colors.active : colors.inactive
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
             </div>
             {hasArmsFocus && (
               <div className="space-y-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3">
