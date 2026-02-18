@@ -3,12 +3,10 @@
 import { Checkbox } from '@/components/ui/Checkbox'
 import {
   bandLabels,
-  cloneInventory,
-  equipmentPresets,
   machineLabels,
   BARBELL_PLATE_OPTIONS
 } from '@/lib/equipment'
-import type { BandResistance, EquipmentPreset, MachineType, PlanInput } from '@/types/domain'
+import type { BandResistance, MachineType, PlanInput } from '@/types/domain'
 
 type WeightField = 'dumbbells' | 'kettlebells'
 
@@ -135,54 +133,10 @@ export function EquipmentSelector({
     })
   }
 
-  const handlePresetChange = (preset: EquipmentPreset | 'custom') => {
-    onUpdateEquipment(prev => {
-      const nextInventory = preset === 'custom' ? prev.inventory : cloneInventory(equipmentPresets[preset])
-      return {
-        ...prev,
-        preset,
-        inventory: nextInventory
-      }
-    })
-  }
-
   return (
     <div className="space-y-5">
       {!isCardioStyle && !isMobilityStyle && (
         <>
-          <div className="surface-card p-5 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]">
-            <div className="flex flex-col gap-2 border-b border-[var(--color-primary-border)] pb-4">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-strong">Equipment preset</h3>
-              <p className="text-xs text-subtle">Apply a full setup or keep building a custom list.</p>
-            </div>
-            <div className="mt-4">
-              <div
-                role="group"
-                aria-label="Equipment preset"
-                className="flex flex-wrap gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-1"
-              >
-                {([
-                  { key: 'full_gym', label: 'Full Gym' },
-                  { key: 'custom', label: 'Custom' }
-                ] as { key: EquipmentPreset | 'custom'; label: string }[]).map(preset => (
-                  <button
-                    key={preset.key}
-                    type="button"
-                    onClick={() => handlePresetChange(preset.key)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      equipment.preset === preset.key
-                        ? 'bg-[var(--color-primary)] text-white shadow-sm'
-                        : 'text-muted hover:text-strong'
-                    }`}
-                    aria-pressed={equipment.preset === preset.key}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
           <div className="surface-card-subtle p-5">
             <div className="border-b border-[var(--color-border)] pb-3">
               <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-strong">Free weights</h3>
