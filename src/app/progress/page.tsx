@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -17,7 +17,7 @@ import { useProgressMetrics } from '@/hooks/useProgressMetrics'
 export default function ProgressPage() {
   const router = useRouter()
   const {
-    user, userLoading, loading, error, setError, sessions, setSessions, filteredSessions,
+    user, userLoading, loading, error, setError, setSessions, filteredSessions,
     exerciseOptions, startDate, setStartDate, endDate, setEndDate,
     selectedMuscle, setSelectedMuscle, selectedExercise, setSelectedExercise,
     hasMoreSessions, setSessionPage, trainingLoadSummary, aggregateMetrics,
@@ -40,11 +40,11 @@ export default function ProgressPage() {
   // Only show the full-page skeleton on the very first load.
   // After data has been fetched once, never unmount ProgressFilters (which
   // would reset the mobileExpanded accordion state mid-interaction).
-  const hasFetchedOnce = useRef(false)
-  if (!userLoading && !loading && !hasFetchedOnce.current) {
-    hasFetchedOnce.current = true
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(false)
+  if (!hasFetchedOnce && !userLoading && !loading) {
+    setHasFetchedOnce(true)
   }
-  const isInitialLoad = !hasFetchedOnce.current && (userLoading || loading)
+  const isInitialLoad = !hasFetchedOnce && (userLoading || loading)
 
   if (isInitialLoad) return (
     <div className="page-shell">

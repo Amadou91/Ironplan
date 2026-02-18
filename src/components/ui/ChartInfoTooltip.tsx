@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useId } from 'react'
 import { createPortal } from 'react-dom'
 import { Info } from 'lucide-react'
+import { useHasMounted } from '@/hooks/useHasMounted'
 
 interface ChartInfoTooltipProps {
   description: string
@@ -11,14 +12,10 @@ interface ChartInfoTooltipProps {
 
 export function ChartInfoTooltip({ description, goal }: ChartInfoTooltipProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  const mounted = useHasMounted()
   const [pos, setPos] = useState({ top: 0, left: 0 })
   const triggerRef = useRef<HTMLButtonElement>(null)
   const tooltipId = useId()
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   const updatePos = useCallback(() => {
     if (!triggerRef.current) return
@@ -113,7 +110,7 @@ export function ChartInfoTooltip({ description, goal }: ChartInfoTooltipProps) {
         onBlur={close}
         onTouchStart={(e) => {
           e.stopPropagation()
-          isOpen ? close() : open()
+          if (isOpen) { close() } else { open() }
         }}
         className="inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] rounded-sm"
       >

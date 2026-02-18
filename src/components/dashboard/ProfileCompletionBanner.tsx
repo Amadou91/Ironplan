@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, X, ChevronRight } from 'lucide-react'
+import { AlertTriangle, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/authStore'
 import {
@@ -14,19 +14,11 @@ import { normalizePreferences } from '@/lib/preferences'
 export function ProfileCompletionBanner() {
   const user = useAuthStore((state) => state.user)
   const [missingCount, setMissingCount] = useState(0)
-  const [dismissed, setDismissed] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     if (!user) return
-
-    const DISMISS_KEY = `profile-banner-dismissed-${user.id}`
-    if (sessionStorage.getItem(DISMISS_KEY)) {
-      setDismissed(true)
-      setLoaded(true)
-      return
-    }
 
     const check = async () => {
       const { data } = await supabase
@@ -67,14 +59,7 @@ export function ProfileCompletionBanner() {
     void check()
   }, [user, supabase])
 
-  const handleDismiss = () => {
-    if (user) {
-      sessionStorage.setItem(`profile-banner-dismissed-${user.id}`, '1')
-    }
-    setDismissed(true)
-  }
-
-  if (!loaded || dismissed || missingCount === 0) return null
+  if (!loaded || missingCount === 0) return null
 
   return (
     <div
@@ -97,13 +82,6 @@ export function ProfileCompletionBanner() {
       >
         Complete <ChevronRight className="h-3 w-3" />
       </Link>
-      <button
-        onClick={handleDismiss}
-        aria-label="Dismiss profile warning"
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--color-warning-strong,#92400e)]/60 transition-colors hover:bg-[var(--color-warning,#d97706)]/10 hover:text-[var(--color-warning-strong,#92400e)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-warning,#d97706)]"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
     </div>
   )
 }

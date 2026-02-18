@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useHasMounted } from '@/hooks/useHasMounted';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, LogIn, LogOut, UserRound } from 'lucide-react';
@@ -19,17 +20,15 @@ export default function Sidebar() {
   const clearUser = useAuthStore((state) => state.clearUser);
   const supabase = createClient();
 
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const [hasMounted, setHasMounted] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const saved = localStorage.getItem('sidebar-collapsed');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const hasMounted = useHasMounted();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const avatarButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    setHasMounted(true);
-    const saved = localStorage.getItem('sidebar-collapsed');
-    if (saved !== null) setIsCollapsed(saved === 'true');
-  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {

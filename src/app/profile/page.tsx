@@ -37,8 +37,8 @@ export default function ProfilePage() {
    * Lightweight query to derive per-section completion badges.
    * Re-runs after each section saves so badges stay up to date.
    */
-  const refreshCompletion = useCallback(async () => {
-    if (!user) return
+  const fetchCompletionData = useCallback(async (): Promise<SectionCompletion | null> => {
+    if (!user) return null
     const { data } = await supabase
       .from('profiles')
       .select('weight_lb, height_in, birthdate, sex, preferences')
@@ -67,17 +67,23 @@ export default function ProfilePage() {
     const metricKeys = new Set(['weight_lb', 'height_in', 'birthdate', 'sex'])
     const metricsMissing = result.missingFields.filter((f) => metricKeys.has(f.key)).length
     const equipmentMissing = result.missingFields.filter((f) => f.key === 'hasEquipment').length
-    setCompletion({ metrics: metricsMissing, equipment: equipmentMissing })
+    return { metrics: metricsMissing, equipment: equipmentMissing }
   }, [user, supabase])
 
   useEffect(() => {
-    if (!userLoading && user) refreshCompletion()
-  }, [user, userLoading, refreshCompletion])
+    if (!userLoading && user) {
+      fetchCompletionData().then(result => {
+        if (result) setCompletion(result)
+      })
+    }
+  }, [user, userLoading, fetchCompletionData])
 
   const handleSuccess = (msg: string) => {
     setSuccess(msg)
     setError(null)
-    refreshCompletion()
+    fetchCompletionData().then(result => {
+      if (result) setCompletion(result)
+    })
     setTimeout(() => setSuccess(null), 3000)
   }
   const handleError = (msg: string) => {

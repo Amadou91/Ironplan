@@ -6,7 +6,6 @@ import { Clock, Dumbbell, Scale, X, Play, AlertTriangle, Loader2, Heart, Zap, Ta
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
-import { Checkbox } from '@/components/ui/Checkbox'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { cloneInventory, equipmentPresets } from '@/lib/equipment'
 import { createClient } from '@/lib/supabase/client'
@@ -36,7 +35,7 @@ import {
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
-import type { Exercise, FocusArea, Goal, PlanInput, SessionGoal } from '@/types/domain'
+import type { FocusArea, Goal, PlanInput, SessionGoal } from '@/types/domain'
 
 export interface SessionSetupModalProps {
   isOpen: boolean

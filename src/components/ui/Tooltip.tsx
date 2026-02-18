@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
+import { useHasMounted } from '@/hooks/useHasMounted'
 
 type TooltipProps = {
   content: string
@@ -22,7 +23,6 @@ type Position = { top: number; left: number; placement: 'above' | 'below' }
 function computePosition(rect: DOMRect): Position {
   const OFFSET = 8
   const tooltipHeight = 40 // estimated; actual may vary
-  const viewportHeight = window.innerHeight
   const spaceAbove = rect.top
   const placement = spaceAbove >= tooltipHeight + OFFSET ? 'above' : 'below'
   const top =
@@ -38,11 +38,7 @@ export function Tooltip({ content, children, className }: TooltipProps) {
   const [position, setPosition] = useState<Position | null>(null)
   const triggerRef = useRef<HTMLSpanElement>(null)
   const tooltipId = useId()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = useHasMounted()
 
   const updatePosition = useCallback(() => {
     if (!triggerRef.current) return
