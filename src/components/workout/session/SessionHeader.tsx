@@ -54,7 +54,7 @@ export function SessionHeader({
   };
 
   return (
-    <div className="sticky top-0 z-20 surface-elevated p-4 backdrop-blur-md border-b border-[var(--color-border)]">
+    <div className="sticky top-[env(safe-area-inset-top,_0px)] z-20 surface-elevated p-4 backdrop-blur-md border-b border-[var(--color-border)]">
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>

@@ -18,7 +18,7 @@ export function ExerciseNavigator({
   if (!exercises.length) return null;
 
   return (
-    <div className="sticky top-[148px] z-10 surface-elevated/80 backdrop-blur-md border-b border-[var(--color-border)] -mx-4 px-4 overflow-x-auto no-scrollbar scroll-smooth">
+    <div className="sticky top-[calc(148px+env(safe-area-inset-top,_0px))] z-10 surface-elevated/80 backdrop-blur-md border-b border-[var(--color-border)] -mx-4 px-4 overflow-x-auto no-scrollbar scroll-smooth">
       <div className="flex items-center gap-1.5 py-3 min-w-max">
         {exercises.map((ex, idx) => {
           const isCompleted = ex.sets.length > 0 && ex.sets.every(s => s.completed);

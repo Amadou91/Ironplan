@@ -540,12 +540,9 @@ export default function ActiveSession({
 
               </div>
 
-              <div className="flex gap-3">
-
-                <button onClick={() => setSwappingExIdx(exIdx)} className="text-accent hover:text-accent/80 transition-colors"><RefreshCcw size={14} /></button>
-
-                <button onClick={() => setExerciseToRemove(exIdx)} className="text-subtle hover:text-[var(--color-danger)] transition-colors"><Trash2 size={14} /></button>
-
+              <div className="flex gap-1">
+                <button onClick={() => setSwappingExIdx(exIdx)} className="p-2 -m-1 text-accent hover:text-accent/80 hover:bg-[var(--color-accent-soft)] rounded-lg transition-colors" title="Swap exercise"><RefreshCcw size={16} /></button>
+                <button onClick={() => setExerciseToRemove(exIdx)} className="p-2 -m-1 text-subtle hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors" title="Remove exercise"><Trash2 size={16} /></button>
               </div>
 
             </div>
@@ -684,6 +681,7 @@ export default function ActiveSession({
               <label className="text-sm text-muted mb-2 block">Weight ({preferredUnit})</label>
               <input
                 type="number"
+                inputMode="decimal"
                 value={editWeightValue}
                 onChange={(e) => setEditWeightValue(e.target.value)}
                 className="input-base w-full"

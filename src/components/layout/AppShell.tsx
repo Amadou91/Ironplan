@@ -28,7 +28,7 @@ export default function AppShell({ children }: AppShellProps) {
     <div className="min-h-screen lg:flex">
       <Sidebar />
       <div className="min-h-screen flex-1 min-w-0 bg-transparent">
-        <header className="sticky top-0 z-[var(--z-nav)] flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_8%)] px-4 backdrop-blur lg:hidden">
+        <header className="sticky top-[env(safe-area-inset-top,_0px)] z-[var(--z-nav)] flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_8%)] px-4 backdrop-blur lg:hidden">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]">
               <span className="font-display text-sm font-semibold">IP</span>

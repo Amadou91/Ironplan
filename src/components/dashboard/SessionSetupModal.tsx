@@ -32,7 +32,7 @@ import {
   type ReadinessSurvey,
   type ReadinessLevel
 } from '@/lib/training-metrics'
-import { mapCatalogRowToExercise } from '@/lib/generator/mappers'
+import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import type { Exercise, FocusArea, Goal, PlanInput, SessionGoal } from '@/types/domain'
@@ -129,30 +129,12 @@ export function SessionSetupModal({
   const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurveyDraft>({
     sleep: null, soreness: null, stress: null, motivation: null
   })
-  const [catalog, setCatalog] = useState<Exercise[]>([])
-  const [catalogLoaded, setCatalogLoaded] = useState(false)
+  const { catalog, loading: catalogLoading } = useExerciseCatalog()
   const [startingSession, setStartingSession] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [showConflictModal, setShowConflictModal] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [cancelingSession, setCancelingSession] = useState(false)
-
-  // Load exercise catalog when modal opens
-  useEffect(() => {
-    if (!isOpen) return
-    const loadCatalog = async () => {
-      const { data, error } = await supabase.from('exercise_catalog').select(`
-        id, name, category, focus, movement_pattern, metric_profile,
-        primary_muscle, secondary_muscles, equipment,
-        e1rm_eligible, is_interval, or_group
-      `)
-      if (!error && data) {
-        setCatalog(data.map(mapCatalogRowToExercise))
-      }
-      setCatalogLoaded(true)
-    }
-    loadCatalog()
-  }, [isOpen, supabase])
 
   // Reset state when modal opens
   useEffect(() => {
@@ -665,7 +647,8 @@ export function SessionSetupModal({
             </Label>
             <div className="relative">
               <Input 
-                type="number" 
+                type="number"
+                inputMode="decimal"
                 placeholder="e.g. 185" 
                 value={bodyWeight}
                 onChange={(e) => setBodyWeight(e.target.value)}
@@ -752,7 +735,7 @@ export function SessionSetupModal({
           </Button>
           <Button 
             onClick={() => handleStartSession()}
-            disabled={startingSession || !readinessComplete || !catalogLoaded || focusAreas.length === 0}
+            disabled={startingSession || !readinessComplete || catalogLoading || focusAreas.length === 0}
             className="flex-[2] h-12 rounded-xl font-black uppercase tracking-wider shadow-lg shadow-[var(--color-primary-soft)]"
           >
             {startingSession ? (

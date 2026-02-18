@@ -160,7 +160,7 @@ export function AddExerciseModal({ onClose, onAdd, focus, style, inventory }: Ad
         </div>
 
         {/* List */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+        <div className="flex-1 overflow-y-auto p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,_0px))] space-y-1.5">
           {loading ? (
             <p className="text-sm text-subtle px-1 py-3">Loading exercise catalog…</p>
           ) : filteredLibrary.length === 0 ? (
