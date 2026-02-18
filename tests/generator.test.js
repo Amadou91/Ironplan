@@ -76,7 +76,7 @@ function loadTsModule(modulePath) {
 const generatorPath = join(__dirname, '../src/lib/generator/index.ts')
 const generatorModule = loadTsModule(generatorPath)
 
-const { calculateWorkoutImpact, buildWorkoutTemplate, generateSessionExercises, normalizePlanInput } = generatorModule
+const { calculateWorkoutImpact, buildWorkoutTemplate, generateSessionExercises, generateSessionExercisesForFocusAreas, normalizePlanInput } = generatorModule
 
 const getPrimaryMuscle = (exercise) =>
   (exercise.primaryBodyParts && exercise.primaryBodyParts[0]) || exercise.primaryMuscle || ''
@@ -378,6 +378,39 @@ test('time availability scales exercise count and volume', () => {
   const shortSets = shortSession.reduce((sum, ex) => sum + ex.sets, 0)
   const longSets = longSession.reduce((sum, ex) => sum + ex.sets, 0)
   assert.ok(longSets >= shortSets)
+})
+
+test('multi-focus sessions produce enough volume for 45-minute blocks', () => {
+  const input = normalizePlanInput({
+    intent: { mode: 'body_part', bodyParts: ['chest'] },
+    goals: { primary: 'hypertrophy', priority: 'primary' },
+    equipment: {
+      preset: 'full_gym',
+      inventory: {
+        bodyweight: true,
+        benchPress: true,
+        dumbbells: [10, 20, 30, 40],
+        kettlebells: [],
+        bands: ['medium'],
+        barbell: { available: true, plates: [25, 45] },
+        machines: { cable: true, leg_press: false, treadmill: false, rower: false }
+      }
+    },
+    preferences: { focusAreas: ['chest', 'arms'], dislikedActivities: [], accessibilityConstraints: [], restPreference: 'balanced' }
+  })
+
+  const exercises = generateSessionExercisesForFocusAreas(
+    mockCatalog,
+    input,
+    ['chest', 'arms'],
+    45,
+    input.goals.primary,
+    { seed: 'seed-chest-arms' }
+  )
+
+  assert.ok(exercises.length >= 3)
+  const totalSets = exercises.reduce((sum, exercise) => sum + (exercise.sets ?? 0), 0)
+  assert.ok(totalSets >= 9)
 })
 
 test('filters exercises to available equipment inventory', () => {

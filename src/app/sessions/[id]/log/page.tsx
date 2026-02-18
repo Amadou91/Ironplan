@@ -45,7 +45,7 @@ function SessionLogContent() {
   
   // Duration from the previous page (passed via query param) - now editable
   const queryDuration = searchParams.get('duration')
-  const [durationMinutes, setDurationMinutes] = useState(queryDuration ? parseInt(queryDuration) : 45)
+  const [durationMinutes] = useState(queryDuration ? parseInt(queryDuration) : 45)
   
   // Editable start time (initialized from query param, which comes from the setup page)
   const queryStartTime = searchParams.get('startTime')

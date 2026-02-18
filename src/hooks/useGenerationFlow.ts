@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { buildWorkoutTemplate, normalizePlanInput } from '@/lib/generator'
-import { buildWorkoutDisplayName, buildTemplateDisplayName } from '@/lib/workout-naming'
+import { buildTemplateDisplayName } from '@/lib/workout-naming'
 import { cloneInventory, equipmentPresets } from '@/lib/equipment'
 import { applyPreferencesToPlanInput, normalizePreferences } from '@/lib/preferences'
 import {

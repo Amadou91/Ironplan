@@ -7,7 +7,8 @@ import { useAuthStore } from '@/store/authStore'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { calculateTrainingStatus } from '@/lib/transformers/progress-data'
 import { safeParseArray, sessionRowSchema, templateRowSchema } from '@/lib/validation/schemas'
-import type { FocusArea, PlanInput, MetricProfile } from '@/types/domain'
+import { getPrimaryFocusArea, resolveSessionFocusAreas } from '@/lib/session-focus'
+import type { FocusArea, PlanInput } from '@/types/domain'
 
 export type SessionRow = {
   id: string
@@ -22,6 +23,7 @@ export type SessionRow = {
   minutes_available?: number | null
   body_weight_lb?: number | null
   timezone?: string | null
+  session_focus_areas?: Array<{ focus_area: string | null }>
   session_exercises: Array<{
     id: string
     exercise_name: string
@@ -110,7 +112,7 @@ export function useDashboardData() {
           supabase
             .from('sessions')
             .select(
-              'id, name, template_id, started_at, ended_at, status, minutes_available, timezone, body_weight_lb, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, rest_seconds_actual))'
+              'id, name, template_id, session_focus, started_at, ended_at, status, minutes_available, timezone, body_weight_lb, session_focus_areas(focus_area), session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, order_index, sets(id, set_number, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, rest_seconds_actual))'
             )
             .eq('user_id', user.id)
             .order('started_at', { ascending: false })
@@ -204,7 +206,8 @@ export function useDashboardData() {
 
     const focusStats = new Map<string, { count: number; sets: number }>()
     sessions.forEach((session) => {
-      const focus = session.session_focus ?? (session.template_id ? focusByTemplateId.get(session.template_id) : null)
+      const sessionFocusAreas = resolveSessionFocusAreas(session.session_focus_areas?.map((row) => row.focus_area), (session.session_focus as FocusArea | null) ?? 'full_body')
+      const focus = getPrimaryFocusArea(sessionFocusAreas, session.template_id ? (focusByTemplateId.get(session.template_id) as FocusArea | undefined) ?? 'full_body' : 'full_body')
       if (!focus) return
       const completedAt = session.ended_at ?? session.started_at
       const completedTime = completedAt ? new Date(completedAt).getTime() : 0

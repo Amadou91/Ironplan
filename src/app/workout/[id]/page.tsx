@@ -35,7 +35,7 @@ export default function WorkoutDetailPage() {
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const [template, setTemplate] = useState<WorkoutTemplate | null>(null)
   const [loading, setLoading] = useState(true)
-  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false)
+  const [isSetupModalOpen, setIsSetupModalOpen] = useState(() => searchParams.get('start') === '1')
 
   useEffect(() => {
     const fetchTemplate = async () => {
@@ -59,13 +59,6 @@ export default function WorkoutDetailPage() {
 
     if (params.id) fetchTemplate()
   }, [params.id, supabase])
-
-  useEffect(() => {
-    const shouldOpenSetup = searchParams.get('start') === '1'
-    if (template && user && shouldOpenSetup) {
-      setIsSetupModalOpen(true)
-    }
-  }, [searchParams, template, user])
 
   const equipmentSummary = useMemo(() => {
     const inventory = template?.template_inputs?.equipment?.inventory

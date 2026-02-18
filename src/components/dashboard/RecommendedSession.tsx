@@ -1,23 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { Sparkles, Moon, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { buildTemplateDisplayName } from '@/lib/workout-naming'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
-import type { TemplateRow } from '@/hooks/useDashboardData'
 
 type TrainingLoadStatus = 'balanced' | 'undertraining' | 'overreaching'
 
 interface RecommendedSessionProps {
-  recommendedTemplate: TemplateRow | undefined
   trainingLoadStatus?: TrainingLoadStatus
   loadRatio?: number
 }
 
-export function RecommendedSession({ recommendedTemplate, trainingLoadStatus, loadRatio }: RecommendedSessionProps) {
+export function RecommendedSession({ trainingLoadStatus, loadRatio }: RecommendedSessionProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [dismissedRestSuggestion, setDismissedRestSuggestion] = useState(false)
   
@@ -103,29 +99,20 @@ export function RecommendedSession({ recommendedTemplate, trainingLoadStatus, lo
                 </div>
               </div>
 
-              {recommendedTemplate ? (
             <div className="group relative rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-8 transition-all hover:border-[var(--color-primary-border)] hover:bg-[var(--color-surface)] hover:shadow-md">
               <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
                     <span className="badge-success text-[11px]">Best for Today</span>
                     <p className="text-2xl font-bold text-strong">
-                      {buildTemplateDisplayName({
-                        focus: recommendedTemplate.focus,
-                        fallback: recommendedTemplate.title
-                      })}
+                      Quick Start Session
                     </p>
                   </div>
                   <p className="text-xs text-subtle uppercase font-bold tracking-widest">
-                    {recommendedTemplate.style.replace('_', ' ')} · {recommendedTemplate.focus}
+                    Choose focus areas · Uses your profile equipment defaults
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <Link href={`/workout/${recommendedTemplate.id}`}>
-                    <Button variant="secondary" className="h-11 px-6">
-                      Preview
-                    </Button>
-                  </Link>
                   <Button 
                     onClick={handleStartClick}
                     className="h-11 px-8 shadow-lg shadow-[var(--color-primary-soft)]"
@@ -135,36 +122,18 @@ export function RecommendedSession({ recommendedTemplate, trainingLoadStatus, lo
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="rounded-2xl border-2 border-dashed border-[var(--color-border)] p-10 text-center">
-              <p className="text-sm text-muted">Build your first plan to unlock daily recommendations.</p>
-              <Link href="/generate" className="mt-4 inline-block">
-                <Button variant="outline" size="sm">
-                  Create Plan
-                </Button>
-              </Link>
-            </div>
-          )}
             </>
           )}
         </div>
       </Card>
 
-      {recommendedTemplate && (
-        <SessionSetupModal 
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          templateId={recommendedTemplate.id}
-          templateTitle={buildTemplateDisplayName({
-            focus: recommendedTemplate.focus,
-            fallback: recommendedTemplate.title
-          })}
-          templateFocus={recommendedTemplate.focus}
-          templateStyle={recommendedTemplate.style}
-          templateIntensity={recommendedTemplate.intensity}
-          templateInputs={recommendedTemplate.template_inputs}
-        />
-      )}
+      <SessionSetupModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        templateTitle="Quick Start Session"
+        templateStyle="hypertrophy"
+        initialFocusAreas={['chest']}
+      />
     </>
   )
 }

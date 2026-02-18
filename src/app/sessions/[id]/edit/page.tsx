@@ -170,7 +170,6 @@ function SessionEditContent() {
   const [hasNoCompletedSets, setHasNoCompletedSets] = useState(false)
   
   // Track original session data for duration calculation
-  const [originalEndedAt, setOriginalEndedAt] = useState<string | null>(null)
   const [durationMinutes, setDurationMinutes] = useState(45)
   const [startTimeOverride, setStartTimeOverride] = useState<string | null>(null)
   
@@ -230,7 +229,6 @@ function SessionEditContent() {
         const end = new Date(payload.ended_at).getTime()
         const mins = Math.round((end - start) / 60000)
         setDurationMinutes(mins > 0 ? mins : 45)
-        setOriginalEndedAt(payload.ended_at)
       }
       
       startSession(session)

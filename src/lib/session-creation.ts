@@ -1,5 +1,6 @@
-import { generateSessionExercises, calculateExerciseImpact } from '@/lib/generator'
+import { generateSessionExercisesForFocusAreas, calculateExerciseImpact } from '@/lib/generator'
 import { toMuscleLabel, toMuscleSlug } from '@/lib/muscle-utils'
+import { getPrimaryFocusArea, resolveSessionFocusAreas } from '@/lib/session-focus'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { FocusArea, Goal, SessionGoal, MovementPattern, PlanInput, SessionExercise, WorkoutImpact, MetricProfile, Exercise } from '@/types/domain'
@@ -17,9 +18,9 @@ type SessionExerciseSeed = {
 type CreateSessionParams = {
   supabase: SupabaseClient
   userId: string
-  templateId: string
+  templateId?: string | null
   templateTitle: string
-  focus: FocusArea
+  focusAreas: FocusArea[]
   goal: Goal
   sessionGoal?: SessionGoal
   input: PlanInput
@@ -61,7 +62,7 @@ export const createWorkoutSession = async ({
   userId,
   templateId,
   templateTitle,
-  focus,
+  focusAreas,
   goal,
   sessionGoal,
   input,
@@ -76,9 +77,12 @@ export const createWorkoutSession = async ({
   if (!readiness) {
     throw new Error('Readiness data is required to create a session.')
   }
+  const normalizedFocusAreas = resolveSessionFocusAreas(focusAreas)
+  const primaryFocus = getPrimaryFocusArea(normalizedFocusAreas)
   const startedAt = new Date().toISOString()
   const sessionName = buildWorkoutDisplayName({
-    focus,
+    focus: primaryFocus,
+    focusAreas: normalizedFocusAreas,
     style: goal,
     intensity: input.intensity,
     minutes: minutesAvailable,
@@ -100,8 +104,8 @@ export const createWorkoutSession = async ({
     .from('sessions')
     .insert({
       user_id: userId,
-      template_id: templateId,
-      session_focus: focus,
+      template_id: templateId ?? null,
+      session_focus: primaryFocus,
       session_goal: sessionGoal ?? goal,
       session_intensity: input.intensity,
       name: sessionName,
@@ -119,6 +123,18 @@ export const createWorkoutSession = async ({
     throw sessionError ?? new Error('Failed to create session.')
   }
 
+  const { error: focusAreaError } = await supabase.from('session_focus_areas').insert(
+    normalizedFocusAreas.map((focusArea) => ({
+      session_id: sessionData.id,
+      focus_area: focusArea
+    }))
+  )
+
+  if (focusAreaError) {
+    await supabase.from('sessions').delete().eq('id', sessionData.id)
+    throw focusAreaError
+  }
+
   try {
     const { error: readinessError } = await supabase.from('session_readiness').insert({
       session_id: sessionData.id,
@@ -133,9 +149,10 @@ export const createWorkoutSession = async ({
     })
     if (readinessError) throw readinessError
 
-    const exercises = focus === 'cardio' 
+    const cardioOnlyFocus = normalizedFocusAreas.every((focusArea) => focusArea === 'cardio')
+    const exercises = cardioOnlyFocus
       ? [] 
-      : generateSessionExercises(catalog, input, focus, minutesAvailable, goal, {
+      : generateSessionExercisesForFocusAreas(catalog, input, normalizedFocusAreas, minutesAvailable, goal, {
           seed: sessionData.id,
           history
         })

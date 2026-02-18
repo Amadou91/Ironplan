@@ -85,6 +85,7 @@ export interface WorkoutSession {
   templateId?: string
   name: string
   sessionFocus?: FocusArea | null
+  sessionFocusAreas?: FocusArea[] | null
   sessionGoal?: SessionGoal | null
   sessionIntensity?: Intensity | null
   startedAt: string

@@ -2,16 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Ruler, Bell, Settings2 } from 'lucide-react'
+import { Ruler, Dumbbell } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { ThemeToggle } from '@/components/layout/ThemeToggle'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { EquipmentSelector } from '@/components/generate/EquipmentSelector'
+import { cloneInventory, equipmentPresets } from '@/lib/equipment'
 import { defaultPreferences, normalizePreferences, type SettingsPreferences } from '@/lib/preferences'
 import { seedDevData, clearDevData } from '@/lib/dev-seed'
 import { useUIStore } from '@/store/uiStore'
+import type { PlanInput } from '@/types/domain'
 
 interface AppSettingsProps {
   devToolsEnabled: boolean
@@ -33,7 +35,12 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
   const [settings, setSettings] = useState<SettingsPreferences>(() => ({
     ...defaultPreferences.settings!
   }))
+  const [equipment, setEquipment] = useState<PlanInput['equipment']>(() => ({
+    preset: 'custom',
+    inventory: cloneInventory(equipmentPresets.custom)
+  }))
   const [loadingPrefs, setLoadingPrefs] = useState(true)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [saveSettingsState, setSaveSettingsState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
   const [devActionState, setDevActionState] = useState<'idle' | 'seeding' | 'clearing'>('idle')
@@ -56,13 +63,21 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
         if (normalized.settings) {
           setSettings(normalized.settings)
         }
+        if (normalized.equipment?.inventory) {
+          setEquipment({
+            preset: 'custom',
+            inventory: cloneInventory(normalized.equipment.inventory)
+          })
+        }
       }
+      setHasUnsavedChanges(false)
+      setSaveSettingsState('idle')
       setLoadingPrefs(false)
     }
     loadSettings()
   }, [user, supabase])
 
-  const persistSettings = async (next: SettingsPreferences) => {
+  const persistPreferences = async (nextSettings: SettingsPreferences, nextEquipment: PlanInput['equipment']) => {
     if (!user) return
     setSaveSettingsState('saving')
     try {
@@ -77,7 +92,10 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
       const normalized = normalizePreferences(data?.preferences)
       const updated = {
         ...normalized,
-        settings: next
+        settings: nextSettings,
+        equipment: {
+          inventory: nextEquipment.inventory
+        }
       }
       
       const { error: saveError } = await supabase
@@ -86,6 +104,8 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
       
       if (saveError) throw saveError
       setSaveSettingsState('saved')
+      setHasUnsavedChanges(false)
+      onSuccess?.('Preferences saved.')
       setTimeout(() => setSaveSettingsState('idle'), 2000)
     } catch (err) {
       console.error('Failed to save settings', err)
@@ -100,12 +120,44 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
       if (next.units !== prev.units) {
         setDisplayUnit(next.units)
       }
-      if (!loadingPrefs) {
-        void persistSettings(next)
+      if (!loadingPrefs && JSON.stringify(next) !== JSON.stringify(prev)) {
+        setHasUnsavedChanges(true)
+        if (saveSettingsState !== 'saving') {
+          setSaveSettingsState('idle')
+        }
       }
       return next
     })
   }
+
+  const updateEquipment = (updater: (prev: PlanInput['equipment']) => PlanInput['equipment']) => {
+    setEquipment((prev) => {
+      const next = updater(prev)
+      if (!loadingPrefs && JSON.stringify(next.inventory) !== JSON.stringify(prev.inventory)) {
+        setHasUnsavedChanges(true)
+        if (saveSettingsState !== 'saving') {
+          setSaveSettingsState('idle')
+        }
+      }
+      return next
+    })
+  }
+
+  const handleSavePreferences = async () => {
+    if (!user || !hasUnsavedChanges) return
+    await persistPreferences(settings, equipment)
+  }
+
+  const machineCount = Object.values(equipment.inventory.machines).filter(Boolean).length
+  const equipmentSummary = [
+    equipment.inventory.bodyweight ? 'Bodyweight' : null,
+    equipment.inventory.benchPress ? 'Bench press' : null,
+    equipment.inventory.dumbbells.length ? `Dumbbells (${equipment.inventory.dumbbells.length})` : null,
+    equipment.inventory.kettlebells.length ? `Kettlebells (${equipment.inventory.kettlebells.length})` : null,
+    equipment.inventory.bands.length ? `Bands (${equipment.inventory.bands.length})` : null,
+    equipment.inventory.barbell.available ? `Barbell${equipment.inventory.barbell.plates.length ? ` + plates (${equipment.inventory.barbell.plates.length})` : ''}` : null,
+    machineCount ? `Machines (${machineCount})` : null
+  ].filter(Boolean)
 
   const executeSeedData = async () => {
     if (!user || devActionState !== 'idle') return
@@ -154,20 +206,7 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Settings2 className="h-5 w-5 text-accent" />
-            <div>
-              <h2 className="text-sm font-semibold text-strong">Appearance</h2>
-              <p className="text-xs text-subtle">Customize how Ironplan looks on your device.</p>
-            </div>
-          </div>
-          <ThemeToggle />
-        </div>
-      </Card>
-
+    <div className="grid grid-cols-1 gap-6">
       <Card className="p-6">
         <div className="flex items-center gap-3">
           <Ruler className="h-5 w-5 text-accent" />
@@ -194,20 +233,6 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
             Kilograms (kg)
           </Button>
         </div>
-        {saveSettingsState === 'saved' && (
-          <p className="mt-2 text-[10px] text-accent font-medium">Preferences saved</p>
-        )}
-      </Card>
-
-      <Card className="p-6 opacity-60">
-        <div className="flex items-center gap-3">
-          <Bell className="h-5 w-5 text-accent" />
-          <div>
-            <h2 className="text-sm font-semibold text-strong">Notifications</h2>
-            <p className="text-xs text-subtle">Manage how you receive alerts and reminders.</p>
-          </div>
-        </div>
-        <p className="mt-4 text-[10px] uppercase tracking-wider text-subtle font-bold">Coming soon</p>
       </Card>
 
       {devToolsEnabled && isDevMode && (
@@ -253,6 +278,53 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
           </div>
         </Card>
       )}
+
+      <Card className="p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Dumbbell className="h-5 w-5 text-accent" />
+              <h2 className="text-base font-semibold text-strong">Workout equipment defaults</h2>
+            </div>
+            <p className="text-xs text-subtle">
+              This is used automatically when starting a session.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleSavePreferences}
+            disabled={!hasUnsavedChanges || saveSettingsState === 'saving'}
+          >
+            {saveSettingsState === 'saving' ? 'Saving...' : 'Save preferences'}
+          </Button>
+        </div>
+
+        <div className="mt-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Current selection summary</p>
+          <p className="mt-1 text-sm text-muted">
+            {equipmentSummary.length > 0 ? equipmentSummary.join(' · ') : 'No equipment selected yet.'}
+          </p>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
+          <EquipmentSelector
+            equipment={equipment}
+            isCardioStyle={false}
+            isMobilityStyle={false}
+            onUpdateEquipment={updateEquipment}
+          />
+        </div>
+
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-[var(--color-border)] pt-4">
+          <p className="text-xs text-subtle">
+            {hasUnsavedChanges ? 'You have unsaved preference changes.' : 'All preference changes are saved.'}
+          </p>
+          {saveSettingsState === 'saved' && (
+            <p className="text-[10px] text-accent font-medium">Preferences saved</p>
+          )}
+        </div>
+      </Card>
 
       <ConfirmDialog 
         isOpen={Boolean(confirmDevAction)}

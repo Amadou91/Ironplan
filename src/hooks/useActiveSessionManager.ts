@@ -12,6 +12,7 @@ import { enhanceExerciseData, toMuscleLabel } from '@/lib/muscle-utils';
 import { fetchExerciseHistory, type ExerciseHistoryPoint } from '@/lib/session-history';
 import { sessionQueryResultSchema, safeParseSingle } from '@/lib/validation/schemas';
 import { adaptPrescription } from '@/lib/generator/adaptation';
+import { getPrimaryFocusArea, resolveSessionFocusAreas } from '@/lib/session-focus';
 import type { 
   WeightUnit, 
   WorkoutSession, 
@@ -36,8 +37,10 @@ type SessionPayload = {
   started_at: string;
   ended_at: string | null;
   status: string | null;
+  timezone?: string | null;
   body_weight_lb?: number | null;
   session_notes?: string | null;
+  session_focus_areas?: Array<{ focus_area: string | null }>;
   session_exercises: Array<{
     id: string;
     exercise_name: string;
@@ -187,12 +190,17 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
       userId: payload.user_id ?? '',
       templateId: payload.template_id ?? undefined,
       name: payload.name,
-      sessionFocus: (payload.session_focus as WorkoutSession['sessionFocus']) ?? null,
+      sessionFocus: getPrimaryFocusArea(payload.session_focus_areas?.map((row) => row.focus_area), (payload.session_focus as WorkoutSession['sessionFocus']) ?? 'full_body'),
+      sessionFocusAreas: resolveSessionFocusAreas(
+        payload.session_focus_areas?.map((row) => row.focus_area),
+        (payload.session_focus as WorkoutSession['sessionFocus']) ?? 'full_body'
+      ),
       sessionGoal: (payload.session_goal as WorkoutSession['sessionGoal']) ?? null,
       sessionIntensity: (payload.session_intensity as WorkoutSession['sessionIntensity']) ?? null,
       startedAt: payload.started_at,
       endedAt: payload.ended_at ?? undefined,
       status: (payload.status as WorkoutSession['status']) ?? 'in_progress',
+      timezone: payload.timezone ?? null,
       sessionNotes: payload.session_notes ?? undefined,
       bodyWeightLb: payload.body_weight_lb ?? null,
       exercises: (() => {
@@ -268,8 +276,9 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
       const { data, error } = await supabase
         .from('sessions')
         .select(`
-          id, user_id, name, template_id, session_focus, session_goal, session_intensity, started_at, ended_at, status, 
-          body_weight_lb, session_notes, 
+          id, user_id, name, template_id, session_focus, session_goal, session_intensity, started_at, ended_at, status,
+          timezone, body_weight_lb, session_notes,
+          session_focus_areas(focus_area),
           session_exercises(
             id, exercise_name, primary_muscle, secondary_muscles, 
             metric_profile, order_index, 

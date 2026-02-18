@@ -86,6 +86,11 @@ export const getIntensityRestModifier = (intensity: Intensity) => {
  * with a buffer for warmup and transitions between exercises.
  */
 export const getExerciseCaps = (minutes: number): { min: number; max: number } => {
+  const buildCaps = (min: number, max: number) => ({
+    min,
+    max: Math.max(min, max)
+  })
+
   // Reserve time for warmup and cooldown (scales with session length)
   const warmupCooldown = Math.min(5, Math.max(2, minutes * 0.08))
   const effectiveMinutes = minutes - warmupCooldown
@@ -98,13 +103,13 @@ export const getExerciseCaps = (minutes: number): { min: number; max: number } =
   const rawMax = Math.floor(effectiveMinutes / avgMinutesPerExercise)
   
   // Apply bounds based on session length
-  if (minutes <= 25) return { min: 2, max: Math.min(rawMax, 3) }
-  if (minutes <= 35) return { min: 2, max: Math.min(rawMax, 4) }
-  if (minutes <= 50) return { min: 3, max: Math.min(rawMax, 4) }
-  if (minutes <= 65) return { min: 3, max: Math.min(rawMax, 5) }
-  if (minutes <= 80) return { min: 4, max: Math.min(rawMax, 6) }
-  if (minutes <= 100) return { min: 4, max: Math.min(rawMax, 7) }
-  return { min: 5, max: Math.min(rawMax, 8) }
+  if (minutes <= 25) return buildCaps(2, Math.min(rawMax, 3))
+  if (minutes <= 35) return buildCaps(2, Math.min(rawMax, 4))
+  if (minutes <= 50) return buildCaps(3, Math.min(rawMax, 4))
+  if (minutes <= 65) return buildCaps(3, Math.min(rawMax, 5))
+  if (minutes <= 80) return buildCaps(4, Math.min(rawMax, 6))
+  if (minutes <= 100) return buildCaps(4, Math.min(rawMax, 7))
+  return buildCaps(5, Math.min(rawMax, 8))
 }
 
 /**

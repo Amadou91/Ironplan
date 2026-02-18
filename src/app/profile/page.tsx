@@ -94,7 +94,9 @@ export default function ProfilePage() {
         {!error && success ? <Alert variant="success">{success}</Alert> : null}
 
         <section className="space-y-6">
-          <PhysicalStatsForm 
+          <h2 className="text-xl font-semibold text-strong">Training defaults</h2>
+          <AppSettings 
+            devToolsEnabled={devToolsEnabled} 
             onSuccess={handleSuccess} 
             onError={handleError} 
           />
@@ -103,9 +105,8 @@ export default function ProfilePage() {
         <hr className="border-[var(--color-border)]" />
 
         <section className="space-y-6">
-          <h2 className="text-xl font-semibold text-strong">App Settings</h2>
-          <AppSettings 
-            devToolsEnabled={devToolsEnabled} 
+          <h2 className="text-xl font-semibold text-strong">Body metrics & history</h2>
+          <PhysicalStatsForm 
             onSuccess={handleSuccess} 
             onError={handleError} 
           />

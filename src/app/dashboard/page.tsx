@@ -14,8 +14,7 @@ import { Alert } from '@/components/ui/Alert'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
-import { RecommendedSession } from '@/components/dashboard/RecommendedSession'
-import { TemplateInventory } from '@/components/dashboard/TemplateInventory'
+import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
 import { useDashboardData } from '@/hooks/useDashboardData'
 
@@ -27,17 +26,14 @@ export default function DashboardPage() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancelingSession, setCancelingSession] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
+  const [quickStartOpen, setQuickStartOpen] = useState(false)
   const {
     user,
     userLoading,
     sessions,
-    templates,
     loading,
     error,
-    deletingWorkoutIds,
-    trainingLoadSummary,
-    recommendedTemplateId,
-    handleDeleteTemplate
+    trainingLoadSummary
   } = useDashboardData()
 
   const latestActiveSession = useMemo(() => {
@@ -86,8 +82,6 @@ export default function DashboardPage() {
 
   const greetingName = user?.email?.split('@')[0] || 'there'
   const recentSessions = sessions.slice(0, 3)
-  const recommendedTemplate = templates.find((template) => template.id === recommendedTemplateId) ?? templates[0]
-
   if (userLoading || loading) {
     return (
       <div className="page-shell">
@@ -120,11 +114,9 @@ export default function DashboardPage() {
           title={`Welcome back, ${greetingName}`}
           description="Ready to train? We have a smart session queued up for your recovery profile."
           actions={
-            <Link href="/generate">
-              <Button size="md" className="shadow-lg shadow-[var(--color-primary-soft)]">
-                <Sparkles className="h-5 w-5 mr-2" /> Create new plan
-              </Button>
-            </Link>
+            <Button size="md" className="shadow-lg shadow-[var(--color-primary-soft)]" onClick={() => setQuickStartOpen(true)}>
+              <Sparkles className="h-5 w-5 mr-2" /> Quick start session
+            </Button>
           }
         />
 
@@ -179,17 +171,16 @@ export default function DashboardPage() {
             isInitialPhase={trainingLoadSummary.isInitialPhase}
           />
 
-          <RecommendedSession recommendedTemplate={recommendedTemplate} trainingLoadStatus={trainingLoadSummary.status} loadRatio={trainingLoadSummary.loadRatio} />
-
-          <TemplateInventory
-            templates={templates}
-            recommendedTemplateId={recommendedTemplateId}
-            onDeleteTemplate={handleDeleteTemplate}
-            deletingWorkoutIds={deletingWorkoutIds}
-          />
-
           <RecentActivity recentSessions={recentSessions} />
         </div>
+
+        <SessionSetupModal
+          isOpen={quickStartOpen}
+          onClose={() => setQuickStartOpen(false)}
+          templateTitle="Quick Start Session"
+          templateStyle="hypertrophy"
+          initialFocusAreas={['chest']}
+        />
       </div>
     </div>
   )

@@ -3,7 +3,7 @@
 import React, { useMemo, useState, memo } from 'react'
 import type { WorkoutSet, MetricProfile, WeightUnit, LoadType } from '@/types/domain'
 import { Trash2, Check } from 'lucide-react'
-import { RIR_OPTIONS, RPE_OPTIONS } from '@/constants/intensityOptions'
+import { RPE_OPTIONS } from '@/constants/intensityOptions'
 import type { WeightOption } from '@/lib/equipment'
 import { mapRirToRpe, formatTotalWeightLabel } from '@/lib/session-metrics'
 import { useSetEditor } from '@/hooks/useSetEditor'
@@ -21,7 +21,6 @@ interface SetLoggerProps {
   isMobility?: boolean
   isTimeBased?: boolean
   repsLabel?: string
-  isDumbbell?: boolean
 }
 
 // Compact summary shown when set is completed
@@ -44,18 +43,6 @@ const CompletedSetSummary = memo(function CompletedSetSummary({
   getExtra: (key: string) => unknown
   durationMinutes: string | number
 }) {
-  const totalWeightLabel = useMemo(() => {
-    if (typeof set.weight !== 'number' || !Number.isFinite(set.weight)) return null
-    const hasImplementCount = typeof set.implementCount === 'number' && (set.implementCount === 1 || set.implementCount === 2)
-    return formatTotalWeightLabel({
-      weight: set.weight,
-      weightUnit: unitLabel,
-      displayUnit: unitLabel,
-      loadType: effectiveLoadType ?? 'total',
-      implementCount: hasImplementCount ? set.implementCount as number : null
-    })
-  }, [set.weight, unitLabel, effectiveLoadType, set.implementCount])
-
   const derivedRpe = typeof set.rir === 'number' ? mapRirToRpe(set.rir) : set.rpe
 
   // Calculate simple weight display (just the number)
@@ -176,8 +163,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
   isCardio = false,
   isMobility = false,
   isTimeBased = false,
-  repsLabel = 'Reps',
-  isDumbbell = false
+  repsLabel = 'Reps'
 }) => {
   const [implementError, setImplementError] = useState(false)
 

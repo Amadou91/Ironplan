@@ -69,6 +69,11 @@ export const sessionExerciseRowSchema = z.object({
 })
 export type SessionExerciseRowValidated = z.infer<typeof sessionExerciseRowSchema>
 
+export const sessionFocusAreaRowSchema = z.object({
+  focus_area: z.string()
+})
+export type SessionFocusAreaRowValidated = z.infer<typeof sessionFocusAreaRowSchema>
+
 // Session row schema (for dashboard/progress queries)
 export const sessionRowSchema = z.object({
   id: uuidSchema,
@@ -83,6 +88,7 @@ export const sessionRowSchema = z.object({
   minutes_available: nullableNumber.optional(),
   timezone: nullableString.optional(),
   body_weight_lb: nullableNumber.optional(),
+  session_focus_areas: z.array(sessionFocusAreaRowSchema).default([]),
   session_exercises: z.array(sessionExerciseRowSchema).default([])
 })
 export type SessionRowValidated = z.infer<typeof sessionRowSchema>
@@ -196,6 +202,7 @@ export const sessionQueryResultSchema = z.object({
   timezone: nullableString,
   body_weight_lb: nullableNumber,
   session_notes: nullableString.optional(),
+  session_focus_areas: z.array(sessionFocusAreaRowSchema).default([]),
   session_readiness: z.array(z.object({
     sleep_quality: z.number(),
     muscle_soreness: z.number(),

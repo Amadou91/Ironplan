@@ -3,6 +3,7 @@ import { formatFocusLabel, formatGoalLabel } from '@/lib/workout-metrics'
 
 type WorkoutNamingInput = {
   focus?: FocusArea | null
+  focusAreas?: FocusArea[] | null
   style?: string | null
   intensity?: PlanInput['intensity'] | null
   minutes?: number | null
@@ -20,6 +21,15 @@ const formatMinutes = (minutes?: number | null) => {
   if (!Number.isFinite(minutes ?? null)) return ''
   const rounded = Math.max(1, Math.round(minutes as number))
   return `${rounded} min`
+}
+
+const formatFocusAreas = (focus?: FocusArea | null, focusAreas?: FocusArea[] | null) => {
+  const source = focusAreas?.length ? focusAreas : focus ? [focus] : []
+  if (!source.length) return ''
+
+  const labels = Array.from(new Set(source.map((item) => formatFocusLabel(item))))
+  if (labels.length <= 1) return labels[0] ?? ''
+  return labels.join(' + ')
 }
 
 /**
@@ -54,6 +64,7 @@ export const buildTemplateDisplayName = ({
  */
 export const buildWorkoutDisplayName = ({
   focus,
+  focusAreas,
   style,
   minutes,
   fallback,
@@ -73,7 +84,7 @@ export const buildWorkoutDisplayName = ({
      }
   } else {
     // Standard format: "[Focus] · [Style]"
-    const focusLabel = focus ? formatFocusLabel(focus) : null
+    const focusLabel = formatFocusAreas(focus, focusAreas) || null
     
     if (focusLabel) parts.push(focusLabel)
     

@@ -202,24 +202,26 @@ export function EquipmentSelector({
               </div>
               <div className="space-y-3">
                 <p className="text-sm font-semibold text-strong">Barbell + plates</p>
-                <Checkbox
-                  label="Barbell available"
-                  checked={inventory.barbell.available}
-                  onCheckedChange={() =>
-                    onUpdateEquipment(prev => ({
-                      ...prev,
-                      preset: 'custom',
-                      inventory: {
-                        ...prev.inventory,
-                        barbell: {
-                          ...prev.inventory.barbell,
-                          available: !prev.inventory.barbell.available
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Checkbox
+                    label="Barbell available"
+                    checked={inventory.barbell.available}
+                    onCheckedChange={() =>
+                      onUpdateEquipment(prev => ({
+                        ...prev,
+                        preset: 'custom',
+                        inventory: {
+                          ...prev.inventory,
+                          barbell: {
+                            ...prev.inventory.barbell,
+                            available: !prev.inventory.barbell.available
+                          }
                         }
-                      }
-                    }))
-                  }
-                />
-                <div className="flex flex-wrap gap-2">
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {BARBELL_PLATE_OPTIONS.map((plate) => (
                     <Checkbox
                       key={`barbell-${plate}`}
@@ -230,20 +232,7 @@ export function EquipmentSelector({
                     />
                   ))}
                 </div>
-                <Checkbox
-                  label="Bench Press available"
-                  checked={inventory.benchPress}
-                  onCheckedChange={() =>
-                    onUpdateEquipment(prev => ({
-                      ...prev,
-                      preset: 'custom',
-                      inventory: {
-                        ...prev.inventory,
-                        benchPress: !prev.inventory.benchPress
-                      }
-                    }))
-                  }
-                />
+                <p className="text-[11px] text-subtle">Plate options are enabled when barbell is available.</p>
               </div>
             </div>
           </div>
@@ -253,6 +242,20 @@ export function EquipmentSelector({
               <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-strong">Machines</h3>
             </div>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              <Checkbox
+                label="Bench Press available"
+                checked={inventory.benchPress}
+                onCheckedChange={() =>
+                  onUpdateEquipment(prev => ({
+                    ...prev,
+                    preset: 'custom',
+                    inventory: {
+                      ...prev.inventory,
+                      benchPress: !prev.inventory.benchPress
+                    }
+                  }))
+                }
+              />
               {strengthMachineOptions.map(machine => (
                 <Checkbox
                   key={machine}

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { Checkbox } from '@/components/ui/Checkbox'
 import { EquipmentSelector } from '@/components/generate/EquipmentSelector'
 import { ReadinessCheck } from '@/components/workout/start/ReadinessCheck'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
@@ -21,6 +22,12 @@ import {
   getReadinessLevel,
   type ReadinessSurvey
 } from '@/lib/training-metrics'
+import {
+  getPrimaryFocusArea,
+  resolveSessionFocusAreas,
+  toggleSessionFocusSelection,
+  SESSION_FOCUS_SELECTION_OPTIONS
+} from '@/lib/session-focus'
 import type { FocusArea, Goal, PlanInput, SessionGoal } from '@/types/domain'
 
 type ReadinessSurveyDraft = {
@@ -31,16 +38,7 @@ type ReadinessSurveyDraft = {
  * Canonical focus options for user-selectable focus areas.
  * Must match MuscleGroupSelector for consistency.
  */
-const FOCUS_OPTIONS: { value: FocusArea; label: string }[] = [
-  { value: 'chest', label: 'Chest' },
-  { value: 'back', label: 'Back' },
-  { value: 'shoulders', label: 'Shoulders' },
-  { value: 'arms', label: 'Arms' },
-  { value: 'legs', label: 'Legs' },
-  { value: 'core', label: 'Core' },
-  { value: 'cardio', label: 'Cardio' },
-  { value: 'mobility', label: 'Yoga / Mobility' }
-]
+const FOCUS_OPTIONS: { value: FocusArea; label: string }[] = SESSION_FOCUS_SELECTION_OPTIONS
 
 /**
  * Training goal options for strength-based focus areas.
@@ -56,17 +54,19 @@ const STRENGTH_GOAL_OPTIONS: { value: Goal; label: string }[] = [
  * Returns the appropriate goal for a focus area.
  * For cardio/mobility, returns the fixed goal. For others, returns the user's selection.
  */
-const getGoalForFocus = (focus: FocusArea, userGoal: Goal): Goal => {
-  if (focus === 'mobility') return 'range_of_motion'
-  if (focus === 'cardio') return 'cardio'
+const getGoalForFocus = (focusAreas: FocusArea[], userGoal: Goal): Goal => {
+  const normalized = resolveSessionFocusAreas(focusAreas, 'chest')
+  if (normalized.every((focus) => focus === 'mobility')) return 'range_of_motion'
+  if (normalized.every((focus) => focus === 'cardio')) return 'cardio'
   return userGoal
 }
 
 /**
  * Checks if the focus area allows user to select a goal.
  */
-const focusAllowsGoalSelection = (focus: FocusArea): boolean => {
-  return focus !== 'mobility' && focus !== 'cardio'
+const focusAllowsGoalSelection = (focusAreas: FocusArea[]): boolean => {
+  const normalized = resolveSessionFocusAreas(focusAreas, 'chest')
+  return !normalized.every((focus) => focus === 'mobility' || focus === 'cardio')
 }
 
 function formatDateForInput(date: Date): string {
@@ -86,7 +86,7 @@ export default function LogPastWorkoutPage() {
   const [workoutDate, setWorkoutDate] = useState(formatDateForInput(new Date()))
   const [startTime, setStartTime] = useState('09:00')
   const [durationMinutes, setDurationMinutes] = useState('45')
-  const [focus, setFocus] = useState<FocusArea>('chest')
+  const [focusAreas, setFocusAreas] = useState<FocusArea[]>(['chest'])
   const [userGoal, setUserGoal] = useState<Goal>('hypertrophy')
   const [bodyWeight, setBodyWeight] = useState('')
   const [equipment, setEquipment] = useState<PlanInput['equipment']>(() => ({
@@ -95,8 +95,9 @@ export default function LogPastWorkoutPage() {
   }))
   
   // Computed goal based on focus - cardio/mobility have fixed goals
-  const effectiveGoal = useMemo(() => getGoalForFocus(focus, userGoal), [focus, userGoal])
-  const showGoalSelector = focusAllowsGoalSelection(focus)
+  const primaryFocus = useMemo(() => getPrimaryFocusArea(focusAreas, 'chest'), [focusAreas])
+  const effectiveGoal = useMemo(() => getGoalForFocus(focusAreas, userGoal), [focusAreas, userGoal])
+  const showGoalSelector = focusAllowsGoalSelection(focusAreas)
   
   // Readiness state
   const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurveyDraft>({
@@ -126,12 +127,13 @@ export default function LogPastWorkoutPage() {
   
   const sessionName = useMemo(() => {
     return buildWorkoutDisplayName({
-      focus,
+      focus: primaryFocus,
+      focusAreas,
       style: effectiveGoal,
       minutes: parseInt(durationMinutes) || null,
       fallback: 'Past Workout'
     })
-  }, [focus, effectiveGoal, durationMinutes])
+  }, [primaryFocus, focusAreas, effectiveGoal, durationMinutes])
   
   const handleReadinessChange = useCallback((field: keyof ReadinessSurvey, value: number) => {
     setReadinessSurvey(prev => ({ ...prev, [field]: value }))
@@ -139,6 +141,8 @@ export default function LogPastWorkoutPage() {
   
   const handleCreateSession = async () => {
     if (!user) return
+    const normalizedFocusAreas = resolveSessionFocusAreas(focusAreas, 'chest')
+    const sessionPrimaryFocus = getPrimaryFocusArea(normalizedFocusAreas, 'chest')
     if (!readinessComplete) {
       setError('Please complete the readiness survey.')
       return
@@ -177,7 +181,8 @@ export default function LogPastWorkoutPage() {
         readinessSurvey: readinessSurvey as ReadinessSurvey,
         source: 'log_past',
         goal: sessionGoal,
-        focus,
+        focus: sessionPrimaryFocus,
+        focusAreas: normalizedFocusAreas,
         equipmentInventory: equipment.inventory
       })
       
@@ -187,7 +192,7 @@ export default function LogPastWorkoutPage() {
         .insert({
           user_id: user.id,
           name: sessionName,
-          session_focus: focus,
+          session_focus: sessionPrimaryFocus,
           session_goal: sessionGoal,
           session_intensity: sessionIntensity,
           status: 'in_progress',
@@ -203,6 +208,17 @@ export default function LogPastWorkoutPage() {
       
       if (insertError || !sessionData) {
         throw insertError ?? new Error('Failed to create session.')
+      }
+
+      const { error: focusError } = await supabase.from('session_focus_areas').insert(
+        normalizedFocusAreas.map((focusArea) => ({
+          session_id: sessionData.id,
+          focus_area: focusArea
+        }))
+      )
+
+      if (focusError) {
+        throw focusError
       }
       
       // Insert readiness data
@@ -228,7 +244,8 @@ export default function LogPastWorkoutPage() {
         id: sessionData.id,
         userId: user.id,
         name: sessionName,
-        sessionFocus: focus,
+        sessionFocus: sessionPrimaryFocus,
+        sessionFocusAreas: normalizedFocusAreas,
         sessionGoal,
         sessionIntensity,
         startedAt: startedAt.toISOString(),
@@ -359,17 +376,26 @@ export default function LogPastWorkoutPage() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="focus">Focus Area</Label>
-                  <select
-                    id="focus"
-                    value={focus}
-                    onChange={(e) => setFocus(e.target.value as FocusArea)}
-                    className="input-base mt-2"
-                  >
-                    {FOCUS_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <Label htmlFor="focus">Focus Areas</Label>
+                  <div id="focus" className="mt-2 grid grid-cols-2 gap-2">
+                    {FOCUS_OPTIONS.map((option) => (
+                      <Checkbox
+                        key={option.value}
+                        label={option.label}
+                        checked={focusAreas.includes(option.value)}
+                        onCheckedChange={() => {
+                          setFocusAreas((previous) => {
+                            const next = toggleSessionFocusSelection(previous, option.value)
+                            if (!next.length) return previous
+                            return next
+                          })
+                        }}
+                      />
                     ))}
-                  </select>
+                  </div>
+                  <p className="mt-2 text-[11px] text-subtle">
+                    Cardio and Yoga / Mobility are exclusive modes. Select one of those, or combine strength focus areas.
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="goal">Training Goal</Label>
@@ -388,7 +414,7 @@ export default function LogPastWorkoutPage() {
                     <Input
                       id="goal"
                       type="text"
-                      value={focus === 'cardio' ? 'Cardio / Endurance' : 'Yoga / Mobility'}
+                      value={effectiveGoal === 'cardio' ? 'Cardio / Endurance' : 'Yoga / Mobility'}
                       readOnly
                       aria-readonly="true"
                       className="mt-2 bg-[var(--color-surface-muted)] cursor-not-allowed"
@@ -420,8 +446,8 @@ export default function LogPastWorkoutPage() {
               </p>
               <EquipmentSelector
                 equipment={equipment}
-                isCardioStyle={focus === 'cardio'}
-                isMobilityStyle={focus === 'mobility'}
+                isCardioStyle={focusAreas.every((focus) => focus === 'cardio')}
+                isMobilityStyle={focusAreas.every((focus) => focus === 'mobility')}
                 onUpdateEquipment={(updater) => setEquipment((prev) => updater(prev))}
               />
             </Card>

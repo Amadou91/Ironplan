@@ -22,7 +22,7 @@ const { outputText: creationOutput } = ts.transpileModule(creationSource, {
 
 // Mock dependencies
 const mockGenerator = {
-  generateSessionExercises: () => [],
+  generateSessionExercisesForFocusAreas: () => [],
   calculateExerciseImpact: () => ({ score: 0 })
 }
 
@@ -34,6 +34,12 @@ const creationFactory = new Function('module', 'exports', 'require', creationOut
 const customRequire = (name) => {
   if (name.includes('generator')) return mockGenerator
   if (name.includes('muscle-utils')) return { toMuscleLabel: (s) => s, toMuscleSlug: (s) => s }
+  if (name.includes('session-focus')) {
+    return {
+      resolveSessionFocusAreas: (areas) => areas ?? ['full_body'],
+      getPrimaryFocusArea: (areas) => areas?.[0] ?? 'full_body'
+    }
+  }
   if (name.includes('workout-naming')) return { buildWorkoutDisplayName: () => 'Test Session' }
   return requireShim(name)
 }
@@ -70,7 +76,7 @@ test('createWorkoutSession includes bodyWeightLb in database insert', async () =
     userId: 'user-123',
     templateId: 'temp-123',
     templateTitle: 'Upper Body',
-    focus: 'upper',
+    focusAreas: ['upper'],
     goal: 'strength',
     input: { intensity: 'moderate' },
     minutesAvailable: 45,
@@ -123,7 +129,7 @@ test('createWorkoutSession falls back to profile weight if bodyWeightLb is missi
     userId: 'user-123',
     templateId: 'temp-123',
     templateTitle: 'Upper Body',
-    focus: 'upper',
+    focusAreas: ['upper'],
     goal: 'strength',
     input: { intensity: 'moderate' },
     minutesAvailable: 45,

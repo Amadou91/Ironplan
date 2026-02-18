@@ -9,6 +9,7 @@ export {
 } from './utils'
 export {
   generateSessionExercises,
+  generateSessionExercisesForFocusAreas,
   buildWorkoutTemplate,
   generateWorkoutPlan
 } from './engine'

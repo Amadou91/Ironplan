@@ -2,13 +2,26 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Clock, Dumbbell, Scale, X, Play, AlertTriangle, Loader2, Heart, Zap } from 'lucide-react'
+import { Clock, Dumbbell, Scale, X, Play, AlertTriangle, Loader2, Heart, Zap, Target } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { Checkbox } from '@/components/ui/Checkbox'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { cloneInventory, equipmentPresets } from '@/lib/equipment'
 import { createClient } from '@/lib/supabase/client'
 import { normalizePlanInput } from '@/lib/generator'
+import { normalizePreferences } from '@/lib/preferences'
+import {
+  getPrimaryFocusArea,
+  formatFocusAreasLabel,
+  resolveSessionFocusAreas,
+  resolveArmFocusTargets,
+  toggleSessionFocusSelection,
+  SESSION_FOCUS_SELECTION_OPTIONS,
+  SESSION_ARM_FOCUS_OPTIONS,
+  type ArmFocusArea
+} from '@/lib/session-focus'
 import { createWorkoutSession } from '@/lib/session-creation'
 import { fetchTemplateHistory } from '@/lib/session-history'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
@@ -27,10 +40,11 @@ import type { Exercise, FocusArea, Goal, PlanInput, SessionGoal } from '@/types/
 export interface SessionSetupModalProps {
   isOpen: boolean
   onClose: () => void
-  templateId: string
-  templateTitle: string
-  templateFocus: FocusArea
-  templateStyle: Goal
+  templateId?: string
+  templateTitle?: string
+  templateFocus?: FocusArea
+  templateStyle?: Goal
+  initialFocusAreas?: FocusArea[]
   templateIntensity?: PlanInput['intensity']
   templateInputs?: PlanInput | null
   templateExperienceLevel?: PlanInput['experienceLevel']
@@ -88,6 +102,7 @@ export function SessionSetupModal({
   templateTitle,
   templateFocus,
   templateStyle,
+  initialFocusAreas,
   templateIntensity,
   templateInputs,
   templateExperienceLevel
@@ -99,8 +114,17 @@ export function SessionSetupModal({
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const endSession = useWorkoutStore((state) => state.endSession)
 
+  const defaultFocusAreas = useMemo(
+    () => resolveSessionFocusAreas(templateFocus ? [templateFocus] : initialFocusAreas, 'chest'),
+    [initialFocusAreas, templateFocus]
+  )
   const [minutes, setMinutes] = useState(templateInputs?.time?.minutesPerSession ?? 45)
-  const [style, setStyle] = useState<Goal>(templateStyle)
+  const [style, setStyle] = useState<Goal>(templateStyle ?? 'hypertrophy')
+  const [focusAreas, setFocusAreas] = useState<FocusArea[]>(defaultFocusAreas)
+  const [armFocusTargets, setArmFocusTargets] = useState<ArmFocusArea[]>([])
+  const [equipmentInventory, setEquipmentInventory] = useState(
+    cloneInventory(templateInputs?.equipment?.inventory ?? equipmentPresets.custom)
+  )
   const [bodyWeight, setBodyWeight] = useState<string>('')
   const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurveyDraft>({
     sleep: null, soreness: null, stress: null, motivation: null
@@ -134,13 +158,36 @@ export function SessionSetupModal({
   useEffect(() => {
     if (isOpen) {
       setMinutes(templateInputs?.time?.minutesPerSession ?? 45)
-      setStyle(templateStyle)
+      setStyle(templateStyle ?? 'hypertrophy')
+      setFocusAreas(defaultFocusAreas)
+      setArmFocusTargets(defaultFocusAreas.filter((focus): focus is ArmFocusArea => focus === 'biceps' || focus === 'triceps'))
+      setEquipmentInventory(cloneInventory(templateInputs?.equipment?.inventory ?? equipmentPresets.custom))
       setBodyWeight('')
       setReadinessSurvey({ sleep: null, soreness: null, stress: null, motivation: null })
       setStartError(null)
       setShowConflictModal(false)
     }
-  }, [isOpen, templateStyle, templateInputs])
+  }, [defaultFocusAreas, isOpen, templateStyle, templateInputs])
+
+  useEffect(() => {
+    if (!isOpen || !user) return
+
+    const loadProfileEquipment = async () => {
+      if (templateInputs?.equipment?.inventory) return
+      const { data } = await supabase
+        .from('profiles')
+        .select('preferences')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      const normalizedPreferences = normalizePreferences(data?.preferences)
+      if (normalizedPreferences.equipment?.inventory) {
+        setEquipmentInventory(cloneInventory(normalizedPreferences.equipment.inventory))
+      }
+    }
+
+    loadProfileEquipment()
+  }, [isOpen, supabase, templateInputs?.equipment?.inventory, user])
 
   const readinessComplete = useMemo(() => 
     READINESS_FIELDS.every((f) => typeof readinessSurvey[f.key] === 'number'), 
@@ -163,10 +210,20 @@ export function SessionSetupModal({
     return SESSION_INTENSITY_LEVELS.find((o) => o.intensity === intensityKey) ?? SESSION_INTENSITY_LEVELS[1]
   }, [templateIntensity, readinessLevel])
 
-  const showStyleSelector = templateFocus !== 'mobility' && templateFocus !== 'cardio'
+  const allFocusesAreMobility = focusAreas.length > 0 && focusAreas.every((focus) => focus === 'mobility')
+  const allFocusesAreCardio = focusAreas.length > 0 && focusAreas.every((focus) => focus === 'cardio')
+  const showStyleSelector = !allFocusesAreMobility && !allFocusesAreCardio
+  const hasArmsFocus = focusAreas.includes('arms')
+  const displayedFocusAreas = resolveArmFocusTargets(focusAreas, armFocusTargets)
 
   const handleStartSession = async (force = false) => {
     if (!user || !readinessComplete || readinessScore === null || !readinessLevel) return
+    const normalizedFocusAreas = resolveSessionFocusAreas(focusAreas, templateFocus ?? 'chest')
+    const expandedFocusAreas = resolveArmFocusTargets(normalizedFocusAreas, armFocusTargets)
+    if (!normalizedFocusAreas.length) {
+      setStartError('Select at least one focus area to start your session.')
+      return
+    }
     if (activeSession && !force) { 
       setShowConflictModal(true)
       return 
@@ -187,6 +244,11 @@ export function SessionSetupModal({
       const baseInput = normalizePlanInput(templateInputs ?? {})
       const tunedInputs: PlanInput = { 
         ...baseInput, 
+        equipment: {
+          ...baseInput.equipment,
+          preset: 'custom',
+          inventory: equipmentInventory
+        },
         intensity: selectedIntensity.intensity, 
         experienceLevel: shiftExperienceLevel(
           baseInput.experienceLevel ?? templateExperienceLevel ?? 'intermediate', 
@@ -198,15 +260,26 @@ export function SessionSetupModal({
         } 
       }
       
-      const history = await fetchTemplateHistory(supabase, templateId)
+      const history = templateId ? await fetchTemplateHistory(supabase, templateId) : undefined
+
+      const sessionPrimaryFocus = getPrimaryFocusArea(expandedFocusAreas, templateFocus ?? 'chest')
       
       const sessionGoal: SessionGoal =
-        templateFocus === 'mobility'
+        allFocusesAreMobility
           ? 'range_of_motion'
-          : templateFocus === 'cardio'
+          : allFocusesAreCardio
             ? 'cardio'
             : style
-      const generatorGoal: Goal = style
+      const generatorGoal: Goal = allFocusesAreCardio ? 'cardio' : allFocusesAreMobility ? 'range_of_motion' : style
+
+      const resolvedTitle = templateTitle ??
+        buildWorkoutDisplayName({
+          focus: sessionPrimaryFocus,
+          focusAreas: expandedFocusAreas,
+          style: sessionGoal,
+          intensity: selectedIntensity.intensity,
+          fallback: 'Quick Session'
+        })
 
       const bodyWeightLb = bodyWeight ? parseFloat(bodyWeight) : undefined
 
@@ -216,12 +289,13 @@ export function SessionSetupModal({
           userId: user.id, 
           templateId, 
           templateTitle: buildWorkoutDisplayName({ 
-            focus: templateFocus, 
+            focus: sessionPrimaryFocus,
+            focusAreas: expandedFocusAreas,
             style: sessionGoal, 
             intensity: selectedIntensity.intensity, 
-            fallback: templateTitle 
+            fallback: resolvedTitle
           }),
-          focus: templateFocus, 
+          focusAreas: expandedFocusAreas,
           goal: generatorGoal, 
           sessionGoal,
           input: tunedInputs, 
@@ -239,7 +313,8 @@ export function SessionSetupModal({
             readinessSurvey: readinessSurvey as ReadinessSurvey, 
             source: 'session_setup_modal',
             goal: sessionGoal,
-            focus: templateFocus,
+            focus: sessionPrimaryFocus,
+            focusAreas: expandedFocusAreas,
             equipmentInventory: tunedInputs.equipment?.inventory ?? null
           },
           history, 
@@ -251,9 +326,10 @@ export function SessionSetupModal({
       startSession({ 
         id: sessionId, 
         userId: user.id, 
-        templateId, 
+        templateId: templateId ?? undefined,
         name: sessionName, 
-        sessionFocus: templateFocus,
+        sessionFocus: sessionPrimaryFocus,
+        sessionFocusAreas: expandedFocusAreas,
         sessionGoal,
         sessionIntensity: selectedIntensity.intensity,
         startedAt, 
@@ -266,7 +342,11 @@ export function SessionSetupModal({
       })
       
       onClose()
-      router.push(`/exercises/${templateId}/active?sessionId=${sessionId}&from=start`)
+      if (templateId) {
+        router.push(`/exercises/${templateId}/active?sessionId=${sessionId}&from=start`)
+      } else {
+        router.push(`/exercises/active?sessionId=${sessionId}&from=start`)
+      }
     } catch (err) { 
       console.error(err)
       setStartError('Unable to start the session. Please try again.') 
@@ -298,17 +378,24 @@ export function SessionSetupModal({
 
   // Determine the focus label for non-selectable workout types
   const getAutoFocusLabel = () => {
-    if (templateFocus === 'cardio') return 'Cardio'
-    if (templateFocus === 'mobility') return 'Mobility'
-    return null
+    if (allFocusesAreCardio) return 'Cardio'
+    if (allFocusesAreMobility) return 'Mobility'
+    return formatFocusAreasLabel(displayedFocusAreas, (focus) => {
+      const sessionFocusOption = SESSION_FOCUS_SELECTION_OPTIONS.find((option) => option.value === focus)
+      if (sessionFocusOption) return sessionFocusOption.label
+      const armFocusOption = SESSION_ARM_FOCUS_OPTIONS.find((option) => option.value === focus)
+      return armFocusOption?.label ?? focus
+    })
   }
   const autoFocusLabel = getAutoFocusLabel()
 
   if (!isOpen) return null
 
-  const activeSessionLink = activeSession?.templateId 
-    ? `/exercises/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=exercises` 
-    : '/dashboard'
+  const activeSessionLink = activeSession?.templateId
+    ? `/exercises/${activeSession.templateId}/active?sessionId=${activeSession.id}&from=exercises`
+    : activeSession?.id
+      ? `/exercises/active?sessionId=${activeSession.id}&from=exercises`
+      : '/dashboard'
 
   // Show conflict modal if active session
   if (showConflictModal && activeSession) {
@@ -356,7 +443,7 @@ export function SessionSetupModal({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
-        className="w-full max-w-lg bg-[var(--color-surface)] rounded-3xl shadow-2xl border border-[var(--color-border-strong)] overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col"
+        className="w-full max-w-2xl bg-[var(--color-surface)] rounded-3xl shadow-2xl border border-[var(--color-border-strong)] overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative p-6 border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] flex-shrink-0">
@@ -374,7 +461,7 @@ export function SessionSetupModal({
             </div>
             <div>
               <h2 className="text-xl font-black text-strong uppercase tracking-tight">Start Session</h2>
-              <p className="text-sm text-muted font-medium">{templateTitle}</p>
+              <p className="text-sm text-muted font-medium">{templateTitle ?? 'Quick Start Session'}</p>
             </div>
           </div>
         </div>
@@ -422,6 +509,70 @@ export function SessionSetupModal({
             </div>
           </div>
 
+          {/* Focus Areas */}
+          <div className="space-y-3">
+            <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest">
+              <Target className="w-3.5 h-3.5" /> Focus Areas
+            </Label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {SESSION_FOCUS_SELECTION_OPTIONS.map((option) => (
+                <Checkbox
+                  key={option.value}
+                  label={option.label}
+                  checked={focusAreas.includes(option.value)}
+                  disabled={startingSession}
+                  onCheckedChange={() => {
+                    setFocusAreas((previous) => {
+                      const next = toggleSessionFocusSelection(previous, option.value)
+                      if (!next.length) {
+                        return previous
+                      }
+                      return next
+                    })
+                    if (option.value === 'arms' && focusAreas.includes('arms')) {
+                      setArmFocusTargets([])
+                    }
+                  }}
+                />
+              ))}
+            </div>
+            {hasArmsFocus && (
+              <div className="space-y-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3">
+                <p className="text-[10px] font-black uppercase tracking-wider text-subtle">Arms target (optional)</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {SESSION_ARM_FOCUS_OPTIONS.map((option) => {
+                    const selected = armFocusTargets.includes(option.value)
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setArmFocusTargets((previous) =>
+                            previous.includes(option.value)
+                              ? previous.filter((value) => value !== option.value)
+                              : [...previous, option.value]
+                          )
+                        }}
+                        disabled={startingSession}
+                        className={`rounded-lg border px-3 py-2 text-xs font-bold transition-all ${
+                          selected
+                            ? 'bg-[var(--color-primary-soft)] border-[var(--color-primary-border)] text-[var(--color-primary-strong)]'
+                            : 'bg-transparent border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-[11px] text-subtle">Choose biceps, triceps, or both. Leave empty for general arms work.</p>
+              </div>
+            )}
+            <p className="text-[11px] text-subtle">
+              Cardio and Yoga / Mobility are exclusive modes. Select either one of them or combine strength focus areas.
+            </p>
+          </div>
+
           {/* Training Style - only show for strength-based workouts */}
           {showStyleSelector ? (
             <div className="space-y-3">
@@ -449,7 +600,7 @@ export function SessionSetupModal({
             /* Show auto-set focus for cardio/mobility workouts */
             <div className="space-y-3">
               <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest">
-                {templateFocus === 'cardio' ? <Heart className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />} Session Focus
+                {allFocusesAreCardio ? <Heart className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />} Session Focus
               </Label>
               <div className="p-3 rounded-xl bg-[var(--color-primary-soft)] border border-[var(--color-primary-border)] text-center">
                 <span className="text-sm font-bold text-[var(--color-primary-strong)]">
@@ -601,7 +752,7 @@ export function SessionSetupModal({
           </Button>
           <Button 
             onClick={() => handleStartSession()}
-            disabled={startingSession || !readinessComplete || !catalogLoaded}
+            disabled={startingSession || !readinessComplete || !catalogLoaded || focusAreas.length === 0}
             className="flex-[2] h-12 rounded-xl font-black uppercase tracking-wider shadow-lg shadow-[var(--color-primary-soft)]"
           >
             {startingSession ? (

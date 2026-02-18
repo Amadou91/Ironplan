@@ -574,8 +574,6 @@ export default function ActiveSession({
 
                   isTimeBased={isTimeBasedExercise(exercise.name, exerciseTargets[exercise.name.toLowerCase()]?.reps)}
 
-                  isDumbbell={isDumbbellExercise(exercise)}
-
                 />
 
               ))}

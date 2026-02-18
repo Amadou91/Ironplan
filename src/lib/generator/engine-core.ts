@@ -365,6 +365,68 @@ export const generateSessionExercises = (
   return result.exercises
 }
 
+export const generateSessionExercisesForFocusAreas = (
+  catalog: Exercise[],
+  input: PlanInput,
+  focusAreas: FocusArea[],
+  durationMinutes: number,
+  goalOverride?: Goal,
+  options?: { seed?: string; history?: SessionHistory }
+) => {
+  const normalizedFocusAreas = Array.from(new Set(focusAreas.filter(Boolean)))
+  const fallbackFocus = normalizedFocusAreas[0] ?? 'full_body'
+
+  if (normalizedFocusAreas.length <= 1) {
+    return generateSessionExercises(
+      catalog,
+      input,
+      fallbackFocus,
+      durationMinutes,
+      goalOverride,
+      options
+    )
+  }
+
+  const targetGoal = goalOverride ?? input.goals.primary
+  const perFocusDuration = Math.max(20, Math.round(durationMinutes / normalizedFocusAreas.length))
+  const buckets = normalizedFocusAreas.map((focus, index) =>
+    generateSessionExercises(catalog, input, focus, perFocusDuration, goalOverride, {
+      seed: `${options?.seed ?? 'multi-focus'}-${focus}-${index}`,
+      history: options?.history
+    })
+  )
+
+  const merged: Exercise[] = []
+  const seen = new Set<string>()
+  let hasRemaining = true
+
+  while (hasRemaining) {
+    hasRemaining = false
+    buckets.forEach((bucket) => {
+      const candidate = bucket.shift()
+      if (!candidate) return
+      hasRemaining = true
+      const key = normalizeExerciseKey(candidate.name)
+      if (seen.has(key)) return
+      seen.add(key)
+      merged.push(candidate)
+    })
+  }
+
+  const { max } = getGoalAdjustedExerciseCaps(durationMinutes, targetGoal)
+  const multiFocusBonus = Math.max(0, normalizedFocusAreas.length - 1)
+  const mergedCap = max + multiFocusBonus
+  if (merged.length > mergedCap) {
+    return merged.slice(0, mergedCap)
+  }
+
+  if (!merged.length) {
+    return generateSessionExercises(catalog, input, fallbackFocus, durationMinutes, goalOverride, options)
+  }
+
+  return merged
+}
+
 export const buildWorkoutTemplate = (
   partialInput: Partial<PlanInput>
 ): { template?: WorkoutTemplateDraft; errors: string[] } => {

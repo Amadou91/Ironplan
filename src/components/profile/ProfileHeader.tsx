@@ -44,7 +44,7 @@ export function ProfileHeader({ user, onToggleDevTools, devToolsNotice }: Profil
         )}
       </div>
       <p className="mt-3 text-lg text-muted max-w-2xl">
-        Keep your body stats and preferences current for smarter recommendations.
+        Set your training defaults first (especially equipment), then keep body stats current for smarter recommendations.
       </p>
       {devToolsNotice && (
         <div className="mt-3 inline-flex items-center rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">
