@@ -82,20 +82,20 @@ export default function ProfilePage() {
             <Button
               type="button"
               size="sm"
-              variant={activeSection === 'equipment' ? 'primary' : 'ghost'}
-              onClick={() => setActiveSection('equipment')}
-              className="h-10 text-xs font-bold uppercase tracking-[0.06em]"
-            >
-              Equipment
-            </Button>
-            <Button
-              type="button"
-              size="sm"
               variant={activeSection === 'metrics' ? 'primary' : 'ghost'}
               onClick={() => setActiveSection('metrics')}
               className="h-10 text-xs font-bold uppercase tracking-[0.06em]"
             >
               Body Metrics
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={activeSection === 'equipment' ? 'primary' : 'ghost'}
+              onClick={() => setActiveSection('equipment')}
+              className="h-10 text-xs font-bold uppercase tracking-[0.06em]"
+            >
+              Equipment
             </Button>
           </div>
         </div>
@@ -111,23 +111,23 @@ export default function ProfilePage() {
           />
         </section>
 
-        <hr className={`border-[var(--color-border)] ${activeSection === 'metrics' ? 'hidden sm:block' : ''}`} />
-
-        <section className={`space-y-6 ${activeSection !== 'equipment' ? 'hidden sm:block' : ''}`}>
-          <h2 className="text-xl font-semibold text-strong">Workout equipment</h2>
-          <EquipmentSettingsForm
-            onSuccess={handleSuccess}
-            onError={handleError}
-          />
-        </section>
-
-        <hr className={`border-[var(--color-border)] ${activeSection !== 'metrics' ? 'hidden sm:block' : ''}`} />
+        <hr className={`border-[var(--color-border)] ${activeSection === 'equipment' ? 'hidden sm:block' : ''}`} />
 
         <section className={`space-y-6 ${activeSection !== 'metrics' ? 'hidden sm:block' : ''}`}>
           <h2 className="text-xl font-semibold text-strong">Body metrics & history</h2>
           <PhysicalStatsForm 
             onSuccess={handleSuccess} 
             onError={handleError} 
+          />
+        </section>
+
+        <hr className={`border-[var(--color-border)] ${activeSection !== 'equipment' ? 'hidden sm:block' : ''}`} />
+
+        <section className={`space-y-6 ${activeSection !== 'equipment' ? 'hidden sm:block' : ''}`}>
+          <h2 className="text-xl font-semibold text-strong">Workout equipment</h2>
+          <EquipmentSettingsForm
+            onSuccess={handleSuccess}
+            onError={handleError}
           />
         </section>
 
