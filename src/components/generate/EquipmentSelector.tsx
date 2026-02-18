@@ -276,6 +276,26 @@ export function EquipmentSelector({
                   }
                 />
               ))}
+              {cardioMachineOptions.map(machine => (
+                <Checkbox
+                  key={machine}
+                  label={machineLabels[machine]}
+                  checked={inventory.machines[machine]}
+                  onCheckedChange={() =>
+                    onUpdateEquipment(prev => ({
+                      ...prev,
+                      preset: 'custom',
+                      inventory: {
+                        ...prev.inventory,
+                        machines: {
+                          ...prev.inventory.machines,
+                          [machine]: !prev.inventory.machines[machine]
+                        }
+                      }
+                    }))
+                  }
+                />
+              ))}
             </div>
           </div>
 

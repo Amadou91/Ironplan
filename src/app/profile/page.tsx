@@ -1,36 +1,85 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Alert } from '@/components/ui/Alert'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { ProfileHeader } from '@/components/profile/ProfileHeader'
+import { ProfileSection } from '@/components/profile/ProfileSection'
 import { PhysicalStatsForm } from '@/components/profile/PhysicalStatsForm'
 import { AppSettings } from '@/components/profile/AppSettings'
 import { EquipmentSettingsForm } from '@/components/profile/EquipmentSettingsForm'
 import { DeveloperToolsPanel } from '@/components/profile/DeveloperToolsPanel'
+import { normalizePreferences } from '@/lib/preferences'
 import { isDeveloperToolsUser } from '@/lib/developer-access'
+import { validateProfileCompletion, type ProfileSnapshot } from '@/lib/profile-validation'
+
+/** Per-section missing-field counts. null = not yet loaded. */
+type SectionCompletion = { metrics: number | null; equipment: number | null }
 
 export default function ProfilePage() {
   const router = useRouter()
+  const supabase = createClient()
   const { user, loading: userLoading } = useUser()
-  
+
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [activeSection, setActiveSection] = useState<'defaults' | 'equipment' | 'metrics'>('defaults')
-  
+  const [completion, setCompletion] = useState<SectionCompletion>({ metrics: null, equipment: null })
+
   const devToolsEnabled = isDeveloperToolsUser(user?.email)
+
+  /**
+   * Lightweight query to derive per-section completion badges.
+   * Re-runs after each section saves so badges stay up to date.
+   */
+  const refreshCompletion = useCallback(async () => {
+    if (!user) return
+    const { data } = await supabase
+      .from('profiles')
+      .select('weight_lb, height_in, birthdate, sex, preferences')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    const prefs = normalizePreferences(data?.preferences)
+    const inv = prefs.equipment?.inventory
+    const hasEquipment = inv
+      ? Object.entries(inv).some(([key, v]) => {
+          if (key === 'machines') return Object.values(v as Record<string, boolean>).some(Boolean)
+          if (Array.isArray(v)) return (v as unknown[]).length > 0
+          if (key === 'barbell') return (v as { available: boolean }).available
+          return Boolean(v)
+        })
+      : false
+
+    const snapshot: ProfileSnapshot = {
+      weight_lb: data?.weight_lb,
+      height_in: data?.height_in,
+      birthdate: data?.birthdate,
+      sex: data?.sex,
+      hasEquipment,
+    }
+    const result = validateProfileCompletion(snapshot)
+    const metricKeys = new Set(['weight_lb', 'height_in', 'birthdate', 'sex'])
+    const metricsMissing = result.missingFields.filter((f) => metricKeys.has(f.key)).length
+    const equipmentMissing = result.missingFields.filter((f) => f.key === 'hasEquipment').length
+    setCompletion({ metrics: metricsMissing, equipment: equipmentMissing })
+  }, [user, supabase])
+
+  useEffect(() => {
+    if (!userLoading && user) refreshCompletion()
+  }, [user, userLoading, refreshCompletion])
 
   const handleSuccess = (msg: string) => {
     setSuccess(msg)
     setError(null)
+    refreshCompletion()
     setTimeout(() => setSuccess(null), 3000)
   }
-
   const handleError = (msg: string) => {
     setError(msg)
     setSuccess(null)
@@ -61,85 +110,47 @@ export default function ProfilePage() {
   return (
     <div className="page-shell">
       <div className="page-stack">
-        <PageHeader
-          eyebrow="Account"
-          title="Profile & Settings"
-        />
-
+        <PageHeader eyebrow="Account" title="Profile & Settings" />
         <ProfileHeader user={user} />
-
-        <div className="sm:hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-1">
-          <div className="grid grid-cols-3 gap-1">
-            <Button
-              type="button"
-              size="sm"
-              variant={activeSection === 'defaults' ? 'primary' : 'ghost'}
-              onClick={() => setActiveSection('defaults')}
-              className="h-10 text-xs font-bold uppercase tracking-[0.06em]"
-            >
-              Preferences
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={activeSection === 'metrics' ? 'primary' : 'ghost'}
-              onClick={() => setActiveSection('metrics')}
-              className="h-10 text-xs font-bold uppercase tracking-[0.06em]"
-            >
-              Body Metrics
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={activeSection === 'equipment' ? 'primary' : 'ghost'}
-              onClick={() => setActiveSection('equipment')}
-              className="h-10 text-xs font-bold uppercase tracking-[0.06em]"
-            >
-              Equipment
-            </Button>
-          </div>
-        </div>
 
         {error ? <Alert variant="error">{error}</Alert> : null}
         {!error && success ? <Alert variant="success">{success}</Alert> : null}
 
-        <section className={`space-y-6 ${activeSection !== 'defaults' ? 'hidden sm:block' : ''}`}>
-          <h2 className="text-xl font-semibold text-strong">Training defaults</h2>
-          <AppSettings 
-            onSuccess={handleSuccess} 
-            onError={handleError} 
-          />
-        </section>
+        <div className="flex flex-col gap-3">
+          <ProfileSection
+            title="Training defaults"
+            description="Units and training preferences."
+            missingCount={0}
+          >
+            <AppSettings onSuccess={handleSuccess} onError={handleError} />
+          </ProfileSection>
 
-        <hr className={`border-[var(--color-border)] ${activeSection === 'equipment' ? 'hidden sm:block' : ''}`} />
+          <ProfileSection
+            title="Body metrics"
+            description="Weight, height, and body composition."
+            missingCount={completion.metrics ?? undefined}
+          >
+            <PhysicalStatsForm onSuccess={handleSuccess} onError={handleError} />
+          </ProfileSection>
 
-        <section className={`space-y-6 ${activeSection !== 'metrics' ? 'hidden sm:block' : ''}`}>
-          <h2 className="text-xl font-semibold text-strong">Body metrics & history</h2>
-          <PhysicalStatsForm 
-            onSuccess={handleSuccess} 
-            onError={handleError} 
-          />
-        </section>
+          <ProfileSection
+            title="Workout equipment"
+            description="Equipment defaults used for workout generation."
+            missingCount={completion.equipment ?? undefined}
+          >
+            <EquipmentSettingsForm onSuccess={handleSuccess} onError={handleError} />
+          </ProfileSection>
 
-        <hr className={`border-[var(--color-border)] ${activeSection !== 'equipment' ? 'hidden sm:block' : ''}`} />
-
-        <section className={`space-y-6 ${activeSection !== 'equipment' ? 'hidden sm:block' : ''}`}>
-          <h2 className="text-xl font-semibold text-strong">Workout equipment</h2>
-          <EquipmentSettingsForm
-            onSuccess={handleSuccess}
-            onError={handleError}
-          />
-        </section>
-
-        {devToolsEnabled ? (
-          <>
-            <hr className="border-[var(--color-border)]" />
-            <section className="space-y-6">
-              <h2 className="text-xl font-semibold text-strong">Developer tools</h2>
+          {devToolsEnabled ? (
+            <ProfileSection
+              title="Developer tools"
+              description="Seed data and debug utilities."
+              defaultOpen={false}
+            >
               <DeveloperToolsPanel onSuccess={handleSuccess} onError={handleError} />
-            </section>
-          </>
-        ) : null}
+            </ProfileSection>
+          ) : null}
+        </div>
       </div>
     </div>
   )

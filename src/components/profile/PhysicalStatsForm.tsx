@@ -131,6 +131,8 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
   const [profileSaving, setProfileSaving] = useState(false)
 
+  /** Becomes true after the first successful DB fetch so we don't flash required indicators on mount */
+  const [profileLoaded, setProfileLoaded] = useState(false)
 
 
   // Manual Weight State
@@ -221,6 +223,8 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
     setProfileLoading(false)
 
+    setProfileLoaded(true)
+
   }, [user, supabase, onError, isKg])
 
 
@@ -280,6 +284,43 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
     return JSON.stringify(profileDraft) !== profileSnapshot
 
   }, [profileDraft, profileSnapshot])
+
+
+
+  /**
+   * Keys of required fields that are still empty after the initial load.
+   * Only populated once profileLoaded is true so no false-positive highlights
+   * flash before the DB query completes.
+   */
+  const missingFieldKeys = useMemo(() => {
+
+    if (!profileLoaded) return []
+
+    const missing: string[] = []
+
+    const rawWeight = parseNumberInput(profileDraft.weightLb)
+
+    if (typeof rawWeight !== 'number' || rawWeight <= 0) missing.push('weight_lb')
+
+
+
+    const feet = parseNumberInput(profileDraft.heightFeet) ?? 0
+
+    const inches = parseNumberInput(profileDraft.heightInches) ?? 0
+
+    if (feet * 12 + inches <= 0) missing.push('height_in')
+
+
+
+    if (!profileDraft.birthdate) missing.push('birthdate')
+
+    if (!profileDraft.sex) missing.push('sex')
+
+
+
+    return missing
+
+  }, [profileLoaded, profileDraft])
 
 
 
@@ -540,6 +581,8 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
         hasChanges={profileHasChanges}
 
         lastUpdated={profile?.updated_at}
+
+        missingFieldKeys={missingFieldKeys}
 
         onChange={handleProfileChange}
 

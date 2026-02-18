@@ -31,6 +31,8 @@ interface BodyMetricsFormProps {
   saving: boolean
   hasChanges: boolean
   lastUpdated?: string | null
+  /** Keys from ProfileSnapshot that are still missing/empty after initial load */
+  missingFieldKeys?: string[]
   onChange: (field: string, value: string) => void
   onSave: () => void
 }
@@ -47,11 +49,14 @@ export function BodyMetricsForm({
   saving,
   hasChanges,
   lastUpdated,
+  missingFieldKeys = [],
   onChange,
   onSave
 }: BodyMetricsFormProps) {
   const { displayUnit } = useUIStore()
   const isKg = displayUnit === 'kg'
+
+  const isMissing = (key: string) => missingFieldKeys.includes(key)
 
   const displayWeight = metrics.weightLb 
     ? isKg ? Math.round(metrics.weightLb * KG_PER_LB * 10) / 10 : metrics.weightLb
@@ -81,7 +86,12 @@ export function BodyMetricsForm({
       <div className="mt-4 grid gap-6 lg:grid-cols-3">
         <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2">
           <div className="flex flex-col">
-            <label className="text-xs text-subtle">Weight ({displayUnit})</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-subtle">Weight ({displayUnit})</label>
+              {isMissing('weight_lb') && (
+                <span className="text-[10px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
+              )}
+            </div>
             <Input
               type="text"
               inputMode="decimal"
@@ -92,10 +102,17 @@ export function BodyMetricsForm({
               }}
               className="mt-1"
               disabled={loading || saving}
+              aria-invalid={isMissing('weight_lb') || undefined}
+              aria-label={`Weight in ${displayUnit}`}
             />
           </div>
           <div className="flex flex-col">
-            <label className="text-xs text-subtle">Height</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-subtle">Height</label>
+              {isMissing('height_in') && (
+                <span className="text-[10px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
+              )}
+            </div>
             <div className="mt-1 grid grid-cols-2 gap-2 text-[10px]">
               <label className="flex flex-col gap-1">
                 <Input
@@ -108,6 +125,8 @@ export function BodyMetricsForm({
                     if (val === '' || /^\d*\.?\d*$/.test(val)) onChange('heightFeet', val)
                   }}
                   disabled={loading || saving}
+                  aria-invalid={isMissing('height_in') || undefined}
+                  aria-label="Height feet"
                 />
                 <span className="text-subtle">Feet</span>
               </label>
@@ -122,6 +141,8 @@ export function BodyMetricsForm({
                     if (val === '' || /^\d*\.?\d*$/.test(val)) onChange('heightInches', val)
                   }}
                   disabled={loading || saving}
+                  aria-invalid={isMissing('height_in') || undefined}
+                  aria-label="Height inches"
                 />
                 <span className="text-subtle">Inches</span>
               </label>
@@ -142,22 +163,34 @@ export function BodyMetricsForm({
             />
           </div>
           <div className="flex flex-col">
-            <label className="text-xs text-subtle">Birthdate</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-subtle">Birthdate</label>
+              {isMissing('birthdate') && (
+                <span className="text-[10px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
+              )}
+            </div>
             <Input
               type="date"
               value={draft.birthdate}
               onChange={(e) => onChange('birthdate', e.target.value)}
               className="mt-1"
               disabled={loading || saving}
+              aria-invalid={isMissing('birthdate') || undefined}
             />
           </div>
           <div className="flex flex-col sm:col-span-2">
-            <label className="text-xs text-subtle">Sex (for BMR)</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-subtle">Sex (for BMR)</label>
+              {isMissing('sex') && (
+                <span className="text-[10px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
+              )}
+            </div>
             <Select
               value={draft.sex}
               onChange={(e) => onChange('sex', e.target.value)}
               className="mt-1"
               disabled={loading || saving}
+              aria-invalid={isMissing('sex') || undefined}
             >
               <option value="">Prefer not to say</option>
               <option value="female">Female</option>
