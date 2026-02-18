@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { cloneInventory, equipmentPresets, bodyweightOnlyInventory } from '@/lib/equipment'
+import { cloneInventory, equipmentPresets } from '@/lib/equipment'
 import { createClient } from '@/lib/supabase/client'
 import { normalizePlanInput } from '@/lib/generator'
 import { normalizePreferences } from '@/lib/preferences'
+import { validateProfileCompletion, type ProfileSnapshot } from '@/lib/profile-validation'
 import {
   getPrimaryFocusArea,
   formatFocusAreasLabel,
@@ -146,6 +147,8 @@ export function SessionSetupModal({
   const [showConflictModal, setShowConflictModal] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [cancelingSession, setCancelingSession] = useState(false)
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null)
+  const [profileMissingLabels, setProfileMissingLabels] = useState<string[]>([])
 
   // Reset state when modal opens
   useEffect(() => {
@@ -159,31 +162,52 @@ export function SessionSetupModal({
       setReadinessSurvey({ sleep: null, soreness: null, stress: null, motivation: null })
       setStartError(null)
       setShowConflictModal(false)
+      setProfileComplete(null)
+      setProfileMissingLabels([])
     }
   }, [defaultFocusAreas, isOpen, templateStyle, templateInputs])
 
   useEffect(() => {
     if (!isOpen || !user) return
 
-    const loadProfileEquipment = async () => {
-      if (templateInputs?.equipment?.inventory) return
+    const loadProfileData = async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('preferences')
+        .select('weight_lb, height_in, birthdate, sex, preferences')
         .eq('id', user.id)
         .maybeSingle()
 
       const normalizedPreferences = normalizePreferences(data?.preferences)
-      if (normalizedPreferences.equipment?.inventory) {
-        setEquipmentInventory(cloneInventory(normalizedPreferences.equipment.inventory))
-      } else {
-        // No equipment configured in profile: default to bodyweight-only so
-        // the generator always produces a non-empty exercise list.
-        setEquipmentInventory(bodyweightOnlyInventory())
+      const inv = normalizedPreferences.equipment?.inventory
+
+      // Load equipment from profile if available (skip when template provides its own)
+      if (!templateInputs?.equipment?.inventory && inv) {
+        setEquipmentInventory(cloneInventory(inv))
       }
+
+      // Check full profile completeness
+      const hasEquipment = inv
+        ? Object.entries(inv).some(([key, v]) => {
+            if (key === 'machines') return Object.values(v as Record<string, boolean>).some(Boolean)
+            if (Array.isArray(v)) return v.length > 0
+            if (key === 'barbell') return (v as { available: boolean }).available
+            return Boolean(v)
+          })
+        : false
+
+      const snapshot: ProfileSnapshot = {
+        weight_lb: data?.weight_lb,
+        height_in: data?.height_in,
+        birthdate: data?.birthdate,
+        sex: data?.sex,
+        hasEquipment,
+      }
+      const result = validateProfileCompletion(snapshot)
+      setProfileComplete(result.isComplete)
+      setProfileMissingLabels(result.missingFields.map((f) => f.label))
     }
 
-    loadProfileEquipment()
+    loadProfileData()
   }, [isOpen, supabase, templateInputs?.equipment?.inventory, user])
 
   const readinessComplete = useMemo(() => 
@@ -464,6 +488,24 @@ export function SessionSetupModal({
         </div>
 
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
+          {profileComplete === false && (
+            <div className="flex items-start gap-3 rounded-xl border border-[var(--color-danger-border)] bg-[var(--color-danger-soft)] p-4">
+              <AlertTriangle className="w-5 h-5 text-[var(--color-danger)] shrink-0 mt-0.5" />
+              <div className="space-y-1 min-w-0">
+                <p className="text-sm font-bold text-[var(--color-danger)]">Complete your profile to start a session</p>
+                <p className="text-xs text-[var(--color-danger)]/80">
+                  Missing: {profileMissingLabels.join(', ')}.
+                  These are needed to compute accurate session metrics.
+                </p>
+                <a
+                  href="/profile"
+                  className="inline-block mt-1 text-xs font-bold text-[var(--color-danger)] underline underline-offset-2 hover:no-underline"
+                >
+                  Go to Profile →
+                </a>
+              </div>
+            </div>
+          )}
           {startError && (
             <div className="p-3 rounded-xl bg-[var(--color-danger-soft)] border border-[var(--color-danger-border)] text-sm text-[var(--color-danger)]">
               {startError}
@@ -757,7 +799,7 @@ export function SessionSetupModal({
           </Button>
           <Button 
             onClick={() => handleStartSession()}
-            disabled={startingSession || !readinessComplete || catalogLoading || focusAreas.length === 0}
+            disabled={startingSession || !readinessComplete || catalogLoading || focusAreas.length === 0 || profileComplete !== true}
             className="flex-[2] h-12 rounded-xl font-black uppercase tracking-wider shadow-lg shadow-[var(--color-primary-soft)]"
           >
             {startingSession ? (
