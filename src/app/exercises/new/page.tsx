@@ -6,9 +6,9 @@ import { Exercise } from '@/types/domain';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { MUSCLE_MAPPING } from '@/lib/muscle-mapping';
+import { createExerciseAction } from '@/app/exercises/actions';
 
 const muscleOptions = Object.entries(MUSCLE_MAPPING).map(([slug, data]) => ({
   slug,
@@ -18,31 +18,12 @@ const muscleOptions = Object.entries(MUSCLE_MAPPING).map(([slug, data]) => ({
 export default function NewWorkoutPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const supabase = createClient();
 
   const handleSave = async (data: Exercise) => {
-    // Map Domain fields to DB fields
-    // Note: 'focus' is now a generated column in the DB, so we don't send it.
-    // Many other columns were dropped in the latest migration (video_url, instructions, etc.)
-    const payload = {
-      name: data.name,
-      category: data.category || 'Strength',
-      metric_profile: data.metricProfile || 'reps_weight',
-      equipment: data.equipment,
-      movement_pattern: data.movementPattern,
-      primary_muscle: data.primaryMuscle,
-      secondary_muscles: data.secondaryMuscles || [],
-      e1rm_eligible: data.e1rmEligible || false,
-      is_interval: data.isInterval || false
-    };
+    const result = await createExerciseAction(data);
 
-    const { error } = await supabase
-      .from('exercise_catalog')
-      .insert(payload);
-    
-    if (error) {
-      console.error('Error creating exercise:', error);
-      toast(`Failed to create exercise: ${error.message}`, 'error');
+    if (!result.success) {
+      toast(`Failed to create exercise: ${result.error}`, 'error');
     } else {
       toast('Exercise created successfully!', 'success');
       router.push('/exercises');

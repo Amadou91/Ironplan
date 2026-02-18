@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
 import { MUSCLE_MAPPING } from '@/lib/muscle-mapping';
+import { updateExerciseAction } from '@/app/exercises/actions';
 
 const muscleOptions = Object.entries(MUSCLE_MAPPING).map(([slug, data]) => ({
   slug,
@@ -81,31 +82,10 @@ export default function EditWorkoutPage() {
   }, [id, supabase, toast]);
 
   const handleSave = async (data: Exercise) => {
-    // Map Domain fields back to DB fields
-    // Assuming DB schema might not be fully migrated, we map back to what we can.
-    // If DB has new columns (category, eligible_goals), use them.
-    
-    // We'll update both old and new fields to ensure compatibility
-    const updates = {
-      name: data.name,
-      category: data.category,
-      metric_profile: data.metricProfile,
-      equipment: data.equipment,
-      primary_muscle: data.primaryMuscle,
-      secondary_muscles: data.secondaryMuscles,
-      is_interval: data.isInterval,
-      equipment_mode: data.equipmentMode ?? 'or',
-      additional_equipment_mode: data.additionalEquipmentMode ?? 'required',
-    };
+    const result = await updateExerciseAction(id, data);
 
-    const { error } = await supabase
-      .from('exercise_catalog')
-      .update(updates)
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error updating exercise:', error);
-      toast(`Failed to update exercise: ${error.message}`, 'error');
+    if (!result.success) {
+      toast(`Failed to update exercise: ${result.error}`, 'error');
     } else {
       toast('Exercise updated successfully!', 'success');
       router.push('/exercises');

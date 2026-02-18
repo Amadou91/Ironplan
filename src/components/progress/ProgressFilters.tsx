@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { createPastRange } from '@/hooks/useProgressMetrics'
@@ -113,6 +114,7 @@ export function ProgressFilters({
   exerciseOptions
 }: ProgressFiltersProps) {
   const [activeDatePreset, setActiveDatePreset] = useState<string | null>(null)
+  const [mobileExpanded, setMobileExpanded] = useState(false)
 
   const handlePresetClick = (preset: DateRangePreset) => {
     if (activeDatePreset === preset.label) {
@@ -127,6 +129,14 @@ export function ProgressFilters({
     }
   }
 
+  const activeFilterCount = [
+    startDate || endDate ? 'date' : null,
+    selectedMuscle !== 'all' ? 'muscle' : null,
+    selectedExercise !== 'all' ? 'exercise' : null
+  ].filter(Boolean).length
+
+  const showFilterControls = mobileExpanded
+
   return (
     <Card className="p-5 shadow-xl border-[var(--color-border)] glass-panel">
       <div className="flex flex-col gap-6">
@@ -135,9 +145,28 @@ export function ProgressFilters({
             <div className="w-1.5 h-6 bg-[var(--color-primary)] rounded-full" />
             <h2 className="text-sm font-black uppercase tracking-[0.1em] text-strong">Insights Control</h2>
           </div>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setMobileExpanded((prev) => !prev)}
+            className="h-9 justify-between px-3 md:hidden"
+          >
+            <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.06em]">
+              <SlidersHorizontal className="h-4 w-4" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[10px] text-[var(--color-primary-strong)]">
+                  {activeFilterCount}
+                </span>
+              )}
+            </span>
+            {mobileExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
           
-          <div className="flex flex-wrap items-center gap-1.5">
-            <div className="flex items-center gap-1 bg-[var(--color-surface-muted)]/50 p-1.5 rounded-xl border border-[var(--color-border)]">
+          <div className="hidden md:flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1 bg-[var(--color-surface-muted)]/50 p-1.5 rounded-xl border border-[var(--color-border)]">
               {DATE_RANGE_PRESETS.map((preset) => (
                 <Button
                   key={preset.label}
@@ -157,7 +186,71 @@ export function ProgressFilters({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
+        <div className={`md:hidden ${showFilterControls ? 'block' : 'hidden'} space-y-4`}>
+          <div className="-mx-1 overflow-x-auto no-scrollbar px-1">
+            <div className="inline-flex min-w-max items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/50 p-1.5">
+              {DATE_RANGE_PRESETS.map((preset) => (
+                <Button
+                  key={preset.label}
+                  variant={activeDatePreset === preset.label ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => handlePresetClick(preset)}
+                  className={`h-8 px-3 text-[11px] font-black uppercase tracking-[0.06em] ${
+                    activeDatePreset === preset.label ? 'shadow-sm' : 'text-subtle hover:text-strong'
+                  }`}
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase font-black text-subtle/80 tracking-[0.08em]">Time Horizon</label>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => { setStartDate(e.target.value); setActiveDatePreset(null) }}
+                  className="input-base text-sm h-11 bg-white/50"
+                />
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => { setEndDate(e.target.value); setActiveDatePreset(null) }}
+                  className="input-base text-sm h-11 bg-white/50"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase font-black text-subtle/80 tracking-[0.08em]">Muscle Focus</label>
+              <select
+                value={selectedMuscle}
+                onChange={(e) => setSelectedMuscle(e.target.value)}
+                className="input-base text-sm h-11 font-bold bg-white/50"
+              >
+                <option value="all">All Groups</option>
+                {MUSCLE_PRESETS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] uppercase font-black text-subtle/80 tracking-[0.08em]">Movement</label>
+              <select
+                value={selectedExercise}
+                onChange={(e) => setSelectedExercise(e.target.value)}
+                className="input-base text-sm h-11 font-bold bg-white/50"
+              >
+                <option value="all">All Exercises</option>
+                {exerciseOptions.map(e => <option key={e} value={e}>{e}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-black text-subtle/80 tracking-widest ml-1">Time Horizon</label>
             <div className="grid grid-cols-2 gap-2">

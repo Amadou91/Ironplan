@@ -5,6 +5,7 @@ import { DEFAULT_EXERCISES } from '@/lib/data/defaultExercises'
 import { revalidatePath } from 'next/cache'
 import type { Exercise } from '@/types/domain'
 import { SupabaseClient } from '@supabase/supabase-js'
+import { assertDeveloperToolsAccess } from '@/lib/developer-access'
 
 import { MUSCLE_MAPPING } from '@/lib/muscle-mapping'
 
@@ -51,8 +52,9 @@ async function insertExercises(supabase: SupabaseClient, exercises: Partial<Exer
 export async function resetToDefaultsAction() {
   const supabase = await createClient()
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
+  try {
+    await assertDeveloperToolsAccess(supabase)
+  } catch {
     return { success: false, error: 'Unauthorized' }
   }
 
@@ -73,9 +75,12 @@ export async function resetToDefaultsAction() {
 
 export async function deleteExerciseAction(id: string) {
   const supabase = await createClient()
-  
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await assertDeveloperToolsAccess(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   const { error } = await supabase
     .from('exercise_catalog')
@@ -90,9 +95,12 @@ export async function deleteExerciseAction(id: string) {
 
 export async function getExerciseBackupAction() {
   const supabase = await createClient()
-  
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await assertDeveloperToolsAccess(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   // Map DB columns back to domain model if needed, or just dump raw?
   // "Export workouts to a JSON file so that I can restore custom exercises."
@@ -135,9 +143,12 @@ export async function getExerciseBackupAction() {
 
 export async function importExercisesAction(exercises: Partial<Exercise>[]) {
   const supabase = await createClient()
-  
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await assertDeveloperToolsAccess(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
 
   if (!exercises || !Array.isArray(exercises) || exercises.length === 0) {
     return { success: false, error: 'Invalid data' }
@@ -152,4 +163,66 @@ export async function importExercisesAction(exercises: Partial<Exercise>[]) {
 
   revalidatePath('/exercises')
   return { success: true, count: inserted.length }
+}
+
+export async function createExerciseAction(exercise: Exercise) {
+  const supabase = await createClient()
+
+  try {
+    await assertDeveloperToolsAccess(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  const payload = {
+    name: exercise.name,
+    category: exercise.category || 'Strength',
+    metric_profile: exercise.metricProfile || 'reps_weight',
+    equipment: exercise.equipment,
+    movement_pattern: exercise.movementPattern,
+    primary_muscle: exercise.primaryMuscle,
+    secondary_muscles: exercise.secondaryMuscles || [],
+    e1rm_eligible: exercise.e1rmEligible || false,
+    is_interval: exercise.isInterval || false,
+  }
+
+  const { error } = await supabase.from('exercise_catalog').insert(payload)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/exercises')
+  return { success: true }
+}
+
+export async function updateExerciseAction(id: string, exercise: Exercise) {
+  const supabase = await createClient()
+
+  try {
+    await assertDeveloperToolsAccess(supabase)
+  } catch {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  const updates = {
+    name: exercise.name,
+    category: exercise.category,
+    metric_profile: exercise.metricProfile,
+    equipment: exercise.equipment,
+    primary_muscle: exercise.primaryMuscle,
+    secondary_muscles: exercise.secondaryMuscles,
+    is_interval: exercise.isInterval,
+    equipment_mode: exercise.equipmentMode ?? 'or',
+    additional_equipment_mode: exercise.additionalEquipmentMode ?? 'required',
+  }
+
+  const { error } = await supabase.from('exercise_catalog').update(updates).eq('id', id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/exercises')
+  return { success: true }
 }

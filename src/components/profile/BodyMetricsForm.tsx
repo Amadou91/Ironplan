@@ -70,6 +70,7 @@ export function BodyMetricsForm({
         </div>
         <Button
           size="sm"
+          className="hidden sm:inline-flex"
           onClick={onSave}
           disabled={loading || saving || !hasChanges}
         >
@@ -181,6 +182,17 @@ export function BodyMetricsForm({
       {lastUpdated && (
         <p className="mt-3 text-[10px] text-subtle">Last updated {formatDateTime(lastUpdated)}</p>
       )}
+
+      <div className="mt-4 sm:hidden sticky bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-20 rounded-xl border border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_8%)] p-2 backdrop-blur">
+        <Button
+          size="md"
+          className="w-full"
+          onClick={onSave}
+          disabled={loading || saving || !hasChanges}
+        >
+          {saving ? 'Saving...' : 'Save metrics'}
+        </Button>
+      </div>
     </Card>
   )
 }

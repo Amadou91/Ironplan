@@ -56,21 +56,21 @@ export function TrainingStatusCard({
       status === 'overreaching' ? 'border-t-[var(--color-danger)]' :
       'border-t-[var(--color-warning)]'
     }`}>
-      <div className="p-6 md:p-10">
-        <div className="flex flex-col gap-10">
-          <div className="flex items-center justify-between">
+      <div className="p-4 sm:p-6 md:p-10">
+        <div className="flex flex-col gap-6 sm:gap-8 md:gap-10">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1.5">
               <div className="flex items-center gap-3">
-                <h3 className="text-sm font-black uppercase tracking-[0.1em] text-strong">Systemic Training Status</h3>
+                <h3 className="text-sm font-black uppercase tracking-[0.06em] text-strong sm:tracking-[0.1em]">Systemic Training Status</h3>
                 <ChartInfoTooltip 
                   description="The ratio between your Acute Load (Last 7 days) and Chronic Load (Last 28 days). It indicates if you are ramping up too fast or doing too little."
                   goal="Stay in the Green (Balanced) zone most of the time to get stronger without getting hurt."
                 />
               </div>
-              <p className="text-xs text-subtle italic font-medium">Based on total body workload</p>
+              <p className="text-sm text-subtle italic font-medium sm:text-xs">Based on total body workload</p>
             </div>
-            <div className="flex flex-col items-end">
-              <span className={`px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest border-2 ${
+            <div className="flex flex-col sm:items-end">
+              <span className={`inline-flex max-w-full items-center px-3 py-2 rounded-xl text-xs font-black uppercase tracking-[0.06em] border-2 sm:px-5 sm:text-[11px] sm:tracking-widest ${
                 insufficientData || isInitialPhase ? 'bg-[var(--color-surface-muted)] text-subtle border-[var(--color-border)]' :
                 status === 'balanced' ? 'bg-[var(--color-success-soft)] text-[var(--color-success)] border-[var(--color-success-border)]' :
                 status === 'overreaching' ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger)] border border-[var(--color-danger-border)]' :
@@ -84,15 +84,15 @@ export function TrainingStatusCard({
             </div>
           </div>
           
-          <div className="grid grid-cols-1 gap-12 lg:grid-cols-4 lg:items-center">
+          <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-4 lg:items-center lg:gap-12">
             <div className="space-y-2.5">
               <div className="flex items-baseline gap-2">
-                <span className="text-6xl font-black tracking-tighter text-strong">
+                <span className="text-5xl font-black tracking-tighter text-strong sm:text-6xl">
                   {insufficientData || isInitialPhase ? '--' : loadRatio}
                 </span>
-                <span className="text-xs font-black text-subtle/60 uppercase tracking-[0.2em]">ACR</span>
+                <span className="text-xs font-black text-subtle/60 uppercase tracking-[0.14em] sm:tracking-[0.2em]">ACR</span>
               </div>
-              <p className="text-[10px] uppercase font-black tracking-[0.2em] text-subtle/40">Acute:Chronic Ratio</p>
+              <p className="text-xs uppercase font-black tracking-[0.12em] text-subtle/50 sm:text-[10px] sm:tracking-[0.2em] sm:text-subtle/40">Acute:Chronic Ratio</p>
             </div>
 
             <div className="lg:col-span-2 space-y-5">
@@ -118,37 +118,37 @@ export function TrainingStatusCard({
               </div>
               <div className="flex justify-between px-1">
                 <div className="text-center">
-                  <span className="block text-[10px] font-black text-subtle/30 uppercase tracking-widest">Low</span>
-                  <span className="text-[11px] font-black text-subtle/60">0.0-{ACR_THRESHOLDS.undertraining}</span>
+                  <span className="block text-xs font-black text-subtle/40 uppercase tracking-[0.08em] sm:text-[10px] sm:tracking-widest sm:text-subtle/30">Low</span>
+                  <span className="text-xs font-black text-subtle/70 sm:text-[11px] sm:text-subtle/60">0.0-{ACR_THRESHOLDS.undertraining}</span>
                 </div>
                 <div className="text-center">
-                  <span className="block text-[10px] font-black text-[var(--color-success)]/50 uppercase tracking-widest">Sweet Spot</span>
-                  <span className="text-[11px] font-black text-subtle/60">{ACR_THRESHOLDS.undertraining}-{ACR_THRESHOLDS.overreaching}</span>
+                  <span className="block text-xs font-black text-[var(--color-success)]/70 uppercase tracking-[0.08em] sm:text-[10px] sm:tracking-widest sm:text-[var(--color-success)]/50">Sweet Spot</span>
+                  <span className="text-xs font-black text-subtle/70 sm:text-[11px] sm:text-subtle/60">{ACR_THRESHOLDS.undertraining}-{ACR_THRESHOLDS.overreaching}</span>
                 </div>
                 <div className="text-center">
-                  <span className="block text-[10px] font-black text-[var(--color-danger)]/50 uppercase tracking-widest">High</span>
-                  <span className="text-[11px] font-black text-subtle/60">{ACR_THRESHOLDS.overreaching}+</span>
+                  <span className="block text-xs font-black text-[var(--color-danger)]/70 uppercase tracking-[0.08em] sm:text-[10px] sm:tracking-widest sm:text-[var(--color-danger)]/50">High</span>
+                  <span className="text-xs font-black text-subtle/70 sm:text-[11px] sm:text-subtle/60">{ACR_THRESHOLDS.overreaching}+</span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 lg:border-l lg:border-[var(--color-border)] lg:pl-12">
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:border-l lg:border-[var(--color-border)] lg:pl-12">
               <div className="space-y-1.5">
-                <p className="text-[10px] text-subtle/60 uppercase font-black tracking-widest">Load (7d)</p>
-                <p className="text-3xl font-black text-strong tracking-tight">{insufficientData && acuteLoad === 0 ? '--' : displayAcuteLoad.toLocaleString()}</p>
+                <p className="text-xs text-subtle/70 uppercase font-black tracking-[0.08em] sm:text-[10px] sm:tracking-widest sm:text-subtle/60">Load (7d)</p>
+                <p className="text-2xl font-black text-strong tracking-tight sm:text-3xl">{insufficientData && acuteLoad === 0 ? '--' : displayAcuteLoad.toLocaleString()}</p>
               </div>
               <div className="space-y-1.5">
-                <p className="text-[10px] text-subtle/60 uppercase font-black tracking-widest">Baseline</p>
-                <p className="text-3xl font-black text-strong tracking-tight">
+                <p className="text-xs text-subtle/70 uppercase font-black tracking-[0.08em] sm:text-[10px] sm:tracking-widest sm:text-subtle/60">Baseline</p>
+                <p className="text-2xl font-black text-strong tracking-tight sm:text-3xl">
                   {insufficientData || isInitialPhase ? '--' : displayChronicLoad.toLocaleString()}
                 </p>
               </div>
             </div>
           </div>
           
-          <div className="pt-8 border-t border-[var(--color-border)]">
-            <p className="text-sm text-muted leading-relaxed max-w-3xl">
-              <span className="font-bold text-strong uppercase tracking-wider text-xs mr-2">Coach Insight:</span> {
+          <div className="pt-6 sm:pt-8 border-t border-[var(--color-border)]">
+            <p className="text-sm text-muted leading-relaxed max-w-3xl sm:text-base">
+              <span className="font-bold text-strong uppercase tracking-[0.06em] text-xs mr-2 sm:tracking-wider">Coach Insight:</span> {
                 getStatusDescription(status, numericRatio, insufficientData, isInitialPhase)
               }
             </p>

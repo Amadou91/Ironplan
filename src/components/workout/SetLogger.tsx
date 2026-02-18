@@ -284,7 +284,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
 
   // Form input styles - consistent with Input/Select components
   const inputBaseClass = cn(
-    "input-base h-10 text-sm font-medium text-center",
+    'input-base h-11 text-sm font-medium text-center',
     "disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--color-input-muted)]"
   )
 
@@ -295,13 +295,13 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
 
   // Compact input for small numeric values (reps, RIR, rest)
   const inputCompactClass = cn(
-    "input-base input-compact h-10 w-16 text-sm font-medium text-center",
+    'input-base input-compact h-11 w-16 text-sm font-medium text-center',
     "disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--color-input-muted)]"
   )
 
   // Compact select for small value dropdowns (RIR)
   const selectCompactClass = cn(
-    "input-base h-10 w-20 text-sm font-medium text-center",
+    'input-base h-11 w-20 text-sm font-medium text-center',
     "disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--color-input-muted)]"
   )
 
@@ -322,6 +322,10 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
 
     // Only allow completion if all required fields are valid
     if (!canComplete) return
+
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(12)
+    }
 
     onToggleComplete()
   }
@@ -615,7 +619,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
           </div>
 
           {/* Rest - Fast Timer Input */}
-          <div className="flex w-28 shrink-0 flex-col gap-1.5">
+          <div className="flex w-32 shrink-0 flex-col gap-1.5">
             <label className={labelClass}>Rest</label>
             <FastRestInput
               value={restMinutes}
@@ -692,7 +696,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
         </div>
 
         {/* Reps - Fast Stepper Input */}
-        <div className="flex w-28 shrink-0 flex-col gap-1.5">
+        <div className="flex w-32 shrink-0 flex-col gap-1.5">
           <label className={labelClass}>{repsLabel}</label>
           <FastRepsInput
             value={set.reps ?? ''}
@@ -716,7 +720,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
         </div>
 
         {/* Rest - Fast Timer Input */}
-        <div className="flex w-28 shrink-0 flex-col gap-1.5">
+        <div className="flex w-32 shrink-0 flex-col gap-1.5">
           <label className={labelClass}>Rest</label>
           <FastRestInput
             value={restMinutes}

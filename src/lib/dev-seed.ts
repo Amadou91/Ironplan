@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizePlanInput } from '@/lib/generator'
 import { getReadinessLevel } from '@/lib/training-metrics'
 import type { FocusArea, Goal, EquipmentInventory } from '@/types/domain'
+import { assertDeveloperToolsAccess } from '@/lib/developer-access'
 
 export const DEV_SEED_MARKER = 'IRONPLAN_DEV_SEED'
 export const DEV_SEED_TAG = 'dev_seed'
@@ -131,6 +132,12 @@ async function lookupRequiredExercises(
 }
 
 export async function seedDevData(supabase: SupabaseClient, userId: string): Promise<SeedResult> {
+  const user = await assertDeveloperToolsAccess(supabase)
+
+  if (user.id !== userId) {
+    throw new Error('Unauthorized developer tools access')
+  }
+
   if (process.env.NODE_ENV === 'production') {
     console.warn('Dev seed operations are disabled in production.')
     return { templates: 0, sessions: 0, exercises: 0, sets: 0, readiness: 0 }
@@ -604,6 +611,12 @@ export async function seedDevData(supabase: SupabaseClient, userId: string): Pro
 }
 
 export async function clearDevData(supabase: SupabaseClient, userId: string): Promise<ClearResult> {
+  const user = await assertDeveloperToolsAccess(supabase)
+
+  if (user.id !== userId) {
+    throw new Error('Unauthorized developer tools access')
+  }
+
   if (process.env.NODE_ENV === 'production') {
     console.warn('Dev seed operations are disabled in production.')
     return { templates: 0, sessions: 0, exercises: 0, sets: 0, readiness: 0 }

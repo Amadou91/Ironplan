@@ -5,8 +5,19 @@ import { DataManagementToolbar } from '@/components/admin/DataManagementToolbar'
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { assertDeveloperToolsAccess } from '@/lib/developer-access';
 
 export default async function AdminDashboard() {
+  const supabase = await createClient();
+
+  try {
+    await assertDeveloperToolsAccess(supabase);
+  } catch {
+    redirect('/dashboard');
+  }
+
   const exercises = await fetchExerciseCatalog();
 
   return (

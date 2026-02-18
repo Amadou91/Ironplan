@@ -12,6 +12,7 @@ import { EquipmentSelector } from '@/components/generate/EquipmentSelector'
 import { cloneInventory, equipmentPresets } from '@/lib/equipment'
 import { defaultPreferences, normalizePreferences, type SettingsPreferences } from '@/lib/preferences'
 import { seedDevData, clearDevData } from '@/lib/dev-seed'
+import { isDeveloperToolsUser } from '@/lib/developer-access'
 import { useUIStore } from '@/store/uiStore'
 import type { PlanInput } from '@/types/domain'
 
@@ -47,6 +48,8 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
   const [devActionMessage, setDevActionMessage] = useState<string | null>(null)
   const [confirmDevAction, setConfirmDevAction] = useState<DevAction | null>(null)
   const isDevMode = process.env.NODE_ENV !== 'production'
+  const isAuthorizedDevUser = isDeveloperToolsUser(user?.email)
+  const canUseDevTools = devToolsEnabled && isDevMode && isAuthorizedDevUser
 
   useEffect(() => {
     if (!user) return
@@ -160,7 +163,10 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
   ].filter(Boolean)
 
   const executeSeedData = async () => {
-    if (!user || devActionState !== 'idle') return
+    if (!canUseDevTools || !user || devActionState !== 'idle') {
+      onError?.('You are not allowed to use developer tools.')
+      return
+    }
     setDevActionState('seeding')
     setDevActionMessage(null)
     try {
@@ -179,7 +185,10 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
   }
 
   const executeClearSeededData = async () => {
-    if (!user || devActionState !== 'idle') return
+    if (!canUseDevTools || !user || devActionState !== 'idle') {
+      onError?.('You are not allowed to use developer tools.')
+      return
+    }
     setDevActionState('clearing')
     setDevActionMessage(null)
     try {
@@ -235,7 +244,7 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
         </div>
       </Card>
 
-      {devToolsEnabled && isDevMode && (
+      {canUseDevTools && (
         <Card className="p-6 border-accent/20 bg-accent/5">
           <div>
             <h2 className="text-sm font-semibold text-strong">Developer tools</h2>
@@ -293,6 +302,7 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
           <Button
             type="button"
             size="sm"
+            className="hidden md:inline-flex"
             onClick={handleSavePreferences}
             disabled={!hasUnsavedChanges || saveSettingsState === 'saving'}
           >
@@ -323,6 +333,18 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
           {saveSettingsState === 'saved' && (
             <p className="text-[10px] text-accent font-medium">Preferences saved</p>
           )}
+        </div>
+
+        <div className="mt-4 md:hidden sticky bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-20 rounded-xl border border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_8%)] p-2 backdrop-blur">
+          <Button
+            type="button"
+            size="md"
+            className="w-full"
+            onClick={handleSavePreferences}
+            disabled={!hasUnsavedChanges || saveSettingsState === 'saving'}
+          >
+            {saveSettingsState === 'saving' ? 'Saving...' : 'Save preferences'}
+          </Button>
         </div>
       </Card>
 

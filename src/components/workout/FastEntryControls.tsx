@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils'
 import { RIR_OPTIONS } from '@/constants/intensityOptions'
 
 // Common styles
-const BTN_BASE = "flex items-center justify-center rounded-md transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+const BTN_BASE = 'flex min-h-11 min-w-11 items-center justify-center rounded-md transition-all active:scale-95 disabled:pointer-events-none disabled:opacity-50'
 const INPUT_BASE = "h-full w-full bg-transparent text-center font-semibold text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] disabled:opacity-50"
-const CONTROL_CONTAINER = "flex h-10 items-center overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm focus-within:ring-2 focus-within:ring-[var(--color-primary)]/20 focus-within:border-[var(--color-primary)]"
+const CONTROL_CONTAINER = 'flex h-11 items-center overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm focus-within:border-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--color-primary)]/20'
 
 // --- Fast Reps Input ---
 
@@ -31,13 +31,14 @@ export function FastRepsInput({ value, onChange, disabled, className, placeholde
   }
 
   return (
-    <div className={cn(CONTROL_CONTAINER, "w-28", className)}>
+    <div className={cn(CONTROL_CONTAINER, 'w-32', className)}>
       <button
         type="button"
         onClick={() => handleAdjust(-1)}
         disabled={disabled || (Number(value) || 0) <= 0}
-        className={cn(BTN_BASE, "h-full w-9 text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-danger)]")}
+        className={cn(BTN_BASE, 'h-full w-11 text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-danger)]')}
         tabIndex={-1}
+        aria-label="Decrease reps"
       >
         <Minus size={14} strokeWidth={3} />
       </button>
@@ -51,6 +52,8 @@ export function FastRepsInput({ value, onChange, disabled, className, placeholde
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
           onFocus={(e) => e.target.select()}
+          enterKeyHint="next"
+          autoComplete="off"
           placeholder={placeholder}
           disabled={disabled}
           className={cn(INPUT_BASE, "text-sm")}
@@ -61,8 +64,9 @@ export function FastRepsInput({ value, onChange, disabled, className, placeholde
         type="button"
         onClick={() => handleAdjust(1)}
         disabled={disabled}
-        className={cn(BTN_BASE, "h-full w-9 text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-success)]")}
+        className={cn(BTN_BASE, 'h-full w-11 text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-success)]')}
         tabIndex={-1}
+        aria-label="Increase reps"
       >
         <Plus size={14} strokeWidth={3} />
       </button>
@@ -83,7 +87,7 @@ export function FastRirInput({ value, onChange, disabled, className }: FastRirIn
   const options = RIR_OPTIONS.map(o => o.value) // [0, 1, 2, 3, 4]
 
   return (
-    <div className={cn("flex h-10 w-full overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm", className)}>
+    <div className={cn('flex h-11 w-full overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm', className)}>
       {options.map((opt) => {
         const isSelected = Number(value) === opt
         const label = opt === 4 ? '4+' : String(opt)
@@ -155,6 +159,15 @@ export function FastRestInput({ value, onChange, disabled, className }: FastRest
       const m = parseInt(parts[0] || '0', 10)
       const s = parseInt(parts[1] || '0', 10)
       parsed = m + s / 60
+    } else if (/^\d+s$/i.test(clean)) {
+      // Parse seconds shorthand (e.g., 90s)
+      parsed = parseInt(clean.slice(0, -1), 10) / 60
+    } else if (/^\d+(\.\d+)?m$/i.test(clean)) {
+      // Parse minutes shorthand (e.g., 1.5m)
+      parsed = parseFloat(clean.slice(0, -1))
+    } else if (/^\d+$/.test(clean) && Number(clean) >= 15) {
+      // Heuristic: integer >= 15 likely entered as seconds during workouts
+      parsed = Number(clean) / 60
     } else {
       // Parse raw number (treat as minutes if < 10, else seconds? Standard is minutes based on hook)
       // Actually current app treats input as minutes.
@@ -174,13 +187,14 @@ export function FastRestInput({ value, onChange, disabled, className }: FastRest
   }
 
   return (
-    <div className={cn(CONTROL_CONTAINER, "w-28", className)}>
+    <div className={cn(CONTROL_CONTAINER, 'w-32', className)}>
       <button
         type="button"
         onClick={() => handleAdjust(-0.25)} // -15s
         disabled={disabled || (Number(value) || 0) <= 0}
-        className={cn(BTN_BASE, "h-full w-9 text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-danger)]")}
+        className={cn(BTN_BASE, 'h-full w-11 text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-danger)]')}
         tabIndex={-1}
+        aria-label="Decrease rest"
       >
         <Minus size={14} strokeWidth={3} />
       </button>
@@ -193,6 +207,8 @@ export function FastRestInput({ value, onChange, disabled, className }: FastRest
           onChange={(e) => setDisplayValue(e.target.value)}
           onFocus={() => { setIsFocused(true); setDisplayValue(String(value ?? '')) }}
           onBlur={handleBlur}
+          enterKeyHint="done"
+          autoComplete="off"
           placeholder="0:00"
           disabled={disabled}
           className={cn(INPUT_BASE, "text-sm tracking-tight")}
@@ -203,8 +219,9 @@ export function FastRestInput({ value, onChange, disabled, className }: FastRest
         type="button"
         onClick={() => handleAdjust(0.25)} // +15s
         disabled={disabled}
-        className={cn(BTN_BASE, "h-full w-9 text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-success)]")}
+        className={cn(BTN_BASE, 'h-full w-11 text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-success)]')}
         tabIndex={-1}
+        aria-label="Increase rest"
       >
         <Plus size={14} strokeWidth={3} />
       </button>

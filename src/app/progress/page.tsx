@@ -100,7 +100,7 @@ export default function ProgressPage() {
         <div className="grid grid-cols-1 gap-8">
           <TrainingStatusCard {...trainingLoadSummary} />
 
-          <div className="sticky top-6 z-40 transition-all duration-500">
+          <div className="sticky top-2 z-40 transition-all duration-500 sm:top-4 md:top-6">
             <ProgressFilters 
               startDate={startDate} 
               setStartDate={setStartDate} 
