@@ -5,7 +5,7 @@
 
 import type { Exercise, PlanDay, WorkoutImpact } from '@/types/domain'
 import { computeExerciseMetrics } from '@/lib/workout-metrics'
-import { estimateExerciseMinutes } from './timing-utils'
+import { estimateExerciseMinutes } from '@/lib/generator/timing-utils'
 
 /**
  * Calculates the total impact of a set of exercises.

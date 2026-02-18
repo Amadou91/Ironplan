@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { equipmentPresets } from '@/lib/equipment'
+import { parseWithFallback, sessionEditorResultSchema } from '@/lib/validation/schemas'
 import type { WeightUnit, WorkoutSet, EquipmentInventory, MetricProfile } from '@/types/domain'
 
 export type EditableExercise = {
@@ -83,7 +84,7 @@ type SessionQueryResult = {
 }
 
 export function useSessionEditor(sessionId?: string) {
-  const supabase = createClient()
+  const supabase = useSupabase()
   const [session, setSession] = useState<EditableSession | null>(null)
   const [initialSnapshot, setInitialSnapshot] = useState('')
   const [deletedSetIds, setDeletedSetIds] = useState<string[]>([])
@@ -155,8 +156,7 @@ export function useSessionEditor(sessionId?: string) {
     if (error) {
       setErrorMessage('Unable to load session details.')
     } else if (data) {
-      // Cast data to SessionQueryResult because nested joins are tricky for automatic inference without generated types.
-      const typedData = data as unknown as SessionQueryResult
+      const typedData = parseWithFallback(sessionEditorResultSchema, data, 'session editor') as SessionQueryResult
       const mapped = mapSession(typedData)
       setSession(mapped)
       setInitialSnapshot(JSON.stringify(mapped))

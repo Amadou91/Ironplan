@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import type { Exercise } from '@/types/domain'
-import { mapCatalogRowToExercise } from './mappers'
+import { mapCatalogRowToExercise } from '@/lib/generator/mappers'
 import { DEFAULT_EXERCISES } from '@/lib/data/defaultExercises'
 
 // Explicit column selection for exercise catalog queries

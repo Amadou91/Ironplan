@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { buildWorkoutTemplate, normalizePlanInput } from '@/lib/generator'
@@ -46,7 +46,7 @@ const buildWorkoutTitle = (template: WorkoutTemplateDraft) =>
 
 export function useGenerationFlow() {
   const { user } = useUser()
-  const supabase = createClient()
+  const supabase = useSupabase()
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)

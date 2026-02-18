@@ -8,7 +8,7 @@ import type {
   EquipmentOption,
   ExerciseLoad
 } from '@/types/domain'
-import { bandLoadMap } from './constants'
+import { bandLoadMap } from '@/lib/generator/constants'
 
 /**
  * Finds the closest available weight to a target.

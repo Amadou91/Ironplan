@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import { enhanceExerciseData } from '@/lib/muscle-utils'
 import { fetchExerciseHistory, type ExerciseHistoryPoint } from '@/lib/session-history'
@@ -17,7 +17,7 @@ export type EnhancedExercise = Exercise & {
  * Provides memoized exercise lookup by name and exercise history.
  */
 export function useEnhancedExerciseLibrary(userId?: string) {
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { catalog, loading: catalogLoading } = useExerciseCatalog()
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistoryPoint[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)

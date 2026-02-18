@@ -176,6 +176,56 @@ export const exerciseHistoryRowSchema = z.object({
 })
 export type ExerciseHistoryRowValidated = z.infer<typeof exerciseHistoryRowSchema>
 
+// Template history row schema (for generator history queries)
+export const templateHistoryRowSchema = z.object({
+  id: z.string(),
+  started_at: z.string(),
+  session_exercises: z.array(z.object({
+    exercise_name: z.string(),
+    primary_muscle: z.string(),
+    exercise_catalog: z.object({
+      movement_pattern: nullableString
+    }).nullable()
+  })).default([])
+})
+export type TemplateHistoryRowValidated = z.infer<typeof templateHistoryRowSchema>
+
+// Session detail schema (for summary pages — includes impact + completion_snapshot)
+export const sessionDetailSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  started_at: z.string(),
+  ended_at: nullableString,
+  status: nullableString,
+  session_notes: nullableString.optional(),
+  session_goal: nullableString.optional(),
+  body_weight_lb: nullableNumber.optional(),
+  completion_snapshot: z.record(z.string(), z.unknown()).nullable().optional(),
+  impact: z.record(z.string(), z.unknown()).nullable().optional(),
+  session_exercises: z.array(z.object({
+    id: z.string(),
+    exercise_name: z.string(),
+    primary_muscle: nullableString,
+    secondary_muscles: z.array(z.string()).nullable(),
+    metric_profile: nullableString,
+    sets: z.array(z.object({
+      id: z.string(),
+      reps: nullableNumber,
+      weight: nullableNumber,
+      implement_count: nullableNumber,
+      load_type: nullableString,
+      rpe: nullableNumber,
+      rir: nullableNumber,
+      completed: nullableBoolean,
+      performed_at: nullableString,
+      weight_unit: nullableString,
+      duration_seconds: nullableNumber.optional(),
+      rest_seconds_actual: nullableNumber.optional()
+    })).default([])
+  })).default([])
+})
+export type SessionDetailValidated = z.infer<typeof sessionDetailSchema>
+
 // Profile row schema
 export const profileRowSchema = z.object({
   id: uuidSchema,
@@ -212,6 +262,49 @@ export const sessionQueryResultSchema = z.object({
   session_exercises: z.array(sessionExerciseRowSchema).default([])
 })
 export type SessionQueryResultValidated = z.infer<typeof sessionQueryResultSchema>
+
+// Session editor result schema (simpler query without focus areas)
+export const sessionEditorResultSchema = z.object({
+  id: z.string(),
+  user_id: nullableString,
+  template_id: nullableString,
+  name: z.string(),
+  started_at: z.string(),
+  ended_at: nullableString,
+  timezone: nullableString,
+  body_weight_lb: nullableNumber,
+  session_readiness: z.array(z.object({
+    sleep_quality: z.number(),
+    muscle_soreness: z.number(),
+    stress_level: z.number(),
+    motivation: z.number()
+  })).default([]),
+  session_exercises: z.array(z.object({
+    id: z.string(),
+    exercise_name: z.string(),
+    primary_muscle: nullableString,
+    secondary_muscles: z.array(z.string()).default([]),
+    metric_profile: nullableString,
+    order_index: nullableNumber,
+    sets: z.array(z.object({
+      id: z.string(),
+      set_number: nullableNumber,
+      reps: nullableNumber,
+      weight: nullableNumber,
+      implement_count: nullableNumber,
+      load_type: nullableString,
+      rpe: nullableNumber,
+      rir: nullableNumber,
+      completed: nullableBoolean,
+      performed_at: nullableString,
+      weight_unit: nullableString,
+      duration_seconds: nullableNumber.optional(),
+      distance: nullableNumber.optional(),
+      rest_seconds_actual: nullableNumber.optional()
+    })).default([])
+  })).default([])
+})
+export type SessionEditorResultValidated = z.infer<typeof sessionEditorResultSchema>
 
 /**
  * Safely parse API response with Zod schema.

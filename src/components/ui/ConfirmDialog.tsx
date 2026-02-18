@@ -4,6 +4,7 @@ import React, { useEffect } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 interface ConfirmDialogProps {
   isOpen: boolean
@@ -28,6 +29,8 @@ export function ConfirmDialog({
   variant = 'danger',
   isLoading = false
 }: ConfirmDialogProps) {
+  const dialogRef = useFocusTrap(isOpen)
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -91,6 +94,7 @@ export function ConfirmDialog({
       onClick={handleBackdropClick}
     >
       <div 
+        ref={dialogRef}
         className={cn(
           "w-full max-w-md bg-[var(--color-surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] border border-[var(--color-border-strong)] overflow-hidden transition-all duration-200 transform scale-100 opacity-100 translate-y-0"
         )}

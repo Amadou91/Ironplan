@@ -5,12 +5,12 @@ import type {
   ExercisePrescription,
   PlanInput
 } from '@/types/domain'
-import { clamp } from './utils'
+import { clamp } from '@/lib/generator/utils'
 import { 
   adjustRpe, 
   adjustSets, 
   adjustSetsForIntensity 
-} from './scoring'
+} from '@/lib/generator/scoring'
 
 /**
  * Adapts an exercise prescription to a specific training style (Goal).

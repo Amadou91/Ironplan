@@ -5,7 +5,7 @@ interface ExerciseCardProps {
   exercise: WorkoutExercise;
 }
 
-export default function ExerciseCard({ exercise }: ExerciseCardProps) {
+export function ExerciseCard({ exercise }: ExerciseCardProps) {
   return (
     <div className="surface-card p-4 transition-shadow hover:shadow-md">
       <div className="mb-2 flex items-start justify-between">

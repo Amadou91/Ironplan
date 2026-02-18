@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 
 import { useUser } from '@/hooks/useUser'
 
@@ -95,7 +95,7 @@ interface PhysicalStatsFormProps {
 
 export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps) {
 
-  const supabase = createClient()
+  const supabase = useSupabase()
 
   const { user } = useUser()
 

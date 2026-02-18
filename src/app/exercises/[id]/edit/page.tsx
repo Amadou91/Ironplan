@@ -5,7 +5,7 @@ import { ExerciseForm } from '@/components/admin/exercise-form/ExerciseForm';
 import { Exercise, ExerciseCategory, MetricProfile } from '@/types/domain';
 import { Button } from '@/components/ui/Button';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSupabase } from '@/hooks/useSupabase';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
 import { MUSCLE_MAPPING } from '@/lib/muscle-mapping';
@@ -23,7 +23,7 @@ export default function EditWorkoutPage() {
   const id = params?.id as string;
   const [initialData, setInitialData] = useState<Partial<Exercise> | undefined>(undefined);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useSupabase();
 
   useEffect(() => {
     const fetchExercise = async () => {

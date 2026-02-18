@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -21,7 +21,7 @@ type DevAction = {
 }
 
 export function DeveloperToolsPanel({ onSuccess, onError }: DeveloperToolsPanelProps) {
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user } = useUser()
 
   const [devActionState, setDevActionState] = useState<'idle' | 'seeding' | 'clearing'>('idle')

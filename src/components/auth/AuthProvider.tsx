@@ -1,15 +1,15 @@
 'use client'
 
 import { useEffect, type ReactNode } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { toAuthUser, useAuthStore } from '@/store/authStore'
 
 type AuthProviderProps = {
   children: ReactNode
 }
 
-export default function AuthProvider({ children }: AuthProviderProps) {
-  const supabase = createClient()
+export function AuthProvider({ children }: AuthProviderProps) {
+  const supabase = useSupabase()
   const setUser = useAuthStore((state) => state.setUser)
   const setHydrated = useAuthStore((state) => state.setHydrated)
 

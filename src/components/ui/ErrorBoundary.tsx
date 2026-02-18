@@ -152,5 +152,3 @@ export function RouteErrorBoundary({ children }: { children: ReactNode }) {
     </ErrorBoundary>
   )
 }
-
-export default ErrorBoundary

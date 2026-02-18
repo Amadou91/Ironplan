@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { primaryNavItems } from '@/components/layout/navigation'
 
-export default function MobileNav() {
+export function MobileNav() {
   const pathname = usePathname()
   const isActive = (path: string) =>
     pathname === path ||

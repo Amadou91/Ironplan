@@ -4,14 +4,15 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
-import ActiveSession from '@/components/workout/ActiveSession'
+import { ActiveSession } from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ValidationBlockerModal } from '@/components/ui/ValidationBlockerModal'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { completeSession } from '@/lib/session-completion'
 import { validateSessionForCompletion, type SetValidationError } from '@/lib/session-validation'
+import { parseWithFallback, sessionQueryResultSchema } from '@/lib/validation/schemas'
 import { toMuscleLabel } from '@/lib/muscle-utils'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
@@ -151,7 +152,7 @@ function mapPayloadToSession(payload: SessionPayload): WorkoutSession {
 function SessionEditContent() {
   const params = useParams()
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user } = useUser()
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const startSession = useWorkoutStore((state) => state.startSession)
@@ -220,7 +221,7 @@ function SessionEditContent() {
       if (error) throw error
       if (!data) throw new Error('Session not found')
       
-      const payload = data as unknown as SessionPayload
+      const payload = parseWithFallback(sessionQueryResultSchema, data, 'session edit') as SessionPayload
       const session = mapPayloadToSession(payload)
       
       // Calculate original duration

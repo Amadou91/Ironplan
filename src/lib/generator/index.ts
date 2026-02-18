@@ -1,15 +1,15 @@
 export {
   validatePlanInput,
   normalizePlanInput
-} from './validation'
+} from '@/lib/generator/validation'
 export {
   estimateExerciseMinutes,
   calculateExerciseImpact,
   calculateWorkoutImpact
-} from './utils'
+} from '@/lib/generator/utils'
 export {
   generateSessionExercises,
   generateSessionExercisesForFocusAreas,
   buildWorkoutTemplate,
   generateWorkoutPlan
-} from './engine'
+} from '@/lib/generator/engine'

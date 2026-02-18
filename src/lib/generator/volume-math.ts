@@ -7,13 +7,14 @@ import type {
   EquipmentInventory,
   WarmupSet
 } from '@/types/domain'
+import { DEFAULT_REST_SECONDS } from '@/constants/training'
 import {
   clamp,
   selectEquipmentOption,
   buildLoad,
   estimateExerciseMinutes
-} from './utils'
-import { adaptPrescription } from './adaptation'
+} from '@/lib/generator/utils'
+import { adaptPrescription } from '@/lib/generator/adaptation'
 
 /**
  * Generates warm-up sets for a primary exercise.
@@ -93,7 +94,7 @@ export const pairExercises = (
 export const estimateSupersetTime = (
   exerciseA: PlannedExercise,
   exerciseB: PlannedExercise,
-  restSeconds: number = 90
+  restSeconds: number = DEFAULT_REST_SECONDS
 ): number => {
   const setsA = exerciseA.prescription.sets
   const setsB = exerciseB.prescription.sets

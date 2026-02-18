@@ -5,7 +5,7 @@ import type {
   RestPreference,
   PlanInput
 } from '@/types/domain'
-import { clamp, isCompoundMovement } from './utils'
+import { clamp, isCompoundMovement } from '@/lib/generator/utils'
 
 /**
  * Favors compound movements for high intensity sessions and 

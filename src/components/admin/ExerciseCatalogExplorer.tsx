@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -17,7 +17,7 @@ export function ExerciseCatalogExplorer({ initialExercises, muscleOptions }: Pro
   const [exercises, setExercises] = useState(initialExercises)
   const [search, setSearch] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
-  const supabase = createClient()
+  const supabase = useSupabase()
 
   const filtered = exercises.filter(ex => 
     ex.name.toLowerCase().includes(search.toLowerCase()) || 

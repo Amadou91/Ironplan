@@ -20,7 +20,7 @@
 export { clamp } from '@/lib/math'
 
 // Seeded random
-export { hashSeed, createSeededRandom } from './seeded-random'
+export { hashSeed, createSeededRandom } from '@/lib/generator/seeded-random'
 
 // Movement utilities
 export {
@@ -28,7 +28,7 @@ export {
   getMovementFamilyFromName,
   getMovementFamily,
   isCompoundMovement
-} from './movement-utils'
+} from '@/lib/generator/movement-utils'
 
 // Focus utilities
 export {
@@ -37,7 +37,7 @@ export {
   matchesPrimaryMuscle,
   matchesFocusArea,
   getFocusConstraint
-} from './focus-utils'
+} from '@/lib/generator/focus-utils'
 
 // Equipment matching
 export {
@@ -45,21 +45,21 @@ export {
   isEquipmentOptionAvailable,
   isExerciseEquipmentSatisfied,
   selectEquipmentOption
-} from './equipment-matching'
+} from '@/lib/generator/equipment-matching'
 
 // Load building
 export {
   pickClosestWeight,
   buildBarbellLoad,
   buildLoad
-} from './load-building'
+} from '@/lib/generator/load-building'
 
 // Timing utilities
 export {
   getSetupMinutes,
   getWorkSeconds,
   estimateExerciseMinutes
-} from './timing-utils'
+} from '@/lib/generator/timing-utils'
 
 // Session naming
 export {
@@ -68,7 +68,7 @@ export {
   buildSessionName,
   buildPlanTitle,
   buildRationale
-} from './session-naming'
+} from '@/lib/generator/session-naming'
 
 // Focus sequence
 export {
@@ -76,10 +76,10 @@ export {
   goalToFocus,
   mergeFocusByPriority,
   buildFocusSequence
-} from './focus-sequence'
+} from '@/lib/generator/focus-sequence'
 
 // Impact utilities
 export {
   calculateExerciseImpact,
   calculateWorkoutImpact
-} from './impact-utils'
+} from '@/lib/generator/impact-utils'

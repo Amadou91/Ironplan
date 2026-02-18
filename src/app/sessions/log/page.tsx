@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Calendar, Target, Play, Dumbbell } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -76,7 +76,7 @@ function formatDateForInput(date: Date): string {
 
 export default function LogPastWorkoutPage() {
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user, loading: userLoading } = useUser()
   useExerciseCatalog() // Preload catalog for downstream components
   const startSession = useWorkoutStore((state) => state.startSession)

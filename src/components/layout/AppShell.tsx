@@ -4,8 +4,8 @@ import { type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserRound } from 'lucide-react'
-import Sidebar from '@/components/layout/Sidebar'
-import MobileNav from '@/components/layout/MobileNav'
+import { Sidebar } from '@/components/layout/Sidebar'
+import { MobileNav } from '@/components/layout/MobileNav'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
 
 type AppShellProps = {
@@ -14,7 +14,7 @@ type AppShellProps = {
 
 const HIDDEN_SHELL_PREFIXES = ['/auth']
 
-export default function AppShell({ children }: AppShellProps) {
+export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname()
   const hideForFocusMode = pathname.startsWith('/exercises/') && pathname.includes('/active')
   const showShell =

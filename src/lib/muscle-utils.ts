@@ -1,5 +1,5 @@
 import { Exercise, MetricProfile, FocusArea } from '@/types/domain';
-import { MUSCLE_MAPPING } from './muscle-mapping';
+import { MUSCLE_MAPPING } from '@/lib/muscle-mapping';
 
 const normalizeLabel = (value: string) => value.trim().toLowerCase();
 

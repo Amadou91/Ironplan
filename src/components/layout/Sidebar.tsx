@@ -5,20 +5,20 @@ import { useHasMounted } from '@/hooks/useHasMounted';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, LogIn, LogOut, UserRound } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { useSupabase } from '@/hooks/useSupabase';
 import { authStore, useAuthStore } from '@/store/authStore';
 import { primaryNavItems, secondaryNavItems } from '@/components/layout/navigation';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { UnitToggle } from '@/components/layout/UnitToggle';
 import { Tooltip } from '@/components/ui/Tooltip';
 
-export default function Sidebar() {
+export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const hydrated = useAuthStore((state) => state.hydrated);
   const clearUser = useAuthStore((state) => state.clearUser);
-  const supabase = createClient();
+  const supabase = useSupabase();
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return true;

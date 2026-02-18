@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, ChevronRight } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { useAuthStore } from '@/store/authStore'
 import {
   validateProfileCompletion,
@@ -15,7 +15,7 @@ export function ProfileCompletionBanner() {
   const user = useAuthStore((state) => state.user)
   const [missingCount, setMissingCount] = useState(0)
   const [loaded, setLoaded] = useState(false)
-  const supabase = createClient()
+  const supabase = useSupabase()
 
   useEffect(() => {
     if (!user) return

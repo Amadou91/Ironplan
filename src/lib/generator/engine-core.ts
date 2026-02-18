@@ -13,7 +13,7 @@ import type {
 import { logEvent } from '@/lib/logger'
 import {
   focusMuscleMap
-} from './constants'
+} from '@/lib/generator/constants'
 import {
   clamp,
   createSeededRandom,
@@ -33,7 +33,7 @@ import {
   buildFocusSequence,
   formatFocusLabel,
   formatGoalLabel
-} from './utils'
+} from '@/lib/generator/utils'
 import {
   deriveReps,
   getIntensityRestModifier,
@@ -41,15 +41,15 @@ import {
   getSetCaps,
   getFamilyCaps,
   getRestModifier
-} from './scoring'
+} from '@/lib/generator/scoring'
 import {
   validatePlanInput,
   normalizePlanInput,
   applyRestPreference,
   adjustMinutesPerSession
-} from './validation'
-import { filterExercises, orderPool, reorderForVariety } from './selection-logic'
-import { createPlannedExercise, adjustSessionVolume } from './volume-math'
+} from '@/lib/generator/validation'
+import { filterExercises, orderPool, reorderForVariety } from '@/lib/generator/selection-logic'
+import { createPlannedExercise, adjustSessionVolume } from '@/lib/generator/volume-math'
 import { hasEquipment, bodyweightOnlyInventory } from '@/lib/equipment'
 
 /**

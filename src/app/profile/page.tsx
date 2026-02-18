@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Alert } from '@/components/ui/Alert'
@@ -24,7 +24,7 @@ type SectionCompletion = { metrics: number | null; equipment: number | null }
 
 export default function ProfilePage() {
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user, loading: userLoading } = useUser()
 
   const [error, setError] = useState<string | null>(null)

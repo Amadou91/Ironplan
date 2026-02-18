@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
@@ -66,7 +66,7 @@ type QueryResult = {
 }
 
 export function useDashboardData() {
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user, loading: userLoading } = useUser()
   const setUser = useAuthStore((state) => state.setUser)
   const activeSession = useWorkoutStore((state) => state.activeSession)

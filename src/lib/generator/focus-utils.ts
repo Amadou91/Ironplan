@@ -4,8 +4,8 @@
  */
 
 import type { Exercise, FocusArea } from '@/types/domain'
-import { focusMuscleMap, focusAccessoryMap } from './constants'
-import type { FocusConstraint } from './types'
+import { focusMuscleMap, focusAccessoryMap } from '@/lib/generator/constants'
+import type { FocusConstraint } from '@/lib/generator/types'
 
 /**
  * Gets the primary muscle key from an exercise (lowercase).

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { SessionExercise, WorkoutSession, WorkoutSet, WeightUnit, LoadType } from '@/types/domain';
+import type { SessionExercise, WorkoutSession, WorkoutSet, WeightUnit, LoadType } from '@/types/domain';
+import { DEFAULT_SESSION_REST_SECONDS } from '@/constants/training';
 
 interface WorkoutState {
   activeSession: WorkoutSession | null;
@@ -94,7 +95,7 @@ export const useWorkoutStore = create<WorkoutState>()(
           loadType: initial.loadType ?? options?.loadType ?? '',
           rpe: initial.rpe ?? '',
           rir: initial.rir ?? '',
-          restSecondsActual: initial.restSecondsActual ?? 120,
+          restSecondsActual: initial.restSecondsActual ?? DEFAULT_SESSION_REST_SECONDS,
           performedAt: new Date().toISOString(),
           completed: false,
           weightUnit: weightUnit ?? state.activeSession.weightUnit ?? 'lb'

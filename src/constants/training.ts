@@ -16,6 +16,7 @@ export const RECENT_ACTIVITY_WINDOW_DAYS = 14
 
 // Session timing defaults
 export const DEFAULT_REST_SECONDS = 90
+export const DEFAULT_SESSION_REST_SECONDS = 120
 export const ESTIMATED_SET_TIME_SECONDS = 45
 export const SECONDS_PER_REP = 3
 

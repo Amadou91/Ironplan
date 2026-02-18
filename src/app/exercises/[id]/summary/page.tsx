@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { computeSetE1rm, computeSetTonnage } from '@/lib/session-metrics'
 import { computeSessionMetrics, type ReadinessSurvey } from '@/lib/training-metrics'
 import { getSnapshotMetrics } from '@/lib/session-snapshot'
+import { parseWithFallback, sessionDetailSchema } from '@/lib/validation/schemas'
 import { useUser } from '@/hooks/useUser'
 import { useUIStore } from '@/store/uiStore'
 import { Button } from '@/components/ui/Button'
@@ -105,7 +106,7 @@ const getSessionIntensity = (notes?: SessionNotes | null): Intensity | null => {
 export default function WorkoutSummaryPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user } = useUser()
   const displayUnit = useUIStore((state) => state.displayUnit)
   const sessionId = searchParams.get('sessionId')
@@ -136,7 +137,7 @@ export default function WorkoutSummaryPage() {
       ])
       
       if (sessionRes.error) setError('Unable to load session summary.')
-      else setSession(sessionRes.data as unknown as SessionDetail)
+      else setSession(parseWithFallback(sessionDetailSchema, sessionRes.data, 'session summary') as SessionDetail)
 
       if (catalogRes.data) {
         setCatalog(catalogRes.data.map(mapCatalogRowToExercise))

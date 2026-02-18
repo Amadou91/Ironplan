@@ -1,7 +1,7 @@
 import type { PlanInput } from '@/types/domain'
 import { hasEquipment } from '@/lib/equipment'
-import { DEFAULT_INPUT } from './constants'
-import { clamp } from './utils'
+import { DEFAULT_INPUT } from '@/lib/generator/constants'
+import { clamp } from '@/lib/generator/utils'
 
 export const validatePlanInput = (input: PlanInput): string[] => {
   const errors: string[] = []

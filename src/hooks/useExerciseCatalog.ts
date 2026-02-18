@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { mapCatalogRowToExercise } from '@/lib/generator/mappers'
 import { exerciseCatalogRowSchema, safeParseArray } from '@/lib/validation/schemas'
 import { DEFAULT_EXERCISES } from '@/lib/data/defaultExercises'
@@ -28,10 +28,10 @@ function getDefaultCatalog(): Exercise[] {
 export function useExerciseCatalog() {
   const [catalog, setCatalog] = useState<Exercise[]>([])
   const [loading, setLoading] = useState(true)
+  const supabase = useSupabase()
 
   useEffect(() => {
     const fetchCatalog = async () => {
-      const supabase = createClient()
       const { data, error } = await supabase
         .from('exercise_catalog')
         .select(EXERCISE_CATALOG_COLUMNS)
@@ -55,7 +55,7 @@ export function useExerciseCatalog() {
       setLoading(false)
     }
     fetchCatalog()
-  }, [])
+  }, [supabase])
 
   return { catalog, loading }
 }

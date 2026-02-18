@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -16,7 +16,7 @@ interface EquipmentSettingsFormProps {
 }
 
 export function EquipmentSettingsForm({ onSuccess, onError }: EquipmentSettingsFormProps) {
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user } = useUser()
 
   const [equipment, setEquipment] = useState<PlanInput['equipment']>(() => ({

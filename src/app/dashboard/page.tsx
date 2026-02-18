@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Sparkles, X } from 'lucide-react'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -21,7 +21,7 @@ import { useDashboardData } from '@/hooks/useDashboardData'
 
 export default function DashboardPage() {
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useSupabase()
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const endSession = useWorkoutStore((state) => state.endSession)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Ruler } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -15,7 +15,7 @@ interface AppSettingsProps {
 }
 
 export function AppSettings({ onSuccess, onError }: AppSettingsProps) {
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user } = useUser()
   const setDisplayUnit = useUIStore((state) => state.setDisplayUnit)
   

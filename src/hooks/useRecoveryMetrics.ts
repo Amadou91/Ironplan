@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { useUser } from '@/hooks/useUser'
 import { 
   transformSessionsToBodyWeightTrend,
@@ -30,7 +30,7 @@ export function useRecoveryMetrics(options: {
   sessions: SessionRow[]
 } = { sessions: [] }) {
   const { startDate, endDate, sessions } = options
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user, loading: userLoading } = useUser()
   
   const [readinessEntries, setReadinessEntries] = useState<ReadinessRow[]>([])

@@ -30,9 +30,22 @@ export async function middleware(request: NextRequest) {
     error,
   } = await supabase.auth.getUser()
 
-  // Guard developer-only routes.
   const { pathname } = request.nextUrl
 
+  // Public routes that don't require authentication
+  const isPublicRoute = pathname === '/' 
+    || pathname.startsWith('/auth')
+    || pathname.startsWith('/offline')
+
+  // Redirect unauthenticated users to login for protected routes
+  if (!isPublicRoute && (error || !user)) {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/auth/login'
+    redirectUrl.searchParams.set('redirectTo', pathname)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // Guard developer-only routes.
   if (isDeveloperRoute(pathname)) {
     if (error || !user || !isDeveloperToolsUser(user.email)) {
       const redirectUrl = request.nextUrl.clone()

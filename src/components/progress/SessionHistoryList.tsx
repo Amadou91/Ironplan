@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Trash2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { SessionHistoryToolbar } from '@/components/progress/SessionHistoryToolbar'
 import { formatDateTime } from '@/lib/transformers/chart-data'
@@ -46,7 +46,7 @@ export function SessionHistoryList({
   loading,
   onImportSuccess
 }: SessionHistoryListProps) {
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { displayUnit } = useUIStore()
   const isKg = displayUnit === 'kg'
   const [deletingSessionIds, setDeletingSessionIds] = useState<Record<string, boolean>>({})

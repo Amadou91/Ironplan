@@ -1,22 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { MovementPattern } from '@/types/domain'
+import { templateHistoryRowSchema, exerciseHistoryRowSchema, safeParseArray } from '@/lib/validation/schemas'
 
 type SessionHistory = {
   recentExerciseNames?: string[]
   recentMovementPatterns?: MovementPattern[]
   recentPrimaryMuscles?: string[]
-}
-
-type SessionRow = {
-  id: string
-  started_at: string
-  session_exercises: Array<{
-    exercise_name: string
-    primary_muscle: string
-    exercise_catalog: {
-      movement_pattern: string | null
-    } | null
-  }>
 }
 
 export const fetchTemplateHistory = async (
@@ -51,9 +40,9 @@ export const fetchTemplateHistory = async (
   const recentMovementPatterns: MovementPattern[] = []
   const recentPrimaryMuscles: string[] = []
 
-  const sessions = (data as unknown) as SessionRow[]
+  const sessions = safeParseArray(templateHistoryRowSchema, data, 'template history')
 
-  sessions?.forEach((session) => {
+  sessions.forEach((session) => {
     session.session_exercises?.forEach((ex) => {
       if (ex.exercise_name) recentExerciseNames.push(ex.exercise_name)
       if (ex.primary_muscle) recentPrimaryMuscles.push(ex.primary_muscle)
@@ -76,16 +65,6 @@ export type ExerciseHistoryPoint = {
   reps: number
   performedAt: string
   exerciseName: string
-}
-
-type ExerciseHistoryRow = {
-  weight: number | null
-  weight_unit: string
-  reps: number | null
-  performed_at: string
-  session_exercise: {
-    exercise_name: string
-  }
 }
 
 export const fetchExerciseHistory = async (
@@ -117,7 +96,9 @@ export const fetchExerciseHistory = async (
     return []
   }
 
-  return (data as unknown as ExerciseHistoryRow[]).map((row) => ({
+  const validated = safeParseArray(exerciseHistoryRowSchema, data, 'exercise history')
+
+  return validated.map((row) => ({
     weight: Number(row.weight),
     weightUnit: row.weight_unit,
     reps: Number(row.reps),

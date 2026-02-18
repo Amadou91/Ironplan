@@ -1,3 +1,3 @@
-export * from './engine-core'
-export * from './selection-logic'
-export * from './volume-math'
+export * from '@/lib/generator/engine-core'
+export * from '@/lib/generator/selection-logic'
+export * from '@/lib/generator/volume-math'

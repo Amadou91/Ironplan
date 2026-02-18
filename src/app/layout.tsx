@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from 'next'
 import { JetBrains_Mono, Source_Sans_3, Space_Grotesk } from "next/font/google";
-import AuthProvider from "@/components/auth/AuthProvider";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 import { RouteErrorBoundary } from "@/components/ui/ErrorBoundary";
-import AppShell from "@/components/layout/AppShell";
+import { AppShell } from "@/components/layout/AppShell";
 import { PwaEnhancements } from '@/components/ui/PwaEnhancements'
 import "./globals.css";
 

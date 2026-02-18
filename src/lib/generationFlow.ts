@@ -1,5 +1,5 @@
 import type { PlanInput } from '@/types/domain'
-import { hasEquipment } from './equipment'
+import { hasEquipment } from '@/lib/equipment'
 
 export const isEquipmentValid = (equipment: PlanInput['equipment']) => hasEquipment(equipment.inventory)
 

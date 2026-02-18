@@ -4,7 +4,7 @@
  */
 
 import type { Exercise, EquipmentOption, Goal } from '@/types/domain'
-import type { ExercisePrescription } from './types'
+import type { ExercisePrescription } from '@/lib/generator/types'
 
 /**
  * Gets setup time in minutes for an equipment type.

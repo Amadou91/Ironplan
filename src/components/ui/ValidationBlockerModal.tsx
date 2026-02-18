@@ -1,9 +1,10 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import type { SetValidationError } from '@/lib/session-validation'
 
 interface ValidationBlockerModalProps {
@@ -23,6 +24,17 @@ export function ValidationBlockerModal({
   errors,
   hasNoCompletedSets
 }: ValidationBlockerModalProps) {
+  const dialogRef = useFocusTrap(isOpen)
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   // Group errors by exercise for cleaner display
@@ -48,16 +60,21 @@ export function ValidationBlockerModal({
       onClick={handleBackdropClick}
     >
       <div
+        ref={dialogRef}
         className={cn(
           'w-full max-w-lg bg-[var(--color-surface)] rounded-3xl shadow-2xl',
           'border border-[var(--color-border-strong)] overflow-hidden',
           'transform scale-100 opacity-100'
         )}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="validation-blocker-title"
       >
         <div className="relative p-6 sm:p-8">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] rounded-xl transition-all"
+            className="absolute top-4 right-4 p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+            aria-label="Close dialog"
           >
             <X className="w-5 h-5" />
           </button>
@@ -68,7 +85,7 @@ export function ValidationBlockerModal({
             </div>
 
             <div>
-              <h2 className="text-xl font-bold text-[var(--color-text)]">
+              <h2 id="validation-blocker-title" className="text-xl font-bold text-[var(--color-text)]">
                 {hasNoCompletedSets ? 'No Sets Logged' : 'Missing Required Fields'}
               </h2>
               <p className="mt-2 text-sm text-[var(--color-text-muted)]">

@@ -7,7 +7,7 @@ import { Activity } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { toMuscleLabel } from '@/lib/muscle-utils'
 import { buildTemplateDisplayName } from '@/lib/workout-naming'
 import { useUser } from '@/hooks/useUser'
@@ -30,7 +30,7 @@ export default function WorkoutDetailPage() {
   const params = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user } = useUser()
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const [template, setTemplate] = useState<WorkoutTemplate | null>(null)

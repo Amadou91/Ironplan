@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { cloneInventory, equipmentPresets } from '@/lib/equipment'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { normalizePlanInput } from '@/lib/generator'
 import { normalizePreferences } from '@/lib/preferences'
 import { validateProfileCompletion, type ProfileSnapshot } from '@/lib/profile-validation'
@@ -119,7 +119,7 @@ export function SessionSetupModal({
   templateExperienceLevel
 }: SessionSetupModalProps) {
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user } = useUser()
   const startSession = useWorkoutStore((state) => state.startSession)
   const activeSession = useWorkoutStore((state) => state.activeSession)

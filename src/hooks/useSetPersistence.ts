@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import type { SessionExercise, WorkoutSet } from '@/types/domain'
 
 type SetPayload = {
@@ -38,7 +38,7 @@ export type PersistSetResult = {
 export function useSetPersistence() {
   const [isPersisting, setIsPersisting] = useState(false)
   const [lastError, setLastError] = useState<string | null>(null)
-  const supabase = createClient()
+  const supabase = useSupabase()
 
   const buildSetPayload = useCallback((exercise: SessionExercise, set: WorkoutSet): SetPayload => {
     return {

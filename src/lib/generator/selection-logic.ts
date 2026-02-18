@@ -12,10 +12,10 @@ import {
   getPrimaryMuscleKey,
   getMovementFamily,
   isExerciseEquipmentSatisfied
-} from './utils'
+} from '@/lib/generator/utils'
 import {
   getIntensityScore
-} from './scoring'
+} from '@/lib/generator/scoring'
 
 /**
  * Narrow down the exercise catalog to a valid pool for the current session.

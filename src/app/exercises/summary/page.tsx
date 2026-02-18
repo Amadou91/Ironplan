@@ -2,10 +2,11 @@
 
 import { Suspense, useEffect, useMemo, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { computeSetE1rm, computeSetTonnage } from '@/lib/session-metrics'
 import { computeSessionMetrics, type ReadinessSurvey } from '@/lib/training-metrics'
 import { getSnapshotMetrics } from '@/lib/session-snapshot'
+import { parseWithFallback, sessionDetailSchema } from '@/lib/validation/schemas'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import { useUser } from '@/hooks/useUser'
 import { useUIStore } from '@/store/uiStore'
@@ -105,7 +106,7 @@ const getSessionIntensity = (notes?: SessionNotes | null): Intensity | null => {
 function WorkoutSummaryContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user } = useUser()
   const displayUnit = useUIStore((state) => state.displayUnit)
   const sessionId = searchParams.get('sessionId')
@@ -128,7 +129,7 @@ function WorkoutSummaryContent() {
         .select('id, name, started_at, ended_at, status, session_notes, session_goal, body_weight_lb, impact, completion_snapshot, session_exercises(id, exercise_name, primary_muscle, secondary_muscles, metric_profile, sets(id, reps, weight, implement_count, load_type, rpe, rir, completed, performed_at, weight_unit, duration_seconds, rest_seconds_actual))')
         .eq('id', sessionId).single()
       if (fetchError) setError('Unable to load session summary.')
-      else setSession(data as unknown as SessionDetail)
+      else setSession(parseWithFallback(sessionDetailSchema, data, 'session summary') as SessionDetail)
       setLoading(false)
     }
     loadSession()

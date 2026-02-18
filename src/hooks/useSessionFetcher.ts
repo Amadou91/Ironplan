@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { normalizePreferences } from '@/lib/preferences'
 import { convertWeight, roundWeight } from '@/lib/units'
@@ -65,7 +65,7 @@ export function useSessionFetcher(sessionId?: string | null) {
   const [profileWeightLb, setProfileWeightLb] = useState<number | null>(null)
   const [sessionBodyWeight, setSessionBodyWeight] = useState<string>('')
   
-  const supabase = createClient()
+  const supabase = useSupabase()
   const preferredUnit = activeSession?.weightUnit ?? 'lb'
 
   const mapSession = useCallback((payload: SessionPayload, unit: WeightUnit): WorkoutSession => {

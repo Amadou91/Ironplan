@@ -4,12 +4,12 @@ import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle2, X } from 'lucide-react'
-import ActiveSession from '@/components/workout/ActiveSession'
+import { ActiveSession } from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ValidationBlockerModal } from '@/components/ui/ValidationBlockerModal'
-import { createClient } from '@/lib/supabase/client'
+import { useSupabase } from '@/hooks/useSupabase'
 import { formatFocusLabel, formatGoalLabel } from '@/lib/workout-metrics'
 import { completeSession } from '@/lib/session-completion'
 import { validateSessionForCompletion, type SetValidationError } from '@/lib/session-validation'
@@ -30,7 +30,7 @@ function WorkoutActiveContent() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
+  const supabase = useSupabase()
   const { user } = useUser()
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const endSession = useWorkoutStore((state) => state.endSession)
