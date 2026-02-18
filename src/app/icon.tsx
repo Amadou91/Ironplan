@@ -17,19 +17,45 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #f97316 0%, #fb923c 45%, #22c55e 100%)',
+          background: 'linear-gradient(140deg, #110f1a 0%, #1c1530 50%, #2e1d4a 100%)',
           borderRadius: 96,
-          fontSize: 220,
-          fontWeight: 800,
-          letterSpacing: -12,
-          color: '#fff'
         }}
       >
-        IP
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
+            transform: 'rotate(-30deg)',
+          }}
+        >
+          {/* Left outer plate */}
+          <div style={{ width: 72, height: 210, borderRadius: 20, background: 'rgba(255,255,255,0.95)' }} />
+          {/* Left inner plate */}
+          <div style={{ width: 50, height: 168, borderRadius: 14, background: 'rgba(255,255,255,0.75)' }} />
+          {/* Bar with orange knurl accent */}
+          <div
+            style={{
+              width: 64,
+              height: 36,
+              borderRadius: 6,
+              background: 'rgba(255,255,255,0.55)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <div style={{ width: 28, height: 6, borderRadius: 3, background: '#f97316' }} />
+          </div>
+          {/* Right inner plate */}
+          <div style={{ width: 50, height: 168, borderRadius: 14, background: 'rgba(255,255,255,0.75)' }} />
+          {/* Right outer plate */}
+          <div style={{ width: 72, height: 210, borderRadius: 20, background: 'rgba(255,255,255,0.95)' }} />
+        </div>
       </div>
     ),
     {
-      ...size
+      ...size,
     }
   )
 }

@@ -17,19 +17,40 @@ export default function AppleIcon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #f97316 0%, #fb923c 45%, #22c55e 100%)',
-          borderRadius: 36,
-          fontSize: 76,
-          fontWeight: 800,
-          letterSpacing: -3,
-          color: '#fff'
+          background: 'linear-gradient(140deg, #110f1a 0%, #1c1530 50%, #2e1d4a 100%)',
         }}
       >
-        IP
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            transform: 'rotate(-30deg)',
+          }}
+        >
+          {/* Left plate */}
+          <div style={{ width: 30, height: 80, borderRadius: 8, background: 'rgba(255,255,255,0.95)' }} />
+          {/* Bar with orange accent */}
+          <div
+            style={{
+              width: 38,
+              height: 14,
+              borderRadius: 3,
+              background: 'rgba(255,255,255,0.65)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <div style={{ width: 14, height: 3, borderRadius: 1.5, background: '#f97316' }} />
+          </div>
+          {/* Right plate */}
+          <div style={{ width: 30, height: 80, borderRadius: 8, background: 'rgba(255,255,255,0.95)' }} />
+        </div>
       </div>
     ),
     {
-      ...size
+      ...size,
     }
   )
 }
