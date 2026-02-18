@@ -3,17 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { isDeveloperRoute, isDeveloperToolsUser } from '@/lib/developer-access'
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-
-  if (!isDeveloperRoute(pathname)) {
-    return NextResponse.next()
-  }
-
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+  let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,29 +14,38 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value)
-            response.cookies.set(name, value, options)
-          })
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
         },
       },
     }
   )
 
+  // Always call getUser() to refresh the session cookies.
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser()
 
-  if (error || !user || !isDeveloperToolsUser(user.email)) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/dashboard'
-    return NextResponse.redirect(redirectUrl)
+  // Guard developer-only routes.
+  const { pathname } = request.nextUrl
+
+  if (isDeveloperRoute(pathname)) {
+    if (error || !user || !isDeveloperToolsUser(user.email)) {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = '/dashboard'
+      return NextResponse.redirect(redirectUrl)
+    }
   }
 
-  return response
+  return supabaseResponse
 }
 
 export const config = {
-  matcher: ['/exercises/:path*', '/dev/:path*'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|js|css)$).*)',
+  ],
 }

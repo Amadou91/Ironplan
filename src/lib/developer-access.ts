@@ -29,12 +29,25 @@ export async function assertDeveloperToolsAccess(
 ): Promise<User> {
   const {
     data: { user },
-    error,
+    error: userError,
   } = await supabase.auth.getUser()
 
-  if (error || !user || !isDeveloperToolsUser(user.email)) {
-    throw new Error('Unauthorized developer tools access')
+  if (user && isDeveloperToolsUser(user.email)) {
+    return user
   }
 
-  return user
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession()
+
+  const sessionUser = session?.user ?? null
+
+  if (sessionError || !sessionUser || !isDeveloperToolsUser(sessionUser.email)) {
+    throw new Error(
+      `Unauthorized developer tools access (${userError?.message ?? 'no server user'})`
+    )
+  }
+
+  return sessionUser
 }

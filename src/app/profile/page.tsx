@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { ProfileHeader } from '@/components/profile/ProfileHeader'
 import { PhysicalStatsForm } from '@/components/profile/PhysicalStatsForm'
 import { AppSettings } from '@/components/profile/AppSettings'
+import { DeveloperToolsPanel } from '@/components/profile/DeveloperToolsPanel'
 import { isDeveloperToolsUser } from '@/lib/developer-access'
 
 export default function ProfilePage() {
@@ -96,7 +97,6 @@ export default function ProfilePage() {
         <section className={`space-y-6 ${activeSection !== 'defaults' ? 'hidden sm:block' : ''}`}>
           <h2 className="text-xl font-semibold text-strong">Training defaults</h2>
           <AppSettings 
-            devToolsEnabled={devToolsEnabled} 
             onSuccess={handleSuccess} 
             onError={handleError} 
           />
@@ -111,6 +111,16 @@ export default function ProfilePage() {
             onError={handleError} 
           />
         </section>
+
+        {devToolsEnabled ? (
+          <>
+            <hr className="border-[var(--color-border)]" />
+            <section className="space-y-6">
+              <h2 className="text-xl font-semibold text-strong">Developer tools</h2>
+              <DeveloperToolsPanel onSuccess={handleSuccess} onError={handleError} />
+            </section>
+          </>
+        ) : null}
       </div>
     </div>
   )

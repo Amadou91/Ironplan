@@ -1,33 +1,23 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { Ruler, Dumbbell } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { EquipmentSelector } from '@/components/generate/EquipmentSelector'
 import { cloneInventory, equipmentPresets } from '@/lib/equipment'
 import { defaultPreferences, normalizePreferences, type SettingsPreferences } from '@/lib/preferences'
-import { seedDevData, clearDevData } from '@/lib/dev-seed'
 import { useUIStore } from '@/store/uiStore'
 import type { PlanInput } from '@/types/domain'
 
 interface AppSettingsProps {
-  devToolsEnabled: boolean
   onSuccess?: (msg: string) => void
   onError?: (msg: string) => void
 }
 
-type DevAction = {
-  type: 'seed' | 'clear'
-  title: string
-  description: string
-}
-
-export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettingsProps) {
+export function AppSettings({ onSuccess, onError }: AppSettingsProps) {
   const supabase = createClient()
   const { user } = useUser()
   const setDisplayUnit = useUIStore((state) => state.setDisplayUnit)
@@ -42,11 +32,6 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
   const [loadingPrefs, setLoadingPrefs] = useState(true)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [saveSettingsState, setSaveSettingsState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
-
-  const [devActionState, setDevActionState] = useState<'idle' | 'seeding' | 'clearing'>('idle')
-  const [devActionMessage, setDevActionMessage] = useState<string | null>(null)
-  const [confirmDevAction, setConfirmDevAction] = useState<DevAction | null>(null)
-  const canUseDevTools = devToolsEnabled
 
   useEffect(() => {
     if (!user) return
@@ -159,58 +144,6 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
     machineCount ? `Machines (${machineCount})` : null
   ].filter(Boolean)
 
-  const executeSeedData = async () => {
-    if (!canUseDevTools || !user || devActionState !== 'idle') {
-      onError?.('You are not allowed to use developer tools.')
-      return
-    }
-    setDevActionState('seeding')
-    setDevActionMessage(null)
-    try {
-      const result = await seedDevData(supabase, user.id)
-      const readiness = result.readiness ? `, ${result.readiness} readiness entries` : ''
-      setDevActionMessage(
-        `Seeded ${result.templates} templates, ${result.sessions} sessions, ${result.exercises} exercises, ${result.sets} sets${readiness}.`
-      )
-      onSuccess?.('Development data seeded.')
-    } catch (error) {
-      console.error('Failed to seed dev data', error)
-      onError?.('Unable to seed dev data.')
-    } finally {
-      setDevActionState('idle')
-    }
-  }
-
-  const executeClearSeededData = async () => {
-    if (!canUseDevTools || !user || devActionState !== 'idle') {
-      onError?.('You are not allowed to use developer tools.')
-      return
-    }
-    setDevActionState('clearing')
-    setDevActionMessage(null)
-    try {
-      const result = await clearDevData(supabase, user.id)
-      const readiness = result.readiness ? `, ${result.readiness} readiness entries` : ''
-      const measurements = result.measurements ? `, ${result.measurements} body measurements` : ''
-      setDevActionMessage(
-        `Cleared ${result.templates} templates, ${result.sessions} sessions${readiness}${measurements}.`
-      )
-      onSuccess?.('Seeded data cleared.')
-    } catch (error) {
-      console.error('Failed to clear dev data', error)
-      onError?.('Unable to clear dev data.')
-    } finally {
-      setDevActionState('idle')
-    }
-  }
-
-  const handleConfirmAction = async () => {
-    if (!confirmDevAction) return
-    if (confirmDevAction.type === 'seed') await executeSeedData()
-    if (confirmDevAction.type === 'clear') await executeClearSeededData()
-    setConfirmDevAction(null)
-  }
-
   return (
     <div className="grid grid-cols-1 gap-6">
       <Card className="p-6">
@@ -240,50 +173,6 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
           </Button>
         </div>
       </Card>
-
-      {canUseDevTools && (
-        <Card className="p-6 border-accent/20 bg-accent/5">
-          <div>
-            <h2 className="text-sm font-semibold text-strong">Developer tools</h2>
-            <p className="text-xs text-subtle">
-              Seed temporary workout data for development and wipe it clean when you are done.
-            </p>
-          </div>
-          {devActionMessage && <p className="mt-3 text-xs text-accent font-medium">{devActionMessage}</p>}
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link href="/exercises">
-              <Button type="button" size="sm" variant="outline">
-                Exercise Catalog
-              </Button>
-            </Link>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setConfirmDevAction({
-                type: 'seed',
-                title: 'Seed Dev Data',
-                description: 'This will insert a batch of simulated workout data for your account. You can clear it later.'
-              })}
-              disabled={devActionState !== 'idle'}
-            >
-              {devActionState === 'seeding' ? 'Seeding...' : 'Seed dev data'}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setConfirmDevAction({
-                type: 'clear',
-                title: 'Clear Dev Data',
-                description: 'This will delete all seeded workout templates and sessions for your account. This cannot be undone.'
-              })}
-              disabled={devActionState !== 'idle'}
-            >
-              {devActionState === 'clearing' ? 'Clearing...' : 'Clear seeded data'}
-            </Button>
-          </div>
-        </Card>
-      )}
 
       <Card className="p-6">
         <div className="flex items-start justify-between gap-4">
@@ -344,17 +233,6 @@ export function AppSettings({ devToolsEnabled, onSuccess, onError }: AppSettings
           {saveSettingsState === 'saving' ? 'Saving...' : 'Save preferences'}
         </Button>
       </div>
-
-      <ConfirmDialog 
-        isOpen={Boolean(confirmDevAction)}
-        onClose={() => setConfirmDevAction(null)}
-        onConfirm={handleConfirmAction}
-        title={confirmDevAction?.title ?? ''}
-        description={confirmDevAction?.description ?? ''}
-        confirmText={confirmDevAction?.type === 'seed' ? 'Seed Data' : 'Clear Data'}
-        variant={confirmDevAction?.type === 'clear' ? 'danger' : 'info'}
-        isLoading={devActionState !== 'idle'}
-      />
     </div>
   )
 }
