@@ -24,11 +24,15 @@ export const calculateBmr = (
   sex?: string | null
 ) => {
   if (!weightLb || !heightIn || typeof age !== 'number') return null
-  if (!sex || (sex !== 'male' && sex !== 'female')) return null
+  if (!sex) return null // empty string = not set yet
   const weightKg = weightLb / 2.20462
   const heightCm = heightIn * 2.54
   const base = 10 * weightKg + 6.25 * heightCm - 5 * age
-  return sex === 'male' ? base + 5 : base - 161
+  if (sex === 'male') return base + 5
+  if (sex === 'female') return base - 161
+  // non_binary / prefer_not_to_say → neutral midpoint of male (+5) and female (-161)
+  if (sex === 'non_binary' || sex === 'prefer_not_to_say') return base - 78
+  return null // unknown / unrecognised value
 }
 
 export const formatHeightFromInches = (heightIn?: number | null) => {

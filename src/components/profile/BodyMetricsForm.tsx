@@ -180,7 +180,7 @@ export function BodyMetricsForm({
           </div>
           <div className="flex flex-col sm:col-span-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs text-subtle">Sex (for BMR)</label>
+              <label className="text-xs text-subtle">Sex</label>
               {isMissing('sex') && (
                 <span className="text-[10px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
               )}
@@ -192,11 +192,13 @@ export function BodyMetricsForm({
               disabled={loading || saving}
               aria-invalid={isMissing('sex') || undefined}
             >
-              <option value="">Prefer not to say</option>
+              <option value="">— Not set —</option>
               <option value="female">Female</option>
               <option value="male">Male</option>
               <option value="non_binary">Non-binary</option>
+              <option value="prefer_not_to_say">Prefer not to say</option>
             </Select>
+            <p className="mt-1 text-[10px] text-subtle">Used for BMR estimates. Non-binary and prefer not to say use a neutral average formula.</p>
           </div>
         </div>
 

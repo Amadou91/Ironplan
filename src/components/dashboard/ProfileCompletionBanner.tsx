@@ -43,9 +43,12 @@ export function ProfileCompletionBanner() {
       const prefs = normalizePreferences(data.preferences)
       const inventory = prefs.equipment?.inventory
       const hasEquipment = inventory
-        ? Object.values(inventory).some((v) =>
-            Array.isArray(v) ? v.length > 0 : typeof v === 'object' ? (v as { available?: boolean }).available : Boolean(v)
-          )
+        ? Object.entries(inventory).some(([key, v]) => {
+            if (key === 'machines') return Object.values(v as Record<string, boolean>).some(Boolean)
+            if (Array.isArray(v)) return v.length > 0
+            if (key === 'barbell') return (v as { available: boolean }).available
+            return Boolean(v)
+          })
         : false
 
       const snapshot: ProfileSnapshot = {
