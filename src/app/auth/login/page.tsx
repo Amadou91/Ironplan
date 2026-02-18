@@ -89,9 +89,6 @@ export default function LoginPage() {
       const result = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: `${location.origin}/auth/callback`,
-        },
       })
       signUpError = result.error
     } catch {
