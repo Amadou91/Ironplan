@@ -138,7 +138,7 @@ export function ProgressFilters({
   const showFilterControls = mobileExpanded
 
   return (
-    <Card className="p-5 shadow-xl border-[var(--color-border)] glass-panel">
+    <Card className="p-5 shadow-xl border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface)_92%,transparent)] backdrop-blur-lg">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">

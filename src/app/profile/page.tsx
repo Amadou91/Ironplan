@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { ProfileHeader } from '@/components/profile/ProfileHeader'
 import { PhysicalStatsForm } from '@/components/profile/PhysicalStatsForm'
 import { AppSettings } from '@/components/profile/AppSettings'
+import { EquipmentSettingsForm } from '@/components/profile/EquipmentSettingsForm'
 import { DeveloperToolsPanel } from '@/components/profile/DeveloperToolsPanel'
 import { isDeveloperToolsUser } from '@/lib/developer-access'
 
@@ -20,7 +21,7 @@ export default function ProfilePage() {
   
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [activeSection, setActiveSection] = useState<'defaults' | 'metrics'>('defaults')
+  const [activeSection, setActiveSection] = useState<'defaults' | 'equipment' | 'metrics'>('defaults')
   
   const devToolsEnabled = isDeveloperToolsUser(user?.email)
 
@@ -69,7 +70,7 @@ export default function ProfilePage() {
         <ProfileHeader user={user} />
 
         <div className="sm:hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-1">
-          <div className="grid grid-cols-2 gap-1">
+          <div className="grid grid-cols-3 gap-1">
             <Button
               type="button"
               size="sm"
@@ -78,6 +79,15 @@ export default function ProfilePage() {
               className="h-10 text-xs font-bold uppercase tracking-[0.06em]"
             >
               Preferences
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={activeSection === 'equipment' ? 'primary' : 'ghost'}
+              onClick={() => setActiveSection('equipment')}
+              className="h-10 text-xs font-bold uppercase tracking-[0.06em]"
+            >
+              Equipment
             </Button>
             <Button
               type="button"
@@ -102,7 +112,17 @@ export default function ProfilePage() {
           />
         </section>
 
-        <hr className={`border-[var(--color-border)] ${activeSection !== 'defaults' ? 'hidden sm:block' : ''}`} />
+        <hr className={`border-[var(--color-border)] ${activeSection === 'metrics' ? 'hidden sm:block' : ''}`} />
+
+        <section className={`space-y-6 ${activeSection !== 'equipment' ? 'hidden sm:block' : ''}`}>
+          <h2 className="text-xl font-semibold text-strong">Workout equipment</h2>
+          <EquipmentSettingsForm
+            onSuccess={handleSuccess}
+            onError={handleError}
+          />
+        </section>
+
+        <hr className={`border-[var(--color-border)] ${activeSection !== 'metrics' ? 'hidden sm:block' : ''}`} />
 
         <section className={`space-y-6 ${activeSection !== 'metrics' ? 'hidden sm:block' : ''}`}>
           <h2 className="text-xl font-semibold text-strong">Body metrics & history</h2>
