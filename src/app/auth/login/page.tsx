@@ -11,13 +11,26 @@ import { Label } from '@/components/ui/Label'
 import { Alert } from '@/components/ui/Alert'
 import { toAuthUser, useAuthStore } from '@/store/authStore'
 
+const MIN_PASSWORD_LENGTH = 6
+
 export default function LoginPage() {
+  const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const router = useRouter()
   const setUser = useAuthStore((state) => state.setUser)
+
+  const switchMode = (next: 'login' | 'signup') => {
+    setMode(next)
+    setError(null)
+    setSuccess(null)
+    setPassword('')
+    setConfirmPassword('')
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,7 +38,7 @@ export default function LoginPage() {
     setError(null)
 
     let data: Awaited<ReturnType<ReturnType<typeof createClient>['auth']['signInWithPassword']>>['data'] | null = null
-    let error: Awaited<ReturnType<ReturnType<typeof createClient>['auth']['signInWithPassword']>>['error'] | null = null
+    let signInError: Awaited<ReturnType<ReturnType<typeof createClient>['auth']['signInWithPassword']>>['error'] | null = null
 
     try {
       const supabase = createClient()
@@ -34,15 +47,15 @@ export default function LoginPage() {
         password,
       })
       data = result.data
-      error = result.error
+      signInError = result.error
     } catch {
       setError('Authentication is not configured. Please check Supabase environment variables.')
       setLoading(false)
       return
     }
 
-    if (error) {
-      setError(error.message)
+    if (signInError) {
+      setError(signInError.message)
       setLoading(false)
     } else {
       setUser(toAuthUser(data.session?.user ?? null))
@@ -55,8 +68,21 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setSuccess(null)
 
-    let error: Awaited<ReturnType<ReturnType<typeof createClient>['auth']['signUp']>>['error'] | null = null
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`)
+      setLoading(false)
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
+      setLoading(false)
+      return
+    }
+
+    let signUpError: Awaited<ReturnType<ReturnType<typeof createClient>['auth']['signUp']>>['error'] | null = null
 
     try {
       const supabase = createClient()
@@ -67,18 +93,18 @@ export default function LoginPage() {
           emailRedirectTo: `${location.origin}/auth/callback`,
         },
       })
-      error = result.error
+      signUpError = result.error
     } catch {
       setError('Authentication is not configured. Please check Supabase environment variables.')
       setLoading(false)
       return
     }
 
-    if (error) {
-      setError(error.message)
+    if (signUpError) {
+      setError(signUpError.message)
       setLoading(false)
     } else {
-      setError('Check your email for the confirmation link.')
+      setSuccess('Account created! Check your email for the confirmation link.')
       setLoading(false)
     }
   }
@@ -91,64 +117,145 @@ export default function LoginPage() {
             <Dumbbell className="h-8 w-8 text-accent" />
           </div>
           <h1 className="mt-6 text-3xl font-semibold tracking-tight text-strong">Ironplan</h1>
-          <p className="mt-2 text-sm text-muted">Welcome back. Log in to continue training.</p>
+          <p className="mt-2 text-sm text-muted">
+            {mode === 'login'
+              ? 'Welcome back. Log in to continue training.'
+              : 'Create an account to start training.'}
+          </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Log in</CardTitle>
-            <CardDescription>Use your email and password to access your account.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="space-y-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email address</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
+        {mode === 'login' ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Log in</CardTitle>
+              <CardDescription>Use your email and password to access your account.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">Email address</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
 
-              {error ? <Alert variant="error">{error}</Alert> : null}
+                {error ? <Alert variant="error">{error}</Alert> : null}
 
-              <div className="flex flex-col gap-3">
-                <Button 
-                  onClick={handleLogin}
+                <Button
+                  type="submit"
                   disabled={loading}
                   className="w-full justify-center"
                 >
                   {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Log in'}
                 </Button>
-                <Button 
-                  onClick={handleSignUp}
+
+                <p className="text-center text-sm text-muted">
+                  Don&apos;t have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signup')}
+                    className="font-medium text-accent hover:underline"
+                  >
+                    Create account
+                  </button>
+                </p>
+              </form>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Create account</CardTitle>
+              <CardDescription>Enter your details to get started.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSignUp} className="space-y-5">
+                <div className="space-y-1.5">
+                  <Label htmlFor="signup-email">Email address</Label>
+                  <Input
+                    id="signup-email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <Input
+                    id="signup-password"
+                    name="password"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={MIN_PASSWORD_LENGTH}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <p className="text-xs text-muted">At least {MIN_PASSWORD_LENGTH} characters</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="signup-confirm">Confirm password</Label>
+                  <Input
+                    id="signup-confirm"
+                    name="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={MIN_PASSWORD_LENGTH}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+
+                {error ? <Alert variant="error">{error}</Alert> : null}
+                {success ? <Alert variant="success">{success}</Alert> : null}
+
+                <Button
+                  type="submit"
                   disabled={loading}
-                  variant="outline"
                   className="w-full justify-center"
                 >
-                  Create account
+                  {loading ? <Loader2 className="animate-spin h-4 w-4" /> : 'Create account'}
                 </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+
+                <p className="text-center text-sm text-muted">
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => switchMode('login')}
+                    className="font-medium text-accent hover:underline"
+                  >
+                    Log in
+                  </button>
+                </p>
+              </form>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )
