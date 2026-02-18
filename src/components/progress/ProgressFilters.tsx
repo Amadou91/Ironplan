@@ -127,6 +127,7 @@ export function ProgressFilters({
       setEndDate(formatDateForInput(end))
       setActiveDatePreset(preset.label)
     }
+    // Panel intentionally stays open so user can stack additional filters
   }
 
   const activeFilterCount = [
@@ -135,7 +136,11 @@ export function ProgressFilters({
     selectedExercise !== 'all' ? 'exercise' : null
   ].filter(Boolean).length
 
-  const showFilterControls = mobileExpanded
+  const activeSummaryParts = [
+    activeDatePreset ?? (startDate || endDate ? `${startDate || '…'} → ${endDate || '…'}` : null),
+    selectedMuscle !== 'all' ? MUSCLE_PRESETS.find(m => m.value === selectedMuscle)?.label : null,
+    selectedExercise !== 'all' ? selectedExercise : null,
+  ].filter(Boolean)
 
   return (
     <Card className="p-5 shadow-xl border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface)_92%,transparent)] backdrop-blur-lg">
@@ -146,24 +151,23 @@ export function ProgressFilters({
             <h2 className="text-sm font-black uppercase tracking-[0.1em] text-strong">Insights Control</h2>
           </div>
 
-          <Button
+          {/* Mobile toggle — only opens/closes the panel, selections never close it */}
+          <button
             type="button"
-            variant="ghost"
-            size="sm"
             onClick={() => setMobileExpanded((prev) => !prev)}
-            className="h-9 justify-between px-3 md:hidden"
+            className="md:hidden flex items-center justify-between gap-2 rounded-lg px-3 h-10 border border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-left transition-colors hover:bg-[var(--color-surface-muted)]"
           >
-            <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.06em]">
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[10px] text-[var(--color-primary-strong)]">
+            <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.06em] text-strong">
+              <SlidersHorizontal className="h-4 w-4 text-subtle" />
+              {mobileExpanded ? 'Filters' : (activeSummaryParts.length > 0 ? activeSummaryParts.join(' · ') : 'Filters')}
+              {!mobileExpanded && activeFilterCount > 0 && (
+                <span className="rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[10px] font-black text-white">
                   {activeFilterCount}
                 </span>
               )}
             </span>
-            {mobileExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
+            {mobileExpanded ? <ChevronUp className="h-4 w-4 text-subtle shrink-0" /> : <ChevronDown className="h-4 w-4 text-subtle shrink-0" />}
+          </button>
           
           <div className="hidden md:flex flex-wrap items-center gap-1.5">
             <div className="flex flex-wrap items-center gap-1 bg-[var(--color-surface-muted)]/50 p-1.5 rounded-xl border border-[var(--color-border)]">
@@ -186,69 +190,95 @@ export function ProgressFilters({
           </div>
         </div>
 
-        <div className={`md:hidden ${showFilterControls ? 'block' : 'hidden'} space-y-4`}>
-          <div className="-mx-1 overflow-x-auto no-scrollbar px-1">
-            <div className="inline-flex min-w-max items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/50 p-1.5">
-              {DATE_RANGE_PRESETS.map((preset) => (
-                <Button
-                  key={preset.label}
-                  variant={activeDatePreset === preset.label ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => handlePresetClick(preset)}
-                  className={`h-8 px-3 text-[11px] font-black uppercase tracking-[0.06em] ${
-                    activeDatePreset === preset.label ? 'shadow-sm' : 'text-subtle hover:text-strong'
-                  }`}
-                >
-                  {preset.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            <div className="space-y-2">
-              <label className="text-[11px] uppercase font-black text-subtle/80 tracking-[0.08em]">Time Horizon</label>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => { setStartDate(e.target.value); setActiveDatePreset(null) }}
-                  className="input-base text-sm h-11 bg-white/50"
-                />
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => { setEndDate(e.target.value); setActiveDatePreset(null) }}
-                  className="input-base text-sm h-11 bg-white/50"
-                />
+        {mobileExpanded && (
+          <div className="md:hidden space-y-4">
+            <div className="-mx-1 overflow-x-auto no-scrollbar px-1">
+              <div className="inline-flex min-w-max items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/50 p-1.5">
+                {DATE_RANGE_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.label}
+                    variant={activeDatePreset === preset.label ? 'primary' : 'ghost'}
+                    size="sm"
+                    onClick={() => handlePresetClick(preset)}
+                    className={`h-8 px-3 text-[11px] font-black uppercase tracking-[0.06em] ${
+                      activeDatePreset === preset.label ? 'shadow-sm' : 'text-subtle hover:text-strong'
+                    }`}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[11px] uppercase font-black text-subtle/80 tracking-[0.08em]">Muscle Focus</label>
-              <select
-                value={selectedMuscle}
-                onChange={(e) => setSelectedMuscle(e.target.value)}
-                className="input-base text-sm h-11 font-bold bg-white/50"
-              >
-                <option value="all">All Groups</option>
-                {MUSCLE_PRESETS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-              </select>
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
+                <label className="text-[11px] uppercase font-black text-subtle/80 tracking-[0.08em]">Custom range</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-subtle uppercase tracking-wider">From</span>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => { setStartDate(e.target.value); setActiveDatePreset(null) }}
+                      className="input-base text-sm h-11"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-subtle uppercase tracking-wider">To</span>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => { setEndDate(e.target.value); setActiveDatePreset(null) }}
+                      className="input-base text-sm h-11"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] uppercase font-black text-subtle/80 tracking-[0.08em]">Muscle Focus</label>
+                <select
+                  value={selectedMuscle}
+                  onChange={(e) => setSelectedMuscle(e.target.value)}
+                  className="input-base text-sm h-11 font-bold"
+                >
+                  <option value="all">All Groups</option>
+                  {MUSCLE_PRESETS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] uppercase font-black text-subtle/80 tracking-[0.08em]">Movement</label>
+                <select
+                  value={selectedExercise}
+                  onChange={(e) => setSelectedExercise(e.target.value)}
+                  className="input-base text-sm h-11 font-bold"
+                >
+                  <option value="all">All Exercises</option>
+                  {exerciseOptions.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[11px] uppercase font-black text-subtle/80 tracking-[0.08em]">Movement</label>
-              <select
-                value={selectedExercise}
-                onChange={(e) => setSelectedExercise(e.target.value)}
-                className="input-base text-sm h-11 font-bold bg-white/50"
+            {/* Explicit close row — filters are never auto-collapsed */}
+            <div className="flex items-center justify-between pt-2 border-t border-[var(--color-border)]">
+              {activeFilterCount > 0 && (
+                <span className="text-xs text-subtle">
+                  {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active
+                </span>
+              )}
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                className="ml-auto"
+                onClick={() => setMobileExpanded(false)}
               >
-                <option value="all">All Exercises</option>
-                {exerciseOptions.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
+                Done
+              </Button>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
           <div className="space-y-2">

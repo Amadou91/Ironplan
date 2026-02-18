@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -37,8 +37,14 @@ export default function ProgressPage() {
     setSessionPage(0)
   }, [setSessions, setSessionPage])
 
-  // Only show full page skeleton on initial load or when we have no data
-  const isInitialLoad = userLoading || (loading && sessions.length === 0)
+  // Only show the full-page skeleton on the very first load.
+  // After data has been fetched once, never unmount ProgressFilters (which
+  // would reset the mobileExpanded accordion state mid-interaction).
+  const hasFetchedOnce = useRef(false)
+  if (!userLoading && !loading && !hasFetchedOnce.current) {
+    hasFetchedOnce.current = true
+  }
+  const isInitialLoad = !hasFetchedOnce.current && (userLoading || loading)
 
   if (isInitialLoad) return (
     <div className="page-shell">

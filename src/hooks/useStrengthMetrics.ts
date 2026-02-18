@@ -106,9 +106,11 @@ export function useStrengthMetrics(options: {
         }
       }
       
-      // Only use pagination when no date filters are applied
+      // When date filters are active, fetch everything and treat as page 0.
+      // Pagination only applies when no date filters are set.
+      const effectivePage = startDate || endDate ? 0 : sessionPage
       if (!startDate && !endDate) {
-        const from = sessionPage * SESSION_PAGE_SIZE
+        const from = effectivePage * SESSION_PAGE_SIZE
         const to = from + SESSION_PAGE_SIZE - 1
         query = query.range(from, to)
       }
@@ -121,7 +123,7 @@ export function useStrengthMetrics(options: {
         // Validate response data with Zod schema
         const validatedSessions = safeParseArray(sessionRowSchema, sessionData ?? [], 'useStrengthMetrics.sessions')
         const nextSessions = validatedSessions as SessionRow[]
-        if (sessionPage > 0) {
+        if (effectivePage > 0) {
           setSessions(prev => [...prev, ...nextSessions])
         } else {
           setSessions(nextSessions)
