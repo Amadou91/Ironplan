@@ -41,35 +41,47 @@ create index if not exists session_focus_areas_session_idx
 create index if not exists session_focus_areas_focus_idx
   on public.session_focus_areas (focus_area);
 
--- Backfill from existing single-focus snapshot field
-insert into public.session_focus_areas (session_id, focus_area)
-select
-  s.id,
-  case
-    when s.session_focus = 'upper_body' then 'upper'
-    when s.session_focus = 'lower_body' then 'lower'
-    else s.session_focus
-  end as focus_area
-from public.sessions s
-where s.session_focus is not null
-  and s.session_focus in (
-    'upper',
-    'lower',
-    'full_body',
-    'core',
-    'cardio',
-    'mobility',
-    'arms',
-    'legs',
-    'biceps',
-    'triceps',
-    'chest',
-    'back',
-    'shoulders',
-    'upper_body',
-    'lower_body'
-  )
-on conflict (session_id, focus_area) do nothing;
+-- Backfill from existing single-focus snapshot field (if present on this schema)
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'sessions'
+      and column_name = 'session_focus'
+  ) then
+    insert into public.session_focus_areas (session_id, focus_area)
+    select
+      s.id,
+      case
+        when s.session_focus = 'upper_body' then 'upper'
+        when s.session_focus = 'lower_body' then 'lower'
+        else s.session_focus
+      end as focus_area
+    from public.sessions s
+    where s.session_focus is not null
+      and s.session_focus in (
+        'upper',
+        'lower',
+        'full_body',
+        'core',
+        'cardio',
+        'mobility',
+        'arms',
+        'legs',
+        'biceps',
+        'triceps',
+        'chest',
+        'back',
+        'shoulders',
+        'upper_body',
+        'lower_body'
+      )
+    on conflict (session_id, focus_area) do nothing;
+  end if;
+end;
+$$;
 
 alter table public.session_focus_areas enable row level security;
 

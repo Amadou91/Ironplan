@@ -17,7 +17,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
-  const supabase = createClient()
   const setUser = useAuthStore((state) => state.setUser)
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -25,10 +24,22 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    let data: Awaited<ReturnType<ReturnType<typeof createClient>['auth']['signInWithPassword']>>['data'] | null = null
+    let error: Awaited<ReturnType<ReturnType<typeof createClient>['auth']['signInWithPassword']>>['error'] | null = null
+
+    try {
+      const supabase = createClient()
+      const result = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      data = result.data
+      error = result.error
+    } catch {
+      setError('Authentication is not configured. Please check Supabase environment variables.')
+      setLoading(false)
+      return
+    }
 
     if (error) {
       setError(error.message)
@@ -45,13 +56,23 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${location.origin}/auth/callback`,
-      },
-    })
+    let error: Awaited<ReturnType<ReturnType<typeof createClient>['auth']['signUp']>>['error'] | null = null
+
+    try {
+      const supabase = createClient()
+      const result = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${location.origin}/auth/callback`,
+        },
+      })
+      error = result.error
+    } catch {
+      setError('Authentication is not configured. Please check Supabase environment variables.')
+      setLoading(false)
+      return
+    }
 
     if (error) {
       setError(error.message)
