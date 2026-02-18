@@ -42,7 +42,7 @@ const unitsModuleShim = { exports: {} }
 const requireShim = createRequire(import.meta.url)
 
 const customRequire = (moduleId) => {
-  if (moduleId === './equipment' || moduleId === '../src/lib/equipment') {
+  if (moduleId === './equipment' || moduleId === '../src/lib/equipment' || moduleId === '@/lib/equipment') {
     return equipmentModuleShim.exports
   }
   if (moduleId === '@/lib/units') {
