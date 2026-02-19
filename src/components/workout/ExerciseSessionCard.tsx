@@ -62,46 +62,46 @@ export const ExerciseSessionCard = memo(function ExerciseSessionCard({
   return (
     <div className="surface-card-muted p-4 md:p-6 scroll-mt-[220px]">
       {/* Always-visible exercise header */}
-      <div className="flex justify-between items-start">
-        <button type="button" onClick={onToggleCollapse} className="flex-1 min-w-0 text-left">
+      <div className="flex justify-between items-start gap-4">
+        <button type="button" onClick={onToggleCollapse} className="flex-1 min-w-0 text-left py-1">
           <div className="flex items-center gap-3">
-            <h3 className="text-lg font-semibold text-strong truncate">{exercise.name}</h3>
+            <h3 className="text-xl font-bold font-display text-strong truncate">{exercise.name}</h3>
             {movementPattern && (
-              <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-surface text-subtle border border-border shrink-0">
+              <span className="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-surface text-subtle border border-border shrink-0">
                 {movementPattern}
               </span>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-2 mt-1">
+          <div className="flex flex-wrap items-center gap-2 mt-2">
             <span className="badge-accent">{exercise.primaryMuscle}</span>
             {allCompleted && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[var(--color-success)] uppercase tracking-wider">
-                <Check size={12} /> Done
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--color-success)] uppercase tracking-wider bg-[var(--color-success-soft)] px-2 py-0.5 rounded-full">
+                <Check size={14} strokeWidth={3} /> Done
               </span>
             )}
             {exercise.sets.length > 0 && !allCompleted && (
-              <span className="text-[10px] font-bold text-muted uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-muted uppercase tracking-wider">
                 {completedCount}/{exercise.sets.length} sets
               </span>
             )}
             {exerciseTargetSummary && (
-              <span className="text-[10px] text-muted">Target: {exerciseTargetSummary}</span>
+              <span className="text-[11px] text-muted font-medium bg-[var(--color-surface-subtle)] px-2 py-0.5 rounded-full border border-[var(--color-border)]">Target: {exerciseTargetSummary}</span>
             )}
           </div>
         </button>
-        <div className="flex items-center gap-1 shrink-0 ml-2">
-          <button onClick={onSwap} className="p-2 -m-1 text-accent hover:text-accent/80 hover:bg-[var(--color-accent-soft)] rounded-lg transition-colors" title="Swap exercise"><RefreshCcw size={16} /></button>
-          <button onClick={onRemove} className="p-2 -m-1 text-subtle hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors" title="Remove exercise"><Trash2 size={16} /></button>
-          <button onClick={onToggleCollapse} className="p-2 -m-1 text-muted hover:text-strong rounded-lg transition-colors" title={isCollapsed ? 'Expand' : 'Collapse'}>
-            {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+        <div className="flex items-center gap-1 shrink-0 ml-1">
+          <button onClick={onSwap} className="p-3 -m-1.5 text-accent hover:text-accent/80 hover:bg-[var(--color-primary-soft)] rounded-xl transition-colors" title="Swap exercise"><RefreshCcw size={18} /></button>
+          <button onClick={onRemove} className="p-3 -m-1.5 text-subtle hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-xl transition-colors" title="Remove exercise"><Trash2 size={18} /></button>
+          <button onClick={onToggleCollapse} className="p-3 -m-1.5 text-muted hover:text-strong rounded-xl transition-colors" title={isCollapsed ? 'Expand' : 'Collapse'}>
+            {isCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
           </button>
         </div>
       </div>
 
       {/* Collapsible body */}
       {!isCollapsed && (
-        <div className="mt-4">
-          <div className="space-y-2">
+        <div className="mt-6">
+          <div className="space-y-3">
             {exercise.sets.map((set, setIdx) => (
               <SetLogger
                 key={set.id}
@@ -115,18 +115,18 @@ export const ExerciseSessionCard = memo(function ExerciseSessionCard({
               />
             ))}
           </div>
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-3 mt-6">
             {hasSets && (
               <button
                 onClick={onCopyLastSet}
-                className="flex-1 py-2 border-2 border-dashed border-[var(--color-border-strong)] rounded-xl text-sm font-medium text-muted hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)] flex items-center justify-center gap-2"
+                className="flex-1 py-3 border-2 border-dashed border-[var(--color-border-strong)] rounded-xl text-sm font-bold text-muted hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >
-                <Copy size={14} /> Copy Last
+                <Copy size={16} /> Copy Last
               </button>
             )}
             <button
               onClick={onAddSet}
-              className="flex-1 py-2 border-2 border-dashed border-[var(--color-border-strong)] rounded-xl text-sm font-medium text-muted hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)]"
+              className="flex-1 py-3 border-2 border-dashed border-[var(--color-border-strong)] rounded-xl text-sm font-bold text-muted hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
               + Add Set
             </button>

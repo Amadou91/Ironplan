@@ -10,7 +10,7 @@ import { FastRepsInput, FastRirInput, FastRestInput } from '@/components/workout
 import { TotalWeightBar } from '@/components/workout/SetLoggerControls'
 
 const INPUT_BASE = cn(
-  'input-base h-11 text-sm font-medium text-center',
+  'input-base h-12 text-lg font-mono font-bold text-center',
   'disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--color-input-muted)]'
 )
 const inputError = (hasError?: boolean) => cn(
@@ -18,15 +18,15 @@ const inputError = (hasError?: boolean) => cn(
   hasError && 'border-[var(--color-danger)] ring-2 ring-[var(--color-danger-soft)]'
 )
 const INPUT_COMPACT = cn(
-  'input-base input-compact h-11 w-16 text-sm font-medium text-center',
+  'input-base input-compact h-12 w-20 text-lg font-mono font-bold text-center',
   'disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--color-input-muted)]'
 )
 const SELECT_COMPACT = cn(
-  'input-base h-11 w-20 text-sm font-medium text-center',
+  'input-base h-12 w-24 text-base font-medium text-center',
   'disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--color-input-muted)]'
 )
 
-const LABEL = 'text-xs font-medium text-subtle'
+const LABEL = 'text-[10px] font-bold text-muted uppercase tracking-wider mb-1 block'
 interface SetFormBaseProps {
   set: WorkoutSet
   isEditing: boolean

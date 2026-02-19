@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils'
 import { RIR_OPTIONS } from '@/constants/intensityOptions'
 
 // Common styles
-const BTN_BASE = 'flex min-h-11 min-w-11 items-center justify-center rounded-md transition-all active:scale-95 disabled:pointer-events-none disabled:opacity-50'
-const INPUT_BASE = "h-full w-full bg-transparent text-center font-semibold text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] disabled:opacity-50"
-const CONTROL_CONTAINER = 'flex h-11 items-center overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm focus-within:border-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--color-primary)]/20'
+const BTN_BASE = 'flex min-h-12 min-w-12 items-center justify-center rounded-md transition-all active:scale-95 disabled:pointer-events-none disabled:opacity-50'
+const INPUT_BASE = "h-full w-full bg-transparent text-center font-bold font-mono text-lg text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)] disabled:opacity-50"
+const CONTROL_CONTAINER = 'flex h-12 items-center overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm focus-within:border-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--color-primary)]/20'
 
 // --- Fast Reps Input ---
 
