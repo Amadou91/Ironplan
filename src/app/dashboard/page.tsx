@@ -13,11 +13,13 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Alert } from '@/components/ui/Alert'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { SuggestedWorkoutCard } from '@/components/dashboard/SuggestedWorkoutCard'
 import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
 import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
 import { useDashboardData } from '@/hooks/useDashboardData'
+import type { WorkoutSuggestion } from '@/lib/suggestion-logic'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -28,6 +30,7 @@ export default function DashboardPage() {
   const [cancelingSession, setCancelingSession] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
   const [quickStartOpen, setQuickStartOpen] = useState(false)
+  const [initialSuggestion, setInitialSuggestion] = useState<WorkoutSuggestion | null>(null)
   const {
     user,
     userLoading,
@@ -130,6 +133,14 @@ export default function DashboardPage() {
 
         <ProfileCompletionBanner />
 
+        <SuggestedWorkoutCard 
+          sessions={sessions as any} 
+          onStart={(suggestion) => {
+            setInitialSuggestion(suggestion)
+            setQuickStartOpen(true)
+          }} 
+        />
+
         {latestActiveSession && (
           <Card className="p-8 border-2 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]/50 backdrop-blur-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -183,10 +194,13 @@ export default function DashboardPage() {
 
         <SessionSetupModal
           isOpen={quickStartOpen}
-          onClose={() => setQuickStartOpen(false)}
-          templateTitle="Begin Workout"
-          templateStyle="hypertrophy"
-          initialFocusAreas={['chest']}
+          onClose={() => {
+            setQuickStartOpen(false)
+            setInitialSuggestion(null)
+          }}
+          templateTitle={initialSuggestion ? "Suggested Workout" : "Begin Workout"}
+          templateStyle={initialSuggestion?.goal || "hypertrophy"}
+          initialFocusAreas={initialSuggestion?.focus || ['chest']}
         />
       </div>
     </div>
