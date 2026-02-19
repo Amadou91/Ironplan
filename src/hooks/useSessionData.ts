@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { useSupabase } from '@/hooks/useSupabase'
 import { normalizePreferences } from '@/lib/preferences'
@@ -82,10 +82,19 @@ export function useSessionData(sessionId?: string | null) {
     return mapSessionPayload(payload)
   }, [preferredUnit])
 
-  // Fetch session on mount
+  // Track which sessionId we've already fetched so we fetch exactly once per mount
+  const fetchedSessionRef = useRef<string | null>(null)
+
+  // Always fetch the authoritative session state from the database.
+  // Zustand persist may hydrate stale localStorage data from another device,
+  // so we must replace it with the DB truth to avoid duplicate exercises/sets.
   useEffect(() => {
-    if (activeSession || !sessionId) return
-    const fetch = async () => {
+    if (!sessionId) return
+    if (fetchedSessionRef.current === sessionId) return
+    fetchedSessionRef.current = sessionId
+
+    let cancelled = false
+    const load = async () => {
       const { data, error } = await supabase
         .from('sessions')
         .select(`
@@ -98,14 +107,16 @@ export function useSessionData(sessionId?: string | null) {
               rpe, rir, completed, performed_at, weight_unit,
               duration_seconds, distance, distance_unit, rest_seconds_actual, extras, extra_metrics))
         `).eq('id', sessionId).single()
+      if (cancelled) return
       if (error) { setErrorMessage('Unable to load the active session.'); return }
       const validated = safeParseSingle(sessionQueryResultSchema, data, 'session fetch')
       if (!validated) { setErrorMessage('Session data format is invalid.'); return }
       if (validated.status && validated.status !== 'in_progress') { setErrorMessage('This session is no longer active.'); return }
       startSession(mapAndSetBodyWeight(validated as SessionPayload))
     }
-    fetch()
-  }, [activeSession, mapAndSetBodyWeight, sessionId, startSession, supabase])
+    load()
+    return () => { cancelled = true }
+  }, [mapAndSetBodyWeight, sessionId, startSession, supabase])
 
   // Load template experience level
   useEffect(() => {
