@@ -1,16 +1,16 @@
 'use client'
 
-import { useMemo } from 'react'
 import { ArrowRight, Brain, Zap, Battery, CalendarClock, Layers } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useWorkoutSuggestion } from '@/hooks/useWorkoutSuggestion'
 import type { SessionRow } from '@/lib/transformers/progress-data'
 import { toMuscleLabel } from '@/lib/muscle-utils'
+import type { WorkoutSuggestion } from '@/lib/suggestion-logic'
 
 interface SuggestedWorkoutCardProps {
   sessions: SessionRow[]
-  onStart: (suggestion: any) => void
+  onStart: (suggestion: WorkoutSuggestion) => void
 }
 
 export function SuggestedWorkoutCard({ sessions, onStart }: SuggestedWorkoutCardProps) {

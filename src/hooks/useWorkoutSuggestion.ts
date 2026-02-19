@@ -1,8 +1,8 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useRecoveryMetrics } from '@/hooks/useRecoveryMetrics'
-import { analyzeTrainingStatus, getSuggestedWorkout, type WorkoutSuggestion } from '@/lib/suggestion-logic'
+import { useRecoveryMetrics, type ReadinessRow } from '@/hooks/useRecoveryMetrics'
+import { analyzeTrainingStatus, getSuggestedWorkout } from '@/lib/suggestion-logic'
 import type { SessionRow } from '@/lib/transformers/progress-data'
 
 export function useWorkoutSuggestion(sessions: SessionRow[]) {
@@ -26,7 +26,7 @@ export function useWorkoutSuggestion(sessions: SessionRow[]) {
     // Let's rely on the fact that analyzeTrainingStatus checks history 
     // and we can pass a mock readiness based on averages if needed.
     
-    const mockReadiness = readinessAverages ? {
+    const mockReadiness: ReadinessRow | null = readinessAverages ? {
       readiness_score: readinessAverages.score,
       sleep_quality: readinessAverages.sleep,
       muscle_soreness: readinessAverages.soreness,
@@ -42,7 +42,7 @@ export function useWorkoutSuggestion(sessions: SessionRow[]) {
     // A better approach would be to expose `readinessEntries` from useRecoveryMetrics
     // and pick the latest one.
     
-    return getSuggestedWorkout(analysis, mockReadiness as any)
+    return getSuggestedWorkout(analysis, mockReadiness)
   }, [sessions, readinessAverages])
 
   return suggestion

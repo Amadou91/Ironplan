@@ -194,7 +194,7 @@ export function getSuggestedWorkout(
   const topGroups = candidates.slice(0, 2).map(c => c.group)
 
   let focus: FocusArea[] = ['full_body']
-  let type: WorkoutSuggestion['type'] = 'strength'
+  const type: WorkoutSuggestion['type'] = 'strength'
 
   if (topGroups.length > 0) {
     // Map internal groups back to FocusArea

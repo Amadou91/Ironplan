@@ -20,6 +20,7 @@ import { RecentActivity } from '@/components/dashboard/RecentActivity'
 import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
 import { useDashboardData } from '@/hooks/useDashboardData'
 import type { WorkoutSuggestion } from '@/lib/suggestion-logic'
+import type { SessionRow } from '@/lib/transformers/progress-data'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -134,7 +135,7 @@ export default function DashboardPage() {
         <ProfileCompletionBanner />
 
         <SuggestedWorkoutCard 
-          sessions={sessions as any} 
+          sessions={sessions as unknown as SessionRow[]} 
           onStart={(suggestion) => {
             setInitialSuggestion(suggestion)
             setQuickStartOpen(true)
