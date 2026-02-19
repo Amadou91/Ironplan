@@ -1,6 +1,6 @@
 import type { EquipmentInventory, PlanInput, WeightUnit } from '@/types/domain'
 
-export type AcrVisibility = 'dashboard' | 'progress' | 'both'
+export type AcrVisibility = 'dashboard' | 'both'
 
 export type SettingsPreferences = {
   units: WeightUnit
@@ -50,9 +50,9 @@ export const normalizePreferences = (value: unknown): UserPreferences => {
     return { ...defaultPreferences }
   }
   const input = value as UserPreferences
-  const validAcrValues: AcrVisibility[] = ['dashboard', 'progress', 'both']
-  const rawAcr = input.settings?.acrVisibility
-  const acrVisibility: AcrVisibility = rawAcr && validAcrValues.includes(rawAcr) ? rawAcr : 'both'
+  const validAcrValues: AcrVisibility[] = ['dashboard', 'both']
+  const rawAcr = input.settings?.acrVisibility as string | undefined
+  const acrVisibility: AcrVisibility = rawAcr && validAcrValues.includes(rawAcr as AcrVisibility) ? (rawAcr as AcrVisibility) : 'both'
   return {
     settings: {
       units: input.settings?.units ?? defaultPreferences.settings?.units ?? 'lb',

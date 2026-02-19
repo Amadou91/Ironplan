@@ -28,7 +28,7 @@ export default function ProgressPage() {
     getSessionTitle, exerciseLibraryByName
   } = useProgressMetrics()
   const acrVisibility = useAcrVisibility()
-  const showAcrOnProgress = acrVisibility === 'progress' || acrVisibility === 'both'
+  const showAcrOnProgress = acrVisibility === 'both'
 
   const handleLogPastWorkout = useCallback(() => {
     router.push('/sessions/log')

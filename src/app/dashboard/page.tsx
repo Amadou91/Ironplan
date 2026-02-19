@@ -18,7 +18,6 @@ import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
 import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
 import { useDashboardData } from '@/hooks/useDashboardData'
-import { useAcrVisibility } from '@/hooks/useAcrVisibility'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -38,8 +37,6 @@ export default function DashboardPage() {
     trainingLoadSummary,
     refresh
   } = useDashboardData()
-  const acrVisibility = useAcrVisibility()
-  const showAcrOnDashboard = acrVisibility === 'dashboard' || acrVisibility === 'both'
 
   const latestActiveSession = useMemo(() => {
     if (activeSession) return activeSession
@@ -172,16 +169,14 @@ export default function DashboardPage() {
         />
 
         <div className="grid grid-cols-1 gap-8">
-          {showAcrOnDashboard && (
-            <TrainingStatusCard
-              status={trainingLoadSummary.status}
-              loadRatio={trainingLoadSummary.loadRatio}
-              acuteLoad={trainingLoadSummary.acuteLoad}
-              chronicWeeklyAvg={trainingLoadSummary.chronicWeeklyAvg}
-              insufficientData={trainingLoadSummary.insufficientData}
-              isInitialPhase={trainingLoadSummary.isInitialPhase}
-            />
-          )}
+          <TrainingStatusCard
+            status={trainingLoadSummary.status}
+            loadRatio={trainingLoadSummary.loadRatio}
+            acuteLoad={trainingLoadSummary.acuteLoad}
+            chronicWeeklyAvg={trainingLoadSummary.chronicWeeklyAvg}
+            insufficientData={trainingLoadSummary.insufficientData}
+            isInitialPhase={trainingLoadSummary.isInitialPhase}
+          />
 
           <RecentActivity recentSessions={recentSessions} />
         </div>

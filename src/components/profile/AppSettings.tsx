@@ -143,7 +143,7 @@ export function AppSettings({ onSuccess, onError }: AppSettingsProps) {
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          {([['dashboard', 'Dashboard only'], ['progress', 'Progress only'], ['both', 'Both pages']] as [AcrVisibility, string][]).map(([value, label]) => (
+          {([['dashboard', 'Dashboard only'], ['both', 'Both pages']] as [AcrVisibility, string][]).map(([value, label]) => (
             <Button
               key={value}
               type="button"
