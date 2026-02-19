@@ -89,7 +89,7 @@ export function FastRirInput({ value, onChange, disabled, className }: FastRirIn
   return (
     <div className={cn('flex h-11 w-full overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm', className)}>
       {options.map((opt) => {
-        const isSelected = Number(value) === opt
+        const isSelected = value != null && value !== '' && Number(value) === opt
         const label = opt === 4 ? '4+' : String(opt)
         
         return (
