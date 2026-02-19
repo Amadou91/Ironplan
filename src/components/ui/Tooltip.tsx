@@ -18,19 +18,37 @@ type TooltipProps = {
   className?: string
 }
 
-type Position = { top: number; left: number; placement: 'above' | 'below' }
+type Position = { top: number; left: number; placement: 'above' | 'below'; align: 'start' | 'center' | 'end' }
 
 function computePosition(rect: DOMRect): Position {
   const OFFSET = 8
-  const tooltipHeight = 40 // estimated; actual may vary
+  const tooltipHeight = 40 // estimated
   const spaceAbove = rect.top
   const placement = spaceAbove >= tooltipHeight + OFFSET ? 'above' : 'below'
+  
+  const viewportWidth = window.innerWidth
+  const center = rect.left + rect.width / 2
+  
+  let align: 'start' | 'center' | 'end' = 'center'
+  let left = center + window.scrollX
+
+  // If close to left edge (e.g. within 100px), align left
+  if (center < 100) {
+    align = 'start'
+    left = rect.left + window.scrollX
+  } 
+  // If close to right edge, align right
+  else if (center > viewportWidth - 100) {
+    align = 'end'
+    left = rect.right + window.scrollX
+  }
+
   const top =
     placement === 'above'
       ? rect.top + window.scrollY - OFFSET
       : rect.bottom + window.scrollY + OFFSET
-  const left = rect.left + window.scrollX + rect.width / 2
-  return { top, left, placement }
+      
+  return { top, left, placement, align }
 }
 
 export function Tooltip({ content, children, className }: TooltipProps) {
@@ -100,12 +118,11 @@ export function Tooltip({ content, children, className }: TooltipProps) {
           role="tooltip"
           style={{
             position: 'absolute',
-            top: position.placement === 'above' ? position.top : position.top,
+            top: position.top,
             left: position.left,
-            transform:
-              position.placement === 'above'
-                ? 'translate(-50%, -100%)'
-                : 'translate(-50%, 0)',
+            transform: `translate(${
+              position.align === 'start' ? '0' : position.align === 'end' ? '-100%' : '-50%'
+            }, ${position.placement === 'above' ? '-100%' : '0'})`,
             zIndex: 9999,
             pointerEvents: 'none',
           }}

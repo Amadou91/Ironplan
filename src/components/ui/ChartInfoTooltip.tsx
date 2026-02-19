@@ -13,16 +13,34 @@ interface ChartInfoTooltipProps {
 export function ChartInfoTooltip({ description, goal }: ChartInfoTooltipProps) {
   const [isOpen, setIsOpen] = useState(false)
   const mounted = useHasMounted()
-  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const [pos, setPos] = useState({ top: 0, left: 0, arrowLeft: 0 })
   const triggerRef = useRef<HTMLButtonElement>(null)
   const tooltipId = useId()
 
   const updatePos = useCallback(() => {
     if (!triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
+    const TOOLTIP_WIDTH = 256 // w-64
+    const MARGIN = 16
+    const viewportWidth = window.innerWidth
+    
+    // Default: Center on trigger
+    const triggerCenter = rect.left + rect.width / 2
+    let left = triggerCenter - TOOLTIP_WIDTH / 2
+
+    // Clamp to viewport
+    if (left < MARGIN) left = MARGIN
+    if (left + TOOLTIP_WIDTH > viewportWidth - MARGIN) {
+      left = viewportWidth - MARGIN - TOOLTIP_WIDTH
+    }
+
+    // Arrow always points to trigger center, relative to tooltip
+    const arrowLeft = triggerCenter - left
+
     setPos({
       top: rect.bottom + window.scrollY + 8,
-      left: rect.left + window.scrollX + rect.width / 2,
+      left: left + window.scrollX,
+      arrowLeft
     })
   }, [])
 
@@ -71,15 +89,20 @@ export function ChartInfoTooltip({ description, goal }: ChartInfoTooltipProps) {
             position: 'absolute',
             top: pos.top,
             left: pos.left,
-            transform: 'translateX(-50%)',
             zIndex: 9999,
-            pointerEvents: 'none',
           }}
           className="w-64 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-xl shadow-black/10 backdrop-blur-sm"
         >
           {/* Arrow */}
           <div
-            style={{ position: 'absolute', top: -5, left: '50%', transform: 'translateX(-50%) rotate(45deg)', width: 8, height: 8 }}
+            style={{ 
+              position: 'absolute', 
+              top: -5, 
+              left: pos.arrowLeft, 
+              transform: 'translateX(-50%) rotate(45deg)', 
+              width: 8, 
+              height: 8 
+            }}
             className="border-t border-l border-[var(--color-border)] bg-[var(--color-surface)]"
           />
           <div className="relative z-10 flex flex-col gap-1">
