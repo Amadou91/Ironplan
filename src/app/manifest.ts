@@ -1,6 +1,9 @@
 import type { MetadataRoute } from 'next'
 
-export default function manifest(): MetadataRoute.Manifest {
+/* display_override is not yet in Next.js Manifest type but is a valid W3C field */
+type Manifest = MetadataRoute.Manifest & { display_override?: string[] }
+
+export default function manifest(): Manifest {
   return {
     name: 'Ironplan',
     short_name: 'Ironplan',
@@ -9,6 +12,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/',
     scope: '/',
     display: 'standalone',
+    display_override: ['standalone'],
     orientation: 'portrait',
     background_color: '#f8f6f2',
     theme_color: '#f8f6f2',

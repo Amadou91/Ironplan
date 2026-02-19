@@ -66,8 +66,7 @@ export function Sidebar() {
     clearUser();
     authStore.persist.clearStorage();
     await supabase.auth.signOut();
-    router.push('/auth/login');
-    router.refresh();
+    router.replace('/auth/login');
   };
 
   const isActive = (path: string) =>
