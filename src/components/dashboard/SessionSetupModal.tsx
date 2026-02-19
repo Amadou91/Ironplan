@@ -481,7 +481,7 @@ export function SessionSetupModal({
             </div>
             <div>
               <h2 className="text-xl font-black text-strong uppercase tracking-tight">Start Session</h2>
-              <p className="text-sm text-muted font-medium">{templateTitle ?? 'Quick Start Session'}</p>
+              <p className="text-sm text-muted font-medium">{templateTitle ?? 'Begin Workout'}</p>
             </div>
           </div>
         </div>

@@ -124,8 +124,8 @@ export default function ProfilePage() {
 
         <div className="flex flex-col gap-3">
           <ProfileSection
-            title="Training defaults"
-            description="Units and training preferences."
+            title="User Preferences"
+            description="Units, display, and training preferences."
             missingCount={0}
             defaultOpen={false}
           >

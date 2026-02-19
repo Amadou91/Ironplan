@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Ruler } from 'lucide-react'
+import { Ruler, BarChart3 } from 'lucide-react'
 import { useSupabase } from '@/hooks/useSupabase'
 import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { defaultPreferences, normalizePreferences, type SettingsPreferences } from '@/lib/preferences'
+import { defaultPreferences, normalizePreferences, type AcrVisibility, type SettingsPreferences } from '@/lib/preferences'
 import { useUIStore } from '@/store/uiStore'
 
 interface AppSettingsProps {
@@ -131,6 +131,29 @@ export function AppSettings({ onSuccess, onError }: AppSettingsProps) {
           >
             Kilograms (kg)
           </Button>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <div className="flex items-center gap-3">
+          <BarChart3 className="h-5 w-5 text-accent" />
+          <div>
+            <h2 className="text-sm font-semibold text-strong">Training Status Card</h2>
+            <p className="text-xs text-subtle">Choose where the Acute-Chronic Ratio card appears.</p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {([['dashboard', 'Dashboard only'], ['progress', 'Progress only'], ['both', 'Both pages']] as [AcrVisibility, string][]).map(([value, label]) => (
+            <Button
+              key={value}
+              type="button"
+              size="sm"
+              variant={settings.acrVisibility === value ? 'primary' : 'secondary'}
+              onClick={() => updateSettings((prev) => ({ ...prev, acrVisibility: value }))}
+            >
+              {label}
+            </Button>
+          ))}
         </div>
       </Card>
 

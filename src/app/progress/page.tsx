@@ -13,6 +13,7 @@ import { SessionHistoryList } from '@/components/progress/SessionHistoryList'
 import { MetricCards } from '@/components/progress/MetricCards'
 import { ProgressCharts } from '@/components/progress/ProgressCharts'
 import { useProgressMetrics } from '@/hooks/useProgressMetrics'
+import { useAcrVisibility } from '@/hooks/useAcrVisibility'
 
 export default function ProgressPage() {
   const router = useRouter()
@@ -26,6 +27,8 @@ export default function ProgressPage() {
     exerciseTrend, muscleBreakdown, bodyWeightData, sessionsPerWeek,
     getSessionTitle, exerciseLibraryByName
   } = useProgressMetrics()
+  const acrVisibility = useAcrVisibility()
+  const showAcrOnProgress = acrVisibility === 'progress' || acrVisibility === 'both'
 
   const handleLogPastWorkout = useCallback(() => {
     router.push('/sessions/log')
@@ -104,7 +107,7 @@ export default function ProgressPage() {
         {error ? <Alert variant="error">{error}</Alert> : null}
         
         <div className="grid grid-cols-1 gap-8">
-          <TrainingStatusCard {...trainingLoadSummary} />
+          {showAcrOnProgress && <TrainingStatusCard {...trainingLoadSummary} />}
 
           <div className="sticky top-[calc(0.5rem+env(safe-area-inset-top,0px))] z-40 transition-all duration-500 sm:top-4 md:top-6">
             <ProgressFilters 

@@ -40,7 +40,7 @@ export default function GeneratePage() {
 
             <div className="flex flex-wrap gap-3">
               <Button type="button" onClick={() => setIsQuickStartOpen(true)}>
-                <Sparkles className="mr-2 h-4 w-4" /> Quick start session
+                <Sparkles className="mr-2 h-4 w-4" /> Begin Workout
               </Button>
               <Link href="/profile">
                 <Button type="button" variant="secondary">
@@ -60,7 +60,7 @@ export default function GeneratePage() {
       <SessionSetupModal
         isOpen={isQuickStartOpen}
         onClose={() => setIsQuickStartOpen(false)}
-        templateTitle="Quick Start Session"
+        templateTitle="Begin Workout"
         templateStyle="hypertrophy"
         initialFocusAreas={['chest']}
       />

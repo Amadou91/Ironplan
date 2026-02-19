@@ -105,7 +105,7 @@ export function RecommendedSession({ trainingLoadStatus, loadRatio }: Recommende
                   <div className="flex items-center gap-3">
                     <span className="badge-success text-[11px]">Best for Today</span>
                     <p className="text-2xl font-bold text-strong">
-                      Quick Start Session
+                      Begin Workout
                     </p>
                   </div>
                   <p className="text-xs text-subtle uppercase font-bold tracking-widest">
@@ -130,7 +130,7 @@ export function RecommendedSession({ trainingLoadStatus, loadRatio }: Recommende
       <SessionSetupModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        templateTitle="Quick Start Session"
+        templateTitle="Begin Workout"
         templateStyle="hypertrophy"
         initialFocusAreas={['chest']}
       />

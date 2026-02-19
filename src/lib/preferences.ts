@@ -1,7 +1,10 @@
 import type { EquipmentInventory, PlanInput, WeightUnit } from '@/types/domain'
 
+export type AcrVisibility = 'dashboard' | 'progress' | 'both'
+
 export type SettingsPreferences = {
   units: WeightUnit
+  acrVisibility: AcrVisibility
 }
 
 /**
@@ -34,7 +37,8 @@ export const defaultRpeBaselines: CustomRpeBaselines = {
 
 export const defaultPreferences: UserPreferences = {
   settings: {
-    units: 'lb'
+    units: 'lb',
+    acrVisibility: 'both'
   },
   training: {
     customRpeBaselines: { ...defaultRpeBaselines }
@@ -46,9 +50,13 @@ export const normalizePreferences = (value: unknown): UserPreferences => {
     return { ...defaultPreferences }
   }
   const input = value as UserPreferences
+  const validAcrValues: AcrVisibility[] = ['dashboard', 'progress', 'both']
+  const rawAcr = input.settings?.acrVisibility
+  const acrVisibility: AcrVisibility = rawAcr && validAcrValues.includes(rawAcr) ? rawAcr : 'both'
   return {
     settings: {
-      units: input.settings?.units ?? defaultPreferences.settings?.units ?? 'lb'
+      units: input.settings?.units ?? defaultPreferences.settings?.units ?? 'lb',
+      acrVisibility
     },
     equipment: input.equipment,
     training: {

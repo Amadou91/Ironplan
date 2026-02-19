@@ -18,6 +18,7 @@ import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
 import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
 import { useDashboardData } from '@/hooks/useDashboardData'
+import { useAcrVisibility } from '@/hooks/useAcrVisibility'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -37,6 +38,8 @@ export default function DashboardPage() {
     trainingLoadSummary,
     refresh
   } = useDashboardData()
+  const acrVisibility = useAcrVisibility()
+  const showAcrOnDashboard = acrVisibility === 'dashboard' || acrVisibility === 'both'
 
   const latestActiveSession = useMemo(() => {
     if (activeSession) return activeSession
@@ -120,7 +123,7 @@ export default function DashboardPage() {
           title={`Welcome back, ${greetingName}`}
           actions={
             <Button size="md" className="shadow-lg shadow-[var(--color-primary-soft)]" onClick={() => setQuickStartOpen(true)}>
-              <Sparkles className="h-5 w-5 mr-2" /> Quick start session
+              <Sparkles className="h-5 w-5 mr-2" /> Begin Workout
             </Button>
           }
         />
@@ -169,14 +172,16 @@ export default function DashboardPage() {
         />
 
         <div className="grid grid-cols-1 gap-8">
-          <TrainingStatusCard
-            status={trainingLoadSummary.status}
-            loadRatio={trainingLoadSummary.loadRatio}
-            acuteLoad={trainingLoadSummary.acuteLoad}
-            chronicWeeklyAvg={trainingLoadSummary.chronicWeeklyAvg}
-            insufficientData={trainingLoadSummary.insufficientData}
-            isInitialPhase={trainingLoadSummary.isInitialPhase}
-          />
+          {showAcrOnDashboard && (
+            <TrainingStatusCard
+              status={trainingLoadSummary.status}
+              loadRatio={trainingLoadSummary.loadRatio}
+              acuteLoad={trainingLoadSummary.acuteLoad}
+              chronicWeeklyAvg={trainingLoadSummary.chronicWeeklyAvg}
+              insufficientData={trainingLoadSummary.insufficientData}
+              isInitialPhase={trainingLoadSummary.isInitialPhase}
+            />
+          )}
 
           <RecentActivity recentSessions={recentSessions} />
         </div>
@@ -184,7 +189,7 @@ export default function DashboardPage() {
         <SessionSetupModal
           isOpen={quickStartOpen}
           onClose={() => setQuickStartOpen(false)}
-          templateTitle="Quick Start Session"
+          templateTitle="Begin Workout"
           templateStyle="hypertrophy"
           initialFocusAreas={['chest']}
         />
