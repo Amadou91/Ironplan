@@ -46,6 +46,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     // Set operations
     handleSetUpdate: setOps.handleSetUpdate,
     handleBodyWeightUpdate: setOps.handleBodyWeightUpdate,
+    handleRemoveSet: setOps.handleRemoveSet,
     addSet: setOps.addSet,
     removeSet: setOps.removeSet,
     updateSet: setOps.updateSet,
@@ -53,6 +54,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     // Exercise operations
     replaceSessionExercise: setOps.replaceSessionExercise,
     removeSessionExercise: setOps.removeSessionExercise,
+    handleRemoveExercise: setOps.handleRemoveExercise,
     addSessionExercise: setOps.addSessionExercise,
     handleReorderExercises: setOps.handleReorderExercises,
 

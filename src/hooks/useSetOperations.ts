@@ -25,7 +25,7 @@ export function useSetOperations(
     addSessionExercise
   } = useWorkoutStore()
 
-  const { persistSet, persistSessionBodyWeight, isPersisting } = useSetPersistence()
+  const { persistSet, deleteSet, persistSessionBodyWeight, isPersisting } = useSetPersistence()
   const [isUpdating, setIsUpdating] = useState(false)
   const creationPromises = useRef<Map<string, Promise<string | undefined>>>(new Map())
 
@@ -126,10 +126,47 @@ export function useSetOperations(
     }
   }, [activeSession, supabase, updateSession, setErrorMessage])
 
+  const handleRemoveSet = useCallback(async (exIdx: number, setIdx: number) => {
+    if (!activeSession) return
+    const exercise = activeSession.exercises[exIdx]
+    if (!exercise) return
+    const set = exercise.sets[setIdx]
+    if (!set) return
+    // Delete from DB first (skip for temp/unsaved sets)
+    if (set.id && !set.id.startsWith('temp-')) {
+      const result = await deleteSet(set.id)
+      if (!result.success) {
+        setErrorMessage(result.error ?? 'Failed to delete set.')
+        return
+      }
+    }
+    removeSet(exIdx, setIdx)
+  }, [activeSession, deleteSet, removeSet, setErrorMessage])
+
+  const handleRemoveExercise = useCallback(async (exerciseIndex: number) => {
+    if (!activeSession) return
+    const exercise = activeSession.exercises[exerciseIndex]
+    if (!exercise) return
+    // Delete from DB (cascade will remove child sets)
+    if (exercise.id && !exercise.id.startsWith('temp-')) {
+      const { error } = await supabase
+        .from('session_exercises')
+        .delete()
+        .eq('id', exercise.id)
+      if (error) {
+        setErrorMessage('Failed to remove exercise. Please try again.')
+        return
+      }
+    }
+    removeSessionExercise(exerciseIndex)
+  }, [activeSession, supabase, removeSessionExercise, setErrorMessage])
+
   return {
     handleSetUpdate,
     handleBodyWeightUpdate,
     handleReorderExercises,
+    handleRemoveSet,
+    handleRemoveExercise,
     togglePreferredUnit,
     addSet,
     removeSet,

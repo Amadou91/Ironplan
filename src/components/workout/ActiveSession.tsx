@@ -40,8 +40,8 @@ export function ActiveSession({
 }: ActiveSessionProps) {
   const {
     activeSession, errorMessage, setErrorMessage, preferredUnit, profileWeightLb,
-    exerciseTargets, handleSetUpdate, addSet, removeSet, replaceSessionExercise,
-    removeSessionExercise, addSessionExercise, handleReorderExercises,
+    exerciseTargets, handleSetUpdate, addSet, handleRemoveSet, replaceSessionExercise,
+    handleRemoveExercise, addSessionExercise, handleReorderExercises,
     resolvedInventory, exerciseLibrary, exerciseLibraryByName, isUpdating,
     supabase, handleBodyWeightUpdate
   } = useActiveSessionManager(sessionId, equipmentInventory);
@@ -143,12 +143,12 @@ export function ActiveSession({
     }
   }, [activeSession, supabase, replaceSessionExercise, setErrorMessage]);
 
-  const handleRemoveConfirm = useCallback(() => {
+  const handleRemoveConfirm = useCallback(async () => {
     if (exerciseToRemove !== null) {
-      removeSessionExercise(exerciseToRemove);
+      await handleRemoveExercise(exerciseToRemove);
       setExerciseToRemove(null);
     }
-  }, [exerciseToRemove, removeSessionExercise]);
+  }, [exerciseToRemove, handleRemoveExercise]);
 
   const handleSaveReorder = useCallback(async (reorderedExercises: SessionExercise[]) => {
     const updates = reorderedExercises.map((ex, idx) => ({ id: ex.id, orderIndex: idx }));
@@ -220,7 +220,7 @@ export function ActiveSession({
                 onSwap={() => setSwappingExIdx(exIdx)}
                 onRemove={() => setExerciseToRemove(exIdx)}
                 onSetUpdate={(setIdx, field, value) => handleSetUpdate(exIdx, setIdx, field, value)}
-                onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
+                onRemoveSet={(setIdx) => handleRemoveSet(exIdx, setIdx)}
                 onAddSet={() => addSet(exIdx, preferredUnit, null, isDumbbellExercise(exercise) ? { loadType: 'per_implement', implementCount: 2 } : undefined)}
                 onCopyLastSet={() => {
                   const lastSet = exercise.sets[exercise.sets.length - 1];
