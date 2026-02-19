@@ -11,6 +11,7 @@ import {
 import { type SessionRow } from '@/lib/transformers/progress-data'
 import { computeSessionMetrics } from '@/lib/training-metrics'
 import { mapSetLikeToMetricsSet } from '@/lib/transformers/metric-set'
+import type { Intensity } from '@/types/domain'
 
 export type ReadinessRow = {
   id: string
@@ -127,8 +128,17 @@ export function useRecoveryMetrics(options: {
           .filter((set) => set.completed !== false)
           .map((set) => mapSetLikeToMetricsSet({ ...set, metricProfile: exercise.metric_profile }))
       )
-      const metrics = computeSessionMetrics({ startedAt: session.started_at, endedAt: session.ended_at, sets: metricSets })
-      return { readiness: entry.readiness_score, effort: metrics.avgEffort, workload: metrics.workload }
+      const metrics = computeSessionMetrics({
+        startedAt: session.started_at,
+        endedAt: session.ended_at,
+        // Pass session intensity so sessionRpe can fall back to it when no RPE/RIR was logged
+        intensity: (session.session_intensity as Intensity | null) ?? null,
+        sets: metricSets
+      })
+      // Use sessionRpe rather than avgEffort: same value when effort is logged, but falls back
+      // to the session intensity setting (low/moderate/high) so sessions without explicit
+      // RPE/RIR are not silently excluded from the chart.
+      return { readiness: entry.readiness_score, effort: metrics.sessionRpe, workload: metrics.workload }
     }).filter((p): p is { readiness: number; effort: number; workload: number } => typeof p.readiness === 'number' && typeof p.effort === 'number')
   }, [readinessSessions])
 
