@@ -4,7 +4,7 @@ import React, { useCallback, memo } from 'react';
 import { Trash2, RefreshCcw, Copy, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { SetLogger } from '@/components/workout/SetLogger';
 import { isTimeBasedExercise } from '@/lib/muscle-utils';
-import type { SessionExercise, Exercise, WorkoutSet, WeightUnit } from '@/types/domain';
+import type { SessionExercise, WorkoutSet, WeightUnit } from '@/types/domain';
 import type { WeightOption } from '@/lib/equipment';
 
 interface ExerciseSessionCardProps {
