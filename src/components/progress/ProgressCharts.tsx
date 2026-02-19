@@ -15,7 +15,8 @@ import {
   Scatter,
   ReferenceArea,
   ReferenceLine,
-  Label
+  Label,
+  LabelList
 } from 'recharts'
 import { Card } from '@/components/ui/Card'
 import { WeeklyVolumeChart } from '@/components/progress/WeeklyVolumeChart'
@@ -97,19 +98,53 @@ const formatCompactNumber = (value: number) => {
 }
 
 const IDEAL_TOLERANCE = 0.6
+const WARNING_TOLERANCE = 1.3
+
+/**
+ * Metrics where a higher value is better (Sleep, Motivation).
+ * For these, only penalise when value is BELOW the ideal.
+ * Being above the ideal is never worse — it's green.
+ *
+ * Metrics not listed here (Soreness, Stress) are "lower is better":
+ * penalise only when value is ABOVE the ideal.
+ */
+const HIGHER_IS_BETTER = new Set(['Sleep', 'Motivation'])
+
+/** Returns how far "in the bad direction" the value is from its ideal. */
+function badDistance(entry: ReadinessComponentPoint): number {
+  if (HIGHER_IS_BETTER.has(entry.metric)) {
+    // Penalise being below ideal; being above is fine (0 penalty)
+    return Math.max(0, entry.ideal - entry.value)
+  }
+  // Penalise being above ideal; being below is fine (0 penalty)
+  return Math.max(0, entry.value - entry.ideal)
+}
 
 function getReadinessComponentColor(entry: ReadinessComponentPoint) {
-  const distanceFromIdeal = Math.abs(entry.value - entry.ideal)
-
-  if (distanceFromIdeal <= IDEAL_TOLERANCE) {
-    return 'var(--color-success)'
-  }
-
-  if (distanceFromIdeal <= IDEAL_TOLERANCE + 0.7) {
-    return 'var(--color-warning)'
-  }
-
+  const bad = badDistance(entry)
+  if (bad <= IDEAL_TOLERANCE) return 'var(--color-success)'
+  if (bad <= WARNING_TOLERANCE) return 'var(--color-warning)'
   return 'var(--color-danger)'
+}
+
+function getReadinessStatus(entry: ReadinessComponentPoint): string {
+  const bad = badDistance(entry)
+  if (bad <= IDEAL_TOLERANCE) return 'Good'
+  if (bad <= WARNING_TOLERANCE) return 'Fair'
+  return 'Poor'
+}
+
+function ReadinessBarLabel(props: { x?: number; y?: number; width?: number; value?: number; index?: number; readinessComponents: ReadinessComponentPoint[] }) {
+  const { x = 0, y = 0, width = 0, value, index, readinessComponents } = props
+  if (typeof value !== 'number' || typeof index !== 'number') return null
+  const entry = readinessComponents[index]
+  if (!entry) return null
+  const color = getReadinessComponentColor(entry)
+  return (
+    <text x={x + width / 2} y={y - 8} fill={color} textAnchor="middle" fontSize={12} fontWeight={800}>
+      {value}
+    </text>
+  )
 }
 
 export function ProgressCharts({
@@ -441,7 +476,24 @@ export function ProgressCharts({
 
       <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title="Readiness components">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">1-5 scale • dots = ideal</p>
+          <div className="flex flex-col gap-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">1-5 scale • ◆ = ideal target</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm bg-[var(--color-success)]" />
+                <span className="text-[10px] font-bold text-subtle/70">Good</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm bg-[var(--color-warning)]" />
+                <span className="text-[10px] font-bold text-subtle/70">Fair</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm bg-[var(--color-danger)]" />
+                <span className="text-[10px] font-bold text-subtle/70">Needs work</span>
+              </div>
+            </div>
+            <p className="text-[9px] text-subtle/50">Sleep & Motivation: higher is better • Soreness & Stress: lower is better</p>
+          </div>
         </ChartHeader>
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -451,18 +503,45 @@ export function ProgressCharts({
           draggable="false"
         >
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={readinessComponents} margin={CHART_MARGIN} style={{ outline: 'none' }}>
+            <ComposedChart data={readinessComponents} margin={{ ...CHART_MARGIN, top: 24 }} style={{ outline: 'none' }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
               <XAxis dataKey="metric" stroke="var(--color-text-subtle)" fontSize={11} fontWeight={800} tickLine={false} axisLine={false} minTickGap={MIN_TICK_GAP} tickMargin={8} dy={10} />
               <YAxis domain={[0, 5]} tickCount={6} stroke="var(--color-text-subtle)" fontSize={11} fontWeight={800} tickLine={false} axisLine={false} width={Y_AXIS_WIDTH} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null
+                  const entry = payload[0]?.payload as ReadinessComponentPoint | undefined
+                  if (!entry) return null
+                  const status = getReadinessStatus(entry)
+                  const color = getReadinessComponentColor(entry)
+                  return (
+                    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 shadow-lg text-xs">
+                      <p className="font-bold text-strong mb-1">{entry.metric}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-subtle">Score:</span>
+                        <span className="font-bold" style={{ color }}>{entry.value}</span>
+                        <span className="font-bold" style={{ color }}>({status})</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-subtle">Ideal:</span>
+                        <span className="font-bold text-strong">{entry.ideal}</span>
+                      </div>
+                    </div>
+                  )
+                }}
+              />
               <Bar dataKey="value" name="Score" radius={[4, 4, 0, 0]}>
+                <LabelList
+                  dataKey="value"
+                  position="top"
+                  content={(props) => <ReadinessBarLabel {...props as { x: number; y: number; width: number; value: number; index: number }} readinessComponents={readinessComponents} />}
+                />
                 {readinessComponents.map((entry: ReadinessComponentPoint) => {
                   const color = getReadinessComponentColor(entry)
-                  return <Cell key={entry.metric} fill={color} />
+                  return <Cell key={entry.metric} fill={color} fillOpacity={0.85} />
                 })}
               </Bar>
-              <Scatter dataKey="ideal" name="Ideal" fill="var(--color-text)" stroke="var(--color-surface)" strokeWidth={2} />
+              <Scatter dataKey="ideal" name="Ideal" shape="diamond" fill="var(--color-text)" stroke="var(--color-surface)" strokeWidth={2} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
