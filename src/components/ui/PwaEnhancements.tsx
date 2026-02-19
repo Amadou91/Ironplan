@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Download, Wifi, WifiOff } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Download, WifiOff } from 'lucide-react'
+
+const PWA_WELCOMED_KEY = 'ironplan:pwa-welcomed'
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[]
@@ -21,6 +23,7 @@ export function PwaEnhancements() {
     const iosStandalone = Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
     return displayModeStandalone || iosStandalone
   })
+  const [showWelcome, setShowWelcome] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -75,12 +78,26 @@ export function PwaEnhancements() {
     }
   }, [])
 
+  /* Show a one-time welcome toast on first standalone launch */
+  useEffect(() => {
+    if (!isStandalone) return
+    try {
+      if (localStorage.getItem(PWA_WELCOMED_KEY)) return
+      localStorage.setItem(PWA_WELCOMED_KEY, '1')
+    } catch {
+      return
+    }
+    setShowWelcome(true)
+    const timer = setTimeout(() => setShowWelcome(false), 3000)
+    return () => clearTimeout(timer)
+  }, [isStandalone])
+
   const showInstallButton = useMemo(
     () => Boolean(installPromptEvent) && !isStandalone,
     [installPromptEvent, isStandalone]
   )
 
-  const handleInstallClick = async () => {
+  const handleInstallClick = useCallback(async () => {
     if (!installPromptEvent) return
 
     try {
@@ -91,7 +108,7 @@ export function PwaEnhancements() {
     } catch {
       // no-op
     }
-  }
+  }, [installPromptEvent])
 
   return (
     <>
@@ -104,11 +121,10 @@ export function PwaEnhancements() {
         </div>
       )}
 
-      {isOnline && isStandalone && (
-        <div className="fixed right-4 top-3 z-[var(--z-toast)] rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-1.5 shadow-[var(--shadow-sm)]">
+      {showWelcome && (
+        <div className="fixed right-4 top-3 z-[var(--z-toast)] animate-fade-in rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-1.5 shadow-[var(--shadow-sm)] transition-opacity duration-500">
           <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-            <Wifi size={12} />
-            PWA Ready
+            ✓ App installed
           </span>
         </div>
       )}
