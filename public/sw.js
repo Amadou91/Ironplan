@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'ironplan-shell-v2'
-const RUNTIME_CACHE = 'ironplan-runtime-v2'
+const SHELL_CACHE = 'ironplan-shell-v3'
+const RUNTIME_CACHE = 'ironplan-runtime-v3'
 const OFFLINE_URL = '/offline'
 const PRECACHE_URLS = ['/', '/dashboard', '/progress', OFFLINE_URL, '/manifest.webmanifest']
 
@@ -53,7 +53,12 @@ self.addEventListener('fetch', (event) => {
 
   if (!isSameOrigin) return
 
-  if (requestUrl.pathname.startsWith('/api/')) return
+  // Skip /api/ routes and Next.js built assets – Next.js uses content-hashed
+  // filenames with immutable cache headers, so the browser cache is sufficient.
+  // Caching them in the SW risks serving stale JS that contains outdated server
+  // action IDs, which causes "Failed to find Server Action" errors (especially
+  // on iPad PWA where tabs/apps survive across deployments without a hard refresh).
+  if (requestUrl.pathname.startsWith('/api/') || requestUrl.pathname.startsWith('/_next/')) return
 
   event.respondWith(
     caches.match(request).then((cached) => {
