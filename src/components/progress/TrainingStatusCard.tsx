@@ -70,7 +70,7 @@ export function TrainingStatusCard({
               <p className="text-sm text-subtle italic font-medium sm:text-xs">Based on total body workload</p>
             </div>
             <div className="flex flex-col sm:items-end">
-              <span className={`inline-flex max-w-full items-center px-3 py-2 rounded-xl text-xs font-black uppercase tracking-[0.06em] border-2 sm:px-5 sm:text-[11px] sm:tracking-widest ${
+              <span className={`inline-flex max-w-full items-center px-3 py-2 rounded-xl text-xs font-black uppercase tracking-[0.06em] border-2 sm:px-5 sm:tracking-widest ${
                 insufficientData || isInitialPhase ? 'bg-[var(--color-surface-muted)] text-subtle border-[var(--color-border)]' :
                 status === 'balanced' ? 'bg-[var(--color-success-soft)] text-[var(--color-success)] border-[var(--color-success-border)]' :
                 status === 'overreaching' ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger)] border border-[var(--color-danger-border)]' :
@@ -92,7 +92,7 @@ export function TrainingStatusCard({
                 </span>
                 <span className="text-xs font-black text-subtle/60 uppercase tracking-[0.14em] sm:tracking-[0.2em]">ACR</span>
               </div>
-              <p className="text-xs uppercase font-black tracking-[0.12em] text-subtle/50 sm:text-[10px] sm:tracking-[0.2em] sm:text-subtle/40">Acute:Chronic Ratio</p>
+              <p className="text-xs uppercase font-black tracking-[0.12em] text-subtle/50 sm:tracking-[0.2em] sm:text-subtle/40">Acute:Chronic Ratio</p>
             </div>
 
             <div className="lg:col-span-2 space-y-5">
@@ -118,27 +118,27 @@ export function TrainingStatusCard({
               </div>
               <div className="flex justify-between px-1">
                 <div className="text-center">
-                  <span className="block text-xs font-black text-subtle/40 uppercase tracking-[0.08em] sm:text-[10px] sm:tracking-widest sm:text-subtle/30">Low</span>
-                  <span className="text-xs font-black text-subtle/70 sm:text-[11px] sm:text-subtle/60">0.0-{ACR_THRESHOLDS.undertraining}</span>
+                  <span className="block text-xs font-black text-subtle/40 uppercase tracking-[0.08em] sm:tracking-widest sm:text-subtle/30">Low</span>
+                  <span className="text-xs font-black text-subtle/70 sm:text-subtle/60">0.0-{ACR_THRESHOLDS.undertraining}</span>
                 </div>
                 <div className="text-center">
-                  <span className="block text-xs font-black text-[var(--color-success)]/70 uppercase tracking-[0.08em] sm:text-[10px] sm:tracking-widest sm:text-[var(--color-success)]/50">Sweet Spot</span>
-                  <span className="text-xs font-black text-subtle/70 sm:text-[11px] sm:text-subtle/60">{ACR_THRESHOLDS.undertraining}-{ACR_THRESHOLDS.overreaching}</span>
+                  <span className="block text-xs font-black text-[var(--color-success)]/70 uppercase tracking-[0.08em] sm:tracking-widest sm:text-[var(--color-success)]/50">Sweet Spot</span>
+                  <span className="text-xs font-black text-subtle/70 sm:text-subtle/60">{ACR_THRESHOLDS.undertraining}-{ACR_THRESHOLDS.overreaching}</span>
                 </div>
                 <div className="text-center">
-                  <span className="block text-xs font-black text-[var(--color-danger)]/70 uppercase tracking-[0.08em] sm:text-[10px] sm:tracking-widest sm:text-[var(--color-danger)]/50">High</span>
-                  <span className="text-xs font-black text-subtle/70 sm:text-[11px] sm:text-subtle/60">{ACR_THRESHOLDS.overreaching}+</span>
+                  <span className="block text-xs font-black text-[var(--color-danger)]/70 uppercase tracking-[0.08em] sm:tracking-widest sm:text-[var(--color-danger)]/50">High</span>
+                  <span className="text-xs font-black text-subtle/70 sm:text-subtle/60">{ACR_THRESHOLDS.overreaching}+</span>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:border-l lg:border-[var(--color-border)] lg:pl-12">
               <div className="space-y-1.5">
-                <p className="text-xs text-subtle/70 uppercase font-black tracking-[0.08em] sm:text-[10px] sm:tracking-widest sm:text-subtle/60">Load (7d)</p>
+                <p className="text-xs text-subtle/70 uppercase font-black tracking-[0.08em] sm:tracking-widest sm:text-subtle/60">Load (7d)</p>
                 <p className="text-2xl font-black text-strong tracking-tight sm:text-3xl">{insufficientData && acuteLoad === 0 ? '--' : displayAcuteLoad.toLocaleString()}</p>
               </div>
               <div className="space-y-1.5">
-                <p className="text-xs text-subtle/70 uppercase font-black tracking-[0.08em] sm:text-[10px] sm:tracking-widest sm:text-subtle/60">Baseline</p>
+                <p className="text-xs text-subtle/70 uppercase font-black tracking-[0.08em] sm:tracking-widest sm:text-subtle/60">Baseline</p>
                 <p className="text-2xl font-black text-strong tracking-tight sm:text-3xl">
                   {insufficientData || isInitialPhase ? '--' : displayChronicLoad.toLocaleString()}
                 </p>

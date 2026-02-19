@@ -65,7 +65,7 @@ export function SessionHeader({
               onKeyDown={onStartTimeClick ? (e) => e.key === 'Enter' && onStartTimeClick() : undefined}
             >
               Started at {formatStartedAt(startedAt)}
-              {onStartTimeClick && <span className="ml-1 text-[10px] text-muted">(edit)</span>}
+              {onStartTimeClick && <span className="ml-1 text-xs text-muted">(edit)</span>}
             </div>
           </div>
         </div>
@@ -105,7 +105,7 @@ export function SessionHeader({
                 <span className="font-semibold text-strong">
                   {sessionBodyWeight} {preferredUnit}
                 </span>
-                {onWeightClick && <span className="text-[10px] text-muted">(edit)</span>}
+                {onWeightClick && <span className="text-xs text-muted">(edit)</span>}
               </div>
             )}
           </div>

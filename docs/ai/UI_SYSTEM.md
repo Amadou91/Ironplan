@@ -32,9 +32,10 @@ We use the OKLCH color space for perceptually uniform colors.
 -   **Mono:** `JetBrains Mono` (Data Entry, Timers, Rep Counts)
 
 **Sizes:**
--   **Base:** 17px (Prevents iOS zoom, improves readability)
--   **Inputs:** Always 16px+
--   **Metrics:** Huge (30px+) for "glanceability"
+-   **Base:** 18px (Improved readability for body copy)
+-   **Small (sm):** 16px (Secondary text, Inputs - prevents iOS zoom)
+-   **Tiny (xs):** 14px (Minimum readable size for badges/metadata - no text smaller than this)
+-   **Metrics:** Huge (32px+) for "glanceability"
 
 ## 3. Spacing & Layout
 

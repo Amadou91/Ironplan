@@ -14,7 +14,7 @@ const inputError = (hasError?: boolean) => cn(
   hasError && 'border-[var(--color-danger)] ring-2 ring-[var(--color-danger-soft)]'
 )
 
-const LABEL = 'text-xs font-medium text-subtle'
+const LABEL = 'text-xs font-semibold text-muted mb-1 block'
 
 interface SetFormBaseProps {
   set: WorkoutSet

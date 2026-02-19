@@ -26,7 +26,7 @@ const SELECT_COMPACT = cn(
   'disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--color-input-muted)]'
 )
 
-const LABEL = 'text-[10px] font-bold text-muted uppercase tracking-wider mb-1 block'
+const LABEL = 'text-xs font-semibold text-muted mb-1 block'
 interface SetFormBaseProps {
   set: WorkoutSet
   isEditing: boolean
@@ -235,7 +235,7 @@ export function DefaultStrengthForm({
         </div>
       </div>
       {derivedRpe && (
-        <p className="mt-2 text-[10px] font-medium text-subtle">
+        <p className="mt-2 text-xs font-medium text-subtle">
           RPE {derivedRpe}{derivedRpeLabel ? ` · ${derivedRpeLabel}` : ''}
         </p>
       )}

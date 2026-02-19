@@ -46,7 +46,7 @@ export function ReadinessCheck({
       <div className="mt-4 space-y-4">
         {READINESS_FIELDS.map((field) => (
           <div key={field.key} className="rounded-xl border border-[var(--color-border)] p-3">
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-subtle">
+            <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-subtle">
               <span>{field.label}</span>
               <span>{survey[field.key] ?? 'N/A'}</span>
             </div>
@@ -64,7 +64,7 @@ export function ReadinessCheck({
                 </Button>
               ))}
             </div>
-            <p className="mt-2 text-[10px] text-subtle">{field.helper}</p>
+            <p className="mt-2 text-xs text-subtle">{field.helper}</p>
           </div>
         ))}
       </div>

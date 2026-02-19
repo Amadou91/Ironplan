@@ -67,7 +67,7 @@ export const ExerciseSessionCard = memo(function ExerciseSessionCard({
           <div className="flex items-center gap-3">
             <h3 className="text-xl font-bold font-display text-strong truncate">{exercise.name}</h3>
             {movementPattern && (
-              <span className="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-surface text-subtle border border-border shrink-0">
+              <span className="text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface text-subtle border border-border shrink-0">
                 {movementPattern}
               </span>
             )}
@@ -75,17 +75,17 @@ export const ExerciseSessionCard = memo(function ExerciseSessionCard({
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <span className="badge-accent">{exercise.primaryMuscle}</span>
             {allCompleted && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--color-success)] uppercase tracking-wider bg-[var(--color-success-soft)] px-2 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-[var(--color-success)] uppercase tracking-wider bg-[var(--color-success-soft)] px-2 py-0.5 rounded-full">
                 <Check size={14} strokeWidth={3} /> Done
               </span>
             )}
             {exercise.sets.length > 0 && !allCompleted && (
-              <span className="text-[11px] font-bold text-muted uppercase tracking-wider">
+              <span className="text-xs font-bold text-muted uppercase tracking-wider">
                 {completedCount}/{exercise.sets.length} sets
               </span>
             )}
             {exerciseTargetSummary && (
-              <span className="text-[11px] text-muted font-medium bg-[var(--color-surface-subtle)] px-2 py-0.5 rounded-full border border-[var(--color-border)]">Target: {exerciseTargetSummary}</span>
+              <span className="text-xs text-muted font-medium bg-[var(--color-surface-subtle)] px-2 py-0.5 rounded-full border border-[var(--color-border)]">Target: {exerciseTargetSummary}</span>
             )}
           </div>
         </button>
