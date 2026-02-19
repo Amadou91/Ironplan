@@ -9,7 +9,9 @@ import type {
   FocusArea,
   SessionGoal,
   CardioActivity,
-  User
+  User,
+  GoalPriority,
+  RestPreference
 } from '@/types/core.types'
 import type { EquipmentPreset, EquipmentInventory } from '@/types/equipment.types'
 import type { Exercise } from '@/types/exercise.types'

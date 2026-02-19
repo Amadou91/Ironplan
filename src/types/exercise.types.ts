@@ -8,7 +8,9 @@ import type {
   MovementPattern,
   LoadType,
   MetricProfile,
-  ExerciseCategory
+  ExerciseCategory,
+  WeightUnit,
+  FocusArea
 } from '@/types/core.types'
 import type { EquipmentOption, EquipmentOrGroup, EquipmentRequirementMode, AdditionalEquipmentMode } from '@/types/equipment.types'
 

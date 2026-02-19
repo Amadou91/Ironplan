@@ -11,7 +11,8 @@ import type {
   FocusArea,
   SessionGoal,
   GoalPriority,
-  Intensity
+  Intensity,
+  MovementPattern
 } from '@/types/core.types'
 import type { EquipmentInventory } from '@/types/equipment.types'
 import type { ExerciseVariation, GroupType } from '@/types/exercise.types'
