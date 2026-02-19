@@ -2,10 +2,9 @@
 
 import React from 'react'
 import type { Payload } from 'recharts/types/component/DefaultTooltipContent'
-import { READINESS_HIGH_THRESHOLD, READINESS_LOW_THRESHOLD } from '@/constants/training'
+import { READINESS_HIGH_THRESHOLD, READINESS_LOW_THRESHOLD, EFFORT_HIGH_THRESHOLD } from '@/constants/training'
 
 const READINESS_EFFORT_SPLIT = Math.round((READINESS_LOW_THRESHOLD + READINESS_HIGH_THRESHOLD) / 2)
-const EFFORT_HIGH_THRESHOLD = 5
 
 type PayloadItem = Payload<number | string, string>
 

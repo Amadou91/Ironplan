@@ -44,6 +44,9 @@ export const HARD_SET_RPE_THRESHOLD = 8
 // RPE < 7 means RIR > 3 — warm-ups, deload sets, easy prep work
 export const RECOVERY_SET_RPE_THRESHOLD = 7
 
+// Effort split for session-level charts/tooltips (aligns with recovery threshold)
+export const EFFORT_HIGH_THRESHOLD = RECOVERY_SET_RPE_THRESHOLD
+
 // Rep ranges for goal classification
 export const REP_RANGES = {
   strength: { min: 1, max: 6 },

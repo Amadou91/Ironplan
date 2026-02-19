@@ -22,7 +22,7 @@ import { Card } from '@/components/ui/Card'
 import { WeeklyVolumeChart } from '@/components/progress/WeeklyVolumeChart'
 import { useUIStore } from '@/store/uiStore'
 import { LBS_PER_KG, KG_PER_LB } from '@/lib/units'
-import { READINESS_HIGH_THRESHOLD, READINESS_LOW_THRESHOLD } from '@/constants/training'
+import { READINESS_HIGH_THRESHOLD, READINESS_LOW_THRESHOLD, EFFORT_HIGH_THRESHOLD } from '@/constants/training'
 import { useChartZoom } from '@/hooks/useChartZoom'
 import { CustomTooltip } from '@/components/progress/CustomTooltip'
 import { Button } from '@/components/ui/Button'
@@ -600,23 +600,23 @@ export function ProgressCharts({
               />
               <Tooltip content={<CustomTooltip type="readiness" />} cursor={{ strokeDasharray: '3 3' }} />
               {/* Overreaching: Low Readiness, High Effort */}
-              <ReferenceArea x1={0} x2={READINESS_EFFORT_SPLIT} y1={5} y2={10} fill="var(--color-danger)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
+              <ReferenceArea x1={0} x2={READINESS_EFFORT_SPLIT} y1={EFFORT_HIGH_THRESHOLD} y2={10} fill="var(--color-danger)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Overreaching" position="insideTopLeft" offset={10} fill="var(--color-danger)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               {/* Optimal: High Readiness, High Effort */}
-              <ReferenceArea x1={READINESS_EFFORT_SPLIT} x2={100} y1={5} y2={10} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
+              <ReferenceArea x1={READINESS_EFFORT_SPLIT} x2={100} y1={EFFORT_HIGH_THRESHOLD} y2={10} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Optimal" position="insideTopRight" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               {/* Recovery: Low Readiness, Low Effort */}
-              <ReferenceArea x1={0} x2={READINESS_EFFORT_SPLIT} y1={0} y2={5} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
+              <ReferenceArea x1={0} x2={READINESS_EFFORT_SPLIT} y1={0} y2={EFFORT_HIGH_THRESHOLD} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Recovery" position="insideBottomLeft" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               {/* Undertraining: High Readiness, Low Effort */}
-              <ReferenceArea x1={READINESS_EFFORT_SPLIT} x2={100} y1={0} y2={5} fill="var(--color-warning)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
+              <ReferenceArea x1={READINESS_EFFORT_SPLIT} x2={100} y1={0} y2={EFFORT_HIGH_THRESHOLD} fill="var(--color-warning)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Undertraining" position="insideBottomRight" offset={10} fill="var(--color-warning)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
               </ReferenceArea>
               <ReferenceLine x={READINESS_EFFORT_SPLIT} stroke="var(--color-border)" strokeDasharray="3 3" />
-              <ReferenceLine y={5} stroke="var(--color-border)" strokeDasharray="3 3" />
+              <ReferenceLine y={EFFORT_HIGH_THRESHOLD} stroke="var(--color-border)" strokeDasharray="3 3" />
               <Scatter data={zoomedCorrelation} name="Session" fill="var(--color-primary)" />
               {!correlationZoom.isZoomed && (
                 <Line data={zoomedCorrelationTrend} dataKey="effort" name="Trend" stroke="var(--color-text-subtle)" strokeDasharray="5 5" dot={false} strokeWidth={2} />
