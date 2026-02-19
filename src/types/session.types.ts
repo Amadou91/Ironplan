@@ -4,16 +4,17 @@
  */
 
 import type {
-  FocusArea,
-  SessionGoal,
-  Intensity,
+  LoadType,
   MetricProfile,
   WeightUnit,
-  LoadType,
-  MovementPattern
-} from './core.types'
-import type { EquipmentInventory } from './equipment.types'
-import type { ExerciseVariation, GroupType } from './exercise.types'
+  DistanceUnit,
+  FocusArea,
+  SessionGoal,
+  GoalPriority,
+  Intensity
+} from '@/types/core.types'
+import type { EquipmentInventory } from '@/types/equipment.types'
+import type { ExerciseVariation, GroupType } from '@/types/exercise.types'
 
 export interface WorkoutImpact {
   score: number

@@ -28,7 +28,7 @@ export type {
   LoadType,
   MetricProfile,
   ExerciseCategory
-} from './core.types'
+} from '@/types/core.types'
 
 // Equipment types
 export type {
@@ -41,9 +41,9 @@ export type {
   EquipmentInventory,
   EquipmentRequirementMode,
   AdditionalEquipmentMode
-} from './equipment.types'
+} from '@/types/equipment.types'
 
-export { FREE_WEIGHT_EQUIPMENT } from './equipment.types'
+export { FREE_WEIGHT_EQUIPMENT } from '@/types/equipment.types'
 
 // Exercise types
 export type {
@@ -57,7 +57,7 @@ export type {
   ExerciseSource,
   ExercisePrescription,
   PlannedExercise
-} from './exercise.types'
+} from '@/types/exercise.types'
 
 // Session types
 export type {
@@ -70,7 +70,7 @@ export type {
   SessionHistory,
   FocusConstraint,
   CompletionSnapshot
-} from './session.types'
+} from '@/types/session.types'
 
 // Plan types
 export type {
@@ -82,4 +82,4 @@ export type {
   PlanStatus,
   WorkoutPlan,
   WorkoutDay
-} from './plan.types'
+} from '@/types/plan.types'

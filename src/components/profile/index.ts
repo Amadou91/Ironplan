@@ -2,9 +2,9 @@
  * Profile components barrel file
  */
 
-export { PhysicalStatsForm } from './PhysicalStatsForm'
-export { BodyMetricsForm } from './BodyMetricsForm'
-export { WeightHistorySection } from './WeightHistorySection'
-export { WeightLogModal } from './WeightLogModal'
-export { ProfileHeader } from './ProfileHeader'
-export { AppSettings } from './AppSettings'
+export { PhysicalStatsForm } from '@/components/profile/PhysicalStatsForm'
+export { BodyMetricsForm } from '@/components/profile/BodyMetricsForm'
+export { WeightHistorySection } from '@/components/profile/WeightHistorySection'
+export { WeightLogModal } from '@/components/profile/WeightLogModal'
+export { ProfileHeader } from '@/components/profile/ProfileHeader'
+export { AppSettings } from '@/components/profile/AppSettings'

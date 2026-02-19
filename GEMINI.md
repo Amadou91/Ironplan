@@ -16,7 +16,7 @@
 
 ## 3. Critical Rules (The "Zero Tolerance" List)
 1.  **Imports:** ALWAYS use absolute imports (`@/...`).
-2.  **Exports:** ALWAYS use named exports.
+2.  **Exports:** ALWAYS use named exports (Exception: Next.js pages/layouts must use `export default`).
 3.  **Types:** ALWAYS use `import type`.
 4.  **Testing:** NEVER break `npm test`.
 

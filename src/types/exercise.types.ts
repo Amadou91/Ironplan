@@ -4,14 +4,13 @@
  */
 
 import type {
-  FocusArea,
   MuscleGroup,
   MovementPattern,
+  LoadType,
   MetricProfile,
-  ExerciseCategory,
-  WeightUnit
-} from './core.types'
-import type { EquipmentOption, EquipmentOrGroup, EquipmentRequirementMode, AdditionalEquipmentMode } from './equipment.types'
+  ExerciseCategory
+} from '@/types/core.types'
+import type { EquipmentOption, EquipmentOrGroup, EquipmentRequirementMode, AdditionalEquipmentMode } from '@/types/equipment.types'
 
 export type GroupType = 'superset' | 'circuit' | 'giant_set' | 'dropset'
 

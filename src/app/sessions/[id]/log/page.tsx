@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
@@ -10,20 +10,10 @@ import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ValidationBlockerModal } from '@/components/ui/ValidationBlockerModal'
 import { useSupabase } from '@/hooks/useSupabase'
-import { completeSession } from '@/lib/session-completion'
-import { validateSessionForCompletion, type SetValidationError } from '@/lib/session-validation'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
-import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
+import { useActiveSessionFlow } from '@/hooks/useActiveSessionFlow'
 import type { SessionGoal } from '@/types/domain'
-
-type ConfirmAction = {
-  type: 'save' | 'discard'
-  title: string
-  description: string
-  confirmText: string
-  variant: 'danger' | 'info' | 'warning'
-}
 
 function SessionLogContent() {
   const params = useParams()
@@ -33,15 +23,9 @@ function SessionLogContent() {
   const { user } = useUser()
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const endSession = useWorkoutStore((state) => state.endSession)
-  const { catalog } = useExerciseCatalog()
   
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [savingSession, setSavingSession] = useState(false)
-  const [discardError, setDiscardError] = useState<string | null>(null)
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
-  const [validationErrors, setValidationErrors] = useState<SetValidationError[]>([])
-  const [showValidationBlocker, setShowValidationBlocker] = useState(false)
-  const [hasNoCompletedSets, setHasNoCompletedSets] = useState(false)
+  const sessionId = params?.id as string
+  const currentSessionId = activeSession?.id ?? sessionId
   
   // Duration from the previous page (passed via query param) - now editable
   const queryDuration = searchParams.get('duration')
@@ -51,106 +35,13 @@ function SessionLogContent() {
   const queryStartTime = searchParams.get('startTime')
   const [startTimeOverride, setStartTimeOverride] = useState<string | null>(queryStartTime ? decodeURIComponent(queryStartTime) : null)
   
-  const sessionId = params?.id as string
-  const currentSessionId = activeSession?.id ?? sessionId
-  
-  const sessionNotes = activeSession?.sessionNotes
-    ? (typeof activeSession.sessionNotes === 'string' ? JSON.parse(activeSession.sessionNotes) : activeSession.sessionNotes)
-    : null
-  const sessionGoal = (activeSession?.sessionGoal ?? sessionNotes?.goal ?? null) as SessionGoal | null
-  const sessionFocus = activeSession?.sessionFocus ?? sessionNotes?.focus ?? null
-  const equipmentInventory = sessionNotes?.equipmentInventory ?? null
-  
-  const requestSave = () => {
-    // Validate session before showing save confirmation
-    const validation = validateSessionForCompletion(activeSession)
-    
-    if (!validation.isValid) {
-      setValidationErrors(validation.errors)
-      setHasNoCompletedSets(validation.hasNoCompletedSets)
-      setShowValidationBlocker(true)
-      return
-    }
-    
-    setConfirmAction({
-      type: 'save',
-      title: 'Save Workout',
-      description: 'Save this workout to your history? Make sure all sets are logged correctly.',
-      confirmText: 'Save',
-      variant: 'info'
-    })
-  }
-  
-  const requestDiscard = () => {
-    setConfirmAction({
-      type: 'discard',
-      title: 'Discard Workout',
-      description: 'Are you sure you want to discard this workout? All entered data will be lost.',
-      confirmText: 'Discard',
-      variant: 'danger'
-    })
-  }
-  
-  const handleConfirmAction = async () => {
-    if (!confirmAction) return
-    if (confirmAction.type === 'save') await executeSave()
-    if (confirmAction.type === 'discard') await executeDiscard()
-    setConfirmAction(null)
-  }
-  
-  const executeSave = async () => {
-    if (!currentSessionId || !activeSession || !user?.id) return
-    setSaveError(null)
-    setSavingSession(true)
-    
-    try {
-      // Calculate end time based on start time + duration
-      // Use overridden start time if user edited it
-      const baseStartTime = startTimeOverride 
-        ? new Date(startTimeOverride).getTime()
-        : new Date(activeSession.startedAt).getTime()
-      const endedAt = new Date(baseStartTime + durationMinutes * 60 * 1000).toISOString()
-      const startedAtFinal = startTimeOverride ?? activeSession.startedAt
-      
-      // Create a modified session with the end time for the snapshot
-      const sessionWithEnd = {
-        ...activeSession,
-        startedAt: startedAtFinal,
-        endedAt
-      }
-      
-      const result = await completeSession({
-        supabase,
-        sessionId: currentSessionId,
-        session: sessionWithEnd,
-        userId: user.id,
-        bodyWeightLb: activeSession.bodyWeightLb ?? null,
-        sessionGoal,
-        equipmentInventory,
-        exerciseCatalog: catalog.map((e) => ({ name: e.name, e1rmEligible: e.e1rmEligible })),
-        endedAtOverride: endedAt
-      })
-      
-      if (!result.success) {
-        throw new Error(result.error ?? 'Failed to save workout')
-      }
-      
-      endSession()
-      router.push('/progress')
-    } catch (error) {
-      console.error('Failed to save workout:', error)
-      setSaveError('Failed to save workout. Please try again.')
-    } finally {
-      setSavingSession(false)
-    }
-  }
-  
-  const executeDiscard = async () => {
+  const [discardError, setDiscardError] = useState<string | null>(null)
+
+  const handleDiscardSession = async () => {
     if (!currentSessionId) return
     setDiscardError(null)
     
     try {
-      // Delete the session entirely since it was never completed
       const { error } = await supabase
         .from('sessions')
         .delete()
@@ -162,7 +53,59 @@ function SessionLogContent() {
     } catch (error) {
       console.error('Failed to discard workout:', error)
       setDiscardError('Failed to discard workout. Please try again.')
+      throw error // Re-throw to let the hook know it failed
     }
+  }
+
+  const {
+    savingSession,
+    saveError,
+    validationErrors,
+    showValidationBlocker,
+    hasNoCompletedSets,
+    confirmAction,
+    setShowValidationBlocker,
+    requestSave,
+    requestDiscard,
+    executeSave,
+    executeDiscard,
+    resetConfirmAction
+  } = useActiveSessionFlow({ 
+    sessionId: currentSessionId,
+    onSaveSuccess: () => router.push('/progress'),
+    onDiscard: handleDiscardSession
+  })
+  
+  const sessionNotes = useMemo(() => {
+    if (!activeSession?.sessionNotes) return null
+    try {
+      return typeof activeSession.sessionNotes === 'string' 
+        ? JSON.parse(activeSession.sessionNotes) 
+        : activeSession.sessionNotes
+    } catch {
+      return null
+    }
+  }, [activeSession?.sessionNotes])
+
+  const sessionGoal = (activeSession?.sessionGoal ?? sessionNotes?.goal ?? null) as SessionGoal | null
+  const sessionFocus = activeSession?.sessionFocus ?? sessionNotes?.focus ?? null
+  const equipmentInventory = sessionNotes?.equipmentInventory ?? null
+  
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return
+    
+    if (confirmAction.type === 'save') {
+      await executeSave({
+        startTimeOverride,
+        durationMinutes,
+        sessionGoal,
+        equipmentInventory
+      })
+    } else if (confirmAction.type === 'discard') {
+      await executeDiscard()
+    }
+    
+    resetConfirmAction()
   }
   
   if (!user) {
@@ -236,7 +179,7 @@ function SessionLogContent() {
       
       <ConfirmDialog 
         isOpen={Boolean(confirmAction)}
-        onClose={() => setConfirmAction(null)}
+        onClose={resetConfirmAction}
         onConfirm={handleConfirmAction}
         title={confirmAction?.title ?? ''}
         description={confirmAction?.description ?? ''}

@@ -16,11 +16,11 @@ import {
 
 } from '@/lib/body-metrics'
 
-import { BodyMetricsForm } from './BodyMetricsForm'
+import { BodyMetricsForm } from '@/components/profile/BodyMetricsForm'
 
-import { WeightHistorySection } from './WeightHistorySection'
+import { WeightHistorySection } from '@/components/profile/WeightHistorySection'
 
-import { WeightLogModal } from './WeightLogModal'
+import { WeightLogModal } from '@/components/profile/WeightLogModal'
 
 import { useUIStore } from '@/store/uiStore'
 

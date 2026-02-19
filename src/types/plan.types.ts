@@ -4,16 +4,16 @@
  */
 
 import type {
-  FocusArea,
   Goal,
-  GoalPriority,
   Intensity,
+  FocusArea,
+  SessionGoal,
   CardioActivity,
-  RestPreference
-} from './core.types'
-import type { EquipmentPreset, EquipmentInventory } from './equipment.types'
-import type { Exercise } from './exercise.types'
-import type { WorkoutImpact } from './session.types'
+  User
+} from '@/types/core.types'
+import type { EquipmentPreset, EquipmentInventory } from '@/types/equipment.types'
+import type { Exercise } from '@/types/exercise.types'
+import type { WorkoutImpact } from '@/types/session.types'
 
 export interface PlanDay {
   order: number
