@@ -23,7 +23,19 @@ export function PwaEnhancements() {
     const iosStandalone = Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
     return displayModeStandalone || iosStandalone
   })
-  const [showWelcome, setShowWelcome] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+      || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
+    if (!standalone) return false
+    try {
+      if (localStorage.getItem(PWA_WELCOMED_KEY)) return false
+      localStorage.setItem(PWA_WELCOMED_KEY, '1')
+      return true
+    } catch {
+      return false
+    }
+  })
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -78,19 +90,12 @@ export function PwaEnhancements() {
     }
   }, [])
 
-  /* Show a one-time welcome toast on first standalone launch */
+  /* Auto-dismiss the welcome toast after 3 seconds */
   useEffect(() => {
-    if (!isStandalone) return
-    try {
-      if (localStorage.getItem(PWA_WELCOMED_KEY)) return
-      localStorage.setItem(PWA_WELCOMED_KEY, '1')
-    } catch {
-      return
-    }
-    setShowWelcome(true)
+    if (!showWelcome) return
     const timer = setTimeout(() => setShowWelcome(false), 3000)
     return () => clearTimeout(timer)
-  }, [isStandalone])
+  }, [showWelcome])
 
   const showInstallButton = useMemo(
     () => Boolean(installPromptEvent) && !isStandalone,
