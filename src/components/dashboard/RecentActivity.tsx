@@ -12,6 +12,7 @@ import { aggregateHardSets, computeSetLoad, computeSetTonnage } from '@/lib/sess
 import { KG_PER_LB } from '@/lib/units'
 import { useUIStore } from '@/store/uiStore'
 import type { SessionRow } from '@/hooks/useDashboardData'
+import type { MetricProfile } from '@/types/domain'
 
 interface RecentActivityProps {
   recentSessions: SessionRow[]
@@ -39,10 +40,11 @@ export function RecentActivity({ recentSessions }: RecentActivityProps) {
     session.session_exercises.forEach((exercise) => {
       const completedSets = (exercise.sets ?? []).filter((set) => set.completed !== false)
       completedSets.forEach((set) => {
+        const metricProfile = (exercise.metric_profile as MetricProfile | null) ?? undefined
         totals.sets += 1
         totals.reps += set.reps ?? 0
         totals.volume += computeSetTonnage({
-          metricProfile: exercise.metric_profile ?? undefined,
+          metricProfile,
           reps: set.reps ?? null,
           weight: set.weight ?? null,
           implementCount: set.implement_count ?? null,
@@ -51,7 +53,7 @@ export function RecentActivity({ recentSessions }: RecentActivityProps) {
         })
         totals.hardSets += aggregateHardSets([
           {
-            metricProfile: exercise.metric_profile ?? undefined,
+            metricProfile,
             reps: set.reps ?? null,
             weight: set.weight ?? null,
             implementCount: set.implement_count ?? null,
@@ -62,7 +64,7 @@ export function RecentActivity({ recentSessions }: RecentActivityProps) {
           }
         ])
         totals.workload += computeSetLoad({
-          metricProfile: exercise.metric_profile ?? undefined,
+          metricProfile,
           reps: set.reps ?? null,
           weight: set.weight ?? null,
           implementCount: set.implement_count ?? null,
