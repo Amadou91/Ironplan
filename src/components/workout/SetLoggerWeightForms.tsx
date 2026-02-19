@@ -152,7 +152,7 @@ export function TimedStrengthForm({
           <select
             value={typeof set.rpe === 'number' ? String(set.rpe) : ''}
             onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))}
-            className={SELECT_COMPACT}
+            className={cn(SELECT_COMPACT, missingFields.includes('rpe') && 'border-[var(--color-danger)] ring-2 ring-[var(--color-danger-soft)]')}
             disabled={!isEditing}
           >
             <option value="">--</option>

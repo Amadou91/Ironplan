@@ -99,13 +99,19 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
     }
     if (effectiveProfile === 'timed_strength') {
       if (typeof set.weight !== 'number') m.push('weight')
+      if (typeof set.rpe !== 'number') m.push('rpe')
       if (set.restSecondsActual == null) m.push('rest')
     }
-    if (effectiveProfile === 'cardio_session' && !(getExtra('distance_km') ?? set.distance)) {
-      m.push('distance')
+    if (effectiveProfile === 'cardio_session') {
+      if (typeof set.rpe !== 'number') m.push('rpe')
+      if (!(getExtra('distance_km') ?? set.distance)) m.push('distance')
+    }
+    if (effectiveProfile === 'mobility_session') {
+      if (typeof set.rpe !== 'number') m.push('rpe')
+      if (!getExtra('style')) m.push('style')
     }
     return m
-  }, [effectiveProfile, durationMinutes, set.reps, set.weight, set.rir, set.distance, getExtra, showDumbbellToggle, hasImplementCount, set.restSecondsActual])
+  }, [effectiveProfile, durationMinutes, set.reps, set.weight, set.rir, set.rpe, set.distance, getExtra, showDumbbellToggle, hasImplementCount, set.restSecondsActual])
 
   const canComplete = missingFields.length === 0
 
@@ -132,7 +138,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
 
   const getMissingFieldsText = () => {
     if (!missingFields.length) return null
-    const map: Record<string, string> = { duration: 'Duration', reps: 'Reps', weight: 'Weight', rir: 'RIR', distance: 'Distance', dumbbells: 'Dumbbell count', rest: 'Rest' }
+    const map: Record<string, string> = { duration: 'Duration', reps: 'Reps', weight: 'Weight', rir: 'RIR', rpe: 'Intensity', distance: 'Distance', dumbbells: 'Dumbbell count', rest: 'Rest', style: 'Category' }
     const labels = missingFields.map(f => map[f] || f)
     return labels.length === 1 ? `${labels[0]} is required` : `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)} are required`
   }

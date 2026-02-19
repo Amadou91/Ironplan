@@ -58,7 +58,7 @@ export function MobilityForm({
           <select
             value={set.rpe ?? ''}
             onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))}
-            className={INPUT_BASE}
+            className={inputError(missingFields.includes('rpe'))}
             disabled={!isEditing}
           >
             <option value="">--</option>
@@ -72,7 +72,7 @@ export function MobilityForm({
           <select
             value={(getExtra('style') as string) ?? ''}
             onChange={(e) => updateExtra('style', e.target.value)}
-            className={INPUT_BASE}
+            className={inputError(missingFields.includes('style'))}
             disabled={!isEditing}
           >
             <option value="">Select</option>
@@ -124,7 +124,7 @@ export function CardioForm({
           <select
             value={set.rpe ?? ''}
             onChange={(e) => onUpdate('rpe', e.target.value === '' ? '' : Number(e.target.value))}
-            className={INPUT_BASE}
+            className={inputError(missingFields.includes('rpe'))}
             disabled={!isEditing}
           >
             <option value="">--</option>
