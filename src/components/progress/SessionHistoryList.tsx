@@ -33,6 +33,8 @@ interface SessionHistoryListProps {
   onError: (msg: string) => void
   loading: boolean
   onImportSuccess?: () => void
+  showActions?: boolean
+  showImportExport?: boolean
 }
 
 export function SessionHistoryList({
@@ -44,7 +46,9 @@ export function SessionHistoryList({
   onDeleteSuccess,
   onError,
   loading,
-  onImportSuccess
+  onImportSuccess,
+  showActions = true,
+  showImportExport = true
 }: SessionHistoryListProps) {
   const supabase = useSupabase()
   const { displayUnit } = useUIStore()
@@ -161,7 +165,7 @@ export function SessionHistoryList({
             <p className="text-[11px] font-bold text-subtle uppercase tracking-widest mt-1">Review your historical data</p>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            {onImportSuccess && <SessionHistoryToolbar onImportSuccess={onImportSuccess} />}
+            {showImportExport && onImportSuccess && <SessionHistoryToolbar onImportSuccess={onImportSuccess} />}
             <span className="flex-shrink-0 text-[10px] font-black text-subtle/60 uppercase tracking-widest bg-[var(--color-surface-muted)] px-3 py-1 rounded-lg border border-[var(--color-border)]">{sessions.length} session(s)</span>
           </div>
         </div>
@@ -195,9 +199,11 @@ export function SessionHistoryList({
                       <span className={`${metricBadgeBaseClass} border border-[var(--color-success-border)] bg-[var(--color-success-soft)] text-[var(--color-success-strong)]`}>{totals.hardSets} hard sets</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-                      <Link href={`/sessions/${session.id}/edit`}>
-                        <Button variant="outline" className="h-10 px-4 text-[11px] font-black uppercase tracking-widest border-2">Edit</Button>
-                      </Link>
+                      {showActions && (
+                        <Link href={`/sessions/${session.id}/edit`}>
+                          <Button variant="outline" className="h-10 px-4 text-[11px] font-black uppercase tracking-widest border-2">Edit</Button>
+                        </Link>
+                      )}
                       <Button
                         type="button"
                         onClick={() => handleToggleSession(session.id)}
@@ -206,15 +212,17 @@ export function SessionHistoryList({
                       >
                         {isExpanded ? 'Hide' : 'Details'}
                       </Button>
-                      <Button
-                        type="button"
-                        onClick={() => setSessionToDelete(session)}
-                        className="h-10 w-10 p-0 border-2 border-[var(--color-danger-border)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
-                        variant="outline"
-                        disabled={Boolean(deletingSessionIds[session.id])}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {showActions && (
+                        <Button
+                          type="button"
+                          onClick={() => setSessionToDelete(session)}
+                          className="h-10 w-10 p-0 border-2 border-[var(--color-danger-border)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
+                          variant="outline"
+                          disabled={Boolean(deletingSessionIds[session.id])}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {isExpanded && (
@@ -352,16 +360,18 @@ export function SessionHistoryList({
         )}
       </Card>
 
-      <ConfirmDialog
-        isOpen={Boolean(sessionToDelete)}
-        onClose={() => setSessionToDelete(null)}
-        onConfirm={executeDeleteSession}
-        title="Delete Session"
-        description="Are you sure you want to delete this session? This will remove all associated sets and metrics. This cannot be undone."
-        confirmText="Delete Session"
-        variant="danger"
-        isLoading={sessionToDelete ? Boolean(deletingSessionIds[sessionToDelete.id]) : false}
-      />
+      {showActions && (
+        <ConfirmDialog
+          isOpen={Boolean(sessionToDelete)}
+          onClose={() => setSessionToDelete(null)}
+          onConfirm={executeDeleteSession}
+          title="Delete Session"
+          description="Are you sure you want to delete this session? This will remove all associated sets and metrics. This cannot be undone."
+          confirmText="Delete Session"
+          variant="danger"
+          isLoading={sessionToDelete ? Boolean(deletingSessionIds[sessionToDelete.id]) : false}
+        />
+      )}
     </>
   )
 }
