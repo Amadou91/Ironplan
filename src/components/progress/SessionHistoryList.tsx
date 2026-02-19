@@ -233,8 +233,16 @@ export function SessionHistoryList({
                           let exerciseTonnage = 0
                           let exerciseLoad = 0
                           const completedSets = (exercise.sets ?? []).filter(s => s.completed !== false)
+                          const sortedSets = [...completedSets].sort((a, b) => {
+                            const aNum = typeof a.set_number === 'number' ? a.set_number : Number.MAX_SAFE_INTEGER
+                            const bNum = typeof b.set_number === 'number' ? b.set_number : Number.MAX_SAFE_INTEGER
+                            if (aNum !== bNum) return aNum - bNum
+                            const aTime = a.performed_at ? new Date(a.performed_at).getTime() : Number.MAX_SAFE_INTEGER
+                            const bTime = b.performed_at ? new Date(b.performed_at).getTime() : Number.MAX_SAFE_INTEGER
+                            return aTime - bTime
+                          })
                           
-                          const setMetrics = completedSets.map((set) => {
+                          const setMetrics = sortedSets.map((set) => {
                             const setData = {
                               metricProfile: exercise.metric_profile ?? undefined,
                               reps: set.reps ?? null,
