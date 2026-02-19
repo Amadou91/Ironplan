@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { SessionHeader } from '@/components/workout/session/SessionHeader';
 import { SessionControls } from '@/components/workout/session/SessionControls';
-import { ExerciseNavigator } from '@/components/workout/session/ExerciseNavigator';
 import { ExerciseSessionCard } from '@/components/workout/ExerciseSessionCard';
 import { AddExerciseModal } from '@/components/workout/modals/AddExerciseModal';
 import { SwapExerciseModal } from '@/components/workout/modals/SwapExerciseModal';
@@ -51,7 +50,6 @@ export function ActiveSession({
   const [swappingExIdx, setSwappingExIdx] = useState<number | null>(null);
   const [isAddingExercise, setIsAddingExercise] = useState(false);
   const [isReordering, setIsReordering] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [exerciseToRemove, setExerciseToRemove] = useState<number | null>(null);
   const [isEditingWeight, setIsEditingWeight] = useState(false);
   const [editWeightValue, setEditWeightValue] = useState('');
@@ -59,27 +57,6 @@ export function ActiveSession({
   const [editStartTimeValue, setEditStartTimeValue] = useState('');
   const [collapsedExercises, setCollapsedExercises] = useState<Set<number>>(new Set());
   const exerciseRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const isUserScrolling = useRef(true);
-
-  // Track which exercise card is visible and update the navigator highlight
-  useEffect(() => {
-    if (!activeSession?.exercises.length) return;
-    const refs = exerciseRefs.current;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!isUserScrolling.current) return;
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const idx = refs.indexOf(entry.target as HTMLDivElement);
-            if (idx !== -1) setCurrentIndex(idx);
-          }
-        }
-      },
-      { rootMargin: '-240px 0px -40% 0px', threshold: 0.1 }
-    );
-    refs.forEach(ref => { if (ref) observer.observe(ref); });
-    return () => observer.disconnect();
-  }, [activeSession?.exercises.length]);
 
   const handleWeightEditClick = useCallback(() => {
     setEditWeightValue(activeSession?.bodyWeightLb?.toString() ?? '');
@@ -109,19 +86,6 @@ export function ActiveSession({
     }
     setIsEditingStartTime(false);
   }, [editStartTimeValue, onStartTimeChange]);
-
-  const handleExerciseSelect = useCallback((index: number) => {
-    setCurrentIndex(index);
-    isUserScrolling.current = false;
-    const element = exerciseRefs.current[index];
-    if (element) {
-      const yOffset = -220;
-      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: 'smooth' });
-    }
-    // Re-enable observer after scroll animation settles
-    setTimeout(() => { isUserScrolling.current = true; }, 600);
-  }, []);
 
   const handleAddExercise = useCallback(async (newExercise: Exercise) => {
     if (!activeSession) return;
@@ -236,7 +200,6 @@ export function ActiveSession({
         onStartTimeClick={onStartTimeChange ? handleStartTimeEditClick : undefined}
         onWeightClick={handleWeightEditClick}
       />
-      <ExerciseNavigator exercises={activeSession.exercises} currentIndex={currentIndex} onSelect={handleExerciseSelect} />
       <div className="space-y-6 !mt-6">
         {activeSession.exercises.map((exercise, exIdx) => {
           const isCollapsed = collapsedExercises.has(exIdx);
