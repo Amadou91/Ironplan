@@ -169,10 +169,8 @@ export function useSetOperations(
     handleRemoveExercise,
     togglePreferredUnit,
     addSet,
-    removeSet,
     updateSet,
     replaceSessionExercise,
-    removeSessionExercise,
     addSessionExercise,
     isUpdating: isUpdating || isPersisting
   }

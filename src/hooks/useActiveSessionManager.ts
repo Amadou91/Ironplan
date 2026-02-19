@@ -43,17 +43,15 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     exerciseHistory,
     exerciseTargets,
 
-    // Set operations
+    // Set operations (DB-aware wrappers)
     handleSetUpdate: setOps.handleSetUpdate,
     handleBodyWeightUpdate: setOps.handleBodyWeightUpdate,
     handleRemoveSet: setOps.handleRemoveSet,
     addSet: setOps.addSet,
-    removeSet: setOps.removeSet,
     updateSet: setOps.updateSet,
 
-    // Exercise operations
+    // Exercise operations (DB-aware wrappers)
     replaceSessionExercise: setOps.replaceSessionExercise,
-    removeSessionExercise: setOps.removeSessionExercise,
     handleRemoveExercise: setOps.handleRemoveExercise,
     addSessionExercise: setOps.addSessionExercise,
     handleReorderExercises: setOps.handleReorderExercises,
