@@ -4,7 +4,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { primaryNavItems } from '@/components/layout/navigation'
 
-export function MobileNav() {
+type MobileNavProps = {
+  /** When true the nav stays visible at all viewport widths (PWA standalone). */
+  alwaysVisible?: boolean
+}
+
+export function MobileNav({ alwaysVisible }: MobileNavProps) {
   const pathname = usePathname()
   const isActive = (path: string) =>
     pathname === path ||
@@ -12,7 +17,7 @@ export function MobileNav() {
     (path === '/exercises' && pathname.startsWith('/workout/'))
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[var(--z-nav)] border-t border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_5%)] px-4 pb-[calc(env(safe-area-inset-bottom)_+_0.5rem)] pt-3 backdrop-blur lg:hidden" aria-label="Primary">
+    <nav className={`fixed bottom-0 left-0 right-0 z-[var(--z-nav)] border-t border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_5%)] px-4 pb-[calc(env(safe-area-inset-bottom)_+_0.5rem)] pt-3 backdrop-blur [transform:translateZ(0)] ${alwaysVisible ? '' : 'lg:hidden'}`} aria-label="Primary">
       <div className="mx-auto flex max-w-lg items-center justify-evenly">
         {primaryNavItems.map((item) => {
           const Icon = item.icon

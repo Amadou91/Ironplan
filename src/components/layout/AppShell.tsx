@@ -7,6 +7,7 @@ import { UserRound } from 'lucide-react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
+import { useIsStandalone } from '@/hooks/useIsStandalone'
 
 type AppShellProps = {
   children: ReactNode
@@ -16,6 +17,7 @@ const HIDDEN_SHELL_PREFIXES = ['/auth']
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname()
+  const isStandalone = useIsStandalone()
   const hideForFocusMode = pathname.startsWith('/exercises/') && pathname.includes('/active')
   const showShell =
     pathname !== '/' &&
@@ -27,10 +29,10 @@ export function AppShell({ children }: AppShellProps) {
   }
 
   return (
-    <div className="min-h-screen lg:flex">
-      <Sidebar />
+    <div className={`min-h-screen ${isStandalone ? '' : 'lg:flex'}`}>
+      {!isStandalone && <Sidebar />}
       <div className="min-h-screen flex-1 min-w-0 bg-transparent">
-        <header className="sticky top-[env(safe-area-inset-top,_0px)] z-[var(--z-nav)] flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_8%)] px-4 backdrop-blur lg:hidden">
+        <header className={`sticky top-[env(safe-area-inset-top,_0px)] z-[var(--z-nav)] flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_8%)] px-4 backdrop-blur [transform:translateZ(0)] ${isStandalone ? '' : 'lg:hidden'}`}>
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]">
               <span className="font-display text-sm font-semibold">IP</span>
@@ -48,12 +50,12 @@ export function AppShell({ children }: AppShellProps) {
             </Link>
           </div>
         </header>
-        <main className="min-h-screen pb-28 lg:pb-10">
+        <main className={`min-h-screen ${isStandalone ? 'pb-28' : 'pb-28 lg:pb-10'}`}>
           <div className="app-container py-6 lg:py-8">
             {children}
           </div>
         </main>
-        <MobileNav />
+        <MobileNav alwaysVisible={isStandalone} />
       </div>
     </div>
   )
