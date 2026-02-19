@@ -59,6 +59,8 @@ export const filterExercises = (
       case 'back':
       case 'shoulders':
       case 'core':
+      case 'triceps':
+      case 'biceps':
         matchesFocus = primary === focus
         break
       case 'upper': // Backward compat

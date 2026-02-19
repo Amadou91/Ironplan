@@ -186,7 +186,7 @@ const buildSessionForTime = (
       const ratio = totals.total > 0 ? totals.primary / totals.total : 0
       if (ratio < focusConstraint.minPrimarySetRatio && !canMeetPrimaryRatio(planned)) return false
     }
-    if (currentMinutes + planned.estimatedMinutes > targetMinutes + 6 && picks.length >= minExercises) {
+    if (currentMinutes + planned.estimatedMinutes > targetMinutes + 8 && picks.length >= minExercises) {
       return false
     }
     picks.push(planned)
@@ -302,16 +302,24 @@ export const buildSessionExercises = (
   input: PlanInput,
   goalOverride?: Goal,
   history?: SessionHistory,
-  seed?: string
+  seed?: string,
+  excludeAccessoryMuscles?: string[]
 ): { exercises: Exercise[]; error?: string } => {
   const targetGoal = goalOverride ?? input.goals.primary
   const baseFocus = focusMuscleMap[focus]?.baseFocus
   const focusConfig = focusMuscleMap[focus]
+  // When running as part of a multi-focus session, exclude muscles that are
+  // handled by a dedicated sub-session so they don't get poached as accessories
+  // and then deduplicated during the merge step.
+  const baseAccessoryMuscles = focusAccessoryMap[focus] ?? []
+  const effectiveAccessoryMuscles = excludeAccessoryMuscles?.length
+    ? baseAccessoryMuscles.filter(m => !excludeAccessoryMuscles.includes(m))
+    : baseAccessoryMuscles
   const focusConstraint: FocusConstraint | null = focusConfig?.primaryMuscles?.length
     ? {
         focus,
         primaryMuscles: focusConfig.primaryMuscles,
-        accessoryMuscles: focusAccessoryMap[focus] ?? [],
+        accessoryMuscles: effectiveAccessoryMuscles,
         minPrimarySetRatio: 0.75
       }
     : null
@@ -394,7 +402,7 @@ export const generateSessionExercises = (
   focus: FocusArea,
   durationMinutes: number,
   goalOverride?: Goal,
-  options?: { seed?: string; history?: SessionHistory }
+  options?: { seed?: string; history?: SessionHistory; excludeAccessoryMuscles?: string[] }
 ) => {
   const result = buildSessionExercises(
     catalog,
@@ -403,7 +411,8 @@ export const generateSessionExercises = (
     input,
     goalOverride,
     options?.history,
-    options?.seed
+    options?.seed,
+    options?.excludeAccessoryMuscles
   )
   if (result.error) {
     logEvent('warn', 'focus_constraints_unsatisfied', { focus })
@@ -440,13 +449,23 @@ export const generateSessionExercisesForFocusAreas = (
   // The merge step deduplicates exercises and the mergedCap limits the total,
   // so over-generation per sub-session is harmless. Strict equal splits cause
   // adjustSessionVolume to strip sets below usable thresholds.
-  const perFocusDuration = Math.max(25, Math.round(durationMinutes * 0.7))
-  const buckets = normalizedFocusAreas.map((focus, index) =>
-    generateSessionExercises(catalog, input, focus, perFocusDuration, goalOverride, {
-      seed: `${options?.seed ?? 'multi-focus'}-${focus}-${index}`,
-      history: options?.history
-    })
+  const perFocusDuration = Math.max(25, Math.round(durationMinutes * 0.8))
+
+  // Collect primary muscles for each focus so sub-sessions don't poach exercises
+  // that belong to another focus area's dedicated sub-session.
+  const allPrimaryMuscles = normalizedFocusAreas.map(
+    focus => focusMuscleMap[focus]?.primaryMuscles ?? []
   )
+  const buckets = normalizedFocusAreas.map((focus, index) => {
+    const otherPrimaryMuscles = allPrimaryMuscles
+      .filter((_, i) => i !== index)
+      .flat()
+    return generateSessionExercises(catalog, input, focus, perFocusDuration, goalOverride, {
+      seed: `${options?.seed ?? 'multi-focus'}-${focus}-${index}`,
+      history: options?.history,
+      excludeAccessoryMuscles: otherPrimaryMuscles
+    })
+  })
 
   const merged: Exercise[] = []
   const seen = new Set<string>()

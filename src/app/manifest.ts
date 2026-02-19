@@ -13,7 +13,7 @@ export default function manifest(): Manifest {
     scope: '/',
     display: 'standalone',
     display_override: ['standalone'],
-    orientation: 'portrait',
+    orientation: 'any',
     background_color: '#f8f6f2',
     theme_color: '#f8f6f2',
     categories: ['health', 'fitness', 'lifestyle'],
@@ -21,17 +21,20 @@ export default function manifest(): Manifest {
       {
         src: '/icon?size=192',
         sizes: '192x192',
-        type: 'image/png'
+        type: 'image/png',
+        purpose: 'any'
       },
       {
         src: '/icon?size=512',
         sizes: '512x512',
-        type: 'image/png'
+        type: 'image/png',
+        purpose: 'any'
       },
       {
         src: '/apple-icon',
         sizes: '180x180',
-        type: 'image/png'
+        type: 'image/png',
+        purpose: 'any'
       }
     ]
   }

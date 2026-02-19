@@ -66,10 +66,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Ironplan" />
-        <link rel="apple-touch-icon" href="/apple-icon" />
+        {/* iPad-specific apple-touch-icon sizes (iPad = 152, iPad Pro = 167) */}
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-icon" />
+        <link rel="apple-touch-icon" sizes="167x167" href="/apple-icon" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/apple-icon" />
         {process.env.NODE_ENV === 'production' && (
           <script
             dangerouslySetInnerHTML={{ __html:
