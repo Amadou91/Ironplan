@@ -48,7 +48,9 @@ export function analyzeTrainingStatus(
     muscleFrequency7d[m] = 0
   })
 
-  const sortedSessions = [...sessions].sort((a, b) => 
+  const sortedSessions = [...sessions]
+    .filter(s => s.status !== 'cancelled')
+    .sort((a, b) => 
     new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
   )
 

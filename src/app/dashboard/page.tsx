@@ -13,12 +13,13 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Alert } from '@/components/ui/Alert'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { SuggestedWorkoutCard } from '@/components/dashboard/SuggestedWorkoutCard'
 import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
 import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
+import { SuggestionModal } from '@/components/dashboard/SuggestionModal'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
 import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
 import { useDashboardData } from '@/hooks/useDashboardData'
+import { useWorkoutSuggestion } from '@/hooks/useWorkoutSuggestion'
 import type { WorkoutSuggestion } from '@/lib/suggestion-logic'
 import type { SessionRow } from '@/lib/transformers/progress-data'
 
@@ -30,8 +31,11 @@ export default function DashboardPage() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancelingSession, setCancelingSession] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
+  
   const [quickStartOpen, setQuickStartOpen] = useState(false)
-  const [initialSuggestion, setInitialSuggestion] = useState<WorkoutSuggestion | null>(null)
+  const [suggestionModalOpen, setSuggestionModalOpen] = useState(false)
+  const [selectedSuggestion, setSelectedSuggestion] = useState<WorkoutSuggestion | null>(null)
+
   const {
     user,
     userLoading,
@@ -41,6 +45,9 @@ export default function DashboardPage() {
     trainingLoadSummary,
     refresh
   } = useDashboardData()
+
+  // Always compute suggestion, but only show it when requested
+  const currentSuggestion = useWorkoutSuggestion(sessions as unknown as SessionRow[])
 
   const latestActiveSession = useMemo(() => {
     if (activeSession) return activeSession
@@ -90,6 +97,28 @@ export default function DashboardPage() {
     }
   }, [latestActiveSession?.id, supabase, endSession, refresh])
 
+  const handleBeginWorkout = () => {
+    // If we have a valid suggestion, show it first
+    if (currentSuggestion) {
+      setSuggestionModalOpen(true)
+    } else {
+      // Fallback directly to setup if no suggestion available
+      setQuickStartOpen(true)
+    }
+  }
+
+  const handleAcceptSuggestion = (suggestion: WorkoutSuggestion) => {
+    setSelectedSuggestion(suggestion)
+    setSuggestionModalOpen(false)
+    setQuickStartOpen(true)
+  }
+
+  const handleCustomizeSession = () => {
+    setSelectedSuggestion(null)
+    setSuggestionModalOpen(false)
+    setQuickStartOpen(true)
+  }
+
   const greetingName = user?.email?.split('@')[0] || 'there'
   const recentSessions = sessions.slice(0, 3)
   if (userLoading || loading) {
@@ -123,7 +152,7 @@ export default function DashboardPage() {
           eyebrow="Dashboard"
           title={`Welcome back, ${greetingName}`}
           actions={
-            <Button size="md" className="shadow-lg shadow-[var(--color-primary-soft)]" onClick={() => setQuickStartOpen(true)}>
+            <Button size="md" className="shadow-lg shadow-[var(--color-primary-soft)]" onClick={handleBeginWorkout}>
               <Sparkles className="h-5 w-5 mr-2" /> Begin Workout
             </Button>
           }
@@ -133,14 +162,6 @@ export default function DashboardPage() {
         {cancelError ? <Alert variant="error">{cancelError}</Alert> : null}
 
         <ProfileCompletionBanner />
-
-        <SuggestedWorkoutCard 
-          sessions={sessions as unknown as SessionRow[]} 
-          onStart={(suggestion) => {
-            setInitialSuggestion(suggestion)
-            setQuickStartOpen(true)
-          }} 
-        />
 
         {latestActiveSession && (
           <Card className="p-8 border-2 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]/50 backdrop-blur-sm">
@@ -193,15 +214,24 @@ export default function DashboardPage() {
           <RecentActivity recentSessions={recentSessions} />
         </div>
 
+        <SuggestionModal 
+          isOpen={suggestionModalOpen}
+          onClose={() => setSuggestionModalOpen(false)}
+          suggestion={currentSuggestion}
+          onConfirm={handleAcceptSuggestion}
+          onCustomize={handleCustomizeSession}
+        />
+
         <SessionSetupModal
           isOpen={quickStartOpen}
           onClose={() => {
             setQuickStartOpen(false)
-            setInitialSuggestion(null)
+            setSelectedSuggestion(null)
           }}
-          templateTitle={initialSuggestion ? "Suggested Workout" : "Begin Workout"}
-          templateStyle={initialSuggestion?.goal || "hypertrophy"}
-          initialFocusAreas={initialSuggestion?.focus || ['chest']}
+          templateTitle={selectedSuggestion ? "Suggested Workout" : "Begin Workout"}
+          templateStyle={selectedSuggestion?.goal || "hypertrophy"}
+          initialFocusAreas={selectedSuggestion?.focus}
+          templateIntensity={selectedSuggestion?.intensity}
         />
       </div>
     </div>
