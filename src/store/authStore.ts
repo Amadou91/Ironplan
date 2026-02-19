@@ -37,6 +37,7 @@ export const createAuthStore = (storage?: StateStorage) =>
       }),
       {
         name: 'auth-store',
+        version: 1,
         storage: storage ? createJSONStorage(() => storage) : undefined,
         partialize: (state) => ({ user: state.user })
       }

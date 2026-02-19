@@ -19,6 +19,7 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: 'ironplan-ui-settings',
+      version: 1,
     }
   )
 );

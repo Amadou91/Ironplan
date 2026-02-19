@@ -151,6 +151,7 @@ export const useWorkoutStore = create<WorkoutState>()(
     }),
     {
       name: 'ironplan-active-session',
+      version: 1,
     }
   )
 );
