@@ -36,6 +36,10 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute = pathname === '/' 
     || pathname.startsWith('/auth')
     || pathname.startsWith('/offline')
+    || pathname === '/manifest.webmanifest'
+    || pathname === '/sw.js'
+    || pathname === '/icon'
+    || pathname === '/apple-icon'
 
   // Redirect unauthenticated users to login for protected routes
   if (!isPublicRoute && (error || !user)) {

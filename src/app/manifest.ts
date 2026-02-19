@@ -12,7 +12,7 @@ export default function manifest(): Manifest {
     start_url: '/',
     scope: '/',
     display: 'standalone',
-    display_override: ['standalone'],
+    display_override: ['fullscreen', 'standalone'],
     orientation: 'portrait',
     background_color: '#f8f6f2',
     theme_color: '#f8f6f2',
