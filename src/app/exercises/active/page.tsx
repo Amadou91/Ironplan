@@ -3,14 +3,12 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { CheckCircle2, X } from 'lucide-react'
+import { Home } from 'lucide-react'
 import { ActiveSession } from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ValidationBlockerModal } from '@/components/ui/ValidationBlockerModal'
 import { useSupabase } from '@/hooks/useSupabase'
-import { formatFocusLabel, formatGoalLabel } from '@/lib/workout-metrics'
 import { completeSession } from '@/lib/session-completion'
 import { validateSessionForCompletion, type SetValidationError } from '@/lib/session-validation'
 import { useUser } from '@/hooks/useUser'
@@ -19,7 +17,7 @@ import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import type { SessionGoal } from '@/types/domain'
 
 type ConfirmAction = {
-  type: 'finish' | 'cancel'
+  type: 'finish'
   title: string
   description: string
   confirmText: string
@@ -37,8 +35,6 @@ function WorkoutActiveContent() {
   const { catalog } = useExerciseCatalog()
   const [finishError, setFinishError] = useState<string | null>(null)
   const [finishingSession, setFinishingSession] = useState(false)
-  const [cancelError, setCancelError] = useState<string | null>(null)
-  const [cancelingSession, setCancelingSession] = useState(false)
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const [validationErrors, setValidationErrors] = useState<SetValidationError[]>([])
   const [showValidationBlocker, setShowValidationBlocker] = useState(false)
@@ -52,7 +48,6 @@ function WorkoutActiveContent() {
   const sessionGoal = (activeSession?.sessionGoal ?? sessionNotes?.goal ?? null) as SessionGoal | null
   const sessionFocus = activeSession?.sessionFocus ?? sessionNotes?.focus ?? null
   const equipmentInventory = sessionNotes?.equipmentInventory ?? null
-  const sessionTitle = activeSession?.name ?? 'Active session'
 
   const requestFinish = () => {
     // Validate session before showing finish confirmation
@@ -74,20 +69,9 @@ function WorkoutActiveContent() {
     })
   }
 
-  const requestCancel = () => {
-    setConfirmAction({
-      type: 'cancel',
-      title: 'Cancel Workout',
-      description: 'Are you sure you want to cancel this session? Any progress will be discarded.',
-      confirmText: 'Cancel Session',
-      variant: 'danger'
-    })
-  }
-
   const handleConfirmAction = async () => {
     if (!confirmAction) return
     if (confirmAction.type === 'finish') await executeFinish()
-    if (confirmAction.type === 'cancel') await executeCancel()
     setConfirmAction(null)
   }
 
@@ -125,30 +109,6 @@ function WorkoutActiveContent() {
     }
   }
 
-  const executeCancel = async () => {
-    if (!currentSessionId) return
-    setCancelError(null)
-    setCancelingSession(true)
-    try {
-      const { error } = await supabase
-        .from('sessions')
-        .update({
-          status: 'cancelled',
-          ended_at: new Date().toISOString()
-        })
-        .eq('id', currentSessionId)
-
-      if (error) throw error
-      endSession()
-      router.push('/dashboard')
-    } catch (error) {
-      console.error('Failed to cancel workout:', error)
-      setCancelError('Failed to cancel workout. Please try again.')
-    } finally {
-      setCancelingSession(false)
-    }
-  }
-
   if (!user) {
     return (
       <div className="page-shell p-10 text-center text-muted">
@@ -170,75 +130,33 @@ function WorkoutActiveContent() {
   return (
     <div className="page-shell">
       <div className="w-full px-4 py-8 sm:px-6 lg:px-10 2xl:px-16">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-              <Link href="/dashboard" className="transition-colors hover:text-strong">
-                Workouts
-              </Link>
-              <span>/</span>
-              <span className="text-subtle">Active</span>
-            </div>
-            <h1 className="font-display text-2xl font-semibold text-strong">{sessionTitle}</h1>
-            {sessionGoal && sessionFocus && (
-              <p className="text-sm text-muted">
-                {formatGoalLabel(sessionGoal)} focus · {formatFocusLabel(sessionFocus)}
-              </p>
-            )}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+            <Link href="/dashboard" className="transition-colors hover:text-strong">
+              Workouts
+            </Link>
+            <span>/</span>
+            <span className="text-subtle">Active</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}>
-              <X className="h-4 w-4" /> Exit
-            </Button>
-          </div>
+          <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}>
+            <Home className="h-4 w-4" /> Go to Dashboard
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,_1fr)_320px]">
-          <div>
-            <ActiveSession
-              sessionId={currentSessionId}
-              equipmentInventory={equipmentInventory}
-              onFinish={requestFinish}
-              onCancel={requestCancel}
-              isFinishing={finishingSession}
-              focus={activeSession?.sessionFocusAreas ?? sessionFocus}
-              style={sessionGoal}
-            />
+        {finishError && (
+          <div className="mb-4 rounded-lg border border-[var(--color-danger)] bg-[var(--color-danger-soft)]/10 p-3 text-xs text-[var(--color-danger)] font-medium">
+            {finishError}
           </div>
+        )}
 
-          <div className="space-y-4">
-            <Card className="p-6">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold text-strong">Session controls</h2>
-              </div>
-              {finishError && <div className="mt-3 alert-error px-3 py-2 text-xs">{finishError}</div>}
-              {cancelError && <div className="mt-3 alert-error px-3 py-2 text-xs">{cancelError}</div>}
-
-              <div className="mt-4 space-y-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={requestFinish}
-                  disabled={finishingSession}
-                  className="w-full justify-center"
-                >
-                  {finishingSession ? 'Finishing...' : 'Finish Session'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={requestCancel}
-                  disabled={cancelingSession}
-                  className="w-full justify-center text-[var(--color-danger)] hover:text-[var(--color-danger)]"
-                >
-                  {cancelingSession ? 'Cancelling...' : 'Cancel Session'}
-                </Button>
-              </div>
-            </Card>
-
-          </div>
-        </div>
+        <ActiveSession
+          sessionId={currentSessionId}
+          equipmentInventory={equipmentInventory}
+          onFinish={requestFinish}
+          isFinishing={finishingSession}
+          focus={activeSession?.sessionFocusAreas ?? sessionFocus}
+          style={sessionGoal}
+        />
       </div>
 
       <ConfirmDialog 
@@ -249,7 +167,7 @@ function WorkoutActiveContent() {
         description={confirmAction?.description ?? ''}
         confirmText={confirmAction?.confirmText}
         variant={confirmAction?.variant}
-        isLoading={finishingSession || cancelingSession}
+        isLoading={finishingSession}
       />
 
       <ValidationBlockerModal

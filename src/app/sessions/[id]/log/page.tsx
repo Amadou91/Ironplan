@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { ActiveSession } from '@/components/workout/ActiveSession'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -60,7 +60,6 @@ function SessionLogContent() {
   const sessionGoal = (activeSession?.sessionGoal ?? sessionNotes?.goal ?? null) as SessionGoal | null
   const sessionFocus = activeSession?.sessionFocus ?? sessionNotes?.focus ?? null
   const equipmentInventory = sessionNotes?.equipmentInventory ?? null
-  const sessionTitle = activeSession?.name ?? 'Log Past Workout'
   
   const requestSave = () => {
     // Validate session before showing save confirmation
@@ -187,25 +186,17 @@ function SessionLogContent() {
   return (
     <div className="page-shell">
       <div className="w-full px-4 py-8 sm:px-6 lg:px-10 2xl:px-16">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-              <Link href="/progress" className="transition-colors hover:text-strong">
-                Progress
-              </Link>
-              <span>/</span>
-              <span className="text-subtle">Log Past Workout</span>
-            </div>
-            <h1 className="font-display text-2xl font-semibold text-strong">{sessionTitle}</h1>
-            <p className="text-sm text-muted">
-              Add exercises and log your sets from this past workout.
-            </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+            <Link href="/progress" className="transition-colors hover:text-strong">
+              Progress
+            </Link>
+            <span>/</span>
+            <span className="text-subtle">Log Past Workout</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={requestDiscard}>
-              <ArrowLeft className="h-4 w-4 mr-1" /> Discard
-            </Button>
-          </div>
+          <Button variant="ghost" size="sm" onClick={requestDiscard}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Discard
+          </Button>
         </div>
         
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,_1fr)_320px]">
@@ -214,7 +205,6 @@ function SessionLogContent() {
               sessionId={currentSessionId}
               equipmentInventory={equipmentInventory}
               onFinish={requestSave}
-              onCancel={requestDiscard}
               isFinishing={savingSession}
               focus={activeSession?.sessionFocusAreas ?? sessionFocus}
               style={sessionGoal}
@@ -223,54 +213,22 @@ function SessionLogContent() {
           </div>
           
           <div className="space-y-4">
-            {/* Save Controls */}
-            <Card className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Save className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold text-strong">Save Workout</h2>
-              </div>
-              
-              {saveError && (
-                <div className="mb-4 rounded-lg border border-[var(--color-danger)] bg-[var(--color-danger-soft)]/10 p-3 text-xs text-[var(--color-danger)]">
-                  {saveError}
-                </div>
-              )}
-              {discardError && (
-                <div className="mb-4 rounded-lg border border-[var(--color-danger)] bg-[var(--color-danger-soft)]/10 p-3 text-xs text-[var(--color-danger)]">
-                  {discardError}
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={requestSave}
-                  disabled={savingSession}
-                  className="w-full justify-center"
-                >
-                  {savingSession ? 'Saving...' : 'Save to History'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={requestDiscard}
-                  className="w-full justify-center text-[var(--color-danger)] hover:text-[var(--color-danger)]"
-                >
-                  Discard Workout
-                </Button>
-              </div>
-            </Card>
-            
-            {/* Tips */}
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-strong">Tips</h2>
-              <ul className="mt-2 space-y-2 text-sm text-muted">
-                <li>• Click &quot;Add Exercise&quot; to search for exercises</li>
-                <li>• Enter reps, weight, and RPE for each set</li>
-                <li>• Mark sets complete as you log them</li>
-                <li>• Click &quot;Started at&quot; to adjust the start time</li>
-              </ul>
+            {(saveError || discardError) && (
+              <Card className="p-4 border-[var(--color-danger)] bg-[var(--color-danger-soft)]/10">
+                {saveError && <div className="text-xs text-[var(--color-danger)] font-medium">{saveError}</div>}
+                {discardError && <div className="mt-2 text-xs text-[var(--color-danger)] font-medium">{discardError}</div>}
+              </Card>
+            )}
+
+            <Card className="p-4">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={requestDiscard}
+                className="w-full justify-center text-[var(--color-danger)] hover:text-[var(--color-danger)]"
+              >
+                Discard Workout
+              </Button>
             </Card>
           </div>
         </div>

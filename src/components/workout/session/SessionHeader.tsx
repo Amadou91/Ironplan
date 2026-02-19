@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import type { WeightUnit } from '@/types/domain';
 
 interface SessionHeaderProps {
@@ -19,7 +19,6 @@ interface SessionHeaderProps {
   /** Session body weight (read-only, set from readiness check) */
   sessionBodyWeight?: number | null;
   preferredUnit?: WeightUnit;
-  onCancel?: () => void;
   errorMessage?: string | null;
   /** Callback when 'Started at' label is clicked (to edit start time) */
   onStartTimeClick?: () => void;
@@ -36,7 +35,6 @@ export function SessionHeader({
   progressSummary,
   sessionBodyWeight,
   preferredUnit = 'lb',
-  onCancel,
   errorMessage,
   onStartTimeClick,
   onWeightClick,
@@ -70,15 +68,6 @@ export function SessionHeader({
               {onStartTimeClick && <span className="ml-1 text-[10px] text-muted">(edit)</span>}
             </div>
           </div>
-          {onCancel && (
-            <button
-              onClick={onCancel}
-              className="p-2 rounded-full hover:bg-[var(--color-surface-muted)] text-subtle transition-colors"
-              title="Cancel Session"
-            >
-              <X size={20} />
-            </button>
-          )}
         </div>
 
         {(intensityLabel || minutesAvailable) && (

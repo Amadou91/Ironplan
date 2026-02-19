@@ -28,7 +28,6 @@ type ActiveSessionProps = {
   sessionId?: string | null;
   equipmentInventory?: EquipmentInventory | null;
   onFinish?: () => void;
-  onCancel?: () => void;
   isFinishing?: boolean;
   focus?: FocusArea | FocusArea[] | null;
   style?: Goal | null;
@@ -37,7 +36,7 @@ type ActiveSessionProps = {
 };
 
 export function ActiveSession({
-  sessionId, equipmentInventory, onFinish, onCancel, isFinishing, focus, style, onStartTimeChange
+  sessionId, equipmentInventory, onFinish, isFinishing, focus, style, onStartTimeChange
 }: ActiveSessionProps) {
   const {
     activeSession, errorMessage, setErrorMessage, preferredUnit, profileWeightLb,
@@ -77,7 +76,7 @@ export function ActiveSession({
     const localIso = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     setEditStartTimeValue(localIso);
     setIsEditingStartTime(true);
-  }, [activeSession?.startedAt]);
+  }, [activeSession]);
 
   const handleStartTimeEditConfirm = useCallback(() => {
     if (editStartTimeValue && onStartTimeChange) {
@@ -195,7 +194,6 @@ export function ActiveSession({
         }}
         sessionBodyWeight={activeSession.bodyWeightLb}
         preferredUnit={preferredUnit}
-        onCancel={onCancel}
         errorMessage={errorMessage}
         onStartTimeClick={onStartTimeChange ? handleStartTimeEditClick : undefined}
         onWeightClick={handleWeightEditClick}
