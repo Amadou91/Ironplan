@@ -1,7 +1,7 @@
-const SHELL_CACHE = 'ironplan-shell-v1'
-const RUNTIME_CACHE = 'ironplan-runtime-v1'
+const SHELL_CACHE = 'ironplan-shell-v2'
+const RUNTIME_CACHE = 'ironplan-runtime-v2'
 const OFFLINE_URL = '/offline'
-const PRECACHE_URLS = ['/', '/dashboard', OFFLINE_URL, '/manifest.webmanifest']
+const PRECACHE_URLS = ['/', '/dashboard', '/progress', OFFLINE_URL, '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

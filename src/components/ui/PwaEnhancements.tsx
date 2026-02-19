@@ -52,21 +52,8 @@ export function PwaEnhancements() {
     }
   }, [])
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
-    if (!window.isSecureContext) return
-    if (process.env.NODE_ENV !== 'production') return
-
-    const registerServiceWorker = async () => {
-      try {
-        await navigator.serviceWorker.register('/sw.js', { scope: '/' })
-      } catch {
-        // no-op
-      }
-    }
-
-    void registerServiceWorker()
-  }, [])
+  /* Service worker is registered via an inline <script> in layout.tsx <head>
+     so that it activates before React hydrates — critical for iOS PWA detection. */
 
   useEffect(() => {
     if (typeof window === 'undefined') return

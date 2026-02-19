@@ -27,7 +27,7 @@ const monoFont = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://ironplan.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ironplan.app'),
   title: 'Ironplan',
   description: 'AI-assisted workout planning and seamless session tracking',
   applicationName: 'Ironplan',
@@ -69,6 +69,14 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Ironplan" />
+        <link rel="apple-touch-icon" href="/apple-icon" />
+        {process.env.NODE_ENV === 'production' && (
+          <script
+            dangerouslySetInnerHTML={{ __html:
+              `if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'})`
+            }}
+          />
+        )}
       </head>
       <body
         className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} antialiased`}
