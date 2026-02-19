@@ -1,10 +1,84 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { X, GripVertical, Check, ArrowUp, ArrowDown } from 'lucide-react';
+import { X, GripVertical, Check } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/Button';
 import type { SessionExercise } from '@/types/domain';
 import { cn } from '@/lib/utils';
+
+interface SortableExerciseItemProps {
+  exercise: SessionExercise;
+  index: number;
+}
+
+function SortableExerciseItem({ exercise, index }: SortableExerciseItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: exercise.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'flex items-center gap-3 p-3 rounded-xl border-2 transition-colors',
+        isDragging
+          ? 'opacity-50 scale-95 border-[var(--color-primary)] bg-[var(--color-primary-soft)]/20 z-50'
+          : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-strong)]'
+      )}
+    >
+      <button
+        className="text-muted cursor-grab active:cursor-grabbing touch-none"
+        aria-label={`Drag to reorder ${exercise.name}`}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={20} />
+      </button>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="w-6 h-6 flex items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-xs font-bold text-muted">
+            {index + 1}
+          </span>
+          <span className="font-medium text-strong truncate">{exercise.name}</span>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{exercise.primaryMuscle}</span>
+          <span className="text-[10px] text-subtle">• {exercise.sets.length} sets</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface ReorderExercisesModalProps {
   exercises: SessionExercise[];
@@ -17,67 +91,29 @@ export function ReorderExercisesModal({
   exercises,
   onClose,
   onSave,
-  isSaving = false
+  isSaving = false,
 }: ReorderExercisesModalProps) {
-  const [localExercises, setLocalExercises] = useState<SessionExercise[]>(() => 
+  const [localExercises, setLocalExercises] = useState<SessionExercise[]>(() =>
     exercises.map((ex, idx) => ({ ...ex, orderIndex: idx }))
   );
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  const moveExercise = useCallback((fromIndex: number, toIndex: number) => {
-    if (fromIndex === toIndex) return;
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
     setLocalExercises(prev => {
-      const updated = [...prev];
-      const [moved] = updated.splice(fromIndex, 1);
-      updated.splice(toIndex, 0, moved);
-      return updated.map((ex, idx) => ({ ...ex, orderIndex: idx }));
+      const oldIndex = prev.findIndex(ex => ex.id === active.id);
+      const newIndex = prev.findIndex(ex => ex.id === over.id);
+      const moved = arrayMove(prev, oldIndex, newIndex);
+      return moved.map((ex, idx) => ({ ...ex, orderIndex: idx }));
     });
   }, []);
-
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(index));
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedIndex !== null && draggedIndex !== index) {
-      setDragOverIndex(index);
-    }
-  };
-
-  const handleDragLeave = () => {
-    setDragOverIndex(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, toIndex: number) => {
-    e.preventDefault();
-    if (draggedIndex !== null && draggedIndex !== toIndex) {
-      moveExercise(draggedIndex, toIndex);
-    }
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
-
-  const handleMoveUp = (index: number) => {
-    if (index > 0) {
-      moveExercise(index, index - 1);
-    }
-  };
-
-  const handleMoveDown = (index: number) => {
-    if (index < localExercises.length - 1) {
-      moveExercise(index, index + 1);
-    }
-  };
 
   const handleSave = () => {
     onSave(localExercises);
@@ -94,7 +130,7 @@ export function ReorderExercisesModal({
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)]">
           <div>
             <h3 className="font-semibold text-strong">Reorder Exercises</h3>
-            <p className="text-xs text-subtle">Drag to reorder or use arrow buttons</p>
+            <p className="text-xs text-subtle">Drag to reorder exercises</p>
           </div>
           <button onClick={onClose} className="text-muted hover:text-strong transition-colors">
             <X size={20} />
@@ -102,77 +138,33 @@ export function ReorderExercisesModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {localExercises.map((exercise, index) => (
-            <div
-              key={exercise.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, index)}
-              onDragEnd={handleDragEnd}
-              className={cn(
-                "flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-grab active:cursor-grabbing",
-                draggedIndex === index && "opacity-50 scale-95",
-                dragOverIndex === index && "border-[var(--color-primary)] bg-[var(--color-primary-soft)]/20",
-                dragOverIndex !== index && draggedIndex !== index && "border-[var(--color-border)] bg-[var(--color-surface)]",
-                "hover:border-[var(--color-border-strong)]"
-              )}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={localExercises.map(ex => ex.id)}
+              strategy={verticalListSortingStrategy}
             >
-              <div className="text-muted cursor-grab">
-                <GripVertical size={20} />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 flex items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-xs font-bold text-muted">
-                    {index + 1}
-                  </span>
-                  <span className="font-medium text-strong truncate">{exercise.name}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{exercise.primaryMuscle}</span>
-                  <span className="text-[10px] text-subtle">• {exercise.sets.length} sets</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => handleMoveUp(index)}
-                  disabled={index === 0}
-                  className={cn(
-                    "p-1.5 rounded-lg transition-colors",
-                    index === 0 
-                      ? "text-muted/30 cursor-not-allowed" 
-                      : "text-muted hover:text-strong hover:bg-[var(--color-surface-muted)]"
-                  )}
-                >
-                  <ArrowUp size={16} />
-                </button>
-                <button
-                  onClick={() => handleMoveDown(index)}
-                  disabled={index === localExercises.length - 1}
-                  className={cn(
-                    "p-1.5 rounded-lg transition-colors",
-                    index === localExercises.length - 1 
-                      ? "text-muted/30 cursor-not-allowed" 
-                      : "text-muted hover:text-strong hover:bg-[var(--color-surface-muted)]"
-                  )}
-                >
-                  <ArrowDown size={16} />
-                </button>
-              </div>
-            </div>
-          ))}
+              {localExercises.map((exercise, index) => (
+                <SortableExerciseItem
+                  key={exercise.id}
+                  exercise={exercise}
+                  index={index}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </div>
 
         <div className="flex items-center justify-end gap-3 p-4 border-t border-[var(--color-border)]">
           <Button variant="ghost" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleSave} 
+          <Button
+            variant="primary"
+            onClick={handleSave}
             disabled={!hasChanges || isSaving}
             className="flex items-center gap-2"
           >

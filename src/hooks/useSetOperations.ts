@@ -22,7 +22,7 @@ export function useSetOperations(
   const {
     addSet, removeSet, updateSet, updateSession,
     replaceSessionExercise, removeSessionExercise,
-    addSessionExercise, reorderExercises
+    addSessionExercise
   } = useWorkoutStore()
 
   const { persistSet, persistSessionBodyWeight, isPersisting } = useSetPersistence()
@@ -110,11 +110,12 @@ export function useSetOperations(
         setErrorMessage('Failed to save exercise order. Please try again.')
         return { success: false, error: 'Database update failed' }
       }
-      for (let i = 0; i < reorderedExercises.length; i++) {
-        const targetExercise = reorderedExercises[i]
-        const currentIndex = activeSession.exercises.findIndex(e => e.id === targetExercise.id)
-        if (currentIndex !== i && currentIndex !== -1) reorderExercises(currentIndex, i)
-      }
+      // Build the full reordered exercises array atomically (avoids stale-index loop bug)
+      const idToOrder = new Map(reorderedExercises.map(({ id, orderIndex }) => [id, orderIndex]))
+      const reorderedList = activeSession.exercises
+        .map(ex => ({ ...ex, orderIndex: idToOrder.get(ex.id) ?? ex.orderIndex }))
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+      updateSession({ exercises: reorderedList })
       return { success: true }
     } catch (error) {
       console.error('handleReorderExercises error:', error)
@@ -123,7 +124,7 @@ export function useSetOperations(
     } finally {
       setIsUpdating(false)
     }
-  }, [activeSession, supabase, reorderExercises, setErrorMessage])
+  }, [activeSession, supabase, updateSession, setErrorMessage])
 
   return {
     handleSetUpdate,

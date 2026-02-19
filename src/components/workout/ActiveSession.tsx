@@ -1,18 +1,17 @@
 'use client';
 
-import React, { useCallback, useRef, useState } from 'react';
-import { Trash2, RefreshCcw, Copy } from 'lucide-react';
-import { SetLogger } from '@/components/workout/SetLogger';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SessionHeader } from '@/components/workout/session/SessionHeader';
 import { SessionControls } from '@/components/workout/session/SessionControls';
 import { ExerciseNavigator } from '@/components/workout/session/ExerciseNavigator';
+import { ExerciseSessionCard } from '@/components/workout/ExerciseSessionCard';
 import { AddExerciseModal } from '@/components/workout/modals/AddExerciseModal';
 import { SwapExerciseModal } from '@/components/workout/modals/SwapExerciseModal';
 import { ReorderExercisesModal } from '@/components/workout/modals/ReorderExercisesModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EditFieldModal } from '@/components/workout/EditFieldModal';
 import { useActiveSessionManager } from '@/hooks/useActiveSessionManager';
-import { isTimeBasedExercise, toMuscleLabel, toMuscleSlug, getMetricProfile } from '@/lib/muscle-utils';
+import { toMuscleLabel, toMuscleSlug, getMetricProfile } from '@/lib/muscle-utils';
 import { buildWeightOptions } from '@/lib/equipment';
 import type { EquipmentInventory, SessionExercise, Exercise, FocusArea, Goal } from '@/types/domain';
 
@@ -58,7 +57,29 @@ export function ActiveSession({
   const [editWeightValue, setEditWeightValue] = useState('');
   const [isEditingStartTime, setIsEditingStartTime] = useState(false);
   const [editStartTimeValue, setEditStartTimeValue] = useState('');
+  const [collapsedExercises, setCollapsedExercises] = useState<Set<number>>(new Set());
   const exerciseRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const isUserScrolling = useRef(true);
+
+  // Track which exercise card is visible and update the navigator highlight
+  useEffect(() => {
+    if (!activeSession?.exercises.length) return;
+    const refs = exerciseRefs.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!isUserScrolling.current) return;
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const idx = refs.indexOf(entry.target as HTMLDivElement);
+            if (idx !== -1) setCurrentIndex(idx);
+          }
+        }
+      },
+      { rootMargin: '-240px 0px -40% 0px', threshold: 0.1 }
+    );
+    refs.forEach(ref => { if (ref) observer.observe(ref); });
+    return () => observer.disconnect();
+  }, [activeSession?.exercises.length]);
 
   const handleWeightEditClick = useCallback(() => {
     setEditWeightValue(activeSession?.bodyWeightLb?.toString() ?? '');
@@ -91,12 +112,15 @@ export function ActiveSession({
 
   const handleExerciseSelect = useCallback((index: number) => {
     setCurrentIndex(index);
+    isUserScrolling.current = false;
     const element = exerciseRefs.current[index];
     if (element) {
       const yOffset = -220;
       const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: 'smooth' });
     }
+    // Re-enable observer after scroll animation settles
+    setTimeout(() => { isUserScrolling.current = true; }, 600);
   }, []);
 
   const handleAddExercise = useCallback(async (newExercise: Exercise) => {
@@ -195,7 +219,7 @@ export function ActiveSession({
   if (!activeSession) return null;
 
   return (
-    <div className="space-y-8 pb-32">
+    <div className="space-y-2 pb-32">
       <SessionHeader
         name={activeSession.name}
         startedAt={activeSession.startedAt}
@@ -213,81 +237,53 @@ export function ActiveSession({
         onWeightClick={handleWeightEditClick}
       />
       <ExerciseNavigator exercises={activeSession.exercises} currentIndex={currentIndex} onSelect={handleExerciseSelect} />
-      <div className="space-y-6">
-        {activeSession.exercises.map((exercise, exIdx) => (
-          <div key={exIdx} ref={el => { exerciseRefs.current[exIdx] = el; }} className="surface-card-muted p-4 md:p-6 scroll-mt-[220px]">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-semibold text-strong">{exercise.name}</h3>
-                  {exerciseLibraryByName.get(exercise.name.toLowerCase())?.movementPattern && (
-                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-surface text-subtle border border-border">
-                      {exerciseLibraryByName.get(exercise.name.toLowerCase())?.movementPattern}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  <span className="badge-accent">{exercise.primaryMuscle}</span>
-                  {exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {exercise.secondaryMuscles.map((muscle, idx) => (
-                        <span key={idx} className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border border-border/50">
-                          {muscle}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {getExerciseTargetSummary(exercise) && <p className="mt-2 text-xs text-muted">Target: {getExerciseTargetSummary(exercise)}</p>}
-              </div>
-              <div className="flex gap-1">
-                <button onClick={() => setSwappingExIdx(exIdx)} className="p-2 -m-1 text-accent hover:text-accent/80 hover:bg-[var(--color-accent-soft)] rounded-lg transition-colors" title="Swap exercise"><RefreshCcw size={16} /></button>
-                <button onClick={() => setExerciseToRemove(exIdx)} className="p-2 -m-1 text-subtle hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors" title="Remove exercise"><Trash2 size={16} /></button>
-              </div>
+      <div className="space-y-6 !mt-6">
+        {activeSession.exercises.map((exercise, exIdx) => {
+          const isCollapsed = collapsedExercises.has(exIdx);
+          const toggleCollapse = () => {
+            setCollapsedExercises(prev => {
+              const next = new Set(prev);
+              if (next.has(exIdx)) next.delete(exIdx);
+              else next.add(exIdx);
+              return next;
+            });
+          };
+
+          return (
+            <div key={exIdx} ref={el => { exerciseRefs.current[exIdx] = el; }}>
+              <ExerciseSessionCard
+                exercise={exercise}
+                exIdx={exIdx}
+                isCollapsed={isCollapsed}
+                onToggleCollapse={toggleCollapse}
+                onSwap={() => setSwappingExIdx(exIdx)}
+                onRemove={() => setExerciseToRemove(exIdx)}
+                onSetUpdate={(setIdx, field, value) => handleSetUpdate(exIdx, setIdx, field, value)}
+                onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
+                onAddSet={() => addSet(exIdx, preferredUnit, null, isDumbbellExercise(exercise) ? { loadType: 'per_implement', implementCount: 2 } : undefined)}
+                onCopyLastSet={() => {
+                  const lastSet = exercise.sets[exercise.sets.length - 1];
+                  if (!lastSet) return;
+                  addSet(exIdx, preferredUnit, null, {
+                    loadType: lastSet.loadType || (isDumbbellExercise(exercise) ? 'per_implement' : undefined),
+                    implementCount: typeof lastSet.implementCount === 'number' ? lastSet.implementCount : (isDumbbellExercise(exercise) ? 2 : undefined),
+                    initialValues: {
+                      reps: lastSet.reps, weight: lastSet.weight, rpe: lastSet.rpe,
+                      rir: lastSet.rir, restSecondsActual: lastSet.restSecondsActual,
+                      loadType: lastSet.loadType, implementCount: lastSet.implementCount
+                    }
+                  });
+                }}
+                weightOptions={getWeightOptions(exercise)}
+                exerciseTargetSummary={getExerciseTargetSummary(exercise)}
+                movementPattern={exerciseLibraryByName.get(exercise.name.toLowerCase())?.movementPattern}
+                exerciseTargets={exerciseTargets}
+                preferredUnit={preferredUnit}
+                hasSets={exercise.sets.length > 0}
+              />
             </div>
-            <div className="space-y-2">
-              {exercise.sets.map((set, setIdx) => (
-                <SetLogger
-                  key={set.id}
-                  set={set}
-                  weightOptions={getWeightOptions(exercise)}
-                  onUpdate={(f, v) => handleSetUpdate(exIdx, setIdx, f, v)}
-                  onDelete={() => removeSet(exIdx, setIdx)}
-                  onToggleComplete={() => handleSetUpdate(exIdx, setIdx, 'completed', !set.completed)}
-                  metricProfile={exercise.metricProfile}
-                  isTimeBased={isTimeBasedExercise(exercise.name, exerciseTargets[exercise.name.toLowerCase()]?.reps)}
-                />
-              ))}
-            </div>
-            <div className="flex gap-2 mt-4">
-              {exercise.sets.length > 0 && (
-                <button
-                  onClick={() => {
-                    const lastSet = exercise.sets[exercise.sets.length - 1];
-                    addSet(exIdx, preferredUnit, null, {
-                      loadType: lastSet.loadType || (isDumbbellExercise(exercise) ? 'per_implement' : undefined),
-                      implementCount: typeof lastSet.implementCount === 'number' ? lastSet.implementCount : (isDumbbellExercise(exercise) ? 2 : undefined),
-                      initialValues: {
-                        reps: lastSet.reps, weight: lastSet.weight, rpe: lastSet.rpe,
-                        rir: lastSet.rir, restSecondsActual: lastSet.restSecondsActual,
-                        loadType: lastSet.loadType, implementCount: lastSet.implementCount
-                      }
-                    });
-                  }}
-                  className="flex-1 py-2 border-2 border-dashed border-[var(--color-border-strong)] rounded-xl text-sm font-medium text-muted hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)] flex items-center justify-center gap-2"
-                >
-                  <Copy size={14} /> Copy Last
-                </button>
-              )}
-              <button
-                onClick={() => addSet(exIdx, preferredUnit, null, isDumbbellExercise(exercise) ? { loadType: 'per_implement', implementCount: 2 } : undefined)}
-                className="flex-1 py-2 border-2 border-dashed border-[var(--color-border-strong)] rounded-xl text-sm font-medium text-muted hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)]"
-              >
-                + Add Set
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <SessionControls onFinish={onFinish} onAddExercise={() => setIsAddingExercise(true)} onReorder={() => setIsReordering(true)} isFinishing={isFinishing} />
