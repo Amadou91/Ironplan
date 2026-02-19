@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useCallback, memo } from 'react';
+import React, { useCallback, useState, memo } from 'react';
 import { Trash2, RefreshCcw, Copy, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { SetLogger } from '@/components/workout/SetLogger';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { isTimeBasedExercise } from '@/lib/muscle-utils';
 import type { SessionExercise, WorkoutSet, WeightUnit } from '@/types/domain';
 import type { WeightOption } from '@/lib/equipment';
@@ -42,8 +43,16 @@ export const ExerciseSessionCard = memo(function ExerciseSessionCard({
   exerciseTargets,
   hasSets,
 }: ExerciseSessionCardProps) {
+  const [setToRemove, setSetToRemove] = useState<number | null>(null);
   const completedCount = exercise.sets.filter(s => s.completed).length;
   const allCompleted = exercise.sets.length > 0 && completedCount === exercise.sets.length;
+
+  const handleRemoveSetConfirm = useCallback(() => {
+    if (setToRemove !== null) {
+      onRemoveSet(setToRemove);
+      setSetToRemove(null);
+    }
+  }, [setToRemove, onRemoveSet]);
 
   const handleToggleComplete = useCallback(
     (setIdx: number, set: WorkoutSet) => onSetUpdate(setIdx, 'completed', !set.completed),
@@ -99,7 +108,7 @@ export const ExerciseSessionCard = memo(function ExerciseSessionCard({
                 set={set}
                 weightOptions={weightOptions}
                 onUpdate={(f, v) => onSetUpdate(setIdx, f, v)}
-                onDelete={() => onRemoveSet(setIdx)}
+                onDelete={() => setSetToRemove(setIdx)}
                 onToggleComplete={() => handleToggleComplete(setIdx, set)}
                 metricProfile={exercise.metricProfile}
                 isTimeBased={isTimeBasedExercise(exercise.name, exerciseTargets[exercise.name.toLowerCase()]?.reps)}
@@ -124,6 +133,15 @@ export const ExerciseSessionCard = memo(function ExerciseSessionCard({
           </div>
         </div>
       )}
+      <ConfirmDialog
+        isOpen={setToRemove !== null}
+        onClose={() => setSetToRemove(null)}
+        onConfirm={handleRemoveSetConfirm}
+        title="Delete Set"
+        description={`Are you sure you want to delete Set ${setToRemove !== null ? exercise.sets[setToRemove]?.setNumber ?? setToRemove + 1 : ''}? This cannot be undone.`}
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 });

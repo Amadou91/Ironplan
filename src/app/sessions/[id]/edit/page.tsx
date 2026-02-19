@@ -404,7 +404,15 @@ function SessionEditContent() {
               </Card>
             )}
 
-            <Card className="p-4">
+            <Card className="p-4 space-y-3">
+              <Button
+                type="button"
+                onClick={requestSave}
+                disabled={savingSession}
+                className="w-full justify-center bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-strong)] disabled:opacity-50"
+              >
+                {savingSession ? 'Saving…' : 'Save Changes'}
+              </Button>
               <Button
                 type="button"
                 variant="ghost"

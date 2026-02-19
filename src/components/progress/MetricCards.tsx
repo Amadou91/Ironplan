@@ -131,15 +131,15 @@ export function MetricCards({
           </div>
           <div className="space-y-2">
             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-subtle/70">
-              <span>Strength vs Recovery Load</span>
+              <span>Hard vs Light Load</span>
               <span>{aggregateMetrics.strengthLoadPct}% / {aggregateMetrics.recoveryLoadPct}%</span>
             </div>
             <div className="h-2.5 w-full bg-[var(--color-surface-muted)] rounded-full overflow-hidden border border-[var(--color-border)]/40">
               <div className="h-full bg-[var(--color-primary)]" style={{ width: `${aggregateMetrics.strengthLoadPct}%` }} />
             </div>
             <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-subtle/80">
-              <span>Strength: {displayStrengthLoad.toLocaleString()} {displayUnit}</span>
-              <span className="text-right">Recovery: {displayRecoveryLoad.toLocaleString()} {displayUnit}</span>
+              <span>Hard: {displayStrengthLoad.toLocaleString()} {displayUnit}</span>
+              <span className="text-right">Light: {displayRecoveryLoad.toLocaleString()} {displayUnit}</span>
             </div>
           </div>
         </div>

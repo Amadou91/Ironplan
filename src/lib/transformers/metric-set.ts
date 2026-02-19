@@ -1,4 +1,5 @@
-import { computeSetLoad, type MetricsSet } from '@/lib/session-metrics'
+import { computeSetLoad, getEffortScore, type MetricsSet } from '@/lib/session-metrics'
+import { RECOVERY_SET_RPE_THRESHOLD } from '@/constants/training'
 
 export type SetLikeInput = {
   metricProfile?: string | null
@@ -53,8 +54,19 @@ export const mapSetLikeToMetricsSet = (set: SetLikeInput): MetricsSet => ({
         : null
 })
 
-export const getLoadBucket = (metricProfile?: string | null): LoadBucket => {
-  if (metricProfile && RECOVERY_PROFILES.has(metricProfile)) return 'recovery'
+/**
+ * Classifies a set into strength or recovery based on:
+ * 1. Metric profile — cardio/mobility are always recovery
+ * 2. Effort level — strength sets below RECOVERY_SET_RPE_THRESHOLD (RPE < 7 / RIR > 3)
+ *    are classified as recovery (warm-ups, deload sets, easy prep work)
+ */
+export const getLoadBucket = (set: MetricsSet): LoadBucket => {
+  const profile = set.metricProfile
+  if (profile && RECOVERY_PROFILES.has(profile)) return 'recovery'
+
+  const effort = getEffortScore(set)
+  if (typeof effort === 'number' && effort < RECOVERY_SET_RPE_THRESHOLD) return 'recovery'
+
   return 'strength'
 }
 
@@ -62,7 +74,7 @@ export const computeLoadComposition = (sets: MetricsSet[]) => {
   return sets.reduce(
     (acc, set) => {
       const load = computeSetLoad(set)
-      const bucket = getLoadBucket(set.metricProfile)
+      const bucket = getLoadBucket(set)
       if (bucket === 'recovery') {
         acc.recoveryLoad += load
       } else {

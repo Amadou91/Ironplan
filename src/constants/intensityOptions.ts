@@ -37,10 +37,16 @@ export const RPE_OPTIONS: IntensityOption[] = [
     equivalence: '≈ RIR 3'
   },
   {
-    value: 5.5,
-    label: 'Light – Warm-Up / Moving Fast',
-    description: 'Easy, explosive, not fatiguing.',
-    equivalence: '≈ RIR 4+'
+    value: 6,
+    label: 'Light – 4 Reps Left',
+    description: 'Comfortable working weight, far from failure.',
+    equivalence: '≈ RIR 4'
+  },
+  {
+    value: 5,
+    label: 'Very Light – Warm-Up / Easy',
+    description: 'Warm-up or very easy effort.',
+    equivalence: '≈ RIR 5+'
   }
 ]
 
