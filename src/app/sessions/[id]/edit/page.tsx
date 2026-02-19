@@ -401,7 +401,7 @@ function SessionEditContent() {
               onFinish={requestSave}
               onCancel={requestCancel}
               isFinishing={savingSession}
-              focus={sessionFocus}
+              focus={activeSession?.sessionFocusAreas ?? sessionFocus}
               style={sessionGoal}
               onStartTimeChange={setStartTimeOverride}
             />

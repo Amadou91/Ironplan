@@ -10,7 +10,6 @@ import { authStore, useAuthStore } from '@/store/authStore';
 import { primaryNavItems, secondaryNavItems } from '@/components/layout/navigation';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { UnitToggle } from '@/components/layout/UnitToggle';
-import { Tooltip } from '@/components/ui/Tooltip';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -176,11 +175,7 @@ export function Sidebar() {
                 {!isCollapsed && <span className="text-sm font-semibold tracking-tight">{item.label}</span>}
               </Link>
             );
-            return isCollapsed ? (
-              <Tooltip key={item.href} content={item.label} className="block w-full">
-                {navLink}
-              </Tooltip>
-            ) : (
+            return (
               <div key={item.href}>{navLink}</div>
             );
           })}
@@ -212,11 +207,7 @@ export function Sidebar() {
                     {!isCollapsed && <span className="text-sm font-semibold tracking-tight">{item.label}</span>}
                   </Link>
                 );
-                return isCollapsed ? (
-                  <Tooltip key={item.href} content={item.label} className="block w-full">
-                    {navLink}
-                  </Tooltip>
-                ) : (
+                return (
                   <div key={item.href}>{navLink}</div>
                 );
               })}
@@ -237,21 +228,19 @@ export function Sidebar() {
         ) : user ? (
           <div ref={dropdownRef} className="relative w-full">
             {isCollapsed ? (
-              <Tooltip content={user.email ?? 'Account'} className="block w-full">
-                <button
-                  ref={avatarButtonRef}
-                  type="button"
-                  onClick={() => setDropdownOpen((o) => !o)}
-                  aria-haspopup="menu"
-                  aria-expanded={dropdownOpen}
-                  aria-label="Account menu"
-                  className="flex w-full items-center justify-center rounded-xl p-2 transition-all hover:bg-[var(--color-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] text-sm font-bold select-none">
-                    {userInitial}
-                  </span>
-                </button>
-              </Tooltip>
+              <button
+                ref={avatarButtonRef}
+                type="button"
+                onClick={() => setDropdownOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={dropdownOpen}
+                aria-label="Account menu"
+                className="flex w-full items-center justify-center rounded-xl p-2 transition-all hover:bg-[var(--color-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] text-sm font-bold select-none">
+                  {userInitial}
+                </span>
+              </button>
             ) : (
               <button
                 ref={avatarButtonRef}

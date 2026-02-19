@@ -12,7 +12,13 @@ type DateRangePreset = {
   getRange: () => { start: Date; end: Date }
 }
 
+const ALL_TIME_LABEL = 'All Time'
+
 const DATE_RANGE_PRESETS: DateRangePreset[] = [
+  {
+    label: ALL_TIME_LABEL,
+    getRange: () => ({ start: new Date(0), end: new Date() })
+  },
   {
     label: 'Today',
     getRange: () => {
@@ -113,14 +119,19 @@ export function ProgressFilters({
   setSelectedExercise,
   exerciseOptions
 }: ProgressFiltersProps) {
-  const [activeDatePreset, setActiveDatePreset] = useState<string | null>(null)
+  const [activeDatePreset, setActiveDatePreset] = useState<string | null>(ALL_TIME_LABEL)
   const [mobileExpanded, setMobileExpanded] = useState(false)
 
   const handlePresetClick = (preset: DateRangePreset) => {
     if (activeDatePreset === preset.label) {
+      // Toggling off → reset to All Time
       setStartDate('')
       setEndDate('')
-      setActiveDatePreset(null)
+      setActiveDatePreset(ALL_TIME_LABEL)
+    } else if (preset.label === ALL_TIME_LABEL) {
+      setStartDate('')
+      setEndDate('')
+      setActiveDatePreset(ALL_TIME_LABEL)
     } else {
       const { start, end } = preset.getRange()
       setStartDate(formatDateForInput(start))

@@ -12,7 +12,8 @@ import type {
 } from '@/types/domain'
 import { logEvent } from '@/lib/logger'
 import {
-  focusMuscleMap
+  focusMuscleMap,
+  focusAccessoryMap
 } from '@/lib/generator/constants'
 import {
   clamp,
@@ -253,6 +254,25 @@ const buildSessionForTime = (
     }
   }
 
+  // Second enforcement pass: accessories added above may have dropped the
+  // primary-set ratio below the threshold. Boost primary sets again if needed.
+  if (focusConstraint) {
+    let ratioCheck = getSetTotals()
+    let ratio = ratioCheck.total > 0 ? ratioCheck.primary / ratioCheck.total : 0
+    let ratioCounter = 0
+    while (ratio < focusConstraint.minPrimarySetRatio && ratioCounter < 200) {
+      const planned = picks.find((item) => isPrimaryMatch(item.exercise) && item.prescription.sets < item.maxSets)
+      if (!planned) break
+      planned.prescription.sets += 1
+      const selectedOption = selectEquipmentOption(input.equipment.inventory, planned.exercise.equipment, planned.exercise.orGroup)
+      planned.estimatedMinutes = estimateExerciseMinutes(planned.exercise, planned.prescription, selectedOption, goal)
+      totalMinutes = picks.reduce((sum, item) => sum + item.estimatedMinutes, 0)
+      ratioCheck = getSetTotals()
+      ratio = ratioCheck.total > 0 ? ratioCheck.primary / ratioCheck.total : 0
+      ratioCounter += 1
+    }
+  }
+
   let focusConstraintRelaxed = false
   if (focusConstraint) {
     const totals = getSetTotals()
@@ -286,7 +306,15 @@ export const buildSessionExercises = (
 ): { exercises: Exercise[]; error?: string } => {
   const targetGoal = goalOverride ?? input.goals.primary
   const baseFocus = focusMuscleMap[focus]?.baseFocus
-  const focusConstraint = focusMuscleMap[focus]?.constraint
+  const focusConfig = focusMuscleMap[focus]
+  const focusConstraint: FocusConstraint | null = focusConfig?.primaryMuscles?.length
+    ? {
+        focus,
+        primaryMuscles: focusConfig.primaryMuscles,
+        accessoryMuscles: focusAccessoryMap[focus] ?? [],
+        minPrimarySetRatio: 0.75
+      }
+    : null
 
   // Bodyweight-only fallback: if the user has no equipment configured at all,
   // substitute a bodyweight-only inventory so the generator always produces
@@ -408,7 +436,11 @@ export const generateSessionExercisesForFocusAreas = (
   }
 
   const targetGoal = goalOverride ?? input.goals.primary
-  const perFocusDuration = Math.max(20, Math.round(durationMinutes / normalizedFocusAreas.length))
+  // Give each focus area a generous time budget instead of strict 1/N division.
+  // The merge step deduplicates exercises and the mergedCap limits the total,
+  // so over-generation per sub-session is harmless. Strict equal splits cause
+  // adjustSessionVolume to strip sets below usable thresholds.
+  const perFocusDuration = Math.max(25, Math.round(durationMinutes * 0.7))
   const buckets = normalizedFocusAreas.map((focus, index) =>
     generateSessionExercises(catalog, input, focus, perFocusDuration, goalOverride, {
       seed: `${options?.seed ?? 'multi-focus'}-${focus}-${index}`,

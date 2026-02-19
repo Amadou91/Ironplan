@@ -54,8 +54,11 @@ type CreateSessionResult = {
 const getPrimaryMuscle = (exercise: SessionExerciseSeed) =>
   exercise.primaryBodyParts?.[0] ?? exercise.primaryMuscle ?? exercise.focus ?? 'Full Body'
 
-const getSecondaryMuscles = (exercise: SessionExerciseSeed) =>
-  exercise.secondaryBodyParts ?? exercise.secondaryMuscles ?? []
+const getSecondaryMuscles = (exercise: SessionExerciseSeed) => {
+  if (exercise.secondaryBodyParts?.length) return exercise.secondaryBodyParts
+  if (exercise.secondaryMuscles?.length) return exercise.secondaryMuscles
+  return []
+}
 
 export const createWorkoutSession = async ({
   supabase,

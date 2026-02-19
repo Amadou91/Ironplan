@@ -193,7 +193,7 @@ function WorkoutActiveContent() {
               onFinish={requestFinish}
               onCancel={requestCancel}
               isFinishing={finishingSession}
-              focus={sessionFocus}
+              focus={activeSession?.sessionFocusAreas ?? sessionFocus}
               style={sessionGoal}
             />
           </div>
@@ -206,12 +206,6 @@ function WorkoutActiveContent() {
               </Card>
             )}
 
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-strong">Focus cues</h2>
-              <p className="mt-2 text-sm text-muted">
-                Stay present. Log each set with intent and let the smart targets guide your next move.
-              </p>
-            </Card>
           </div>
         </div>
       </div>

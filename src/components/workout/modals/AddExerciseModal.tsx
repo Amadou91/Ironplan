@@ -10,7 +10,7 @@ import type { Exercise, EquipmentInventory } from '@/types/domain';
 interface AddExerciseModalProps {
   onClose: () => void;
   onAdd: (exercise: Exercise) => void;
-  focus?: string | null;
+  focus?: string | string[] | null;
   style?: string | null;
   inventory?: EquipmentInventory | null;
 }
@@ -61,8 +61,12 @@ export function AddExerciseModal({ onClose, onAdd, focus, style, inventory }: Ad
     if (style === 'cardio' || focus === 'cardio') {
       base = unique.filter((ex) => ex.focus === 'cardio' || ex.primaryMuscle === 'cardio');
     } else if (focus && focus !== 'full_body') {
-      const focusLower = focus.toLowerCase();
-      const focused = unique.filter((ex) => ex.primaryMuscle?.toLowerCase().includes(focusLower));
+      const focusArray = Array.isArray(focus) ? focus : [focus];
+      const focusLowers = focusArray.map((f) => f.toLowerCase());
+      const focused = unique.filter((ex) => {
+        const primary = ex.primaryMuscle?.toLowerCase() ?? '';
+        return focusLowers.some((f) => primary.includes(f));
+      });
       base = focused.length > 0 ? focused : unique;
     }
 

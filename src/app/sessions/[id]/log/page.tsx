@@ -216,7 +216,7 @@ function SessionLogContent() {
               onFinish={requestSave}
               onCancel={requestDiscard}
               isFinishing={savingSession}
-              focus={sessionFocus}
+              focus={activeSession?.sessionFocusAreas ?? sessionFocus}
               style={sessionGoal}
               onStartTimeChange={setStartTimeOverride}
             />

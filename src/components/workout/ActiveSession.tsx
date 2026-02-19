@@ -32,7 +32,7 @@ type ActiveSessionProps = {
   onFinish?: () => void;
   onCancel?: () => void;
   isFinishing?: boolean;
-  focus?: FocusArea | null;
+  focus?: FocusArea | FocusArea[] | null;
   style?: Goal | null;
   /** Callback when start time is changed (for logging past workouts) */
   onStartTimeChange?: (newStartTime: string) => void;
