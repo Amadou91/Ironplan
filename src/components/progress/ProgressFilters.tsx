@@ -166,7 +166,7 @@ export function ProgressFilters({
           <button
             type="button"
             onClick={() => setMobileExpanded((prev) => !prev)}
-            className="md:hidden flex items-center justify-between gap-2 rounded-lg px-3 h-10 border border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-left transition-colors hover:bg-[var(--color-surface-muted)]"
+            className="lg:hidden flex items-center justify-between gap-2 rounded-lg px-3 h-10 border border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-left transition-colors hover:bg-[var(--color-surface-muted)]"
           >
             <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.06em] text-strong">
               <SlidersHorizontal className="h-4 w-4 text-subtle" />
@@ -180,7 +180,7 @@ export function ProgressFilters({
             {mobileExpanded ? <ChevronUp className="h-4 w-4 text-subtle shrink-0" /> : <ChevronDown className="h-4 w-4 text-subtle shrink-0" />}
           </button>
           
-          <div className="hidden md:flex flex-wrap items-center gap-1.5">
+          <div className="hidden lg:flex flex-wrap items-center gap-1.5">
             <div className="flex flex-wrap items-center gap-1 bg-[var(--color-surface-muted)]/50 p-1.5 rounded-xl border border-[var(--color-border)]">
               {DATE_RANGE_PRESETS.map((preset) => (
                 <Button
@@ -202,7 +202,7 @@ export function ProgressFilters({
         </div>
 
         {mobileExpanded && (
-          <div className="md:hidden space-y-4">
+          <div className="lg:hidden space-y-4">
             <div className="-mx-1 overflow-x-auto no-scrollbar px-1">
               <div className="inline-flex min-w-max items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/50 p-1.5">
                 {DATE_RANGE_PRESETS.map((preset) => (
@@ -291,7 +291,7 @@ export function ProgressFilters({
           </div>
         )}
 
-        <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
+        <div className="hidden lg:grid grid-cols-1 lg:grid-cols-4 gap-5 items-end">
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-black text-subtle/80 tracking-widest ml-1">Time Horizon</label>
             <div className="grid grid-cols-2 gap-2">

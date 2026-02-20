@@ -109,7 +109,7 @@ export default function ProgressPage() {
         <div className="grid grid-cols-1 gap-8">
           {showAcrOnProgress && <TrainingStatusCard {...trainingLoadSummary} />}
 
-          <div className="sticky top-[calc(0.5rem+env(safe-area-inset-top,0px))] z-40 transition-all duration-500 sm:top-4 md:top-6">
+          <div className="sticky top-[calc(0.5rem+env(safe-area-inset-top,0px))] z-40 transition-all duration-500 sm:top-4 lg:top-6">
             <ProgressFilters 
               startDate={startDate} 
               setStartDate={setStartDate} 
