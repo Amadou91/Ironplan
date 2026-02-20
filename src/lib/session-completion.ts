@@ -162,7 +162,7 @@ export async function completeSession({
         })
     }
 
-    // Update profile and record body measurement if weight provided
+    // Record body measurement if weight provided (trigger handles profile sync)
     if (bodyWeightLb && userId) {
       const { recordBodyWeight } = await import('./body-measurements')
       await recordBodyWeight({

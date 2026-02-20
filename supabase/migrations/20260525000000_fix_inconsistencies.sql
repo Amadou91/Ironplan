@@ -21,20 +21,33 @@ ALTER TABLE public.session_exercises ALTER COLUMN metric_profile SET DEFAULT 're
 ALTER TABLE public.exercise_catalog ALTER COLUMN metric_profile SET DEFAULT 'reps_weight';
 
 -- 5. Body Weight Synchronization
--- Keep profiles.weight_lb in sync with the latest body_measurements entry
+-- Keep profiles.weight_lb in sync with the latest body_measurements entry by date
 CREATE OR REPLACE FUNCTION public.sync_profile_weight()
 RETURNS TRIGGER AS $$
+DECLARE
+  latest_weight numeric(6,2);
+  target_user_id uuid;
 BEGIN
+  target_user_id := COALESCE(NEW.user_id, OLD.user_id);
+
+  -- Find the most recent weight by recorded_at for this user
+  SELECT weight_lb INTO latest_weight
+  FROM public.body_measurements
+  WHERE user_id = target_user_id
+  ORDER BY recorded_at DESC, created_at DESC
+  LIMIT 1;
+
   UPDATE public.profiles
-  SET weight_lb = NEW.weight_lb,
+  SET weight_lb = latest_weight,
       updated_at = now()
-  WHERE id = NEW.user_id;
-  RETURN NEW;
+  WHERE id = target_user_id;
+
+  RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP TRIGGER IF EXISTS on_body_measurement_insert ON public.body_measurements;
-CREATE TRIGGER on_body_measurement_insert
-  AFTER INSERT ON public.body_measurements
+DROP TRIGGER IF EXISTS on_body_measurement_change ON public.body_measurements;
+CREATE TRIGGER on_body_measurement_change
+  AFTER INSERT OR UPDATE OR DELETE ON public.body_measurements
   FOR EACH ROW
   EXECUTE FUNCTION public.sync_profile_weight();

@@ -114,6 +114,7 @@ export default function WorkoutSummaryPage() {
   const [loading, setLoading] = useState(Boolean(sessionId))
   const [error, setError] = useState<string | null>(null)
   const [catalog, setCatalog] = useState<Exercise[]>([])
+  const [isWeightSaving, setIsWeightSaving] = useState(false)
 
   const parsedNotes = useMemo(() => parseSessionNotes(session?.session_notes ?? null), [session?.session_notes])
   const intensityLabel = formatSessionIntensity(getSessionIntensity(parsedNotes))
@@ -205,6 +206,7 @@ export default function WorkoutSummaryPage() {
     const weightVal = parseFloat(value)
     setSession(prev => prev ? { ...prev, body_weight_lb: isNaN(weightVal) ? null : weightVal } : prev)
     if (!isNaN(weightVal)) {
+      setIsWeightSaving(true)
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
       debounceTimerRef.current = setTimeout(async () => {
         try {
@@ -218,10 +220,11 @@ export default function WorkoutSummaryPage() {
               date: session.started_at,
               source: 'session',
               sessionId: session.id
-            }),
-            supabase.from('profiles').update({ weight_lb: weightVal }).eq('id', user.id)
+            })
           ])
-        } catch (e) { console.error(e) }
+        } catch (e) { console.error(e) } finally {
+          setIsWeightSaving(false)
+        }
       }, 1000)
     }
   }
@@ -235,7 +238,7 @@ export default function WorkoutSummaryPage() {
       <div className="w-full px-4 py-10 sm:px-6 lg:px-10 2xl:px-16">
         <SummaryHeader 
           title={sessionTitle} dateLabel={formatDateTime(session.started_at)} durationLabel={formatDuration(session.started_at, session.ended_at)}
-          bodyWeight={session.body_weight_lb} onBodyWeightUpdate={handleBodyWeightUpdate}
+          bodyWeight={session.body_weight_lb} onBodyWeightUpdate={handleBodyWeightUpdate} isSaving={isWeightSaving}
           intensityLabel={intensityLabel} minutesPlanned={parsedNotes?.minutesAvailable} readinessScore={parsedNotes?.readinessScore}
           isLb={displayUnit === 'lb'}
         />

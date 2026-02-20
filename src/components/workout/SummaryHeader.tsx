@@ -8,6 +8,7 @@ interface SummaryHeaderProps {
   durationLabel: string
   bodyWeight: number | null
   onBodyWeightUpdate: (val: string) => void
+  isSaving?: boolean
   intensityLabel?: string | null
   minutesPlanned?: number | null
   readinessScore?: number | null
@@ -20,6 +21,7 @@ export function SummaryHeader({
   durationLabel,
   bodyWeight,
   onBodyWeightUpdate,
+  isSaving = false,
   intensityLabel,
   minutesPlanned,
   readinessScore,
@@ -27,11 +29,23 @@ export function SummaryHeader({
 }: SummaryHeaderProps) {
   // Use local state to allow typing decimals (parseFloat in parent would strip '.' while typing)
   const [localWeight, setLocalWeight] = React.useState(bodyWeight?.toString() ?? '')
+  const [showSaved, setShowSaved] = React.useState(false)
+  const prevIsSaving = React.useRef(isSaving)
 
   // Keep local state in sync with external prop changes
   React.useEffect(() => {
     setLocalWeight(bodyWeight?.toString() ?? '')
   }, [bodyWeight])
+
+  // Show "Saved" briefly after saving completes
+  React.useEffect(() => {
+    if (prevIsSaving.current && !isSaving) {
+      setShowSaved(true)
+      const timer = setTimeout(() => setShowSaved(false), 2000)
+      return () => clearTimeout(timer)
+    }
+    prevIsSaving.current = isSaving
+  }, [isSaving])
 
   const handleChange = (val: string) => {
     // Allow digits and at most one decimal point
@@ -61,6 +75,13 @@ export function SummaryHeader({
               className="w-16 bg-transparent text-sm font-semibold text-strong outline-none"
             />
             <span className="text-[10px] text-subtle">{isLb ? "lb" : "kg"}</span>
+          </div>
+          <div className="min-w-[60px]">
+            {isSaving ? (
+              <span className="text-[10px] font-bold text-[var(--color-primary)] animate-pulse uppercase tracking-wider">Saving...</span>
+            ) : showSaved ? (
+              <span className="text-[10px] font-bold text-[var(--color-success)] uppercase tracking-wider">Saved</span>
+            ) : null}
           </div>
         </div>
         {(intensityLabel || minutesPlanned || typeof readinessScore === 'number') && (
