@@ -92,7 +92,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
       if (!durationMinutes || Number(durationMinutes) <= 0) m.push('duration')
     }
     if (effectiveProfile === 'strength') {
-      if (!set.reps) m.push('reps')
+      if (typeof set.reps !== 'number' || set.reps <= 0) m.push('reps')
       if (typeof set.weight !== 'number') m.push('weight')
       if (typeof set.rir !== 'number') m.push('rir')
     }

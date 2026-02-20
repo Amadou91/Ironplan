@@ -84,13 +84,13 @@ export function SessionHeader({
 
         {progressSummary && (
           <div className="flex flex-wrap items-center gap-4 text-xs text-subtle">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 uppercase tracking-wider font-bold">
               <span>
-                {progressSummary.completedSets}/{progressSummary.totalSets} sets
+                {progressSummary.totalExercises} Exercises
               </span>
               <span>•</span>
               <span>
-                {progressSummary.completedExercises}/{progressSummary.totalExercises} exercises
+                {progressSummary.totalSets} Sets
               </span>
             </div>
             {sessionBodyWeight != null && sessionBodyWeight > 0 && (
