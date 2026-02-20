@@ -66,7 +66,7 @@ type ProfileDraft = {
 
 }
 
-import { formatDateForInput } from '@/lib/date-utils'
+import { formatDateForInput, getNowET } from '@/lib/date-utils'
 
 
 const parseNumberInput = (value: string) => {
