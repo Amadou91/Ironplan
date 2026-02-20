@@ -60,9 +60,16 @@ export function ConfirmDialog({
 
   if (!isOpen) return null
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
+  // Backdrop click handler that avoids closing when dragging from inside the modal to outside
+  const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-      onClose()
+      const handleMouseUp = (upEvent: MouseEvent) => {
+        if (upEvent.target === e.currentTarget) {
+          onClose()
+        }
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+      document.addEventListener('mouseup', handleMouseUp)
     }
   }
 
@@ -91,7 +98,7 @@ export function ConfirmDialog({
       className={cn(
         "fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all duration-200"
       )}
-      onClick={handleBackdropClick}
+      onMouseDown={handleMouseDown}
     >
       <div 
         ref={dialogRef}

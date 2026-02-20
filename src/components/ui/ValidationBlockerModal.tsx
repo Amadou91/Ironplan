@@ -45,9 +45,16 @@ export function ValidationBlockerModal({
     errorsByExercise.set(error.exerciseName, existing)
   }
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
+  // Backdrop click handler that avoids closing when dragging from inside the modal to outside
+  const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-      onClose()
+      const handleMouseUp = (upEvent: MouseEvent) => {
+        if (upEvent.target === e.currentTarget) {
+          onClose()
+        }
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+      document.addEventListener('mouseup', handleMouseUp)
     }
   }
 
@@ -57,7 +64,7 @@ export function ValidationBlockerModal({
         'fixed inset-0 z-[100] flex items-center justify-center p-4 transition-all duration-200',
         'bg-black/60 backdrop-blur-sm'
       )}
-      onClick={handleBackdropClick}
+      onMouseDown={handleMouseDown}
     >
       <div
         ref={dialogRef}

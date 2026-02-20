@@ -141,7 +141,7 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
   const [manualDate, setManualDate] = useState(formatDateForInput(new Date()))
 
-  const [manualHistory, setManualHistory] = useState<Array<{ id: string; weight_lb: number; recorded_at: string }>>([])
+  const [manualHistory, setManualHistory] = useState<Array<{ id: string; weight_lb: number; recorded_at: string; source: string; session_id: string | null }>>([])
 
   const [manualLoading, setManualLoading] = useState(false)
 
@@ -239,11 +239,9 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
       .from('body_measurements')
 
-      .select('id, weight_lb, recorded_at')
+      .select('id, weight_lb, recorded_at, source, session_id')
 
       .eq('user_id', user.id)
-
-      .eq('source', 'user')
 
       .order('recorded_at', { ascending: false })
 

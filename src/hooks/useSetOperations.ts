@@ -97,23 +97,10 @@ export function useSetOperations(
     if (result.success) {
       updateSession({ bodyWeightLb: weightValue })
       setSessionBodyWeight(weightValue != null ? String(weightValue) : '')
-      
-      // Also sync to profile and body measurements for consistency
-      if (weightValue != null) {
-        const { recordBodyWeight } = await import('@/lib/body-measurements')
-        await recordBodyWeight({
-          supabase,
-          userId: activeSession.userId,
-          weightLb: weightValue,
-          date: activeSession.startedAt,
-          source: 'session',
-          sessionId: activeSession.id
-        })
-      }
     } else {
       setErrorMessage(result.error ?? 'Failed to update body weight.')
     }
-  }, [activeSession, persistSessionBodyWeight, updateSession, setSessionBodyWeight, setErrorMessage, supabase])
+  }, [activeSession, persistSessionBodyWeight, updateSession, setSessionBodyWeight, setErrorMessage])
 
   const handleStartTimeUpdate = useCallback(async (newStartTime: string) => {
     if (!activeSession) return

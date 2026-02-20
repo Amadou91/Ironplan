@@ -88,14 +88,23 @@ export function EditFieldModal({
 
   if (!isOpen) return null
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose()
+  // Backdrop click handler that avoids closing when dragging from inside the modal to outside
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      const handleMouseUp = (upEvent: MouseEvent) => {
+        if (upEvent.target === e.currentTarget) {
+          onClose()
+        }
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+      document.addEventListener('mouseup', handleMouseUp)
+    }
   }
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={handleBackdropClick}
+      onMouseDown={handleMouseDown}
       role="presentation"
     >
       <div
