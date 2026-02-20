@@ -177,7 +177,7 @@ export default function WorkoutSummaryPage() {
       }))
     })
     const metrics = computeSessionMetrics({ startedAt: session.started_at, endedAt: session.ended_at, intensity: getSessionIntensity(parsedNotes), sets: metricSets })
-    const bestE1rm = metricSets.reduce((best, item) => Math.max(best, computeSetE1rm(item, item.sessionGoal, (item as any).isEligible, (item as any).movementPattern) || 0), 0)
+    const bestE1rm = metricSets.reduce((best, item) => Math.max(best, computeSetE1rm(item, item.sessionGoal, item.isEligible, item.movementPattern) || 0), 0)
     return { ...metrics, bestE1rm: Math.round(bestE1rm) }
   }, [parsedNotes, session, catalog])
 

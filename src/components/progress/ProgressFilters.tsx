@@ -5,7 +5,7 @@ import { ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { createPastRange } from '@/hooks/useProgressMetrics'
-import { formatDateForInput, getNowET, getTodayDateStringET } from '@/lib/date-utils'
+import { formatDateForInput, getNowET } from '@/lib/date-utils'
 
 type DateRangePreset = {
   label: string

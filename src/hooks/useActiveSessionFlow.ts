@@ -6,7 +6,7 @@ import { useSupabase } from '@/hooks/useSupabase'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { useUser } from '@/hooks/useUser'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
-import type { SessionGoal, WorkoutSession, EquipmentInventory } from '@/types/domain'
+import type { SessionGoal, EquipmentInventory } from '@/types/domain'
 
 export type ConfirmAction = {
   type: 'save' | 'discard' | 'cancel'

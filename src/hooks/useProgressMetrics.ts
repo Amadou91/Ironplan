@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useStrengthMetrics } from './useStrengthMetrics'
 import { useRecoveryMetrics } from './useRecoveryMetrics'
-import { getNowET, formatDateForInput } from '@/lib/date-utils'
+import { getNowET } from '@/lib/date-utils'
 
 export const createPastRange = (days: number) => {
   const end = getNowET()

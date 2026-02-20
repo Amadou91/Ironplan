@@ -7,9 +7,7 @@ import type {
   Goal,
   Intensity,
   FocusArea,
-  SessionGoal,
   CardioActivity,
-  User,
   GoalPriority,
   RestPreference
 } from '@/types/core.types'

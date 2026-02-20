@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowRight, Brain, Zap, Battery, CalendarClock, Layers, X, Dumbbell } from 'lucide-react'
+import { ArrowRight, Brain, Zap, Battery, CalendarClock, Layers, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { toMuscleLabel } from '@/lib/muscle-utils'
 import type { WorkoutSuggestion } from '@/lib/suggestion-logic'
@@ -98,7 +98,7 @@ export function SuggestionModal({
             onClick={onCustomize}
             className="w-full h-12 rounded-xl font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
           >
-            I'll build my own
+            I&apos;ll build my own
           </Button>
         </div>
       </div>

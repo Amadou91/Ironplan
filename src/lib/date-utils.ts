@@ -23,11 +23,19 @@ export const getNowET = (): Date => {
   })
   
   const parts = formatter.formatToParts(now)
-  const map: Record<string, any> = {}
+  const map: Record<string, string> = {}
   parts.forEach(p => { map[p.type] = p.value })
   
+  const year = parseInt(map.year, 10)
+  const month = parseInt(map.month, 10)
+  const day = parseInt(map.day, 10)
+  const hour = parseInt(map.hour, 10)
+  const minute = parseInt(map.minute, 10)
+  const second = parseInt(map.second, 10)
+  const fractionalSecond = parseInt(map.fractionalSecond, 10)
+
   // Create a Date object representing the ET wall-clock time
-  return new Date(map.year, map.month - 1, map.day, map.hour, map.minute, map.second, map.fractionalSecond)
+  return new Date(year, month - 1, day, hour, minute, second, fractionalSecond)
 }
 
 /**
@@ -175,14 +183,23 @@ export const getUTCDateRangeFromET = (dateString: string) => {
     })
     
     const parts = formatter.formatToParts(mockUtc)
-    const map: any = {}
-    parts.forEach(p => map[p.type] = p.value)
+    const map: Record<string, string> = {}
+    parts.forEach(p => { map[p.type] = p.value })
     
+    // Convert map values to numbers
+    const yearNum = parseInt(map.year, 10)
+    const monthNum = parseInt(map.month, 10)
+    const dayNum = parseInt(map.day, 10)
+    const hourNum = parseInt(map.hour, 10)
+    const minuteNum = parseInt(map.minute, 10)
+    const secondNum = parseInt(map.second, 10)
+
     // The "error" between our mock UTC and the actual ET
-    const etWallClockAsUtc = new Date(Date.UTC(map.year, map.month - 1, map.day, map.hour, map.minute, map.second))
+    const etWallClockAsUtc = new Date(Date.UTC(yearNum, monthNum - 1, dayNum, hourNum, minuteNum, secondNum))
     const offset = etWallClockAsUtc.getTime() - mockUtc.getTime()
     
-    return new Date(mockUtc.getTime() - offset).toISOString()
+    const finalDate = new Date(mockUtc.getTime() - offset)
+    return finalDate.toISOString()
   }
 
   return {

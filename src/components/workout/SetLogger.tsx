@@ -109,7 +109,7 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
       if (!getExtra('style')) m.push('style')
     }
     return m
-  }, [effectiveProfile, durationMinutes, set.reps, set.weight, set.rir, set.rpe, set.distance, getExtra, showDumbbellToggle, hasImplementCount, set.restSecondsActual])
+  }, [effectiveProfile, durationMinutes, set.reps, set.weight, set.rir, set.rpe, set.distance, getExtra, showDumbbellToggle, hasImplementCount])
 
   const canComplete = missingFields.length === 0
 

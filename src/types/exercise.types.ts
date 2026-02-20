@@ -6,7 +6,6 @@
 import type {
   MuscleGroup,
   MovementPattern,
-  LoadType,
   MetricProfile,
   ExerciseCategory,
   WeightUnit,

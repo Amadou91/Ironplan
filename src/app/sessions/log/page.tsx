@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Calendar, Target, Play, Dumbbell } from 'lucide-react'
 import { useSupabase } from '@/hooks/useSupabase'
@@ -13,6 +13,7 @@ import { EquipmentSelector } from '@/components/generate/EquipmentSelector'
 import { ReadinessCheck } from '@/components/workout/start/ReadinessCheck'
 import { buildWorkoutDisplayName } from '@/lib/workout-naming'
 import { cloneInventory, equipmentPresets, hasEquipment } from '@/lib/equipment'
+import { normalizePreferences } from '@/lib/preferences'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
@@ -94,9 +95,11 @@ export default function LogPastWorkoutPage() {
     inventory: cloneInventory(equipmentPresets.custom)
   }))
 
+  const profileLoaded = useRef(false)
+
   // Load profile data (body weight and equipment)
   useEffect(() => {
-    if (!user) return
+    if (!user || profileLoaded.current) return
     const loadProfile = async () => {
       const { data } = await supabase
         .from('profiles')
@@ -105,6 +108,7 @@ export default function LogPastWorkoutPage() {
         .maybeSingle()
       
       if (data) {
+        profileLoaded.current = true
         if (data.weight_lb && !bodyWeight) {
           setBodyWeight(data.weight_lb.toString())
         }
@@ -119,7 +123,7 @@ export default function LogPastWorkoutPage() {
       }
     }
     loadProfile()
-  }, [user, supabase])
+  }, [user, supabase, bodyWeight])
   
   // Computed goal based on focus - cardio/mobility have fixed goals
   const primaryFocus = useMemo(() => getPrimaryFocusArea(focusAreas, 'chest'), [focusAreas])

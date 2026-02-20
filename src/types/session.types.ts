@@ -7,10 +7,8 @@ import type {
   LoadType,
   MetricProfile,
   WeightUnit,
-  DistanceUnit,
   FocusArea,
   SessionGoal,
-  GoalPriority,
   Intensity,
   MovementPattern
 } from '@/types/core.types'
