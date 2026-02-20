@@ -30,7 +30,7 @@ import {
 import { SESSION_PAGE_SIZE, CHRONIC_LOAD_WINDOW_DAYS, MS_PER_DAY } from '@/constants/training'
 import { safeParseArray, sessionRowSchema } from '@/lib/validation/schemas'
 import type { WeightUnit, MetricProfile } from '@/types/domain'
-import { formatDateInET } from '@/lib/date-utils'
+import { formatDateInET, getUTCDateRangeFromET } from '@/lib/date-utils'
 
 export function useStrengthMetrics(options: { 
   startDate?: string; 
@@ -87,23 +87,19 @@ export function useStrengthMetrics(options: {
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
 
-      // Apply date filters at the database level for efficiency
+      // Apply date filters at the database level for efficiency.
+      // We convert the ET date strings to UTC ranges to ensure full ET day coverage.
       if (startDate) {
-        const start = new Date(startDate)
-        if (!Number.isNaN(start.getTime())) {
-          // Include extra days for chronic load calculation
-          const chronicStart = new Date(start.getTime() - CHRONIC_LOAD_WINDOW_DAYS * MS_PER_DAY)
-          query = query.gte('started_at', chronicStart.toISOString())
-        }
+        const { start: utcStart } = getUTCDateRangeFromET(startDate)
+        // Include extra days for chronic load calculation
+        const startDateObj = new Date(utcStart)
+        const chronicStart = new Date(startDateObj.getTime() - CHRONIC_LOAD_WINDOW_DAYS * MS_PER_DAY)
+        query = query.gte('started_at', chronicStart.toISOString())
       }
       
       if (endDate) {
-        const end = new Date(endDate)
-        if (!Number.isNaN(end.getTime())) {
-          // End of the endDate day (23:59:59.999)
-          const endOfDay = new Date(end.getTime() + MS_PER_DAY - 1)
-          query = query.lte('started_at', endOfDay.toISOString())
-        }
+        const { end: utcEnd } = getUTCDateRangeFromET(endDate)
+        query = query.lte('started_at', utcEnd)
       }
       
       // When date filters are active, fetch everything and treat as page 0.
