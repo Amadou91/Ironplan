@@ -38,7 +38,7 @@ export const E1RM_MAX_RIR = 4
 export const E1RM_DIVISOR = 30
 
 // Hard set threshold
-export const HARD_SET_RPE_THRESHOLD = 8
+export const HARD_SET_RPE_THRESHOLD = 7
 
 // Recovery set threshold: sets below this RPE are classified as recovery/light work
 // RPE < 7 means RIR > 3 — warm-ups, deload sets, easy prep work

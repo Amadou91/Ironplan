@@ -97,45 +97,45 @@
 }
 
 .dark {
-  /* Base - Dark Mode: True Black/Deep Grey for OLED */
-  --color-bg: oklch(14% 0.01 265);
-  --color-bg-accent: oklch(16% 0.012 265);
-  --color-surface: oklch(18% 0.015 265);
-  --color-surface-muted: oklch(16.5% 0.012 265);
-  --color-surface-subtle: oklch(20% 0.015 265);
-  --color-surface-elevated: oklch(22% 0.018 265);
+  /* Base - Dark Mode: Deep Grey for better contrast and legibility */
+  --color-bg: oklch(18% 0.01 265);
+  --color-bg-accent: oklch(20% 0.012 265);
+  --color-surface: oklch(22% 0.015 265);
+  --color-surface-muted: oklch(20.5% 0.012 265);
+  --color-surface-subtle: oklch(24% 0.015 265);
+  --color-surface-elevated: oklch(26% 0.018 265);
 
   /* Primary - High Visibility */
   --color-primary: oklch(68% 0.2 35);
   --color-primary-strong: oklch(74% 0.18 35);
-  --color-primary-soft: oklch(26% 0.08 35);
-  --color-primary-border: oklch(35% 0.12 35);
+  --color-primary-soft: oklch(30% 0.08 35);
+  --color-primary-border: oklch(40% 0.12 35);
   
   /* Border & Accents */
-  --color-border: oklch(26% 0.02 265);
-  --color-border-strong: oklch(34% 0.025 265);
+  --color-border: oklch(30% 0.02 265);
+  --color-border-strong: oklch(38% 0.025 265);
   --color-ring: oklch(68% 0.2 35 / 0.45);
 
-  --color-text: oklch(94% 0.005 265);
-  --color-text-muted: oklch(72% 0.015 265);
-  --color-text-subtle: oklch(58% 0.02 265);
+  --color-text: oklch(96% 0.005 265);
+  --color-text-muted: oklch(78% 0.015 265);
+  --color-text-subtle: oklch(65% 0.02 265);
   
   /* Status - Adjusted for Dark Mode */
-  --color-danger: oklch(68% 0.18 25);
-  --color-danger-soft: oklch(24% 0.08 25);
-  --color-danger-border: oklch(35% 0.12 25);
-  --color-success: oklch(70% 0.18 145);
-  --color-success-strong: oklch(60% 0.18 145);
-  --color-success-soft: oklch(24% 0.08 145);
-  --color-success-border: oklch(35% 0.12 145);
-  --color-warning: oklch(82% 0.14 75);
-  --color-info: oklch(74% 0.14 255);
+  --color-danger: oklch(72% 0.18 25);
+  --color-danger-soft: oklch(28% 0.08 25);
+  --color-danger-border: oklch(40% 0.12 25);
+  --color-success: oklch(74% 0.18 145);
+  --color-success-strong: oklch(65% 0.18 145);
+  --color-success-soft: oklch(28% 0.08 145);
+  --color-success-border: oklch(40% 0.12 145);
+  --color-warning: oklch(86% 0.14 75);
+  --color-info: oklch(78% 0.14 255);
   
   /* Inputs */
-  --color-input-bg: oklch(16% 0.012 265);
-  --color-input-text: oklch(94% 0.005 265);
-  --color-input-placeholder: oklch(58% 0.01 265);
-  --color-input-muted: oklch(14.5% 0.012 265);
+  --color-input-bg: oklch(20% 0.012 265);
+  --color-input-text: oklch(96% 0.005 265);
+  --color-input-placeholder: oklch(65% 0.01 265);
+  --color-input-muted: oklch(18.5% 0.012 265);
 
   /* Chart Colors */
   --color-chart-volume: oklch(65% 0.12 255);

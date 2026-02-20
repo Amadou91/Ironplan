@@ -49,9 +49,16 @@ export type MetricsSession = {
 export const isSetE1rmEligible = (
   sessionGoal?: SessionGoal | null,
   exerciseEligible?: boolean | null,
-  set?: MetricsSet | null
+  set?: MetricsSet | null,
+  movementPattern?: string | null
 ): boolean => {
-  if (!exerciseEligible) return false
+  // Broader eligibility: manual flag OR specific movement patterns
+  const isPatternEligible = movementPattern === 'squat' || 
+                           movementPattern === 'hinge' || 
+                           movementPattern === 'push' || 
+                           movementPattern === 'pull';
+                           
+  if (!exerciseEligible && !isPatternEligible) return false
   if (!set || set.completed === false) return false
   if (typeof set.reps !== 'number' || set.reps <= 0 || set.reps > E1RM_MAX_REPS) return false
 
@@ -195,10 +202,11 @@ const isE1rmEligibleProfile = (profile?: MetricProfile | string | null): boolean
 export const computeSetE1rm = (
   set: MetricsSet,
   sessionGoal?: SessionGoal | null,
-  exerciseEligible?: boolean | null
+  exerciseEligible?: boolean | null,
+  movementPattern?: string | null
 ) => {
   if (!isE1rmEligibleProfile(set.metricProfile)) return null
-  if (!isSetE1rmEligible(sessionGoal, exerciseEligible, set)) return null
+  if (!isSetE1rmEligible(sessionGoal, exerciseEligible, set, movementPattern)) return null
   if (!isValidNumber(set.reps) || !isValidNumber(set.weight)) return null
   const totalWeight = getTotalWeight(set.weight, set.loadType, set.implementCount)
   if (!Number.isFinite(totalWeight) || totalWeight <= 0 || set.reps <= 0) return null
@@ -290,9 +298,14 @@ export const computeSetLoad = (set: MetricsSet): number => {
 export const aggregateTonnage = (sets: MetricsSet[]) =>
   sets.reduce((sum, set) => sum + computeSetTonnage(set), 0)
 
-export const aggregateBestE1rm = (sets: MetricsSet[], sessionGoal?: SessionGoal | null, exerciseEligible?: boolean | null) => {
+export const aggregateBestE1rm = (
+  sets: MetricsSet[],
+  sessionGoal?: SessionGoal | null,
+  exerciseEligible?: boolean | null,
+  movementPattern?: string | null
+) => {
   const e1rms = sets
-    .map((set) => computeSetE1rm(set, sessionGoal, exerciseEligible))
+    .map((set) => computeSetE1rm(set, sessionGoal, exerciseEligible, movementPattern))
     .filter((val): val is number => val !== null)
   return e1rms.length > 0 ? Math.max(...e1rms) : 0
 }

@@ -93,6 +93,33 @@ export default function LogPastWorkoutPage() {
     preset: 'custom',
     inventory: cloneInventory(equipmentPresets.custom)
   }))
+
+  // Load profile data (body weight and equipment)
+  useEffect(() => {
+    if (!user) return
+    const loadProfile = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('weight_lb, preferences')
+        .eq('id', user.id)
+        .maybeSingle()
+      
+      if (data) {
+        if (data.weight_lb && !bodyWeight) {
+          setBodyWeight(data.weight_lb.toString())
+        }
+        
+        const prefs = normalizePreferences(data.preferences)
+        if (prefs.equipment?.inventory) {
+          setEquipment({
+            preset: 'custom',
+            inventory: cloneInventory(prefs.equipment.inventory)
+          })
+        }
+      }
+    }
+    loadProfile()
+  }, [user, supabase])
   
   // Computed goal based on focus - cardio/mobility have fixed goals
   const primaryFocus = useMemo(() => getPrimaryFocusArea(focusAreas, 'chest'), [focusAreas])

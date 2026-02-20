@@ -149,7 +149,9 @@ function WorkoutSummaryContent() {
     const sessionGoal = (session.session_goal ?? parsedNotes?.goal ?? null) as SessionGoal | undefined
     const exerciseLibraryByName = new Map(catalog.map(ex => [ex.name.toLowerCase(), ex]))
     const metricSets = session.session_exercises.flatMap(exercise => {
-      const isEligible = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())?.e1rmEligible
+      const libEntry = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())
+      const isEligible = libEntry?.e1rmEligible
+      const movementPattern = libEntry?.movementPattern
       return exercise.sets.filter(set => set.completed !== false).map(set => ({
         reps: set.reps ?? null,
         weight: set.weight ?? null,
@@ -159,11 +161,11 @@ function WorkoutSummaryContent() {
         rpe: typeof set.rpe === 'number' ? set.rpe : null, rir: typeof set.rir === 'number' ? set.rir : null,
         performedAt: set.performed_at ?? null, completed: set.completed, durationSeconds: set.duration_seconds ?? null,
         restSecondsActual: set.rest_seconds_actual ?? null,
-        metricProfile: exercise.metric_profile ?? undefined, sessionGoal, isEligible
+        metricProfile: exercise.metric_profile ?? undefined, sessionGoal, isEligible, movementPattern
       }))
     })
     const metrics = computeSessionMetrics({ startedAt: session.started_at, endedAt: session.ended_at, intensity: getSessionIntensity(parsedNotes), sets: metricSets })
-    const bestE1rm = metricSets.reduce((best, item) => Math.max(best, computeSetE1rm(item, item.sessionGoal, item.isEligible) || 0), 0)
+    const bestE1rm = metricSets.reduce((best, item) => Math.max(best, computeSetE1rm(item, item.sessionGoal, (item as any).isEligible, (item as any).movementPattern) || 0), 0)
     return { ...metrics, bestE1rm: Math.round(bestE1rm) }
   }, [parsedNotes, session, catalog])
 

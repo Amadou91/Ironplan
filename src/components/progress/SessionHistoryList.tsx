@@ -93,7 +93,9 @@ export function SessionHistoryList({
     }
 
     session.session_exercises.forEach((exercise) => {
-      const isEligible = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())?.e1rmEligible
+      const libEntry = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())
+      const isEligible = libEntry?.e1rmEligible
+      const movementPattern = libEntry?.movementPattern
 
       exercise.sets.forEach((set) => {
         if (set.completed === false) return
@@ -145,7 +147,8 @@ export function SessionHistoryList({
             completed: set.completed
           },
           null,
-          isEligible
+          isEligible,
+          movementPattern
         )
         if (e1rm) totals.bestE1rm = Math.max(totals.bestE1rm, e1rm)
       })

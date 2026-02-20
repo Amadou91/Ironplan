@@ -1,6 +1,7 @@
 import { computeSetLoad, computeSetTonnage, getWeekKey, getEffortScore, computeSetE1rm } from '@/lib/session-metrics'
 import { mapSetLikeToMetricsSet } from '@/lib/transformers/metric-set'
 import { toMuscleSlug, toMuscleLabel, PRESET_MAPPINGS } from '@/lib/muscle-utils'
+import { clamp } from '@/lib/math'
 import {
   formatDate,
   formatDateTime,
@@ -29,6 +30,8 @@ export interface ExerciseTrendPoint {
   e1rm: number
   timestamp: number
   trend: number | null
+  relativeE1rm: number | null
+  momentum: number | null
 }
 
 export interface MuscleBreakdownItem {
@@ -37,6 +40,8 @@ export interface MuscleBreakdownItem {
   volume: number
   relativePct: number
   imbalanceIndex: number | null
+  daysPerWeek: number
+  recoveryEstimate: number
 }
 
 export interface BodyWeightTrendPoint {
@@ -179,41 +184,61 @@ export function transformSessionsToEffortTrend(allSets: AnalyzedSet[]): EffortTr
 
 export function transformSessionsToExerciseTrend(
   allSets: AnalyzedSet[],
-  exerciseLibraryByName: Map<string, { e1rmEligible?: boolean }>,
-  selectedExercise: string
+  exerciseLibraryByName: Map<string, { e1rmEligible?: boolean; movementPattern?: string }>,
+  selectedExercise: string,
+  bodyWeightBySessionId: Map<string, number> = new Map()
 ): ExerciseTrendPoint[] {
-  const daily = new Map<string, number>()
+  const daily = new Map<string, { e1rm: number; sessionId: string }>()
   allSets.forEach((set) => {
     if (selectedExercise !== 'all' && set.exerciseName !== selectedExercise) return
     if (!set.exerciseName) return
 
-    const isEligible = exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible
+    const libEntry = exerciseLibraryByName.get(set.exerciseName.toLowerCase())
+    const isEligible = libEntry?.e1rmEligible
+    const movementPattern = libEntry?.movementPattern
 
-    const e1rm = computeSetE1rm(mapSetLikeToMetricsSet(set), null, isEligible)
+    const e1rm = computeSetE1rm(mapSetLikeToMetricsSet(set), null, isEligible, movementPattern)
     if (!e1rm) return
     const date = set.performed_at ?? set.startedAt
     if (!date) return
     const key = formatDateForInput(new Date(date))
     const current = daily.get(key)
-    daily.set(key, Math.max(current ?? 0, e1rm))
+    if (!current || e1rm > current.e1rm) {
+      daily.set(key, { e1rm, sessionId: set.sessionId ?? '' })
+    }
   })
 
   const sortedDaily = Array.from(daily.entries())
-    .map(([day, e1rm]) => ({ 
-      day: formatChartDate(day), 
-      e1rm: Math.round(e1rm), 
-      timestamp: new Date(day).getTime(), 
-      trend: null as number | null 
-    }))
+    .map(([day, val]) => {
+      const bodyWeight = bodyWeightBySessionId.get(val.sessionId)
+      return { 
+        day: formatChartDate(day), 
+        e1rm: Math.round(val.e1rm), 
+        timestamp: new Date(day).getTime(), 
+        trend: null as number | null,
+        relativeE1rm: bodyWeight ? Number((val.e1rm / bodyWeight).toFixed(2)) : null,
+        momentum: null as number | null
+      }
+    })
     .sort((a, b) => a.timestamp - b.timestamp)
 
   if (sortedDaily.length >= 3) {
-    sortedDaily.forEach((point) => {
+    sortedDaily.forEach((point, idx) => {
       const windowSize = 7 * 86400000 
       const window = sortedDaily.filter(p => p.timestamp <= point.timestamp && p.timestamp > point.timestamp - windowSize)
       if (window.length > 0) {
         const sum = window.reduce((acc, p) => acc + p.e1rm, 0)
         point.trend = Math.round(sum / window.length)
+      }
+
+      // Calculate momentum (slope of trend between current and 2 points back)
+      if (idx >= 2 && point.trend !== null && sortedDaily[idx - 2].trend !== null) {
+        const prevTrend = sortedDaily[idx - 2].trend!
+        const delta = point.trend - prevTrend
+        const dayDelta = (point.timestamp - sortedDaily[idx - 2].timestamp) / (86400000)
+        if (dayDelta > 0) {
+          point.momentum = Number((delta / dayDelta).toFixed(2))
+        }
       }
     })
   }
@@ -223,36 +248,80 @@ export function transformSessionsToExerciseTrend(
 
 export function transformSetsToMuscleBreakdown(
   allSets: AnalyzedSet[],
-  selectedMuscle: string
+  selectedMuscle: string,
+  options: { startDate?: string; endDate?: string } = {}
 ): MuscleBreakdownItem[] {
   const totals = new Map<string, number>()
+  const uniqueDays = new Map<string, Set<string>>()
+  const fatigueByMuscle = new Map<string, number>()
+  const now = new Date().getTime()
+  
+  // Recovery decay: 40% every 24 hours (e^-0.51 per day)
+  const DECAY_CONSTANT = 0.51 / (24 * 60 * 60 * 1000)
+
   allSets.forEach((set) => {
     const tonnage = computeSetTonnage(mapSetLikeToMetricsSet(set))
     if (!tonnage) return
     
-    const primary = toMuscleSlug(set.primaryMuscle ?? 'unknown')
-    if (primary) {
-      totals.set(primary, (totals.get(primary) ?? 0) + tonnage)
+    const dateStr = set.performed_at ?? set.startedAt
+    if (!dateStr) return
+    const dayKey = formatDateForInput(new Date(dateStr))
+    const timestamp = new Date(dateStr).getTime()
+    const ageMs = now - timestamp
+
+    const processMuscle = (slug: string, weight: number) => {
+      totals.set(slug, (totals.get(slug) ?? 0) + (tonnage * weight))
+      
+      const days = uniqueDays.get(slug) ?? new Set()
+      days.add(dayKey)
+      uniqueDays.set(slug, days)
+
+      // Simple fatigue contribution (tonnage-based, decayed to now)
+      // Normalize tonnage so ~10,000 lbs in a session = 100% fatigue
+      const sessionFatigue = (tonnage * weight) / 100
+      const decayedFatigue = sessionFatigue * Math.exp(-DECAY_CONSTANT * ageMs)
+      fatigueByMuscle.set(slug, (fatigueByMuscle.get(slug) ?? 0) + decayedFatigue)
     }
+
+    const primary = toMuscleSlug(set.primaryMuscle ?? 'unknown')
+    if (primary) processMuscle(primary, 1.0)
 
     if (set.secondaryMuscles && Array.isArray(set.secondaryMuscles)) {
       set.secondaryMuscles.forEach(secondary => {
         if (secondary) {
           const secondarySlug = toMuscleSlug(secondary)
-          if (secondarySlug) {
-            totals.set(secondarySlug, (totals.get(secondarySlug) ?? 0) + (tonnage * 0.5))
-          }
+          if (secondarySlug) processMuscle(secondarySlug, 0.5)
         }
       })
     }
   })
 
+  // Calculate week range for daysPerWeek
+  let numWeeks = 1
+  if (options.startDate && options.endDate) {
+    const start = new Date(options.startDate).getTime()
+    const end = new Date(options.endDate).getTime()
+    numWeeks = Math.max(1, (end - start) / (7 * 86400000))
+  } else {
+    const dates = allSets.map(s => new Date(s.performed_at ?? s.startedAt ?? 0).getTime()).filter(t => t > 0)
+    if (dates.length > 1) {
+      numWeeks = Math.max(1, (Math.max(...dates) - Math.min(...dates)) / (7 * 86400000))
+    }
+  }
+
   const data = Array.from(totals.entries())
-    .map(([muscleSlug, volume]) => ({
-      slug: muscleSlug,
-      muscle: toMuscleLabel(muscleSlug),
-      volume: Math.round(volume)
-    }))
+    .map(([muscleSlug, volume]) => {
+      const daysCount = uniqueDays.get(muscleSlug)?.size ?? 0
+      const fatigue = fatigueByMuscle.get(muscleSlug) ?? 0
+      
+      return {
+        slug: muscleSlug,
+        muscle: toMuscleLabel(muscleSlug),
+        volume: Math.round(volume),
+        daysPerWeek: Number((daysCount / numWeeks).toFixed(1)),
+        recoveryEstimate: Math.round(clamp(100 - fatigue, 0, 100))
+      }
+    })
     .filter((item) => {
       if (selectedMuscle === 'all') return true
       const targetMuscles = PRESET_MAPPINGS[selectedMuscle] || [selectedMuscle]

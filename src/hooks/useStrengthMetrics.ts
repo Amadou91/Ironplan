@@ -180,8 +180,10 @@ export function useStrengthMetrics(options: {
       return acc
     }, { total: 0, count: 0 })
 
-    let bestE1rmValue = 0, bestE1rmExercise = ''
+    const sessionMap = new Map(filteredSessions.map(s => [s.id, s.body_weight_lb]))
+    let bestE1rmValue = 0, bestE1rmExercise = '', bestRelativeStrength = 0
     allSets.forEach(set => {
+      const libEntry = exerciseLibraryByName.get(set.exerciseName.toLowerCase())
       const e1rm = computeSetE1rm({
         metricProfile: set.metricProfile ?? undefined,
         reps: set.reps ?? null,
@@ -192,8 +194,16 @@ export function useStrengthMetrics(options: {
         rpe: typeof set.rpe === 'number' ? set.rpe : null,
         rir: typeof set.rir === 'number' ? set.rir : null,
         completed: true
-      }, null, exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible)
-      if (e1rm && e1rm > bestE1rmValue) { bestE1rmValue = e1rm; bestE1rmExercise = set.exerciseName }
+      }, null, libEntry?.e1rmEligible, libEntry?.movementPattern)
+      
+      if (e1rm && e1rm > bestE1rmValue) { 
+        bestE1rmValue = e1rm
+        bestE1rmExercise = set.exerciseName 
+        const bodyWeight = sessionMap.get(set.sessionId)
+        if (bodyWeight) {
+          bestRelativeStrength = Number((e1rm / bodyWeight).toFixed(2))
+        }
+      }
     })
 
     const tonnage = Math.round(aggregateTonnage(metricSets))
@@ -210,6 +220,7 @@ export function useStrengthMetrics(options: {
       hardSets: aggregateHardSets(metricSets),
       bestE1rm: Math.round(bestE1rmValue),
       bestE1rmExercise,
+      bestRelativeStrength,
       workload,
       strengthLoad,
       recoveryLoad,
@@ -218,7 +229,7 @@ export function useStrengthMetrics(options: {
       avgWorkload,
       avgEffort: effortTotals.count ? Number((effortTotals.total / effortTotals.count).toFixed(1)) : null
     }
-  }, [allSets, exerciseLibraryByName])
+  }, [allSets, exerciseLibraryByName, filteredSessions])
 
   const prMetrics = useMemo(() => {
     let maxWeight = 0, bestE1rm = 0, bestReps = 0
@@ -229,6 +240,7 @@ export function useStrengthMetrics(options: {
       const normalizedWeight = toWeightInPounds(totalWeight, (set.weight_unit as WeightUnit) ?? null)
       maxWeight = Math.max(maxWeight, normalizedWeight)
       bestReps = Math.max(bestReps, reps)
+      const libEntry = exerciseLibraryByName.get(set.exerciseName.toLowerCase())
       const e1rm = computeSetE1rm({
         metricProfile: set.metricProfile ?? undefined,
         reps: set.reps ?? null,
@@ -239,7 +251,7 @@ export function useStrengthMetrics(options: {
         rpe: typeof set.rpe === 'number' ? set.rpe : null,
         rir: typeof set.rir === 'number' ? set.rir : null,
         completed: true
-      }, undefined, exerciseLibraryByName.get(set.exerciseName.toLowerCase())?.e1rmEligible)
+      }, undefined, libEntry?.e1rmEligible, libEntry?.movementPattern)
       if (e1rm) bestE1rm = Math.max(bestE1rm, e1rm)
     })
     return { maxWeight, bestReps, bestE1rm: Math.round(bestE1rm) }
@@ -263,6 +275,14 @@ export function useStrengthMetrics(options: {
     return Array.from(names).sort()
   }, [sessions])
 
+  const bodyWeightBySessionId = useMemo(() => {
+    const map = new Map<string, number>()
+    sessions.forEach(s => {
+      if (s.body_weight_lb) map.set(s.id, s.body_weight_lb)
+    })
+    return map
+  }, [sessions])
+
   return {
     user, userLoading,
     loading, error, setError, sessions, setSessions, filteredSessions, aggregateMetrics, prMetrics,
@@ -270,8 +290,8 @@ export function useStrengthMetrics(options: {
     sessionPage, setSessionPage, getSessionTitle, ensureSession, exerciseLibraryByName,
     volumeTrend: useMemo(() => processWeeklyData(allSets, filteredSessions, { startDate, endDate }), [allSets, filteredSessions, startDate, endDate]),
     effortTrend: useMemo(() => transformSessionsToEffortTrend(allSets), [allSets]),
-    exerciseTrend: useMemo(() => transformSessionsToExerciseTrend(allSets, exerciseLibraryByName, selectedExercise), [allSets, selectedExercise, exerciseLibraryByName]),
-    muscleBreakdown: useMemo(() => transformSetsToMuscleBreakdown(allSets, selectedMuscle), [allSets, selectedMuscle]),
+    exerciseTrend: useMemo(() => transformSessionsToExerciseTrend(allSets, exerciseLibraryByName, selectedExercise, bodyWeightBySessionId), [allSets, selectedExercise, exerciseLibraryByName, bodyWeightBySessionId]),
+    muscleBreakdown: useMemo(() => transformSetsToMuscleBreakdown(allSets, selectedMuscle, { startDate, endDate }), [allSets, selectedMuscle, startDate, endDate]),
     hasMoreSessions
   }
 }
