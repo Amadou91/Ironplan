@@ -164,14 +164,15 @@ export async function completeSession({
 
     // Update profile and record body measurement if weight provided
     if (bodyWeightLb && userId) {
-      await Promise.all([
-        supabase.from('profiles').update({ weight_lb: bodyWeightLb }).eq('id', userId),
-        supabase.from('body_measurements').insert({
-          user_id: userId,
-          weight_lb: bodyWeightLb,
-          recorded_at: resolvedEndedAt
-        })
-      ])
+      const { recordBodyWeight } = await import('./body-measurements')
+      await recordBodyWeight({
+        supabase,
+        userId,
+        weightLb: bodyWeightLb,
+        date: resolvedStartedAt,
+        source: 'session',
+        sessionId
+      })
     }
 
     return {

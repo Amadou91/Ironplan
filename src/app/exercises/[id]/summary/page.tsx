@@ -208,10 +208,17 @@ export default function WorkoutSummaryPage() {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
       debounceTimerRef.current = setTimeout(async () => {
         try {
+          const { recordBodyWeight } = await import('@/lib/body-measurements')
           await Promise.all([
             supabase.from('sessions').update({ body_weight_lb: weightVal }).eq('id', session.id),
-            supabase.from('profiles').update({ weight_lb: weightVal }).eq('id', user.id),
-            supabase.from('body_measurements').insert({ user_id: user.id, weight_lb: weightVal, recorded_at: session.started_at })
+            recordBodyWeight({
+              supabase,
+              userId: user.id,
+              weightLb: weightVal,
+              date: session.started_at,
+              source: 'session',
+              sessionId: session.id
+            })
           ])
         } catch (e) { console.error(e) }
       }, 1000)

@@ -94,8 +94,42 @@ export function useSetOperations(
   const handleBodyWeightUpdate = useCallback(async (weightValue: number | null) => {
     if (!activeSession) return
     const result = await persistSessionBodyWeight(activeSession.id, weightValue)
-    if (!result.success) setErrorMessage(result.error ?? 'Failed to update body weight.')
-  }, [activeSession, persistSessionBodyWeight, setErrorMessage])
+    if (result.success) {
+      updateSession({ bodyWeightLb: weightValue })
+      setSessionBodyWeight(weightValue != null ? String(weightValue) : '')
+      
+      // Also sync to profile and body measurements for consistency
+      if (weightValue != null) {
+        const { recordBodyWeight } = await import('@/lib/body-measurements')
+        await recordBodyWeight({
+          supabase,
+          userId: activeSession.userId,
+          weightLb: weightValue,
+          date: activeSession.startedAt,
+          source: 'session',
+          sessionId: activeSession.id
+        })
+      }
+    } else {
+      setErrorMessage(result.error ?? 'Failed to update body weight.')
+    }
+  }, [activeSession, persistSessionBodyWeight, updateSession, setSessionBodyWeight, setErrorMessage, supabase])
+
+  const handleStartTimeUpdate = useCallback(async (newStartTime: string) => {
+    if (!activeSession) return
+    try {
+      const { error } = await supabase
+        .from('sessions')
+        .update({ started_at: newStartTime })
+        .eq('id', activeSession.id)
+      
+      if (error) throw error
+      updateSession({ startedAt: newStartTime })
+    } catch (error) {
+      console.error('Failed to update start time:', error)
+      setErrorMessage('Failed to update start time. Please try again.')
+    }
+  }, [activeSession, supabase, updateSession, setErrorMessage])
 
   const handleReorderExercises = useCallback(async (reorderedExercises: { id: string; orderIndex: number }[]) => {
     if (!activeSession) return { success: false, error: 'No active session' }
@@ -164,6 +198,7 @@ export function useSetOperations(
   return {
     handleSetUpdate,
     handleBodyWeightUpdate,
+    handleStartTimeUpdate,
     handleReorderExercises,
     handleRemoveSet,
     handleRemoveExercise,

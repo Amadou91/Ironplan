@@ -93,7 +93,7 @@ export function SessionHeader({
                 {progressSummary.totalSets} Sets
               </span>
             </div>
-            {sessionBodyWeight != null && sessionBodyWeight > 0 && (
+            {((sessionBodyWeight != null && sessionBodyWeight > 0) || onWeightClick) && (
               <div 
                 className={`flex items-center gap-2 border-l border-[var(--color-border)] pl-4 ${onWeightClick ? 'cursor-pointer hover:text-[var(--color-primary)] transition-colors' : ''}`}
                 onClick={onWeightClick}
@@ -103,9 +103,15 @@ export function SessionHeader({
               >
                 <span className="font-medium text-muted">Weight:</span>
                 <span className="font-semibold text-strong">
-                  {sessionBodyWeight} {preferredUnit}
+                  {sessionBodyWeight != null && sessionBodyWeight > 0 ? (
+                    `${sessionBodyWeight} ${preferredUnit}`
+                  ) : (
+                    <span className="text-xs font-normal italic">Enter weight</span>
+                  )}
                 </span>
-                {onWeightClick && <span className="text-xs text-muted">(edit)</span>}
+                {onWeightClick && sessionBodyWeight != null && sessionBodyWeight > 0 && (
+                  <span className="text-xs text-muted">(edit)</span>
+                )}
               </div>
             )}
           </div>

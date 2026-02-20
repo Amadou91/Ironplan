@@ -448,17 +448,26 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
 
 
-    if (saveError) {
-
-      onError?.('Unable to save profile changes.')
-
-    } else {
-
-      setProfile(data ? (data as ProfileRow) : null)
-
-      onSuccess?.('Profile saved.')
-
-    }
+        if (saveError) {
+          onError?.('Unable to save profile changes.')
+        } else {
+          setProfile(data ? (data as ProfileRow) : null)
+          
+          // Also record measurement in history if weight was changed
+          if (weightLb) {
+            const { recordBodyWeight } = await import('@/lib/body-measurements')
+            await recordBodyWeight({
+              supabase,
+              userId: user.id,
+              weightLb,
+              source: 'user'
+            })
+            await loadManualHistory()
+          }
+          
+          onSuccess?.('Profile saved.')
+        }
+    
 
 
 
@@ -478,49 +487,28 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
     
 
-    setManualSaving(true)
-
-    try {
-
-      const weightLb = isKg ? rawWeight * LBS_PER_KG : rawWeight
-
-      const recordedAt = manualDate 
-
-      const { data, error } = await supabase
-
-        .from('body_measurements')
-
-        .upsert({
-
-          user_id: user.id,
-
-          weight_lb: weightLb,
-
-          recorded_at: recordedAt,
-
-          source: 'user'
-
-        }, { onConflict: 'user_id,recorded_at,source' })
-
-        .select('id, weight_lb, recorded_at')
-
-        .single()
-
-      
-
-      if (!error && data) {
-
-        setManualHistory(prev => {
-
-          const filtered = prev.filter(item => item.recorded_at !== recordedAt)
-
-          return [data, ...filtered].sort((a, b) => b.recorded_at.localeCompare(a.recorded_at)).slice(0, 20)
-
-        })
-
-        onSuccess?.('Weight logged.')
-
-      }
+        setManualSaving(true)
+        try {
+          const weightLb = isKg ? rawWeight * LBS_PER_KG : rawWeight
+          const recordedAt = manualDate 
+          
+          const { recordBodyWeight } = await import('@/lib/body-measurements')
+          const result = await recordBodyWeight({
+            supabase,
+            userId: user.id,
+            weightLb,
+            date: recordedAt,
+            source: 'user'
+          })
+          
+          if (result.success) {
+            // Refresh history to show the update/new entry
+            await loadManualHistory()
+            onSuccess?.('Weight logged.')
+          } else {
+            throw new Error(result.error)
+          }
+    
 
 
 

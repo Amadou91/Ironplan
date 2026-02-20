@@ -267,7 +267,15 @@ export default function LogPastWorkoutPage() {
       
       // Update profile body weight if provided
       if (bodyWeightLb) {
-        await supabase.from('profiles').update({ weight_lb: bodyWeightLb }).eq('id', user.id)
+        const { recordBodyWeight } = await import('@/lib/body-measurements')
+        await recordBodyWeight({
+          supabase,
+          userId: user.id,
+          weightLb: bodyWeightLb,
+          date: startedAt,
+          source: 'session',
+          sessionId: sessionData.id
+        })
       }
       
       // Start the session in the store (so ActiveSession can use it)

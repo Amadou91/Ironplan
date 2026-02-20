@@ -46,6 +46,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     // Set operations (DB-aware wrappers)
     handleSetUpdate: setOps.handleSetUpdate,
     handleBodyWeightUpdate: setOps.handleBodyWeightUpdate,
+    handleStartTimeUpdate: setOps.handleStartTimeUpdate,
     handleRemoveSet: setOps.handleRemoveSet,
     addSet: setOps.addSet,
     updateSet: setOps.updateSet,

@@ -43,7 +43,7 @@ export function ActiveSession({
     exerciseTargets, handleSetUpdate, addSet, handleRemoveSet, replaceSessionExercise,
     handleRemoveExercise, addSessionExercise, handleReorderExercises,
     resolvedInventory, exerciseLibrary, exerciseLibraryByName, isUpdating,
-    supabase, handleBodyWeightUpdate
+    supabase, handleBodyWeightUpdate, handleStartTimeUpdate
   } = useActiveSessionManager(sessionId, equipmentInventory);
 
   const [swappingExIdx, setSwappingExIdx] = useState<number | null>(null);
@@ -78,13 +78,17 @@ export function ActiveSession({
     setIsEditingStartTime(true);
   }, [activeSession]);
 
-  const handleStartTimeEditConfirm = useCallback(() => {
-    if (editStartTimeValue && onStartTimeChange) {
+  const handleStartTimeEditConfirm = useCallback(async () => {
+    if (editStartTimeValue) {
       const newDate = new Date(editStartTimeValue);
-      onStartTimeChange(newDate.toISOString());
+      const iso = newDate.toISOString();
+      await handleStartTimeUpdate(iso);
+      if (onStartTimeChange) {
+        onStartTimeChange(iso);
+      }
     }
     setIsEditingStartTime(false);
-  }, [editStartTimeValue, onStartTimeChange]);
+  }, [editStartTimeValue, handleStartTimeUpdate, onStartTimeChange]);
 
   const handleAddExercise = useCallback(async (newExercise: Exercise) => {
     if (!activeSession) return;

@@ -343,6 +343,19 @@ export function SessionSetupModal({
           bodyWeightLb
         })
       
+      // Also record body measurement in history if provided
+      if (bodyWeightLb) {
+        const { recordBodyWeight } = await import('@/lib/body-measurements')
+        await recordBodyWeight({
+          supabase,
+          userId: user.id,
+          weightLb: bodyWeightLb,
+          date: startedAt,
+          source: 'session',
+          sessionId
+        })
+      }
+      
       startSession({ 
         id: sessionId, 
         userId: user.id, 
