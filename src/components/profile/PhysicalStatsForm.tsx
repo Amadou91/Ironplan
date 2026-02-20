@@ -139,7 +139,7 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
   const [manualWeight, setManualWeight] = useState('')
 
-  const [manualDate, setManualDate] = useState(formatDateForInput(new Date()))
+  const [manualDate, setManualDate] = useState(formatDateForInput(getNowET()))
 
   const [manualHistory, setManualHistory] = useState<Array<{ id: string; weight_lb: number; recorded_at: string; source: string; session_id: string | null }>>([])
 
@@ -512,7 +512,7 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
       setManualWeight('')
 
-      setManualDate(formatDateForInput(new Date()))
+      setManualDate(formatDateForInput(getNowET()))
 
       setIsWeightModalOpen(false)
 
@@ -586,7 +586,7 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
         deletingId={manualDeletingId}
 
-        onLogNew={() => { setEditingWeightId(null); setManualWeight(''); setManualDate(formatDateForInput(new Date())); setIsWeightModalOpen(true); }}
+        onLogNew={() => { setEditingWeightId(null); setManualWeight(''); setManualDate(formatDateForInput(getNowET())); setIsWeightModalOpen(true); }}
 
         onEdit={(entry) => { 
 
