@@ -25,6 +25,22 @@ export function SummaryHeader({
   readinessScore,
   isLb = true
 }: SummaryHeaderProps) {
+  // Use local state to allow typing decimals (parseFloat in parent would strip '.' while typing)
+  const [localWeight, setLocalWeight] = React.useState(bodyWeight?.toString() ?? '')
+
+  // Keep local state in sync with external prop changes
+  React.useEffect(() => {
+    setLocalWeight(bodyWeight?.toString() ?? '')
+  }, [bodyWeight])
+
+  const handleChange = (val: string) => {
+    // Allow digits and at most one decimal point
+    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+      setLocalWeight(val)
+      onBodyWeightUpdate(val)
+    }
+  }
+
   return (
     <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
@@ -39,10 +55,9 @@ export function SummaryHeader({
             <input
               type="text"
               inputMode="decimal"
-              step="0.1"
               placeholder={isLb ? "lb" : "kg"}
-              value={bodyWeight ?? ''}
-              onChange={(e) => onBodyWeightUpdate(e.target.value)}
+              value={localWeight}
+              onChange={(e) => handleChange(e.target.value)}
               className="w-16 bg-transparent text-sm font-semibold text-strong outline-none"
             />
             <span className="text-[10px] text-subtle">{isLb ? "lb" : "kg"}</span>
