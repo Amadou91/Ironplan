@@ -95,12 +95,10 @@ const SetLoggerComponent: React.FC<SetLoggerProps> = ({
       if (!set.reps) m.push('reps')
       if (typeof set.weight !== 'number') m.push('weight')
       if (typeof set.rir !== 'number') m.push('rir')
-      if (set.restSecondsActual == null) m.push('rest')
     }
     if (effectiveProfile === 'timed_strength') {
       if (typeof set.weight !== 'number') m.push('weight')
       if (typeof set.rpe !== 'number') m.push('rpe')
-      if (set.restSecondsActual == null) m.push('rest')
     }
     if (effectiveProfile === 'cardio_session') {
       if (typeof set.rpe !== 'number') m.push('rpe')

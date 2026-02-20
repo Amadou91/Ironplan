@@ -98,7 +98,7 @@ export function useSetEditor({
   }
 
   const restMinutes = useMemo(() => {
-    if (typeof set.restSecondsActual === 'number' && set.restSecondsActual > 0) {
+    if (typeof set.restSecondsActual === 'number' && set.restSecondsActual >= 0) {
       return Number((set.restSecondsActual / 60).toFixed(2))
     }
     return ''

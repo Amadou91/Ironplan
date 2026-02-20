@@ -161,7 +161,7 @@ export function TimedStrengthForm({
             ))}
           </select>
         </div>
-        <div className="flex w-32 shrink-0 flex-col gap-1.5">
+        <div className="flex w-36 shrink-0 flex-col gap-1.5">
           <label className={LABEL}>Rest</label>
           <FastRestInput value={restMinutes} onChange={handleRestChange} disabled={!isEditing} />
         </div>
@@ -229,7 +229,7 @@ export function DefaultStrengthForm({
             className={cn(missingFields.includes('rir') && 'ring-2 ring-[var(--color-danger-soft)] border-[var(--color-danger)]')}
           />
         </div>
-        <div className="flex w-32 shrink-0 flex-col gap-1.5">
+        <div className="flex w-36 shrink-0 flex-col gap-1.5">
           <label className={LABEL}>Rest</label>
           <FastRestInput value={restMinutes} onChange={handleRestChange} disabled={!isEditing} />
         </div>

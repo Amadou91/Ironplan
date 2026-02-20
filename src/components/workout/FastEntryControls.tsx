@@ -187,7 +187,7 @@ export function FastRestInput({ value, onChange, disabled, className }: FastRest
   }
 
   return (
-    <div className={cn(CONTROL_CONTAINER, 'w-32', className)}>
+    <div className={cn(CONTROL_CONTAINER, 'w-36', className)}>
       <button
         type="button"
         onClick={() => handleAdjust(-0.25)} // -15s
@@ -211,7 +211,7 @@ export function FastRestInput({ value, onChange, disabled, className }: FastRest
           autoComplete="off"
           placeholder="0:00"
           disabled={disabled}
-          className={cn(INPUT_BASE, "text-sm tracking-tight")}
+          className={cn(INPUT_BASE, "text-base")}
         />
       </div>
 
