@@ -86,7 +86,7 @@ function calculateTrendLine(data: number[]): number[] {
   return data.map((_, i) => Math.max(0, intercept + slope * i))
 }
 
-export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
+export function WeeklyVolumeChart({ data }: WeeklyVolumeChartProps) {
   const { displayUnit } = useUIStore()
   const isKg = displayUnit === 'kg'
 
@@ -118,18 +118,7 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
     }))
   }, [convertedData])
 
-  const internalZoom = useChartZoom({ data: dataWithTrends, dataKey: 'label' })
-  const zoom = zoomProps || internalZoom
-
-  const zoomedData = React.useMemo(() => {
-    if (!zoom.left || !zoom.right) return dataWithTrends
-    const leftIndex = dataWithTrends.findIndex(i => i.label === zoom.left)
-    const rightIndex = dataWithTrends.findIndex(i => i.label === zoom.right)
-    const [start, end] = leftIndex < rightIndex ? [leftIndex, rightIndex] : [rightIndex, leftIndex]
-    return dataWithTrends.slice(start, end + 1)
-  }, [dataWithTrends, zoom.left, zoom.right])
-
-  const isDailyView = zoomedData[0]?.isDaily ?? false
+  const isDailyView = dataWithTrends[0]?.isDaily ?? false
 
   return (
     <div className="flex flex-col h-full">
@@ -142,13 +131,8 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
       >
         <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
           <ComposedChart 
-            data={zoomedData}
+            data={dataWithTrends}
             margin={CHART_MARGIN}
-            onMouseDown={(e) => { if (e?.activeLabel) zoom.setRefAreaLeft(e.activeLabel) }}
-            onMouseMove={(e) => { if (zoom.refAreaLeft && e?.activeLabel) zoom.setRefAreaRight(e.activeLabel) }}
-            onTouchStart={(e) => { if (e?.activeLabel) zoom.setRefAreaLeft(e.activeLabel) }}
-            onTouchMove={(e) => { if (zoom.refAreaLeft && e?.activeLabel) zoom.setRefAreaRight(e.activeLabel) }}
-            onMouseLeave={() => { zoom.setRefAreaLeft(null); zoom.setRefAreaRight(null) }}
             style={{ outline: 'none' }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -246,13 +230,10 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               activeDot={{ r: 6, strokeWidth: 0 }}
               isAnimationActive={false}
             />
-
-            {zoom.refAreaLeft && zoom.refAreaRight ? (
-              <ReferenceArea yAxisId="left" x1={zoom.refAreaLeft} x2={zoom.refAreaRight} stroke="none" strokeWidth={0} fill="var(--color-chart-volume)" fillOpacity={0.1} />
-            ) : null}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>
   )
 }
+
