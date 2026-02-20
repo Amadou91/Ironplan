@@ -231,7 +231,11 @@ export function ActiveSession({
                     initialValues: {
                       reps: lastSet.reps, weight: lastSet.weight, rpe: lastSet.rpe,
                       rir: lastSet.rir, restSecondsActual: lastSet.restSecondsActual,
-                      loadType: lastSet.loadType, implementCount: lastSet.implementCount
+                      loadType: lastSet.loadType, implementCount: lastSet.implementCount,
+                      extraMetrics: lastSet.extraMetrics,
+                      durationSeconds: lastSet.durationSeconds,
+                      distance: lastSet.distance,
+                      distanceUnit: lastSet.distanceUnit
                     }
                   });
                 }}
