@@ -51,14 +51,18 @@ export function useChartZoom<T>({ data, dataKey }: UseChartZoomProps<T>) {
     setRefAreaRight(null)
   }, [])
 
-  // Handle mouse up anywhere on the screen if dragging started
+  // Handle interaction end anywhere on the screen if dragging started
   useEffect(() => {
     if (refAreaLeft !== null) {
-      const handleGlobalMouseUp = () => {
+      const handleInteractionEnd = () => {
         zoom()
       }
-      window.addEventListener('mouseup', handleGlobalMouseUp)
-      return () => window.removeEventListener('mouseup', handleGlobalMouseUp)
+      window.addEventListener('mouseup', handleInteractionEnd)
+      window.addEventListener('touchend', handleInteractionEnd)
+      return () => {
+        window.removeEventListener('mouseup', handleInteractionEnd)
+        window.removeEventListener('touchend', handleInteractionEnd)
+      }
     }
   }, [refAreaLeft, zoom])
 

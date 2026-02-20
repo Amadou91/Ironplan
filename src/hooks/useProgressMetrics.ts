@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import { useStrengthMetrics } from './useStrengthMetrics'
 import { useRecoveryMetrics } from './useRecoveryMetrics'
+import { getNowET, formatDateForInput } from '@/lib/date-utils'
 
 export const createPastRange = (days: number) => {
-  const end = new Date()
+  const end = getNowET()
   end.setHours(23, 59, 59, 999)
-  const start = new Date()
+  const start = new Date(end)
   start.setDate(end.getDate() - days)
   start.setHours(0, 0, 0, 0)
   return { start, end }

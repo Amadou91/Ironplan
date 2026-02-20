@@ -5,8 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { 
   transformSessionsToEffortTrend,
   transformSessionsToExerciseTrend,
-  transformSetsToMuscleBreakdown,
-  formatDateForInput
+  transformSetsToMuscleBreakdown
 } from '@/lib/transformers/chart-data'
 import { 
   calculateTrainingStatus, 
@@ -31,6 +30,7 @@ import {
 import { SESSION_PAGE_SIZE, CHRONIC_LOAD_WINDOW_DAYS, MS_PER_DAY } from '@/constants/training'
 import { safeParseArray, sessionRowSchema } from '@/lib/validation/schemas'
 import type { WeightUnit, MetricProfile } from '@/types/domain'
+import { formatDateInET } from '@/lib/date-utils'
 
 export function useStrengthMetrics(options: { 
   startDate?: string; 
@@ -143,7 +143,7 @@ export function useStrengthMetrics(options: {
       if (seenIds.has(session.id)) return false
       seenIds.add(session.id)
       const date = new Date(session.started_at)
-      const localDay = formatDateForInput(date)
+      const localDay = formatDateInET(date)
       if (startDate && localDay < startDate) return false
       if (endDate && localDay > endDate) return false
       if (selectedExercise !== 'all' && !session.session_exercises.some(e => e.exercise_name === selectedExercise)) return false

@@ -269,6 +269,7 @@ export function ProgressCharts({
           className="h-64 w-full outline-none mt-auto"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
           tabIndex={-1}
           draggable="false"
         >
@@ -278,6 +279,9 @@ export function ProgressCharts({
               margin={CHART_MARGIN}
               onMouseDown={(e) => { if (e?.activeLabel) effortZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (effortZoom.refAreaLeft && e?.activeLabel) effortZoom.setRefAreaRight(e.activeLabel) }}
+              onTouchStart={(e) => { if (e?.activeLabel) effortZoom.setRefAreaLeft(e.activeLabel) }}
+              onTouchMove={(e) => { if (effortZoom.refAreaLeft && e?.activeLabel) effortZoom.setRefAreaRight(e.activeLabel) }}
+              onMouseLeave={() => { effortZoom.setRefAreaLeft(null); effortZoom.setRefAreaRight(null) }}
               style={{ outline: 'none' }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -302,8 +306,12 @@ export function ProgressCharts({
                 domain={[0, 10]}
                 width={Y_AXIS_WIDTH}
               />
-              <Tooltip content={<CustomTooltip />} />
-              <Line type="linear" dataKey="effort" name="Effort" stroke="var(--color-success)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} animationDuration={300} />
+              <Tooltip 
+                content={<CustomTooltip />} 
+                isAnimationActive={false}
+                wrapperStyle={{ pointerEvents: 'none' }}
+              />
+              <Line type="linear" dataKey="effort" name="Effort" stroke="var(--color-success)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} isAnimationActive={false} />
               {effortZoom.refAreaLeft && effortZoom.refAreaRight && (
                 <ReferenceArea x1={effortZoom.refAreaLeft} x2={effortZoom.refAreaRight} stroke="none" fill="var(--color-success)" fillOpacity={0.1} />
               )}
@@ -321,6 +329,7 @@ export function ProgressCharts({
             className="h-64 w-full outline-none mt-auto"
             onMouseDown={(e) => e.stopPropagation()}
             onMouseMove={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.preventDefault()}
             tabIndex={-1}
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -329,6 +338,9 @@ export function ProgressCharts({
                 margin={CHART_MARGIN}
                 onMouseDown={(e) => { if (e?.activeLabel) exerciseZoom.setRefAreaLeft(e.activeLabel) }}
                 onMouseMove={(e) => { if (exerciseZoom.refAreaLeft && e?.activeLabel) exerciseZoom.setRefAreaRight(e.activeLabel) }}
+                onTouchStart={(e) => { if (e?.activeLabel) exerciseZoom.setRefAreaLeft(e.activeLabel) }}
+                onTouchMove={(e) => { if (exerciseZoom.refAreaLeft && e?.activeLabel) exerciseZoom.setRefAreaRight(e.activeLabel) }}
+                onMouseLeave={() => { exerciseZoom.setRefAreaLeft(null); exerciseZoom.setRefAreaRight(null) }}
                 style={{ outline: 'none' }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -354,9 +366,13 @@ export function ProgressCharts({
                   tickFormatter={formatCompactNumber}
                   width={Y_AXIS_WIDTH}
                 />
-                <Tooltip content={<CustomTooltip unit={displayUnit} />} />
-                <Scatter dataKey="e1rm" name="Daily best" fill="var(--color-warning)" />
-                <Line type="linear" dataKey="trend" name="7-day trend" stroke="var(--color-text-subtle)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                <Tooltip 
+                  content={<CustomTooltip unit={displayUnit} />} 
+                  isAnimationActive={false}
+                  wrapperStyle={{ pointerEvents: 'none' }}
+                />
+                <Scatter dataKey="e1rm" name="Daily best" fill="var(--color-warning)" isAnimationActive={false} />
+                <Line type="linear" dataKey="trend" name="7-day trend" stroke="var(--color-text-subtle)" strokeWidth={2} strokeDasharray="5 5" dot={false} isAnimationActive={false} />
                 {exerciseZoom.refAreaLeft && exerciseZoom.refAreaRight && (
                   <ReferenceArea x1={exerciseZoom.refAreaLeft} x2={exerciseZoom.refAreaRight} stroke="none" fill="var(--color-warning)" fillOpacity={0.1} />
                 )}
@@ -374,6 +390,7 @@ export function ProgressCharts({
           className="h-64 w-full outline-none mt-auto"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
           tabIndex={-1}
           draggable="false"
         >
@@ -383,6 +400,9 @@ export function ProgressCharts({
               margin={CHART_MARGIN}
               onMouseDown={(e) => { if (e?.activeLabel) weightZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (weightZoom.refAreaLeft && e?.activeLabel) weightZoom.setRefAreaRight(e.activeLabel) }}
+              onTouchStart={(e) => { if (e?.activeLabel) weightZoom.setRefAreaLeft(e.activeLabel) }}
+              onTouchMove={(e) => { if (weightZoom.refAreaLeft && e?.activeLabel) weightZoom.setRefAreaRight(e.activeLabel) }}
+              onMouseLeave={() => { weightZoom.setRefAreaLeft(null); weightZoom.setRefAreaRight(null) }}
               style={{ outline: 'none' }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -408,9 +428,13 @@ export function ProgressCharts({
                 tickFormatter={formatCompactNumber}
                 width={Y_AXIS_WIDTH}
               />
-              <Tooltip content={<CustomTooltip unit={displayUnit} type="bodyweight" />} />
-              <Line type="linear" dataKey="weight" name="Weight" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} animationDuration={300} />
-              <Line type="linear" dataKey="trend" name="Trend" stroke="var(--color-text-subtle)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+              <Tooltip 
+                content={<CustomTooltip unit={displayUnit} type="bodyweight" />} 
+                isAnimationActive={false}
+                wrapperStyle={{ pointerEvents: 'none' }}
+              />
+              <Line type="linear" dataKey="weight" name="Weight" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} isAnimationActive={false} />
+              <Line type="linear" dataKey="trend" name="Trend" stroke="var(--color-text-subtle)" strokeWidth={2} strokeDasharray="5 5" dot={false} isAnimationActive={false} />
               {weightZoom.refAreaLeft && weightZoom.refAreaRight && (
                 <ReferenceArea x1={weightZoom.refAreaLeft} x2={weightZoom.refAreaRight} stroke="none" fill="var(--color-primary)" fillOpacity={0.1} />
               )}
@@ -429,6 +453,7 @@ export function ProgressCharts({
           className="h-64 w-full outline-none mt-auto"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
           tabIndex={-1}
           draggable="false"
         >
@@ -438,6 +463,9 @@ export function ProgressCharts({
               margin={CHART_MARGIN}
               onMouseDown={(e) => { if (e?.activeLabel) readinessZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (readinessZoom.refAreaLeft && e?.activeLabel) readinessZoom.setRefAreaRight(e.activeLabel) }}
+              onTouchStart={(e) => { if (e?.activeLabel) readinessZoom.setRefAreaLeft(e.activeLabel) }}
+              onTouchMove={(e) => { if (readinessZoom.refAreaLeft && e?.activeLabel) readinessZoom.setRefAreaRight(e.activeLabel) }}
+              onMouseLeave={() => { readinessZoom.setRefAreaLeft(null); readinessZoom.setRefAreaRight(null) }}
               style={{ outline: 'none' }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -462,10 +490,14 @@ export function ProgressCharts({
                 axisLine={false}
                 width={Y_AXIS_WIDTH}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip 
+                content={<CustomTooltip />} 
+                isAnimationActive={false}
+                wrapperStyle={{ pointerEvents: 'none' }}
+              />
               <ReferenceLine y={READINESS_LOW_THRESHOLD} stroke="var(--color-warning)" strokeDasharray="4 4" />
               <ReferenceLine y={READINESS_HIGH_THRESHOLD} stroke="var(--color-success)" strokeDasharray="4 4" />
-              <Line type="linear" dataKey="score" name="Score" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} animationDuration={300} />
+              <Line type="linear" dataKey="score" name="Score" stroke="var(--color-primary)" strokeWidth={3} dot={{ r: 0 }} activeDot={{ r: 6 }} isAnimationActive={false} />
               {readinessZoom.refAreaLeft && readinessZoom.refAreaRight && (
                 <ReferenceArea x1={readinessZoom.refAreaLeft} x2={readinessZoom.refAreaRight} stroke="none" fill="var(--color-primary)" fillOpacity={0.1} />
               )}
@@ -499,15 +531,22 @@ export function ProgressCharts({
           className="h-64 w-full outline-none mt-auto"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
           tabIndex={-1}
           draggable="false"
         >
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={readinessComponents} margin={{ ...CHART_MARGIN, top: 24 }} style={{ outline: 'none' }}>
+            <ComposedChart 
+              data={readinessComponents} 
+              margin={{ ...CHART_MARGIN, top: 24 }} 
+              style={{ outline: 'none' }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
               <XAxis dataKey="metric" stroke="var(--color-text-subtle)" fontSize={11} fontWeight={800} tickLine={false} axisLine={false} minTickGap={MIN_TICK_GAP} tickMargin={8} dy={10} />
               <YAxis domain={[0, 5]} tickCount={6} stroke="var(--color-text-subtle)" fontSize={11} fontWeight={800} tickLine={false} axisLine={false} width={Y_AXIS_WIDTH} />
               <Tooltip
+                isAnimationActive={false}
+                wrapperStyle={{ pointerEvents: 'none' }}
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null
                   const entry = payload[0]?.payload as ReadinessComponentPoint | undefined
@@ -530,7 +569,7 @@ export function ProgressCharts({
                   )
                 }}
               />
-              <Bar dataKey="value" name="Score" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="value" name="Score" radius={[4, 4, 0, 0]} isAnimationActive={false}>
                 <LabelList
                   dataKey="value"
                   position="top"
@@ -559,6 +598,7 @@ export function ProgressCharts({
           className="h-64 w-full outline-none mt-auto"
           onMouseDown={(e) => e.stopPropagation()}
           onMouseMove={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
           tabIndex={-1}
           draggable="false"
         >
@@ -568,6 +608,9 @@ export function ProgressCharts({
               margin={CHART_MARGIN}
               onMouseDown={(e) => { if (e?.activeLabel) correlationZoom.setRefAreaLeft(e.activeLabel) }}
               onMouseMove={(e) => { if (correlationZoom.refAreaLeft && e?.activeLabel) correlationZoom.setRefAreaRight(e.activeLabel) }}
+              onTouchStart={(e) => { if (e?.activeLabel) correlationZoom.setRefAreaLeft(e.activeLabel) }}
+              onTouchMove={(e) => { if (correlationZoom.refAreaLeft && e?.activeLabel) correlationZoom.setRefAreaRight(e.activeLabel) }}
+              onMouseLeave={() => { correlationZoom.setRefAreaLeft(null); correlationZoom.setRefAreaRight(null) }}
               style={{ outline: 'none' }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} horizontal={false} />
@@ -598,7 +641,12 @@ export function ProgressCharts({
                 axisLine={false} 
                 width={Y_AXIS_WIDTH}
               />
-              <Tooltip content={<CustomTooltip type="readiness" />} cursor={{ strokeDasharray: '3 3' }} />
+              <Tooltip 
+                content={<CustomTooltip type="readiness" />} 
+                cursor={{ strokeDasharray: '3 3' }} 
+                isAnimationActive={false}
+                wrapperStyle={{ pointerEvents: 'none' }}
+              />
               {/* Overreaching: Low Readiness, High Effort */}
               <ReferenceArea x1={0} x2={READINESS_EFFORT_SPLIT} y1={EFFORT_HIGH_THRESHOLD} y2={10} fill="var(--color-danger)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
                 <Label value="Overreaching" position="insideTopLeft" offset={10} fill="var(--color-danger)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />

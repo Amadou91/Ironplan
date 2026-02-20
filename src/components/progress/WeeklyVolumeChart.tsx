@@ -146,6 +146,9 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
             margin={CHART_MARGIN}
             onMouseDown={(e) => { if (e?.activeLabel) zoom.setRefAreaLeft(e.activeLabel) }}
             onMouseMove={(e) => { if (zoom.refAreaLeft && e?.activeLabel) zoom.setRefAreaRight(e.activeLabel) }}
+            onTouchStart={(e) => { if (e?.activeLabel) zoom.setRefAreaLeft(e.activeLabel) }}
+            onTouchMove={(e) => { if (zoom.refAreaLeft && e?.activeLabel) zoom.setRefAreaRight(e.activeLabel) }}
+            onMouseLeave={() => { zoom.setRefAreaLeft(null); zoom.setRefAreaRight(null) }}
             style={{ outline: 'none' }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -183,7 +186,11 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               tickFormatter={formatCompactNumber}
               width={Y_AXIS_WIDTH}
             />
-            <Tooltip content={<CustomTooltip unit={displayUnit} type="volume" labelFormatter={isDailyView ? undefined : formatWeekLabel} />} />
+            <Tooltip 
+              content={<CustomTooltip unit={displayUnit} type="volume" labelFormatter={isDailyView ? undefined : formatWeekLabel} />} 
+              isAnimationActive={false}
+              wrapperStyle={{ pointerEvents: 'none' }}
+            />
             
             <Bar 
               yAxisId="left"
@@ -193,6 +200,7 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               fillOpacity={0.35}
               radius={[6, 6, 0, 0]}
               barSize={18}
+              isAnimationActive={false}
             />
 
             {/* Volume trend line - subtle dashed line */}
@@ -207,7 +215,7 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               strokeOpacity={0.4}
               dot={false}
               activeDot={false}
-              animationDuration={300}
+              isAnimationActive={false}
               legendType="none"
             />
             
@@ -223,7 +231,7 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               strokeOpacity={0.4}
               dot={false}
               activeDot={false}
-              animationDuration={300}
+              isAnimationActive={false}
               legendType="none"
             />
             
@@ -236,7 +244,7 @@ export function WeeklyVolumeChart({ data, zoomProps }: WeeklyVolumeChartProps) {
               strokeWidth={3} 
               dot={{ r: 0 }}
               activeDot={{ r: 6, strokeWidth: 0 }}
-              animationDuration={300}
+              isAnimationActive={false}
             />
 
             {zoom.refAreaLeft && zoom.refAreaRight ? (

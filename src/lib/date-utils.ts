@@ -3,10 +3,57 @@
  * This module centralizes date operations to avoid duplication across components.
  */
 
+const ET_TIMEZONE = 'America/New_York'
+
+/**
+ * Gets the current date/time in Eastern Time.
+ */
+export const getNowET = (): Date => {
+  const now = new Date()
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: ET_TIMEZONE,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    fractionalSecondDigits: 3,
+    hour12: false
+  })
+  
+  const parts = formatter.formatToParts(now)
+  const map: Record<string, any> = {}
+  parts.forEach(p => { map[p.type] = p.value })
+  
+  // Create a Date object representing the ET wall-clock time
+  // Note: month is 1-indexed in formatToParts
+  return new Date(map.year, map.month - 1, map.day, map.hour, map.minute, map.second, map.fractionalSecond)
+}
+
+/**
+ * Returns YYYY-MM-DD for the current day in Eastern Time.
+ */
+export const getTodayDateStringET = (): string => {
+  return formatDateInET(new Date())
+}
+
+/**
+ * Returns YYYY-MM-DD for a given date in Eastern Time.
+ */
+export const formatDateInET = (date: Date): string => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ET_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+  return formatter.format(date) // en-CA returns YYYY-MM-DD
+}
+
 /**
  * Formats a Date object as YYYY-MM-DD string for HTML date inputs.
- * @param value - The Date to format
- * @returns Formatted date string
+ * Uses local time by default.
  */
 export const formatDateForInput = (value: Date): string => {
   const year = value.getFullYear()
@@ -16,44 +63,37 @@ export const formatDateForInput = (value: Date): string => {
 }
 
 /**
- * Formats a date string for display (locale-aware).
+ * Formats a date string for display (locale-aware, forced to ET).
  * Handles ISO strings and date-only strings correctly.
- * @param value - The date string to format
- * @returns Formatted date string for display
  */
 export const formatDate = (value: string): string => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  // Handle date-only strings to avoid timezone shifts
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value) || value.endsWith('T00:00:00.000Z') || value.endsWith('T00:00:00Z')) {
-    const [year, month, day] = value.split('T')[0].split('-').map(Number)
-    const localDate = new Date(year, month - 1, day)
-    return localDate.toLocaleDateString()
-  }
-  return date.toLocaleDateString()
+  
+  return date.toLocaleDateString('en-US', {
+    timeZone: ET_TIMEZONE,
+    month: 'numeric',
+    day: 'numeric',
+    year: 'numeric'
+  })
 }
 
 /**
- * Formats a date string with time for display (locale-aware).
- * @param value - The date string to format
- * @returns Formatted date and time string
+ * Formats a date string with time for display (locale-aware, forced to ET).
  */
 export const formatDateTime = (value: string): string => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value) || value.endsWith('T00:00:00.000Z') || value.endsWith('T00:00:00Z')) {
-    const [year, month, day] = value.split('T')[0].split('-').map(Number)
-    const localDate = new Date(year, month - 1, day)
-    return localDate.toLocaleDateString([], { dateStyle: 'medium' })
-  }
-  return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+  
+  return date.toLocaleString('en-US', {
+    timeZone: ET_TIMEZONE,
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  })
 }
 
 /**
  * Formats duration between two timestamps as "X min".
- * @param start - Start timestamp
- * @param end - End timestamp
- * @returns Formatted duration string or 'N/A'
  */
 export const formatDuration = (start?: string | null, end?: string | null): string => {
   if (!start || !end) return 'N/A'
@@ -67,25 +107,31 @@ export const formatDuration = (start?: string | null, end?: string | null): stri
 
 /**
  * Formats a date for chart axis labels (e.g., "Jan 15").
- * @param value - Date string or timestamp
- * @returns Short formatted date
+ * Uses ET for consistent labeling.
  */
 export const formatChartDate = (value: string | number): string => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return String(value)
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  
+  return date.toLocaleDateString('en-US', {
+    timeZone: ET_TIMEZONE,
+    month: 'short',
+    day: 'numeric'
+  })
 }
 
 /**
- * Returns ISO week key for a date (e.g., "2024-W03").
- * Useful for grouping data by week.
- * @param value - Date string
- * @returns Week key string
+ * Returns ISO week key for a date (e.g., "2024-W03") based on ET.
  */
 export const getWeekKey = (value: string): string => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  const temp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  
+  // Convert to ET Date for week calculation
+  const etDateStr = date.toLocaleString('en-US', { timeZone: ET_TIMEZONE, year: 'numeric', month: 'numeric', day: 'numeric' })
+  const etDate = new Date(etDateStr)
+  
+  const temp = new Date(Date.UTC(etDate.getFullYear(), etDate.getMonth(), etDate.getDate()))
   const day = temp.getUTCDay() || 7
   temp.setUTCDate(temp.getUTCDate() + 4 - day)
   const yearStart = new Date(Date.UTC(temp.getUTCFullYear(), 0, 1))
@@ -95,11 +141,9 @@ export const getWeekKey = (value: string): string => {
 
 /**
  * Calculates the number of days between two dates.
- * @param date1 - First date
- * @param date2 - Second date
- * @returns Number of days between dates
  */
 export const daysBetween = (date1: Date, date2: Date): number => {
   const oneDay = 24 * 60 * 60 * 1000
   return Math.round(Math.abs((date1.getTime() - date2.getTime()) / oneDay))
 }
+

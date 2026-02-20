@@ -5,7 +5,7 @@ import { ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { createPastRange } from '@/hooks/useProgressMetrics'
-import { formatDateForInput } from '@/lib/transformers/chart-data'
+import { formatDateForInput, getNowET, getTodayDateStringET } from '@/lib/date-utils'
 
 type DateRangePreset = {
   label: string
@@ -17,12 +17,12 @@ const ALL_TIME_LABEL = 'All Time'
 const DATE_RANGE_PRESETS: DateRangePreset[] = [
   {
     label: ALL_TIME_LABEL,
-    getRange: () => ({ start: new Date(0), end: new Date() })
+    getRange: () => ({ start: new Date(0), end: getNowET() })
   },
   {
     label: 'Today',
     getRange: () => {
-      const today = new Date()
+      const today = getNowET()
       today.setHours(0, 0, 0, 0)
       return { start: today, end: today }
     }
@@ -33,9 +33,9 @@ const DATE_RANGE_PRESETS: DateRangePreset[] = [
   {
     label: '6M',
     getRange: () => {
-      const today = new Date()
+      const today = getNowET()
       today.setHours(23, 59, 59, 999)
-      const start = new Date()
+      const start = new Date(today)
       start.setMonth(today.getMonth() - 6)
       start.setHours(0, 0, 0, 0)
       return { start, end: today }
@@ -44,9 +44,9 @@ const DATE_RANGE_PRESETS: DateRangePreset[] = [
   {
     label: '12M',
     getRange: () => {
-      const today = new Date()
+      const today = getNowET()
       today.setHours(23, 59, 59, 999)
-      const start = new Date()
+      const start = new Date(today)
       start.setFullYear(today.getFullYear() - 1)
       start.setHours(0, 0, 0, 0)
       return { start, end: today }
@@ -55,7 +55,7 @@ const DATE_RANGE_PRESETS: DateRangePreset[] = [
   {
     label: 'This Month',
     getRange: () => {
-      const today = new Date()
+      const today = getNowET()
       today.setHours(23, 59, 59, 999)
       const start = new Date(today.getFullYear(), today.getMonth(), 1)
       start.setHours(0, 0, 0, 0)
@@ -65,7 +65,7 @@ const DATE_RANGE_PRESETS: DateRangePreset[] = [
   {
     label: 'This Year',
     getRange: () => {
-      const today = new Date()
+      const today = getNowET()
       today.setHours(23, 59, 59, 999)
       const start = new Date(today.getFullYear(), 0, 1)
       start.setHours(0, 0, 0, 0)
@@ -75,7 +75,8 @@ const DATE_RANGE_PRESETS: DateRangePreset[] = [
   {
     label: 'Previous Year',
     getRange: () => {
-      const lastYear = new Date().getFullYear() - 1
+      const etNow = getNowET()
+      const lastYear = etNow.getFullYear() - 1
       const start = new Date(lastYear, 0, 1)
       start.setHours(0, 0, 0, 0)
       const end = new Date(lastYear, 11, 31)
