@@ -66,7 +66,7 @@ type ProfileDraft = {
 
 }
 
-import { formatDateForInput, getNowET } from '@/lib/date-utils'
+import { formatDateForInput, getNowET, getTodayDateStringET, formatDateInET } from '@/lib/date-utils'
 
 
 const parseNumberInput = (value: string) => {
@@ -485,28 +485,73 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
     
 
-        setManualSaving(true)
-        try {
-          const weightLb = isKg ? rawWeight * LBS_PER_KG : rawWeight
-          const recordedAt = manualDate 
-          
-          const { recordBodyWeight } = await import('@/lib/body-measurements')
-          const result = await recordBodyWeight({
-            supabase,
-            userId: user.id,
-            weightLb,
-            date: recordedAt,
-            source: 'user'
-          })
-          
-          if (result.success) {
-            // Refresh history to show the update/new entry
-            await loadManualHistory()
-            onSuccess?.('Weight logged.')
-          } else {
-            throw new Error(result.error)
-          }
-    
+    setManualSaving(true)
+
+    try {
+
+      const weightLb = isKg ? rawWeight * LBS_PER_KG : rawWeight
+
+      
+
+      // Smart Date Handling:
+
+      // If the user selected "Today", use the current timestamp (to preserve "latest" ordering).
+
+      // If the user selected a different date, use Noon on that day to ensure it stays on that day 
+
+      // regardless of timezone shifts (avoiding the "Yesterday" bug).
+
+      const todayStr = getTodayDateStringET()
+
+      let recordedAt: Date
+
+
+
+      if (manualDate === todayStr) {
+
+        recordedAt = new Date()
+
+      } else {
+
+        // Append noon time to the date string to fix the off-by-one error caused by UTC midnight
+
+        recordedAt = new Date(`${manualDate}T12:00:00`)
+
+      }
+
+
+
+      const { recordBodyWeight } = await import('@/lib/body-measurements')
+
+      const result = await recordBodyWeight({
+
+        supabase,
+
+        userId: user.id,
+
+        weightLb,
+
+        date: recordedAt,
+
+        source: 'user'
+
+      })
+
+      
+
+      if (result.success) {
+
+        // Refresh history to show the update/new entry
+
+        await loadManualHistory()
+
+        onSuccess?.('Weight logged.')
+
+      } else {
+
+        throw new Error(result.error)
+
+      }
 
 
 
@@ -550,6 +595,43 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
 
 
+  /**
+   * Process history to show only the "effective" weight for each day.
+   * Priority: Manual ('user') > Session
+   * Fallback: Latest recorded_at
+   */
+  const effectiveHistory = useMemo(() => {
+    const grouped = new Map<string, typeof manualHistory[0]>()
+
+    // Sort by recorded_at desc so we process latest first
+    const sorted = [...manualHistory].sort((a, b) => 
+      new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()
+    )
+
+    for (const entry of sorted) {
+      // Get the day key (YYYY-MM-DD) in ET
+      const dayKey = formatDateInET(new Date(entry.recorded_at))
+      
+      const existing = grouped.get(dayKey)
+      if (!existing) {
+        grouped.set(dayKey, entry)
+      } else {
+        // If we already have an entry, only replace it if the new one is 'user' and existing is NOT 'user'
+        if (entry.source === 'user' && existing.source !== 'user') {
+          grouped.set(dayKey, entry)
+        }
+        // If both are 'user' or both are 'session', we already have the latest (due to sort), so do nothing.
+      }
+    }
+
+    // Convert back to array
+    return Array.from(grouped.values()).sort((a, b) => 
+      new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()
+    )
+  }, [manualHistory])
+
+
+
   return (
 
     <div className="space-y-8">
@@ -580,7 +662,7 @@ export function PhysicalStatsForm({ onSuccess, onError }: PhysicalStatsFormProps
 
       <WeightHistorySection 
 
-        history={manualHistory}
+        history={effectiveHistory}
 
         loading={manualLoading}
 

@@ -29,7 +29,15 @@ export async function recordBodyWeight({
 }) {
   if (!userId || !weightLb) return { success: false, error: 'User ID and weight are required' }
 
-  const measurementDate = typeof date === 'string' ? new Date(date) : date
+  let measurementDate: Date
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    // If exact date string provided (YYYY-MM-DD), force noon to ensure it stays on that day 
+    // regardless of timezone shifts (UTC midnight often becomes previous day in ET).
+    measurementDate = new Date(`${date}T12:00:00`) 
+  } else {
+    measurementDate = typeof date === 'string' ? new Date(date) : date
+  }
+
   const dateStr = formatDateInET(measurementDate)
   const { start, end } = getUTCDateRangeFromET(dateStr)
 
