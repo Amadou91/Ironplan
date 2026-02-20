@@ -34,11 +34,12 @@ export async function recordBodyWeight({
   const { start, end } = getUTCDateRangeFromET(dateStr)
 
   try {
-    // 1. Check for existing measurement on the same day (ET)
+    // 1. Check for existing measurement on the same day (ET) AND same source
     const { data: existing } = await supabase
       .from('body_measurements')
       .select('id')
       .eq('user_id', userId)
+      .eq('source', source)
       .gte('recorded_at', start)
       .lte('recorded_at', end)
       .maybeSingle()
