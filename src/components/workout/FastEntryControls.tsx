@@ -209,7 +209,7 @@ export function FastRestInput({ value, onChange, disabled, className }: FastRest
           onBlur={handleBlur}
           enterKeyHint="done"
           autoComplete="off"
-          placeholder="0:00"
+          placeholder="1:30"
           disabled={disabled}
           className={cn(INPUT_BASE, "text-base")}
         />
