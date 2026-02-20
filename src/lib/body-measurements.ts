@@ -69,9 +69,9 @@ export async function recordBodyWeight({
 
     if (result.error) throw result.error
 
-    // 4. Also keep user profile in sync IF it's a manual entry from the user profile page.
-    // Session-based weight updates should not update the profile until the session is completed.
-    if (source === 'user') {
+    // 4. Also keep user profile in sync IF it's a manual entry OR a completed session.
+    // We now only call this for sessions upon completion, so it's safe to sync.
+    if (source === 'user' || source === 'session') {
       await supabase
         .from('profiles')
         .update({ weight_lb: weightLb })

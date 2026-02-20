@@ -206,7 +206,8 @@ function WorkoutSummaryContent() {
               date: session.started_at,
               source: 'session',
               sessionId: session.id
-            })
+            }),
+            supabase.from('profiles').update({ weight_lb: weightVal }).eq('id', user.id)
           ])
         } catch (e) { console.error(e) }
       }, 1000)
