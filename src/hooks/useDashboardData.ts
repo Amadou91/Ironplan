@@ -5,10 +5,11 @@ import { useSupabase } from '@/hooks/useSupabase'
 import { useUser } from '@/hooks/useUser'
 import { useAuthStore } from '@/store/authStore'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
-import { calculateTrainingStatus } from '@/lib/transformers/progress-data'
 import { safeParseArray, sessionRowSchema, templateRowSchema } from '@/lib/validation/schemas'
 import { getPrimaryFocusArea, resolveSessionFocusAreas } from '@/lib/session-focus'
 import type { FocusArea, PlanInput } from '@/types/domain'
+import { getTrainingLoadSummaryAction } from '@/app/progress/training-load-actions'
+import type { TrainingLoadSummary } from '@/lib/training-metrics'
 
 export type SessionRow = {
   id: string
@@ -65,6 +66,18 @@ type QueryResult = {
   error: { code?: string } | null
 }
 
+const DEFAULT_TRAINING_LOAD_SUMMARY: TrainingLoadSummary = {
+  acuteLoad: 0,
+  chronicLoad: 0,
+  chronicWeeklyAvg: 0,
+  loadRatio: 0,
+  status: 'balanced',
+  daysSinceLast: null,
+  insufficientData: true,
+  isInitialPhase: true,
+  weeklyLoadTrend: []
+}
+
 export function useDashboardData() {
   const supabase = useSupabase()
   const { user, loading: userLoading } = useUser()
@@ -76,6 +89,7 @@ export function useDashboardData() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deletingWorkoutIds, setDeletingWorkoutIds] = useState<Record<string, boolean>>({})
+  const [trainingLoadSummary, setTrainingLoadSummary] = useState<TrainingLoadSummary>(DEFAULT_TRAINING_LOAD_SUMMARY)
 
   const ensureSession = useCallback(async () => {
     const { data, error: sessionError } = await supabase.auth.getSession()
@@ -138,6 +152,7 @@ export function useDashboardData() {
     const sessionRows = sessionResult?.data
     const sessionError = sessionResult?.error
     const templateRows = templateResult?.data
+    const trainingLoadResult = await getTrainingLoadSummaryAction()
 
     if (sessionError) {
       console.error('Failed to load sessions', JSON.stringify(sessionError, null, 2))
@@ -150,6 +165,11 @@ export function useDashboardData() {
 
     setSessions(validatedSessions as SessionRow[])
     setTemplates(validatedTemplates as TemplateRow[])
+    if (trainingLoadResult.success) {
+      setTrainingLoadSummary(trainingLoadResult.data)
+    } else {
+      setTrainingLoadSummary(DEFAULT_TRAINING_LOAD_SUMMARY)
+    }
     setLoading(false)
   }, [ensureSession, supabase, user, userLoading])
 
@@ -157,6 +177,7 @@ export function useDashboardData() {
     if (userLoading) return
     if (!user) {
       setLoading(false)
+      setTrainingLoadSummary(DEFAULT_TRAINING_LOAD_SUMMARY)
       return
     }
 
@@ -192,12 +213,6 @@ export function useDashboardData() {
     })
     return map
   }, [templates])
-
-  const trainingLoadSummary = useMemo(() => {
-    // Use the shared calculateTrainingStatus to ensure consistent mapping
-    // with the progress page (includes implementCount, loadType, etc.)
-    return calculateTrainingStatus(sessions as Parameters<typeof calculateTrainingStatus>[0])
-  }, [sessions])
 
   const recommendedTemplateId = useMemo(() => {
     if (!templates.length) return null

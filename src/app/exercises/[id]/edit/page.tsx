@@ -69,6 +69,7 @@ export default function EditWorkoutPage() {
         equipment: data.equipment,
         primaryMuscle: data.primary_muscle,
         secondaryMuscles: data.secondary_muscles,
+        e1rmEligible: data.e1rm_eligible ?? false,
         isInterval: data.is_interval,
         equipmentMode: data.equipment_mode ?? 'or',
         additionalEquipmentMode: data.additional_equipment_mode ?? 'required',

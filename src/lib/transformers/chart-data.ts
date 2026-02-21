@@ -1,4 +1,11 @@
-import { computeSetLoad, computeSetTonnage, getWeekKey, getEffortScore, computeSetE1rm } from '@/lib/session-metrics'
+import {
+  computeSetLoad,
+  computeSetTonnage,
+  getWeekKey,
+  getEffortScore,
+  computeSetE1rm,
+  computeRelativeStrength
+} from '@/lib/session-metrics'
 import { mapSetLikeToMetricsSet } from '@/lib/transformers/metric-set'
 import { toMuscleSlug, toMuscleLabel, PRESET_MAPPINGS } from '@/lib/muscle-utils'
 import { clamp } from '@/lib/math'
@@ -216,7 +223,10 @@ export function transformSessionsToExerciseTrend(
         e1rm: Math.round(val.e1rm), 
         timestamp: new Date(day).getTime(), 
         trend: null as number | null,
-        relativeE1rm: bodyWeight ? Number((val.e1rm / bodyWeight).toFixed(2)) : null,
+        relativeE1rm: (() => {
+          const relative = computeRelativeStrength(val.e1rm, bodyWeight ?? null)
+          return typeof relative === 'number' ? Number(relative.toFixed(2)) : null
+        })(),
         momentum: null as number | null
       }
     })

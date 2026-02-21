@@ -33,8 +33,8 @@ export const SESSION_HISTORY_LIMIT = 3
 
 // E1RM calculation thresholds
 export const E1RM_MAX_REPS = 12
-export const E1RM_MIN_RPE = 6
-export const E1RM_MAX_RIR = 4
+export const E1RM_MIN_RPE = 7
+export const E1RM_MAX_RIR = 3
 export const E1RM_DIVISOR = 30
 
 // Hard set threshold

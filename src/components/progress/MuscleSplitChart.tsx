@@ -30,6 +30,8 @@ export interface MuscleBreakdownPoint {
   volume: number
   relativePct: number
   imbalanceIndex: number | null
+  daysPerWeek: number
+  recoveryEstimate: number
 }
 
 interface MuscleSplitChartProps {
@@ -200,7 +202,12 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
                       />
                       <span className="text-muted font-bold uppercase text-[10px] tracking-widest truncate max-w-[100px]">{entry.muscle}</span>
                     </div>
-                    <span className="text-strong font-black tabular-nums text-[11px] tracking-tight">{displayVal}</span>
+                    <div className="text-right">
+                      <p className="text-strong font-black tabular-nums text-[11px] tracking-tight">{displayVal}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-subtle/70">
+                        {entry.daysPerWeek.toFixed(1)} d/wk • {entry.recoveryEstimate}% rec
+                      </p>
+                    </div>
                   </div>
                 )
               })
@@ -240,7 +247,12 @@ export function MuscleSplitChart({ data, isCompact = false }: MuscleSplitChartPr
                     <div className="w-2 h-2 rounded-full shadow-sm" style={{ background: chartColors[idx % chartColors.length] }} />
                     <span className="text-muted font-bold uppercase text-[10px] tracking-widest">{entry.muscle}</span>
                   </div>
-                  <span className="text-strong font-black tabular-nums text-[11px] tracking-tight">{displayVal}</span>
+                  <div className="text-right">
+                    <p className="text-strong font-black tabular-nums text-[11px] tracking-tight">{displayVal}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-subtle/70">
+                      {entry.daysPerWeek.toFixed(1)} d/wk • {entry.recoveryEstimate}% rec
+                    </p>
+                  </div>
                 </div>
               )
             })}

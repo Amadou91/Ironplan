@@ -15,6 +15,7 @@ interface MetricCardsProps {
   }
   aggregateMetrics: {
     bestE1rm: number
+    bestRelativeStrength: number
     tonnage: number
     workload: number
     strengthLoad: number
@@ -96,6 +97,12 @@ export function MetricCards({
           <div className="flex justify-between items-center text-sm">
             <span className="text-subtle/80 font-bold uppercase tracking-widest text-[10px]">Max weight</span>
             <span className="text-strong font-black text-base">{displayMaxWeight} {displayUnit}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-subtle/80 font-bold uppercase tracking-widest text-[10px]">Relative</span>
+            <span className="text-strong font-black text-base">
+              {aggregateMetrics.bestRelativeStrength > 0 ? `${aggregateMetrics.bestRelativeStrength.toFixed(2)}x BW` : 'N/A'}
+            </span>
           </div>
         </div>
       </Card>

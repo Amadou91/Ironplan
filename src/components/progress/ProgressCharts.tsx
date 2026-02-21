@@ -131,11 +131,16 @@ export function ProgressCharts({
       return exerciseTrend.map(p => ({
         ...p,
         e1rm: Math.round(p.e1rm * LBS_PER_KG),
-        trend: p.trend ? Math.round(p.trend * LBS_PER_KG) : null
+        trend: p.trend ? Math.round(p.trend * LBS_PER_KG) : null,
+        momentum: typeof p.momentum === 'number' ? Number((p.momentum * LBS_PER_KG).toFixed(2)) : null
       }))
     }
     return exerciseTrend
   }, [exerciseTrend, isKg])
+
+  const latestExercisePoint = convertedExerciseTrend.length
+    ? convertedExerciseTrend[convertedExerciseTrend.length - 1]
+    : null
 
   const convertedBodyWeightData = React.useMemo(() => {
     if (isKg) {
@@ -223,7 +228,17 @@ export function ProgressCharts({
       {exerciseTrend.length > 0 && (
         <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
           <ChartHeader title={`e1RM trend (${displayUnit})`}>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">Daily bests • dashed = 7-day trend</p>
+            <div className="flex flex-col gap-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">Daily bests • dashed = 7-day trend</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/70">
+                  Relative: {typeof latestExercisePoint?.relativeE1rm === 'number' ? `${latestExercisePoint.relativeE1rm.toFixed(2)}x BW` : 'N/A'}
+                </p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/70">
+                  Momentum: {typeof latestExercisePoint?.momentum === 'number' ? `${latestExercisePoint.momentum >= 0 ? '+' : ''}${latestExercisePoint.momentum.toFixed(2)} ${displayUnit}/day` : 'N/A'}
+                </p>
+              </div>
+            </div>
           </ChartHeader>
           <div 
             className="h-64 w-full outline-none mt-auto"

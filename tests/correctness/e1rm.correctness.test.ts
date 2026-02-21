@@ -169,15 +169,15 @@ test('E1RM Invariant: Single rep at RPE 10 equals weight', () => {
     `1RM at RPE 10 should be close to weight: ${e1rm}`);
 });
 
-test('E1RM Invariant: RIR clamping at maximum', () => {
-  // RIR should be clamped to 6, so RIR 10 behaves like RIR 6
-  const set6 = { weight: 100, reps: 5, rir: 6, weightUnit: 'kg' };
-  const set10 = { weight: 100, reps: 5, rir: 10, weightUnit: 'kg' };
-  
-  const e1rm6 = sessionMetrics.computeSetE1rm(set6, null, true);
-  const e1rm10 = sessionMetrics.computeSetE1rm(set10, null, true);
-  
-  assert.equal(e1rm6, e1rm10, 'RIR 10 should be clamped to RIR 6');
+test('E1RM Invariant: RIR above cap is ineligible', () => {
+  const ineligibleSet = { weight: 100, reps: 5, rir: 4, weightUnit: 'kg' };
+  const eligibleSet = { weight: 100, reps: 5, rir: 3, weightUnit: 'kg' };
+
+  const ineligible = sessionMetrics.computeSetE1rm(ineligibleSet, null, true);
+  const eligible = sessionMetrics.computeSetE1rm(eligibleSet, null, true);
+
+  assert.equal(ineligible, null, 'RIR > 3 should be ineligible');
+  assert.notEqual(eligible, null, 'RIR <= 3 should remain eligible');
 });
 
 // --- RIR/RPE Mapping Tests ---

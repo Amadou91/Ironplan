@@ -62,7 +62,7 @@ type TrainingSession = SessionMetricsInput & {
   startedAt: string
 }
 
-type TrainingLoadSummary = {
+export type TrainingLoadSummary = {
   acuteLoad: number
   chronicLoad: number
   chronicWeeklyAvg: number
@@ -268,21 +268,31 @@ export const summarizeTrainingLoad = (sessions: TrainingSession[], now = new Dat
   const nowTime = now.getTime()
   const dailyLoads = new Map<string, number>()
   const weeklyLoads = new Map<string, number>()
+  const resolvedSessions = sessions
+    .map((session) => {
+      const time = new Date(session.startedAt).getTime()
+      if (!Number.isFinite(time)) return null
+      return {
+        startedAt: session.startedAt,
+        time,
+        workload: computeSessionMetrics(session).workload
+      }
+    })
+    .filter((session): session is { startedAt: string; time: number; workload: number } => session !== null)
 
-  const sessionTimes = sessions.map((session) => new Date(session.startedAt).getTime()).filter(Number.isFinite)
+  const sessionTimes = resolvedSessions.map((session) => session.time)
   const lastSessionTime = sessionTimes.length ? Math.max(...sessionTimes) : null
   const firstSessionTime = sessionTimes.length ? Math.min(...sessionTimes) : null
   const daysSinceLast = lastSessionTime ? Math.max(0, (nowTime - lastSessionTime) / MS_PER_DAY) : null
   const historyDays = firstSessionTime ? (nowTime - firstSessionTime) / MS_PER_DAY : 0
-  const sessionCount = sessions.length
+  const sessionCount = resolvedSessions.length
 
-  sessions.forEach((session) => {
-    const sessionMetrics = computeSessionMetrics(session)
+  resolvedSessions.forEach((session) => {
     const dayKey = new Date(session.startedAt).toISOString().slice(0, 10)
-    dailyLoads.set(dayKey, (dailyLoads.get(dayKey) ?? 0) + sessionMetrics.workload)
+    dailyLoads.set(dayKey, (dailyLoads.get(dayKey) ?? 0) + session.workload)
 
     const weekKey = getWeekKey(session.startedAt)
-    weeklyLoads.set(weekKey, (weeklyLoads.get(weekKey) ?? 0) + sessionMetrics.workload)
+    weeklyLoads.set(weekKey, (weeklyLoads.get(weekKey) ?? 0) + session.workload)
   })
 
   const acuteWindow = ACUTE_LOAD_WINDOW_DAYS * MS_PER_DAY
@@ -290,15 +300,12 @@ export const summarizeTrainingLoad = (sessions: TrainingSession[], now = new Dat
   let acuteLoad = 0
   let chronicLoad = 0
 
-  sessions.forEach((session) => {
-    const time = new Date(session.startedAt).getTime()
-    if (!Number.isFinite(time)) return
-    const delta = nowTime - time
+  resolvedSessions.forEach((session) => {
+    const delta = nowTime - session.time
     if (delta < 0) return // Skip future sessions relative to calculation date
 
-    const sessionLoad = computeSessionMetrics(session).workload
-    if (delta <= acuteWindow) acuteLoad += sessionLoad
-    if (delta <= chronicWindow) chronicLoad += sessionLoad
+    if (delta <= acuteWindow) acuteLoad += session.workload
+    if (delta <= chronicWindow) chronicLoad += session.workload
   })
 
   const chronicWeeklyAverage = chronicLoad ? chronicLoad / 4 : 0

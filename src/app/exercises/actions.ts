@@ -39,7 +39,11 @@ async function insertExercises(supabase: SupabaseClient, exercises: Partial<Exer
       movement_pattern: ex.movementPattern,
       primary_muscle: ex.primaryMuscle,
       secondary_muscles: secondaryMuscles,
-      is_interval: ex.isInterval ?? false
+      e1rm_eligible: ex.e1rmEligible ?? false,
+      is_interval: ex.isInterval ?? false,
+      or_group: ex.orGroup ?? null,
+      equipment_mode: ex.equipmentMode ?? 'or',
+      additional_equipment_mode: ex.additionalEquipmentMode ?? 'required'
     }
   })
 
@@ -110,7 +114,7 @@ export async function getExerciseBackupAction() {
     .from('exercise_catalog')
     .select(`
       id, name, category, metric_profile, equipment, movement_pattern,
-      primary_muscle, secondary_muscles, is_interval
+      primary_muscle, secondary_muscles, e1rm_eligible, is_interval, or_group, equipment_mode, additional_equipment_mode
     `)
   
   if (error) return { success: false, error: error.message }
@@ -125,7 +129,11 @@ export async function getExerciseBackupAction() {
     movement_pattern: string;
     primary_muscle: string;
     secondary_muscles: string[];
+    e1rm_eligible: boolean;
     is_interval: boolean;
+    or_group: string | null;
+    equipment_mode: string | null;
+    additional_equipment_mode: string | null;
   }) => ({
     id: row.id,
     name: row.name,
@@ -135,7 +143,11 @@ export async function getExerciseBackupAction() {
     movementPattern: row.movement_pattern,
     primaryMuscle: row.primary_muscle,
     secondaryMuscles: row.secondary_muscles,
-    isInterval: row.is_interval
+    e1rmEligible: row.e1rm_eligible,
+    isInterval: row.is_interval,
+    orGroup: row.or_group ?? undefined,
+    equipmentMode: row.equipment_mode ?? undefined,
+    additionalEquipmentMode: row.additional_equipment_mode ?? undefined
   }))
 
   return { success: true, data: exercises }
@@ -210,8 +222,10 @@ export async function updateExerciseAction(id: string, exercise: Exercise) {
     category: exercise.category,
     metric_profile: exercise.metricProfile,
     equipment: exercise.equipment,
+    movement_pattern: exercise.movementPattern,
     primary_muscle: exercise.primaryMuscle,
     secondary_muscles: exercise.secondaryMuscles,
+    e1rm_eligible: exercise.e1rmEligible ?? false,
     is_interval: exercise.isInterval,
     equipment_mode: exercise.equipmentMode ?? 'or',
     additional_equipment_mode: exercise.additionalEquipmentMode ?? 'required',

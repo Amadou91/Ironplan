@@ -207,7 +207,12 @@ create table if not exists public.sets (
   distance numeric(10,2),
   distance_unit text,
   rest_seconds_actual int,
-  constraint sets_rpe_rir_exclusive check (not (rpe is not null and rir is not null))
+  constraint sets_rpe_rir_exclusive check (not (rpe is not null and rir is not null)),
+  constraint sets_rpe_range check (rpe is null or (rpe >= 0 and rpe <= 10)),
+  constraint sets_rir_range check (rir is null or (rir >= 0 and rir <= 6)),
+  constraint sets_reps_non_negative check (reps is null or reps >= 0),
+  constraint sets_weight_non_negative check (weight is null or weight >= 0),
+  constraint sets_duration_non_negative check (duration_seconds is null or duration_seconds >= 0)
 );
 
 create index if not exists sets_exercise_idx on public.sets (session_exercise_id, set_number);

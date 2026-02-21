@@ -8,7 +8,6 @@ import {
   E1RM_MAX_RIR,
   E1RM_DIVISOR,
   HARD_SET_RPE_THRESHOLD,
-  RIR_MAX,
   TIME_LOAD_FACTOR
 } from '@/constants/training'
 
@@ -47,29 +46,26 @@ export type MetricsSession = {
 }
 
 export const isSetE1rmEligible = (
-  sessionGoal?: SessionGoal | null,
+  _sessionGoal?: SessionGoal | null,
   exerciseEligible?: boolean | null,
   set?: MetricsSet | null,
-  movementPattern?: string | null
+  _movementPattern?: string | null
 ): boolean => {
-  // Broader eligibility: manual flag OR specific movement patterns
-  const isPatternEligible = movementPattern === 'squat' || 
-                           movementPattern === 'hinge' || 
-                           movementPattern === 'push' || 
-                           movementPattern === 'pull';
-                           
-  if (!exerciseEligible && !isPatternEligible) return false
+  // Strict eligibility is backed by explicit catalog metadata.
+  if (exerciseEligible !== true) return false
   if (!set || set.completed === false) return false
   if (typeof set.reps !== 'number' || set.reps <= 0 || set.reps > E1RM_MAX_REPS) return false
 
   const rpe = typeof set.rpe === 'number' ? set.rpe : null
-  const rir = typeof set.rir === 'number' ? set.rir : null
+  const rir =
+    typeof set.rir === 'number' && Number.isFinite(set.rir)
+      ? set.rir
+      : typeof rpe === 'number' && Number.isFinite(rpe)
+        ? mapRpeToRir(rpe)
+        : null
 
-  // Relaxed filtering: allow RPE >= 6 (instead of 8) for broader E1RM data
-  // Lower RPE sets will have reduced confidence but still contribute
   if (rpe !== null && rpe < E1RM_MIN_RPE) return false
-  if (rir !== null && rir > E1RM_MAX_RIR) return false
-  if (rpe === null && rir === null) return false
+  if (rir === null || rir < 0 || rir > E1RM_MAX_RIR) return false
 
   return true
 }
@@ -219,7 +215,7 @@ export const computeSetE1rm = (
       : typeof set.rpe === 'number' && Number.isFinite(set.rpe)
         ? mapRpeToRir(set.rpe)
         : null
-  const rirValue = typeof derivedRir === 'number' ? clamp(derivedRir, 0, RIR_MAX) : 0
+  const rirValue = typeof derivedRir === 'number' ? clamp(derivedRir, 0, E1RM_MAX_RIR) : 0
   const repsAtFailure = set.reps + rirValue
   return weight * (1 + repsAtFailure / E1RM_DIVISOR)
 }
@@ -254,6 +250,17 @@ export const computeSetIntensity = (set: MetricsSet) => {
   if (!Number.isFinite(totalWeight) || totalWeight <= 0) return 0
   const weight = toKg(totalWeight, set.weightUnit)
   return weight / e1rm
+}
+
+export const computeRelativeStrength = (
+  e1rmKg: number | null | undefined,
+  bodyWeightLb: number | null | undefined
+) => {
+  if (!isValidNumber(e1rmKg) || e1rmKg <= 0) return null
+  if (!isValidNumber(bodyWeightLb) || bodyWeightLb <= 0) return null
+  const bodyWeightKg = toKg(bodyWeightLb, 'lb')
+  if (!Number.isFinite(bodyWeightKg) || bodyWeightKg <= 0) return null
+  return e1rmKg / bodyWeightKg
 }
 
 /**

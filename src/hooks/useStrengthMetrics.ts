@@ -8,7 +8,6 @@ import {
   transformSetsToMuscleBreakdown
 } from '@/lib/transformers/chart-data'
 import { 
-  calculateTrainingStatus, 
   processWeeklyData,
   type SessionRow 
 } from '@/lib/transformers/progress-data'
@@ -22,6 +21,7 @@ import {
   aggregateHardSets,
   aggregateTonnage,
   computeSetE1rm,
+  computeRelativeStrength,
   getEffortScore,
   getWeekKey,
   toWeightInPounds,
@@ -31,6 +31,20 @@ import { SESSION_PAGE_SIZE, CHRONIC_LOAD_WINDOW_DAYS, MS_PER_DAY } from '@/const
 import { safeParseArray, sessionRowSchema } from '@/lib/validation/schemas'
 import type { WeightUnit, MetricProfile } from '@/types/domain'
 import { formatDateInET, getUTCDateRangeFromET } from '@/lib/date-utils'
+import { getTrainingLoadSummaryAction } from '@/app/progress/training-load-actions'
+import type { TrainingLoadSummary } from '@/lib/training-metrics'
+
+const DEFAULT_TRAINING_LOAD_SUMMARY: TrainingLoadSummary = {
+  acuteLoad: 0,
+  chronicLoad: 0,
+  chronicWeeklyAvg: 0,
+  loadRatio: 0,
+  status: 'balanced',
+  daysSinceLast: null,
+  insufficientData: true,
+  isInitialPhase: true,
+  weeklyLoadTrend: []
+}
 
 export function useStrengthMetrics(options: { 
   startDate?: string; 
@@ -48,6 +62,7 @@ export function useStrengthMetrics(options: {
   const [error, setError] = useState<string | null>(null)
   const [sessionPage, setSessionPage] = useState(0)
   const [hasMoreSessions, setHasMoreSessions] = useState(true)
+  const [trainingLoadSummary, setTrainingLoadSummary] = useState<TrainingLoadSummary>(DEFAULT_TRAINING_LOAD_SUMMARY)
 
   const { catalog } = useExerciseCatalog()
   const exerciseLibraryByName = useMemo(
@@ -133,6 +148,32 @@ export function useStrengthMetrics(options: {
     loadSessions()
   }, [ensureSession, supabase, user, userLoading, startDate, endDate, sessionPage])
 
+  useEffect(() => {
+    if (!userLoading && !user) {
+      setTrainingLoadSummary(DEFAULT_TRAINING_LOAD_SUMMARY)
+    }
+  }, [user, userLoading])
+
+  useEffect(() => {
+    if (userLoading || !user) return
+    let cancelled = false
+
+    const loadTrainingSummary = async () => {
+      const result = await getTrainingLoadSummaryAction()
+      if (cancelled) return
+      if (result.success && result.data) {
+        setTrainingLoadSummary(result.data)
+      } else {
+        setTrainingLoadSummary(DEFAULT_TRAINING_LOAD_SUMMARY)
+      }
+    }
+
+    void loadTrainingSummary()
+    return () => {
+      cancelled = true
+    }
+  }, [user, userLoading, sessions.length])
+
   const filteredSessions = useMemo(() => {
     const seenIds = new Set<string>()
     return sessions.filter((session) => {
@@ -154,6 +195,7 @@ export function useStrengthMetrics(options: {
   const allSets = useMemo(() => {
     const sets = filteredSessions.flatMap((session) =>
       session.session_exercises.flatMap((exercise) => {
+        if (selectedExercise !== 'all' && exercise.exercise_name !== selectedExercise) return []
         const libEntry = exerciseLibraryByName.get(exercise.exercise_name.toLowerCase())
         return (exercise.sets ?? []).flatMap((set) =>
           set.completed === false ? [] : [{
@@ -170,7 +212,7 @@ export function useStrengthMetrics(options: {
       })
     )
     return selectedMuscle === 'all' ? sets : sets.filter(set => isMuscleMatch(selectedMuscle, set.primaryMuscle, set.secondaryMuscles))
-  }, [filteredSessions, getSessionTitle, selectedMuscle, exerciseLibraryByName])
+  }, [filteredSessions, getSessionTitle, selectedMuscle, selectedExercise, exerciseLibraryByName])
 
   const aggregateMetrics = useMemo(() => {
     const metricSets = allSets.map((set) => mapSetLikeToMetricsSet(set))
@@ -181,7 +223,9 @@ export function useStrengthMetrics(options: {
     }, { total: 0, count: 0 })
 
     const sessionMap = new Map(filteredSessions.map(s => [s.id, s.body_weight_lb]))
-    let bestE1rmValue = 0, bestE1rmExercise = '', bestRelativeStrength = 0
+    let bestE1rmValue = 0
+    let bestE1rmExercise = ''
+    let bestRelativeStrength = 0
     allSets.forEach(set => {
       const libEntry = exerciseLibraryByName.get(set.exerciseName.toLowerCase())
       const e1rm = computeSetE1rm({
@@ -196,13 +240,17 @@ export function useStrengthMetrics(options: {
         completed: true
       }, null, libEntry?.e1rmEligible, libEntry?.movementPattern)
       
-      if (e1rm && e1rm > bestE1rmValue) { 
+      if (!e1rm) return
+
+      if (e1rm > bestE1rmValue) {
         bestE1rmValue = e1rm
-        bestE1rmExercise = set.exerciseName 
-        const bodyWeight = sessionMap.get(set.sessionId)
-        if (bodyWeight) {
-          bestRelativeStrength = Number((e1rm / bodyWeight).toFixed(2))
-        }
+        bestE1rmExercise = set.exerciseName
+      }
+
+      const bodyWeight = sessionMap.get(set.sessionId)
+      const relativeStrength = computeRelativeStrength(e1rm, bodyWeight ?? null)
+      if (typeof relativeStrength === 'number' && relativeStrength > bestRelativeStrength) {
+        bestRelativeStrength = relativeStrength
       }
     })
 
@@ -220,7 +268,7 @@ export function useStrengthMetrics(options: {
       hardSets: aggregateHardSets(metricSets),
       bestE1rm: Math.round(bestE1rmValue),
       bestE1rmExercise,
-      bestRelativeStrength,
+      bestRelativeStrength: Number(bestRelativeStrength.toFixed(2)),
       workload,
       strengthLoad,
       recoveryLoad,
@@ -257,8 +305,6 @@ export function useStrengthMetrics(options: {
     return { maxWeight, bestReps, bestE1rm: Math.round(bestE1rm) }
   }, [allSets, exerciseLibraryByName])
 
-  const trainingLoadSummary = useMemo(() => calculateTrainingStatus(sessions), [sessions])
-  
   const sessionsPerWeek = useMemo(() => {
     const weeks = new Set<string>()
     filteredSessions.forEach(s => weeks.add(getWeekKey(s.started_at)))
