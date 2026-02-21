@@ -54,7 +54,7 @@ const { recordBodyWeight } = mockModuleShim.exports
 describe('recordBodyWeight', () => {
   
   const createMockSupabase = (store) => ({
-    from: (table) => ({
+    from: () => ({
       select: () => ({
         eq: () => ({
           eq: () => ({
