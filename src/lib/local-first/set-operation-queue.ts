@@ -258,7 +258,9 @@ export class SetOperationQueue {
   subscribe(listener: (snapshot: SetQueueSnapshot) => void) {
     this.listeners.add(listener)
     listener(this.buildSnapshot())
-    return () => this.listeners.delete(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
   }
 
   getSnapshot() {
