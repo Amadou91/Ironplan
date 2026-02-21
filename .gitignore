@@ -23,7 +23,7 @@
 *.pem
 Thumbs.db
 Desktop.ini
-
+AGENTS.md
 # debug
 npm-debug.log*
 yarn-debug.log*
