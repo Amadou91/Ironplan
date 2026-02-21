@@ -65,7 +65,7 @@ function loadTsModule(modulePath) {
 
 const utilsPath = join(__dirname, '../src/lib/muscle-utils.ts')
 const moduleExports = loadTsModule(utilsPath)
-const { isMuscleMatch } = moduleExports
+const { isMuscleMatch, matchesExerciseFocusAreas } = moduleExports
 
 test('isMuscleMatch matches primary muscle', () => {
   assert.equal(isMuscleMatch('chest', 'Chest'), true)
@@ -100,4 +100,15 @@ test('Chest preset includes secondary Triceps when filtered by Arms', () => {
 test('All preset matches everything', () => {
   assert.equal(isMuscleMatch('all', 'Chest'), true)
   assert.equal(isMuscleMatch('all', 'Any'), true)
+})
+
+test('matchesExerciseFocusAreas maps Arms to biceps/triceps/forearms', () => {
+  assert.equal(matchesExerciseFocusAreas('arms', { primaryMuscle: 'Biceps' }), true)
+  assert.equal(matchesExerciseFocusAreas('arms', { primaryMuscle: 'Triceps' }), true)
+  assert.equal(matchesExerciseFocusAreas('arms', { primaryMuscle: 'Forearms' }), true)
+})
+
+test('matchesExerciseFocusAreas supports secondary muscles and avoids substring matching', () => {
+  assert.equal(matchesExerciseFocusAreas('arms', { primaryMuscle: 'Chest', secondaryMuscles: ['Triceps'] }), true)
+  assert.equal(matchesExerciseFocusAreas('biceps', { primaryMuscle: 'Forearms' }), false)
 })

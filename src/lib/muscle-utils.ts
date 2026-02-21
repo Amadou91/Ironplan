@@ -24,6 +24,22 @@ const MUSCLE_GROUP_SLUGS = new Set([
   'full_body'
 ]);
 
+const normalizeMuscleSlug = (value: string, fallback: string | null = 'full_body') => {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .replace(/\s+/g, '_');
+
+  if (!slug) return fallback;
+  return MUSCLE_GROUP_SLUGS.has(slug) ? slug : fallback;
+};
+
+const normalizeMuscleList = (values: Array<string | null | undefined>): string[] =>
+  values
+    .map((value) => (typeof value === 'string' ? normalizeMuscleSlug(value, null) : null))
+    .filter((value): value is string => Boolean(value));
+
 export const getFocusAreaFromMuscle = (muscle: string): FocusArea => {
   const m = muscle.toLowerCase();
   if (m === 'core') return 'core';
@@ -106,12 +122,58 @@ export const PRESET_MAPPINGS: Record<string, string[]> = {
   mobility: ['full_body']
 };
 
+const FOCUS_MATCH_MAPPINGS: Record<string, string[]> = {
+  ...PRESET_MAPPINGS,
+  cardio: ['cardio'],
+  mobility: ['mobility'],
+  biceps: ['biceps'],
+  triceps: ['triceps'],
+  upper: ['chest', 'back', 'shoulders', 'arms', 'biceps', 'triceps', 'forearms'],
+  lower: ['quads', 'hamstrings', 'glutes', 'calves', 'hip_flexors', 'adductors', 'abductors'],
+  full_body: Array.from(MUSCLE_GROUP_SLUGS)
+};
+
 export const isMuscleMatch = (targetPreset: string, primary?: string | null, secondary?: string[] | null): boolean => {
   if (targetPreset === 'all') return true;
-  const targetMuscles = PRESET_MAPPINGS[targetPreset] || [targetPreset];
-  const p = primary?.toLowerCase();
-  const s = secondary?.map(m => m.toLowerCase()) ?? [];
+  const targetMuscles = normalizeMuscleList(PRESET_MAPPINGS[targetPreset] || [targetPreset]);
+  const p = typeof primary === 'string' ? normalizeMuscleSlug(primary, null) : null;
+  const s = normalizeMuscleList(secondary ?? []);
   return targetMuscles.some(m => m === p || s.includes(m));
+};
+
+export const matchesExerciseFocusAreas = (
+  targetFocusAreas: string | string[] | null | undefined,
+  exercise: Partial<Exercise>
+): boolean => {
+  const focusAreas = (Array.isArray(targetFocusAreas) ? targetFocusAreas : [targetFocusAreas])
+    .map((value) => (typeof value === 'string' ? value.trim().toLowerCase() : ''))
+    .filter((value): value is string => Boolean(value));
+
+  if (!focusAreas.length || focusAreas.includes('full_body')) {
+    return true;
+  }
+
+  const exerciseMuscles = new Set<string>([
+    ...normalizeMuscleList([
+      exercise.primaryMuscle,
+      ...(exercise.secondaryMuscles ?? []),
+      ...(exercise.primaryBodyParts ?? []),
+      ...(exercise.secondaryBodyParts ?? [])
+    ]),
+    ...(exercise.focus === 'cardio' || exercise.focus === 'mobility' ? [exercise.focus] : []),
+    ...((exercise.category?.toLowerCase() === 'cardio' || exercise.category?.toLowerCase() === 'mobility')
+      ? [exercise.category.toLowerCase()]
+      : [])
+  ]);
+
+  if (!exerciseMuscles.size) {
+    return false;
+  }
+
+  return focusAreas.some((focusArea) => {
+    const targets = FOCUS_MATCH_MAPPINGS[focusArea] || [focusArea];
+    return targets.some((target) => exerciseMuscles.has(target));
+  });
 };
 
 export const normalizeMuscleGroup = (input: string): { primary: string; secondary: string[] } => {
@@ -142,14 +204,7 @@ export function enhanceExerciseData<T extends Partial<Exercise>>(ex: T): T {
 }
 
 export const toMuscleSlug = (value: string, fallback: string | null = 'full_body') => {
-  const slug = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s]/g, '')
-    .replace(/\s+/g, '_');
-
-  if (!slug) return fallback;
-  return MUSCLE_GROUP_SLUGS.has(slug) ? slug : fallback;
+  return normalizeMuscleSlug(value, fallback);
 };
 
 export const toMuscleLabel = (value: string) =>

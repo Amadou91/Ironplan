@@ -25,9 +25,12 @@ import {
 } from '@/lib/training-metrics'
 import {
   getPrimaryFocusArea,
+  resolveArmFocusTargets,
   resolveSessionFocusAreas,
   toggleSessionFocusSelection,
-  SESSION_FOCUS_SELECTION_OPTIONS
+  SESSION_ARM_FOCUS_OPTIONS,
+  SESSION_FOCUS_SELECTION_OPTIONS,
+  type ArmFocusArea
 } from '@/lib/session-focus'
 import type { FocusArea, Goal, PlanInput, SessionGoal } from '@/types/domain'
 
@@ -88,6 +91,7 @@ export default function LogPastWorkoutPage() {
   const [startTime, setStartTime] = useState('09:00')
   const [durationMinutes, setDurationMinutes] = useState('45')
   const [focusAreas, setFocusAreas] = useState<FocusArea[]>(['chest'])
+  const [armFocusTargets, setArmFocusTargets] = useState<ArmFocusArea[]>([])
   const [userGoal, setUserGoal] = useState<Goal>('hypertrophy')
   const [bodyWeight, setBodyWeight] = useState('')
   const [equipment, setEquipment] = useState<PlanInput['equipment']>(() => ({
@@ -126,9 +130,14 @@ export default function LogPastWorkoutPage() {
   }, [user, supabase, bodyWeight])
   
   // Computed goal based on focus - cardio/mobility have fixed goals
-  const primaryFocus = useMemo(() => getPrimaryFocusArea(focusAreas, 'chest'), [focusAreas])
-  const effectiveGoal = useMemo(() => getGoalForFocus(focusAreas, userGoal), [focusAreas, userGoal])
-  const showGoalSelector = focusAllowsGoalSelection(focusAreas)
+  const hasArmsFocus = focusAreas.includes('arms')
+  const displayedFocusAreas = useMemo(
+    () => resolveArmFocusTargets(focusAreas, armFocusTargets),
+    [focusAreas, armFocusTargets]
+  )
+  const primaryFocus = useMemo(() => getPrimaryFocusArea(displayedFocusAreas, 'chest'), [displayedFocusAreas])
+  const effectiveGoal = useMemo(() => getGoalForFocus(displayedFocusAreas, userGoal), [displayedFocusAreas, userGoal])
+  const showGoalSelector = focusAllowsGoalSelection(displayedFocusAreas)
   
   // Readiness state
   const [readinessSurvey, setReadinessSurvey] = useState<ReadinessSurveyDraft>({
@@ -159,12 +168,12 @@ export default function LogPastWorkoutPage() {
   const sessionName = useMemo(() => {
     return buildWorkoutDisplayName({
       focus: primaryFocus,
-      focusAreas,
+      focusAreas: displayedFocusAreas,
       style: effectiveGoal,
       minutes: parseInt(durationMinutes) || null,
       fallback: 'Past Workout'
     })
-  }, [primaryFocus, focusAreas, effectiveGoal, durationMinutes])
+  }, [primaryFocus, displayedFocusAreas, effectiveGoal, durationMinutes])
   
   const handleReadinessChange = useCallback((field: keyof ReadinessSurvey, value: number) => {
     setReadinessSurvey(prev => ({ ...prev, [field]: value }))
@@ -173,7 +182,8 @@ export default function LogPastWorkoutPage() {
   const handleCreateSession = async () => {
     if (!user) return
     const normalizedFocusAreas = resolveSessionFocusAreas(focusAreas, 'chest')
-    const sessionPrimaryFocus = getPrimaryFocusArea(normalizedFocusAreas, 'chest')
+    const expandedFocusAreas = resolveArmFocusTargets(normalizedFocusAreas, armFocusTargets)
+    const sessionPrimaryFocus = getPrimaryFocusArea(expandedFocusAreas, 'chest')
     if (!readinessComplete) {
       setError('Please complete the readiness survey.')
       return
@@ -213,7 +223,8 @@ export default function LogPastWorkoutPage() {
         source: 'log_past',
         goal: sessionGoal,
         focus: sessionPrimaryFocus,
-        focusAreas: normalizedFocusAreas,
+        focusAreas: expandedFocusAreas,
+        armFocusTargets,
         equipmentInventory: equipment.inventory
       })
       
@@ -242,7 +253,7 @@ export default function LogPastWorkoutPage() {
       }
 
       const { error: focusError } = await supabase.from('session_focus_areas').insert(
-        normalizedFocusAreas.map((focusArea) => ({
+        expandedFocusAreas.map((focusArea) => ({
           session_id: sessionData.id,
           focus_area: focusArea
         }))
@@ -284,7 +295,7 @@ export default function LogPastWorkoutPage() {
         userId: user.id,
         name: sessionName,
         sessionFocus: sessionPrimaryFocus,
-        sessionFocusAreas: normalizedFocusAreas,
+        sessionFocusAreas: expandedFocusAreas,
         sessionGoal,
         sessionIntensity,
         startedAt: startedAt.toISOString(),
@@ -426,12 +437,46 @@ export default function LogPastWorkoutPage() {
                           setFocusAreas((previous) => {
                             const next = toggleSessionFocusSelection(previous, option.value)
                             if (!next.length) return previous
+                            if (!next.includes('arms')) {
+                              setArmFocusTargets([])
+                            }
                             return next
                           })
                         }}
                       />
                     ))}
                   </div>
+                  {hasArmsFocus && (
+                    <div className="mt-3 space-y-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-subtle">Arms target (optional)</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {SESSION_ARM_FOCUS_OPTIONS.map((option) => {
+                          const selected = armFocusTargets.includes(option.value)
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => {
+                                setArmFocusTargets((previous) =>
+                                  previous.includes(option.value)
+                                    ? previous.filter((value) => value !== option.value)
+                                    : [...previous, option.value]
+                                )
+                              }}
+                              className={`rounded-lg border px-3 py-2 text-xs font-bold transition-all ${
+                                selected
+                                  ? 'bg-[var(--color-primary-soft)] border-[var(--color-primary-border)] text-[var(--color-primary-strong)]'
+                                  : 'bg-transparent border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <p className="text-[11px] text-subtle">Choose biceps, triceps, or both. Leave empty for general arms work.</p>
+                    </div>
+                  )}
                   <p className="mt-2 text-[11px] text-subtle">
                     Cardio and Yoga / Mobility are exclusive modes. Select one of those, or combine strength focus areas.
                   </p>

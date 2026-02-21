@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { X, AlertTriangle, Search } from 'lucide-react';
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog';
-import { toMuscleLabel } from '@/lib/muscle-utils';
+import { matchesExerciseFocusAreas, toMuscleLabel } from '@/lib/muscle-utils';
 import { isExerciseEquipmentAvailable } from '@/lib/equipment';
 import type { Exercise, EquipmentInventory } from '@/types/domain';
 
@@ -56,17 +56,15 @@ export function AddExerciseModal({ onClose, onAdd, focus, style, inventory }: Ad
 
   const sortedBase = useMemo(() => {
     const unique = Array.from(new Map(catalog.map((ex) => [ex.name.toLowerCase(), ex])).values());
+    const focusArray = (Array.isArray(focus) ? focus : [focus])
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+    const normalizedFocus = focusArray.map((value) => value.toLowerCase());
 
     let base = unique;
-    if (style === 'cardio' || focus === 'cardio') {
+    if (style === 'cardio' || normalizedFocus.includes('cardio')) {
       base = unique.filter((ex) => ex.focus === 'cardio' || ex.primaryMuscle === 'cardio');
-    } else if (focus && focus !== 'full_body') {
-      const focusArray = Array.isArray(focus) ? focus : [focus];
-      const focusLowers = focusArray.map((f) => f.toLowerCase());
-      const focused = unique.filter((ex) => {
-        const primary = ex.primaryMuscle?.toLowerCase() ?? '';
-        return focusLowers.some((f) => primary.includes(f));
-      });
+    } else if (focusArray.length > 0 && !normalizedFocus.includes('full_body')) {
+      const focused = unique.filter((ex) => matchesExerciseFocusAreas(focusArray, ex));
       base = focused.length > 0 ? focused : unique;
     }
 
