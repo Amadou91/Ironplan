@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Alert } from '@/components/ui/Alert'
+import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
@@ -12,8 +13,10 @@ import { ProgressFilters } from '@/components/progress/ProgressFilters'
 import { SessionHistoryList } from '@/components/progress/SessionHistoryList'
 import { MetricCards } from '@/components/progress/MetricCards'
 import { ProgressCharts } from '@/components/progress/ProgressCharts'
+import { CoachFeed } from '@/components/progress/CoachFeed'
 import { useProgressMetrics } from '@/hooks/useProgressMetrics'
 import { useAcrVisibility } from '@/hooks/useAcrVisibility'
+import { buildFilterScopeSummary, generateCoachFeedInsights } from '@/lib/progress/coach-feed'
 
 export default function ProgressPage() {
   const router = useRouter()
@@ -44,10 +47,47 @@ export default function ProgressPage() {
   // After data has been fetched once, never unmount ProgressFilters (which
   // would reset the mobileExpanded accordion state mid-interaction).
   const [hasFetchedOnce, setHasFetchedOnce] = useState(false)
+  const [showDrilldown, setShowDrilldown] = useState(false)
   if (!hasFetchedOnce && !userLoading && !loading) {
     setHasFetchedOnce(true)
   }
   const isInitialLoad = !hasFetchedOnce && (userLoading || loading)
+  const filterScope = useMemo(() => buildFilterScopeSummary({
+    startDate,
+    endDate,
+    selectedMuscle,
+    selectedExercise
+  }), [startDate, endDate, selectedMuscle, selectedExercise])
+
+  const coachInsights = useMemo(() => generateCoachFeedInsights({
+    filteredSessionCount: filteredSessions.length,
+    sessionsPerWeek,
+    readinessScore: readinessAverages?.score ?? null,
+    avgEffort: aggregateMetrics.avgEffort,
+    hardSets: aggregateMetrics.hardSets,
+    trainingLoadSummary: {
+      status: trainingLoadSummary.status,
+      loadRatio: trainingLoadSummary.loadRatio,
+      insufficientData: trainingLoadSummary.insufficientData,
+      isInitialPhase: trainingLoadSummary.isInitialPhase,
+      daysSinceLast: trainingLoadSummary.daysSinceLast
+    },
+    exerciseTrend,
+    muscleBreakdown
+  }), [
+    aggregateMetrics.avgEffort,
+    aggregateMetrics.hardSets,
+    exerciseTrend,
+    filteredSessions.length,
+    muscleBreakdown,
+    readinessAverages?.score,
+    sessionsPerWeek,
+    trainingLoadSummary.daysSinceLast,
+    trainingLoadSummary.insufficientData,
+    trainingLoadSummary.isInitialPhase,
+    trainingLoadSummary.loadRatio,
+    trainingLoadSummary.status
+  ])
 
   if (isInitialLoad) return (
     <div className="page-shell">
@@ -107,8 +147,6 @@ export default function ProgressPage() {
         {error ? <Alert variant="error">{error}</Alert> : null}
         
         <div className="grid grid-cols-1 gap-8">
-          {showAcrOnProgress && <TrainingStatusCard {...trainingLoadSummary} />}
-
           <div className="sticky top-[calc(0.5rem+env(safe-area-inset-top,0px))] z-40 transition-all duration-500 sm:top-4 lg:top-6">
             <ProgressFilters 
               startDate={startDate} 
@@ -122,45 +160,78 @@ export default function ProgressPage() {
               exerciseOptions={exerciseOptions} 
             />
           </div>
-          
-          <MetricCards 
-            prMetrics={prMetrics} 
-            aggregateMetrics={aggregateMetrics} 
-            readinessAverages={readinessAverages} 
-            sessionCount={filteredSessions.length} 
-            sessionsPerWeek={sessionsPerWeek}
-            muscleBreakdown={muscleBreakdown}
+
+          <CoachFeed
+            insights={coachInsights}
+            scopeLabel={filterScope.label}
+            drilldownVisible={showDrilldown}
+            onToggleDrilldown={() => setShowDrilldown((prev) => !prev)}
           />
 
-          <ProgressCharts 
-            volumeTrend={volumeTrend} 
-            effortTrend={effortTrend} 
-            exerciseTrend={exerciseTrend} 
-            bodyWeightData={bodyWeightData} 
-            readinessSeries={readinessSeries} 
-            readinessComponents={readinessComponents} 
-            readinessCorrelation={readinessCorrelation} 
-            readinessTrendLine={readinessTrendLine} 
-          />
+          <section className="space-y-6" aria-label="Key summaries">
+            {showAcrOnProgress && <TrainingStatusCard {...trainingLoadSummary} />}
 
-          <div className="pt-8 border-t border-[var(--color-border)]">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="h-px flex-1 bg-[var(--color-border)]" />
-              <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-subtle opacity-60">Session History</h2>
-              <div className="h-px flex-1 bg-[var(--color-border)]" />
-            </div>
-            <SessionHistoryList 
-              sessions={filteredSessions} 
-              exerciseLibraryByName={exerciseLibraryByName} 
-              getSessionTitle={getSessionTitle} 
-              hasMore={hasMoreSessions} 
-              onLoadMore={() => setSessionPage(p => p + 1)} 
-              onDeleteSuccess={(id) => setSessions(prev => prev.filter(s => s.id !== id))} 
-              onError={setError} 
-              loading={loading}
-              onImportSuccess={handleImportSuccess}
+            <MetricCards
+              prMetrics={prMetrics}
+              aggregateMetrics={aggregateMetrics}
+              readinessAverages={readinessAverages}
+              sessionCount={filteredSessions.length}
+              sessionsPerWeek={sessionsPerWeek}
+              muscleBreakdown={muscleBreakdown}
             />
-          </div>
+          </section>
+
+          <section className="space-y-6 border-t border-[var(--color-border)] pt-8" aria-label="Full drilldown analytics">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-black uppercase tracking-tight text-strong">Full Drilldown</h2>
+                <p className="text-xs font-bold uppercase tracking-widest text-subtle">
+                  Charts and session history for {filterScope.isFiltered ? 'active filters' : 'all data'}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowDrilldown((prev) => !prev)}
+                className="h-10 px-4 text-xs font-black uppercase tracking-widest"
+              >
+                {showDrilldown ? 'Hide details' : 'Show details'}
+              </Button>
+            </div>
+
+            {!showDrilldown ? (
+              <Card className="glass-panel border border-dashed border-[var(--color-border)] p-6">
+                <p className="text-sm text-subtle">
+                  Drilldown is collapsed to reduce cognitive load. Expand when you need full chart diagnostics and session-level audit trails.
+                </p>
+              </Card>
+            ) : (
+              <>
+                <ProgressCharts
+                  volumeTrend={volumeTrend}
+                  effortTrend={effortTrend}
+                  exerciseTrend={exerciseTrend}
+                  bodyWeightData={bodyWeightData}
+                  readinessSeries={readinessSeries}
+                  readinessComponents={readinessComponents}
+                  readinessCorrelation={readinessCorrelation}
+                  readinessTrendLine={readinessTrendLine}
+                />
+
+                <SessionHistoryList
+                  sessions={filteredSessions}
+                  exerciseLibraryByName={exerciseLibraryByName}
+                  getSessionTitle={getSessionTitle}
+                  hasMore={hasMoreSessions}
+                  onLoadMore={() => setSessionPage((p) => p + 1)}
+                  onDeleteSuccess={(id) => setSessions((prev) => prev.filter((s) => s.id !== id))}
+                  onError={setError}
+                  loading={loading}
+                  onImportSuccess={handleImportSuccess}
+                />
+              </>
+            )}
+          </section>
         </div>
       </div>
     </div>
