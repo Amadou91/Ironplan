@@ -77,7 +77,7 @@ export function TemplateInventory({
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-lg font-bold text-strong truncate">{displayTitle}</p>
                       {isRecommended && (
-                        <span className="flex-shrink-0 rounded bg-[var(--color-success-soft)] px-2 py-1 text-[10px] font-black uppercase text-[var(--color-success)] border border-[var(--color-success-border)]">
+                        <span className="flex-shrink-0 rounded bg-[var(--color-success-soft)] px-2 py-1 text-[11px] font-semibold uppercase text-[var(--color-success)] border border-[var(--color-success-border)]">
                           Best
                         </span>
                       )}

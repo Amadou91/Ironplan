@@ -6,7 +6,7 @@ export function TableContainer({ className, ...props }: HTMLAttributes<HTMLDivEl
 }
 
 export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElement>) {
-  return <table className={cn('min-w-full border-collapse text-left text-sm', className)} {...props} />
+  return <table className={cn('min-w-full border-collapse text-left text-[15px]', className)} {...props} />
 }
 
 export function TableHead({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
@@ -22,9 +22,9 @@ export function TableRow({ className, ...props }: HTMLAttributes<HTMLTableRowEle
 }
 
 export function TableHeaderCell({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) {
-  return <th className={cn('px-4 py-3 text-xs font-semibold uppercase tracking-wide', className)} {...props} />
+  return <th className={cn('px-4 py-3 text-[12px] font-semibold uppercase tracking-[0.08em]', className)} {...props} />
 }
 
 export function TableCell({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn('px-4 py-3 text-sm text-strong', className)} {...props} />
+  return <td className={cn('px-4 py-3 text-[15px] text-strong', className)} {...props} />
 }

@@ -188,11 +188,11 @@ export default function DashboardPage() {
         <ProfileCompletionBanner />
 
         {latestActiveSession && (
-          <Card className="p-8 border-2 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]/50 backdrop-blur-sm">
+          <Card className="border-2 border-[var(--color-primary-border)] bg-[var(--color-primary-soft)]/50 p-5 backdrop-blur-sm sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-lg font-bold text-[var(--color-primary-strong)]">Session in progress</p>
-                <p className="text-sm text-subtle font-medium">Finish your active session before starting another.</p>
+                <p className="type-subsection-title text-[var(--color-primary-strong)]">Session in progress</p>
+                <p className="type-label text-subtle">Finish your active session before starting another.</p>
               </div>
               <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:flex-nowrap">
                 <Button 

@@ -146,7 +146,7 @@ export default function ProfilePage() {
 
         <div className="flex flex-col gap-3">
           <ProfileSection
-            title="User Preferences"
+            title="User preferences"
             description="Units, display, and training preferences."
             missingCount={0}
             defaultOpen={false}

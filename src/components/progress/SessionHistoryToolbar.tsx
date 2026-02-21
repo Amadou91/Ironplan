@@ -114,7 +114,7 @@ export function SessionHistoryToolbar({ onImportSuccess }: SessionHistoryToolbar
           onClick={handleExport}
           disabled={exporting}
           title="Export session history to JSON"
-          className="h-9 px-2 sm:px-3 text-[10px] font-bold uppercase tracking-widest"
+          className="h-9 px-2 sm:px-3 text-[11px] font-bold uppercase tracking-widest"
         >
           {exporting ? (
             <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
@@ -137,7 +137,7 @@ export function SessionHistoryToolbar({ onImportSuccess }: SessionHistoryToolbar
           onClick={handleImportClick}
           disabled={importing}
           title="Import session history from JSON"
-          className="h-9 px-2 sm:px-3 text-[10px] font-bold uppercase tracking-widest"
+          className="h-9 px-2 sm:px-3 text-[11px] font-bold uppercase tracking-widest"
         >
           {importing ? (
             <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />

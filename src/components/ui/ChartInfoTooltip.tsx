@@ -110,7 +110,7 @@ export function ChartInfoTooltip({ description, goal }: ChartInfoTooltipProps) {
             <p className="text-xs text-muted leading-relaxed">{description}</p>
             {goal && (
               <div className="mt-2 border-t border-[var(--color-border)] pt-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-accent">Goal</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-accent">Goal</p>
                 <p className="text-xs font-medium text-strong">{goal}</p>
               </div>
             )}

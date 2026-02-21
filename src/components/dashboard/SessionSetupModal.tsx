@@ -480,7 +480,7 @@ export function SessionSetupModal({
               <Dumbbell className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-strong uppercase tracking-tight">Start Session</h2>
+              <h2 className="text-xl font-semibold text-strong uppercase tracking-tight">Start Session</h2>
               <p className="text-sm text-muted font-medium">{templateTitle ?? 'Begin Workout'}</p>
             </div>
           </div>
@@ -514,10 +514,10 @@ export function SessionSetupModal({
           {/* Time Selection */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest">
+              <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[11px] font-semibold tracking-widest">
                 <Clock className="w-3.5 h-3.5" /> Time Available
               </Label>
-              <span className="text-base font-black text-[var(--color-primary)]">{minutes} min</span>
+              <span className="text-base font-semibold text-[var(--color-primary)]">{minutes} min</span>
             </div>
             <input 
               type="range" 
@@ -549,7 +549,7 @@ export function SessionSetupModal({
 
           {/* Focus Areas */}
           <div className="space-y-3">
-            <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest">
+            <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[11px] font-semibold tracking-widest">
               <Target className="w-3.5 h-3.5" /> Focus Areas
             </Label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -583,7 +583,7 @@ export function SessionSetupModal({
             </div>
             {hasArmsFocus && (
               <div className="space-y-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3">
-                <p className="text-[10px] font-black uppercase tracking-wider text-subtle">Arms target (optional)</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Arms target (optional)</p>
                 <div className="grid grid-cols-2 gap-2">
                   {SESSION_ARM_FOCUS_OPTIONS.map((option) => {
                     const selected = armFocusTargets.includes(option.value)
@@ -621,7 +621,7 @@ export function SessionSetupModal({
           {/* Training Style - only show for strength-based workouts */}
           {showStyleSelector ? (
             <div className="space-y-3">
-              <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest">
+              <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[11px] font-semibold tracking-widest">
                 <Dumbbell className="w-3.5 h-3.5" /> Training Style
               </Label>
               <div className="grid grid-cols-3 gap-2">
@@ -644,14 +644,14 @@ export function SessionSetupModal({
           ) : (
             /* Show auto-set focus for cardio/mobility workouts */
             <div className="space-y-3">
-              <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest">
+              <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[11px] font-semibold tracking-widest">
                 {allFocusesAreCardio ? <Heart className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />} Session Focus
               </Label>
               <div className="p-3 rounded-xl bg-[var(--color-primary-soft)] border border-[var(--color-primary-border)] text-center">
                 <span className="text-sm font-bold text-[var(--color-primary-strong)]">
                   {autoFocusLabel}
                 </span>
-                <p className="text-[10px] text-muted mt-1">Automatically set based on workout type</p>
+                <p className="text-[11px] text-muted mt-1">Automatically set based on workout type</p>
               </div>
             </div>
           )}
@@ -659,7 +659,7 @@ export function SessionSetupModal({
           {/* Readiness Survey */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest">
+              <Label className="text-[var(--color-text-subtle)] uppercase text-[11px] font-semibold tracking-widest">
                 Readiness Check
               </Label>
               <span className={`text-xs font-bold ${
@@ -677,7 +677,7 @@ export function SessionSetupModal({
                   key={field.key} 
                   className="rounded-xl border border-[var(--color-border)] p-3 bg-[var(--color-surface-subtle)]"
                 >
-                  <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-subtle mb-2">
+                  <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-subtle mb-2">
                     <span className="font-bold">{field.label}</span>
                     <span className="text-strong">{readinessSurvey[field.key] ?? '–'}</span>
                   </div>
@@ -705,7 +705,7 @@ export function SessionSetupModal({
 
           {/* Body Weight */}
           <div className="space-y-3">
-            <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[10px] font-black tracking-widest">
+            <Label className="flex items-center gap-2 text-[var(--color-text-subtle)] uppercase text-[11px] font-semibold tracking-widest">
               <Scale className="w-3.5 h-3.5" /> Current Weight (Optional)
             </Label>
             <div className="relative">
@@ -799,7 +799,7 @@ export function SessionSetupModal({
           <Button 
             onClick={() => handleStartSession()}
             disabled={startingSession || !readinessComplete || catalogLoading || focusAreas.length === 0 || profileComplete !== true}
-            className="flex-[2] h-12 rounded-xl font-black uppercase tracking-wider shadow-lg shadow-[var(--color-primary-soft)]"
+            className="flex-[2] h-12 rounded-xl font-semibold uppercase tracking-wider shadow-lg shadow-[var(--color-primary-soft)]"
           >
             {startingSession ? (
               <>

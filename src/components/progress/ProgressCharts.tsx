@@ -63,7 +63,7 @@ function ChartHeader({ title, children }: { title: string; children?: React.Reac
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between min-h-[48px] antialiased">
       <div className="flex flex-col gap-2.5">
-        <h3 className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.22em] text-strong leading-none">{title}</h3>
+        <h3 className="type-overline text-strong">{title}</h3>
         {children}
       </div>
     </div>
@@ -161,14 +161,14 @@ export function ProgressCharts({
             <div className="flex gap-5">
                <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-[var(--color-chart-volume)]" />
-                  <span className="text-[10px] font-black uppercase tracking-wider text-subtle/70">Volume ({displayUnit})</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-subtle/75">Volume ({displayUnit})</span>
                </div>
                <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />
-                  <span className="text-[10px] font-black uppercase tracking-wider text-subtle/70">Training Load</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-subtle/75">Training load</span>
                </div>
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">{volumeCadenceLabel} • dashed = trend</p>
+            <p className="text-[11px] font-medium text-subtle/60">{volumeCadenceLabel} • dashed = trend</p>
           </div>
         </ChartHeader>
         <WeeklyVolumeChart data={volumeTrend} />
@@ -176,7 +176,7 @@ export function ProgressCharts({
 
       <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title="Effort trend">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">Avg session effort (RPE 1-10)</p>
+          <p className="text-[11px] font-medium text-subtle/60">Avg session effort (RPE 1-10)</p>
         </ChartHeader>
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -229,12 +229,12 @@ export function ProgressCharts({
         <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
           <ChartHeader title={`e1RM trend (${displayUnit})`}>
             <div className="flex flex-col gap-2">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">Daily bests • dashed = 7-day trend</p>
+              <p className="text-[11px] font-medium text-subtle/60">Daily bests • dashed = 7-day trend</p>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/70">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-subtle/75">
                   Relative: {typeof latestExercisePoint?.relativeE1rm === 'number' ? `${latestExercisePoint.relativeE1rm.toFixed(2)}x BW` : 'N/A'}
                 </p>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/70">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-subtle/75">
                   Momentum: {typeof latestExercisePoint?.momentum === 'number' ? `${latestExercisePoint.momentum >= 0 ? '+' : ''}${latestExercisePoint.momentum.toFixed(2)} ${displayUnit}/day` : 'N/A'}
                 </p>
               </div>
@@ -291,7 +291,7 @@ export function ProgressCharts({
 
       <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title={`Bodyweight trend (${displayUnit})`}>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">Dashed = linear trend</p>
+          <p className="text-[11px] font-medium text-subtle/60">Dashed = linear trend</p>
         </ChartHeader>
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -344,7 +344,7 @@ export function ProgressCharts({
 
       <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title="Readiness score trend">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">
+          <p className="text-[11px] font-medium text-subtle/60">
             0-100 score • low &lt; {READINESS_LOW_THRESHOLD} • high ≥ {READINESS_HIGH_THRESHOLD}
           </p>
         </ChartHeader>
@@ -400,22 +400,22 @@ export function ProgressCharts({
       <Card className="p-6 min-w-0 select-none flex flex-col glass-panel">
         <ChartHeader title="Readiness components">
           <div className="flex flex-col gap-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">1-5 scale • ◆ = ideal target</p>
+            <p className="text-[11px] font-medium text-subtle/60">1-5 scale • ◆ = ideal target</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1">
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-sm bg-[var(--color-success)]" />
-                <span className="text-[10px] font-bold text-subtle/70">Good</span>
+                <span className="text-[11px] font-medium text-subtle/70">Good</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-sm bg-[var(--color-warning)]" />
-                <span className="text-[10px] font-bold text-subtle/70">Fair</span>
+                <span className="text-[11px] font-medium text-subtle/70">Fair</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-sm bg-[var(--color-danger)]" />
-                <span className="text-[10px] font-bold text-subtle/70">Needs work</span>
+                <span className="text-[11px] font-medium text-subtle/70">Needs work</span>
               </div>
             </div>
-            <p className="text-[9px] text-subtle/50">Sleep & Motivation: higher is better • Soreness & Stress: lower is better</p>
+            <p className="text-[11px] text-subtle/55">Sleep & Motivation: higher is better • Soreness & Stress: lower is better</p>
           </div>
         </ChartHeader>
         <div 
@@ -476,7 +476,7 @@ export function ProgressCharts({
         <ChartHeader 
           title="Readiness vs session effort" 
         >
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-subtle/50">Quadrants highlight recovery vs overreach • readiness split at {READINESS_EFFORT_SPLIT}</p>
+          <p className="text-[11px] font-medium text-subtle/60">Quadrants highlight recovery vs overreach • readiness split at {READINESS_EFFORT_SPLIT}</p>
         </ChartHeader>
         <div 
           className="h-64 w-full outline-none mt-auto"
@@ -528,19 +528,19 @@ export function ProgressCharts({
               />
               {/* Overreaching: Low Readiness, High Effort */}
               <ReferenceArea x1={0} x2={READINESS_EFFORT_SPLIT} y1={EFFORT_HIGH_THRESHOLD} y2={10} fill="var(--color-danger)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
-                <Label value="Overreaching" position="insideTopLeft" offset={10} fill="var(--color-danger)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
+                <Label value="Overreaching" position="insideTopLeft" offset={10} fill="var(--color-danger)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }} />
               </ReferenceArea>
               {/* Optimal: High Readiness, High Effort */}
               <ReferenceArea x1={READINESS_EFFORT_SPLIT} x2={100} y1={EFFORT_HIGH_THRESHOLD} y2={10} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
-                <Label value="Optimal" position="insideTopRight" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
+                <Label value="Optimal" position="insideTopRight" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }} />
               </ReferenceArea>
               {/* Recovery: Low Readiness, Low Effort */}
               <ReferenceArea x1={0} x2={READINESS_EFFORT_SPLIT} y1={0} y2={EFFORT_HIGH_THRESHOLD} fill="var(--color-success)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
-                <Label value="Recovery" position="insideBottomLeft" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
+                <Label value="Recovery" position="insideBottomLeft" offset={10} fill="var(--color-success)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }} />
               </ReferenceArea>
               {/* Undertraining: High Readiness, Low Effort */}
               <ReferenceArea x1={READINESS_EFFORT_SPLIT} x2={100} y1={0} y2={EFFORT_HIGH_THRESHOLD} fill="var(--color-warning)" fillOpacity={0.08} stroke="none" strokeWidth={0} ifOverflow="extendDomain">
-                <Label value="Undertraining" position="insideBottomRight" offset={10} fill="var(--color-warning)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
+                <Label value="Undertraining" position="insideBottomRight" offset={10} fill="var(--color-warning)" fillOpacity={0.25} style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }} />
               </ReferenceArea>
               <ReferenceLine x={READINESS_EFFORT_SPLIT} stroke="var(--color-border)" strokeDasharray="3 3" />
               <ReferenceLine y={EFFORT_HIGH_THRESHOLD} stroke="var(--color-border)" strokeDasharray="3 3" />

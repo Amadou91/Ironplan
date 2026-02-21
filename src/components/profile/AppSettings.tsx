@@ -139,7 +139,7 @@ export function AppSettings({ onSuccess, onError }: AppSettingsProps) {
           {hasUnsavedChanges ? 'You have unsaved changes.' : 'All changes saved.'}
         </p>
         {saveSettingsState === 'saved' ? (
-          <p className="text-[10px] text-accent font-medium">Saved</p>
+          <p className="text-[11px] text-accent font-medium">Saved</p>
         ) : null}
       </div>
 

@@ -155,25 +155,25 @@ export function ProgressFilters({
   ].filter(Boolean)
 
   return (
-    <Card className="p-5 shadow-xl border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface)_92%,transparent)] backdrop-blur-lg">
-      <div className="flex flex-col gap-6">
+    <Card className="border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface)_92%,transparent)] p-4 shadow-xl backdrop-blur-lg sm:p-5">
+      <div className="flex flex-col gap-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-1.5 h-6 bg-[var(--color-primary)] rounded-full" />
-            <h2 className="text-sm font-black uppercase tracking-[0.1em] text-strong">Insights Control</h2>
+            <h2 className="type-overline text-strong">Insights control</h2>
           </div>
 
           {/* Mobile toggle — only opens/closes the panel, selections never close it */}
           <button
             type="button"
             onClick={() => setMobileExpanded((prev) => !prev)}
-            className="lg:hidden flex items-center justify-between gap-2 rounded-lg px-3 h-10 border border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-left transition-colors hover:bg-[var(--color-surface-muted)]"
+            className="lg:hidden flex h-10 items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 text-left transition-colors hover:bg-[var(--color-surface-muted)]"
           >
-            <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.06em] text-strong">
+            <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-strong">
               <SlidersHorizontal className="h-4 w-4 text-subtle" />
               {mobileExpanded ? 'Filters' : (activeSummaryParts.length > 0 ? activeSummaryParts.join(' · ') : 'Filters')}
               {!mobileExpanded && activeFilterCount > 0 && (
-                <span className="rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[10px] font-black text-white">
+                <span className="rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[11px] font-semibold text-white">
                   {activeFilterCount}
                 </span>
               )}
@@ -189,7 +189,7 @@ export function ProgressFilters({
                   variant={activeDatePreset === preset.label ? 'primary' : 'ghost'}
                   size="sm"
                   onClick={() => handlePresetClick(preset)}
-                  className={`h-8 px-3 text-[11px] font-black transition-all duration-200 uppercase tracking-widest ${
+                  className={`h-8 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] transition-all duration-200 ${
                     activeDatePreset === preset.label 
                       ? 'shadow-sm' 
                       : 'text-subtle hover:text-strong'
@@ -212,7 +212,7 @@ export function ProgressFilters({
                     variant={activeDatePreset === preset.label ? 'primary' : 'ghost'}
                     size="sm"
                     onClick={() => handlePresetClick(preset)}
-                    className={`h-8 px-3 text-[11px] font-black uppercase tracking-[0.06em] ${
+                    className={`h-8 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] ${
                       activeDatePreset === preset.label ? 'shadow-sm' : 'text-subtle hover:text-strong'
                     }`}
                   >
@@ -224,35 +224,35 @@ export function ProgressFilters({
 
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
-                <label className="text-[11px] uppercase font-black text-subtle/80 tracking-[0.08em]">Custom range</label>
+                <label className="type-overline text-subtle/80">Custom range</label>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <span className="text-[10px] text-subtle uppercase tracking-wider">From</span>
+                    <span className="text-[11px] font-medium text-subtle">From</span>
                     <input
                       type="date"
                       value={startDate}
                       onChange={(e) => { setStartDate(e.target.value); setActiveDatePreset(null) }}
-                      className="input-base text-sm h-11"
+                      className="input-base h-11 text-[15px]"
                     />
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[10px] text-subtle uppercase tracking-wider">To</span>
+                    <span className="text-[11px] font-medium text-subtle">To</span>
                     <input
                       type="date"
                       value={endDate}
                       onChange={(e) => { setEndDate(e.target.value); setActiveDatePreset(null) }}
-                      className="input-base text-sm h-11"
+                      className="input-base h-11 text-[15px]"
                     />
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[11px] uppercase font-black text-subtle/80 tracking-[0.08em]">Muscle Focus</label>
+                <label className="type-overline text-subtle/80">Muscle focus</label>
                 <select
                   value={selectedMuscle}
                   onChange={(e) => setSelectedMuscle(e.target.value)}
-                  className="input-base text-sm h-11 font-bold"
+                  className="input-base h-11 text-[15px] font-medium"
                 >
                   <option value="all">All Groups</option>
                   {MUSCLE_PRESETS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
@@ -260,11 +260,11 @@ export function ProgressFilters({
               </div>
 
               <div className="space-y-2">
-                <label className="text-[11px] uppercase font-black text-subtle/80 tracking-[0.08em]">Movement</label>
+                <label className="type-overline text-subtle/80">Movement</label>
                 <select
                   value={selectedExercise}
                   onChange={(e) => setSelectedExercise(e.target.value)}
-                  className="input-base text-sm h-11 font-bold"
+                  className="input-base h-11 text-[15px] font-medium"
                 >
                   <option value="all">All Exercises</option>
                   {exerciseOptions.map(e => <option key={e} value={e}>{e}</option>)}
@@ -275,7 +275,7 @@ export function ProgressFilters({
             {/* Explicit close row — filters are never auto-collapsed */}
             <div className="flex items-center justify-between pt-2 border-t border-[var(--color-border)]">
               {activeFilterCount > 0 && (
-                <span className="text-xs text-subtle">
+                <span className="text-[12px] text-subtle">
                   {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active
                 </span>
               )}
@@ -294,29 +294,29 @@ export function ProgressFilters({
 
         <div className="hidden lg:grid grid-cols-1 lg:grid-cols-4 gap-5 items-end">
           <div className="space-y-2">
-            <label className="text-[10px] uppercase font-black text-subtle/80 tracking-widest ml-1">Time Horizon</label>
-            <div className="grid grid-cols-2 gap-2">
+                <label className="type-overline ml-1 text-subtle/80">Time horizon</label>
+                <div className="grid grid-cols-2 gap-2">
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => { setStartDate(e.target.value); setActiveDatePreset(null); }}
-                className="input-base text-sm h-11 bg-white/50"
+                className="input-base h-11 bg-white/50 text-[15px]"
               />
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => { setEndDate(e.target.value); setActiveDatePreset(null); }}
-                className="input-base text-sm h-11 bg-white/50"
+                className="input-base h-11 bg-white/50 text-[15px]"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] uppercase font-black text-subtle/80 tracking-widest ml-1">Muscle Focus</label>
+            <label className="type-overline ml-1 text-subtle/80">Muscle focus</label>
             <select
               value={selectedMuscle}
               onChange={(e) => setSelectedMuscle(e.target.value)}
-              className="input-base text-sm h-11 font-bold bg-white/50"
+              className="input-base h-11 bg-white/50 text-[15px] font-medium"
             >
               <option value="all">All Groups</option>
               {MUSCLE_PRESETS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
@@ -324,11 +324,11 @@ export function ProgressFilters({
           </div>
 
           <div className="space-y-2 lg:col-span-2">
-            <label className="text-[10px] uppercase font-black text-subtle/80 tracking-widest ml-1">Movement</label>
+            <label className="type-overline ml-1 text-subtle/80">Movement</label>
             <select
               value={selectedExercise}
               onChange={(e) => setSelectedExercise(e.target.value)}
-              className="input-base text-sm h-11 font-bold bg-white/50"
+              className="input-base h-11 bg-white/50 text-[15px] font-medium"
             >
               <option value="all">All Exercises</option>
               {exerciseOptions.map(e => <option key={e} value={e}>{e}</option>)}

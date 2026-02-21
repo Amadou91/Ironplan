@@ -72,8 +72,8 @@ function SortableExerciseItem({ exercise, index }: SortableExerciseItemProps) {
           <span className="font-medium text-strong truncate">{exercise.name}</span>
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{exercise.primaryMuscle}</span>
-          <span className="text-[10px] text-subtle">• {exercise.sets.length} sets</span>
+          <span className="text-[11px] font-bold text-muted uppercase tracking-wider">{exercise.primaryMuscle}</span>
+          <span className="text-[11px] text-subtle">• {exercise.sets.length} sets</span>
         </div>
       </div>
     </div>

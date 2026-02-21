@@ -35,10 +35,10 @@ export function UnitToggle({ compact = false }: UnitToggleProps) {
       aria-label="Toggle unit"
       title={`Switch to ${displayUnit === 'lb' ? 'Kilograms' : 'Pounds'}`}
     >
-      <div className={`relative flex items-center justify-center ${compact ? 'h-4 w-4' : 'h-5 w-5'}`}>
-        <Scale className={`opacity-20 ${compact ? 'h-4 w-4' : 'h-5 w-5'}`} />
+      <div className="relative flex h-5 w-5 items-center justify-center">
+        <Scale className="h-5 w-5 opacity-20" />
         <span className={`absolute inset-0 flex items-center justify-center font-bold leading-none uppercase ${
-          compact ? 'text-[8px]' : 'text-[9px]'
+          compact ? 'text-[11px]' : 'text-[11px]'
         }`}>
           {displayUnit}
         </span>

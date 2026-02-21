@@ -27,7 +27,7 @@ export function MobileNav({ alwaysVisible }: MobileNavProps) {
               key={item.href}
               href={item.href}
               aria-current={active ? 'page' : undefined}
-              className={`flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1 text-[11px] font-semibold transition-colors focus-visible:outline-none ${
+              className={`flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1 text-[11px] font-semibold leading-none whitespace-nowrap transition-colors focus-visible:outline-none ${
                 active ? 'text-[var(--color-primary-strong)]' : 'text-muted'
               }`}
             >

@@ -74,13 +74,13 @@ export function SummaryHeader({
               onChange={(e) => handleChange(e.target.value)}
               className="w-16 bg-transparent text-sm font-semibold text-strong outline-none"
             />
-            <span className="text-[10px] text-subtle">{isLb ? "lb" : "kg"}</span>
+            <span className="text-[11px] text-subtle">{isLb ? "lb" : "kg"}</span>
           </div>
           <div className="min-w-[60px]">
             {isSaving ? (
-              <span className="text-[10px] font-bold text-[var(--color-primary)] animate-pulse uppercase tracking-wider">Saving...</span>
+              <span className="text-[11px] font-bold text-[var(--color-primary)] animate-pulse uppercase tracking-wider">Saving...</span>
             ) : showSaved ? (
-              <span className="text-[10px] font-bold text-[var(--color-success)] uppercase tracking-wider">Saved</span>
+              <span className="text-[11px] font-bold text-[var(--color-success)] uppercase tracking-wider">Saved</span>
             ) : null}
           </div>
         </div>

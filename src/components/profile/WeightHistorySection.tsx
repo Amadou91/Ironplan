@@ -82,9 +82,9 @@ export function WeightHistorySection({
                   <div key={entry.id} className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border border-[var(--color-border)] p-4 text-xs gap-4">
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col">
-                        <span className="font-black text-strong text-lg tabular-nums">{displayVal} <span className="text-[10px] uppercase font-bold text-muted">{displayUnit}</span></span>
+                        <span className="font-semibold text-strong text-lg tabular-nums">{displayVal} <span className="text-[11px] uppercase font-bold text-muted">{displayUnit}</span></span>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                          <span className={`px-1.5 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider ${
                             isManual ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]' : 'bg-[var(--color-surface-muted)] text-subtle border border-[var(--color-border)]'
                           }`}>
                             {isManual ? 'Manual Entry' : 'From Session'}

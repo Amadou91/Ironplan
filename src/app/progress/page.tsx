@@ -46,10 +46,10 @@ export default function ProgressPage() {
     <div className="page-shell">
       <div className="page-stack">
         <Skeleton className="h-32 w-full" />
-        <div className="grid grid-cols-1 gap-8">
+        <div className="grid grid-cols-1 gap-6">
           <Skeleton className="h-48 w-full" />
           <Skeleton className="h-16 w-full" />
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
             {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-44" />)}
           </div>
           <Skeleton className="h-96 w-full" />
@@ -99,7 +99,7 @@ export default function ProgressPage() {
         
         {error ? <Alert variant="error">{error}</Alert> : null}
         
-        <div className="grid grid-cols-1 gap-8">
+        <div className="grid grid-cols-1 gap-6">
           <div className="sticky top-[calc(0.5rem+env(safe-area-inset-top,0px))] z-40 transition-all duration-500 sm:top-4 lg:top-6">
             <ProgressFilters 
               startDate={startDate} 
@@ -125,11 +125,11 @@ export default function ProgressPage() {
             />
           </section>
 
-          <section className="space-y-6 border-t border-[var(--color-border)] pt-8" aria-label="Full drilldown analytics">
+          <section className="space-y-5 border-t border-[var(--color-border)] pt-6" aria-label="Full drilldown analytics">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div>
-                <h2 className="text-lg font-black uppercase tracking-tight text-strong">Full Drilldown</h2>
-                <p className="text-xs font-bold uppercase tracking-widest text-subtle">
+                <h2 className="type-section-title text-strong">Full drilldown</h2>
+                <p className="type-meta text-subtle">
                   Charts for your selected filters
                 </p>
               </div>

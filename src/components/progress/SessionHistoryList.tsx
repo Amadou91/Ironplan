@@ -159,42 +159,42 @@ export function SessionHistoryList({
   }
 
   const metricBadgeBaseClass =
-    'inline-flex h-7 items-center rounded-lg px-2.5 py-0 text-xs leading-none font-black uppercase tracking-wider whitespace-nowrap shadow-sm'
+    'inline-flex h-7 items-center rounded-lg px-2.5 py-0 text-[11px] leading-none font-semibold uppercase tracking-[0.06em] whitespace-nowrap shadow-sm'
 
   const listContent = (
     <>
-      <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-6 ${embedded ? 'py-4' : 'py-5'}`}>
+      <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 sm:px-5 ${embedded ? 'py-3.5' : 'py-4'}`}>
         {embedded ? (
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-subtle">Session history tools</p>
-            <p className="mt-1 text-xs text-subtle">Most recent first. Expand any session to review full set details.</p>
+            <p className="type-overline text-subtle">Session history tools</p>
+            <p className="mt-1 type-meta text-subtle">Most recent first. Expand any session to review full set details.</p>
           </div>
         ) : (
           <div className="min-w-0">
-            <h2 className="text-xl font-black text-strong tracking-tight uppercase">Session Logs</h2>
-            <p className="mt-1 text-xs font-bold uppercase tracking-widest text-subtle">Review your historical data</p>
+            <h2 className="type-section-title text-strong">Session logs</h2>
+            <p className="mt-1 type-meta text-subtle">Review your historical data</p>
           </div>
         )}
         <div className="flex items-center gap-2 sm:gap-4">
           {showImportExport && onImportSuccess && <SessionHistoryToolbar onImportSuccess={onImportSuccess} />}
-          <span className="flex-shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-1 text-xs font-black uppercase tracking-widest text-subtle/60">
+          <span className="type-meta flex-shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-1 text-subtle/70">
             {sessions.length} session(s)
           </span>
         </div>
       </div>
       <div className="divide-y divide-[var(--color-border)]/50">
         {sessions.length === 0 ? (
-          <div className="p-10 text-center text-sm text-muted font-medium italic">No sessions logged for this range yet.</div>
+          <div className="p-8 text-center text-[15px] text-muted">No sessions logged for this range yet.</div>
         ) : (
           sessions.map((session) => {
             const totals = getSessionTotals(session)
             const isExpanded = Boolean(expandedSessions[session.id])
             return (
-              <div key={session.id} className="space-y-5 p-6 transition-all hover:bg-[var(--color-surface-subtle)]/40 group">
+              <div key={session.id} className="group space-y-4 p-4 transition-all hover:bg-[var(--color-surface-subtle)]/40 sm:p-5">
                 <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(16rem,1.2fr)_minmax(0,1.7fr)_auto] lg:items-center lg:gap-4">
                   <div className="space-y-1.5 lg:min-w-[16rem]">
-                    <p className="text-base font-black text-strong tracking-tight group-hover:text-[var(--color-primary)] transition-colors">{formatSessionDisplayTitle(getSessionTitle(session), session.started_at, session.ended_at)}</p>
-                    <div className="flex flex-wrap items-center gap-2.5 text-xs font-bold text-subtle uppercase tracking-wider">
+                    <p className="text-[17px] font-semibold leading-snug text-strong transition-colors group-hover:text-[var(--color-primary)]">{formatSessionDisplayTitle(getSessionTitle(session), session.started_at, session.ended_at)}</p>
+                    <div className="flex flex-wrap items-center gap-2 text-[12px] font-medium text-subtle">
                       <span className="text-strong opacity-80">{formatDateTime(session.started_at)}</span>
                       {session.body_weight_lb && (
                         <>
@@ -214,13 +214,13 @@ export function SessionHistoryList({
                   <div className="flex flex-wrap items-center gap-3 lg:justify-end">
                     {showActions && (
                       <Link href={`/sessions/${session.id}/edit`}>
-                        <Button variant="outline" className="h-10 px-4 text-xs font-black uppercase tracking-widest border-2">Edit</Button>
+                        <Button variant="outline" className="h-10 px-4 text-[13px] font-semibold">Edit</Button>
                       </Link>
                     )}
                     <Button
                       type="button"
                       onClick={() => handleToggleSession(session.id)}
-                      className="h-10 px-4 text-xs font-black uppercase tracking-widest"
+                      className="h-10 px-4 text-[13px] font-semibold"
                       variant="secondary"
                     >
                       {isExpanded ? 'Hide' : 'Details'}
@@ -239,7 +239,7 @@ export function SessionHistoryList({
                   </div>
                 </div>
                 {isExpanded && (
-                  <div className="space-y-4 pt-4 border-t border-[var(--color-border)]/30 animate-in slide-in-from-top-4 duration-300">
+                  <div className="space-y-4 border-t border-[var(--color-border)]/30 pt-4 animate-in slide-in-from-top-4 duration-300">
                     <div className="grid gap-4 md:grid-cols-2">
                       {session.session_exercises.map((exercise) => {
                         // Calculate exercise totals using canonical functions
@@ -278,23 +278,23 @@ export function SessionHistoryList({
                         const displayLoad = Math.round(exerciseLoad)
                         
                         return (
-                        <div key={exercise.id} className="surface-card-muted p-5 rounded-2xl border border-[var(--color-border)] transition-all hover:bg-[var(--color-surface-muted)]/50">
-                          <p className="text-sm font-black text-strong uppercase tracking-tight mb-2">{exercise.exercise_name}</p>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-xs font-bold uppercase tracking-widest text-subtle/70">
+                        <div key={exercise.id} className="surface-card-muted rounded-2xl border border-[var(--color-border)] p-4 transition-all hover:bg-[var(--color-surface-muted)]/50">
+                          <p className="mb-2 text-[15px] font-semibold text-strong">{exercise.exercise_name}</p>
+                          <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] font-medium text-subtle/80">
                             <p>Primary: <span className="text-strong">{exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'N/A'}</span></p>
                             {exercise.secondary_muscles && exercise.secondary_muscles.length > 0 && (
                               <p>Secondary: <span className="text-strong">{exercise.secondary_muscles.map((muscle: string) => toMuscleLabel(muscle)).join(', ')}</span></p>
                             )}
                           </div>
                           {/* Exercise Totals */}
-                          <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-[var(--color-border)]/30">
-                            <span className="inline-flex items-center rounded-md bg-[var(--color-bg)] px-2 py-0.5 text-xs font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)]">
+                          <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-[var(--color-border)]/30 pb-3">
+                            <span className="inline-flex items-center rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-subtle/80">
                               {displayTonnage.toLocaleString()} {displayUnit} vol
                             </span>
-                            <span className="inline-flex items-center rounded-md bg-[var(--color-primary-soft)]/30 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-[var(--color-primary-strong)] border border-[var(--color-primary-border)]/30">
+                            <span className="inline-flex items-center rounded-md border border-[var(--color-primary-border)]/30 bg-[var(--color-primary-soft)]/30 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-primary-strong)]">
                               {displayLoad.toLocaleString()} load
                             </span>
-                            <span className="text-xs font-bold text-subtle/50 uppercase tracking-wider ml-auto">
+                            <span className="ml-auto text-[11px] font-medium uppercase tracking-[0.06em] text-subtle/60">
                               {completedSets.length} set{completedSets.length !== 1 ? 's' : ''}
                             </span>
                           </div>
@@ -317,10 +317,10 @@ export function SessionHistoryList({
                                 <div key={set.id} className="rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-subtle)]/30 px-2.5 py-2 transition-colors hover:border-[var(--color-border)]">
                                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                                     {/* Set number */}
-                                    <span className="text-xs font-black uppercase tracking-widest text-subtle/50 w-12 shrink-0">Set {set.set_number ?? '?'}</span>
+                                    <span className="w-12 shrink-0 text-[11px] font-semibold uppercase tracking-[0.06em] text-subtle/60">Set {set.set_number ?? '?'}</span>
                                     
                                     {/* Inputs: weight × reps or duration */}
-                                    <div className="text-sm font-bold text-strong flex-1 min-w-0">
+                                    <div className="min-w-0 flex-1 text-[14px] font-semibold text-strong">
                                       {totalLabel ? (
                                         <>
                                           {totalLabel} <span className="text-subtle/40 mx-0.5">×</span> {set.reps ?? 0}
@@ -332,7 +332,7 @@ export function SessionHistoryList({
                                       )}
                                       {/* RPE/RIR inline */}
                                       {(typeof set.rpe === 'number' || typeof set.rir === 'number') && (
-                                        <span className="ml-1.5 text-xs font-medium text-subtle/60">
+                                        <span className="ml-1.5 text-[12px] font-medium text-subtle/60">
                                           {typeof set.rpe === 'number' ? `@${set.rpe}` : ''}
                                           {typeof set.rir === 'number' ? `RIR${set.rir}` : ''}
                                         </span>
@@ -342,12 +342,12 @@ export function SessionHistoryList({
                                     {/* Per-set computed values */}
                                     <div className="flex items-center gap-2 shrink-0">
                                       {setTonnageDisplay > 0 && (
-                                        <span className="text-xs font-bold text-subtle/70 tabular-nums">
+                                        <span className="text-[12px] font-medium text-subtle/70 tabular-nums">
                                           {setTonnageDisplay.toLocaleString()} {displayUnit}
                                         </span>
                                       )}
                                       {setLoadDisplay > 0 && (
-                                        <span className="text-xs font-bold text-[var(--color-primary)] tabular-nums">
+                                        <span className="text-[12px] font-semibold text-[var(--color-primary)] tabular-nums">
                                           {setLoadDisplay.toLocaleString()} ld
                                         </span>
                                       )}
@@ -368,12 +368,12 @@ export function SessionHistoryList({
         )}
       </div>
       {hasMore && (
-        <div className="border-t border-[var(--color-border)] px-6 py-6 text-center">
+        <div className="border-t border-[var(--color-border)] px-4 py-5 text-center sm:px-5">
           <Button
             variant="secondary"
             onClick={onLoadMore}
             disabled={loading}
-            className="h-12 px-10 text-xs font-black uppercase tracking-widest shadow-sm transition-all active:scale-95"
+            className="h-11 px-8 text-[13px] font-semibold shadow-sm transition-all active:scale-95"
           >
             {loading ? 'Loading...' : 'Load more sessions'}
           </Button>

@@ -43,7 +43,7 @@ export function ReadinessSurvey({ data, onChange }: ReadinessSurveyProps) {
             onChange={(e) => onChange({ ...readiness, [metric.key]: parseInt(e.target.value) })}
             className="w-full h-2 bg-[var(--color-surface-muted)] rounded-lg appearance-none cursor-pointer accent-[var(--color-primary)]"
           />
-          <div className="flex justify-between mt-1 text-[10px] text-subtle">
+          <div className="flex justify-between mt-1 text-[11px] text-subtle">
             <span>{metric.minLabel}</span>
             <span>{metric.maxLabel}</span>
           </div>

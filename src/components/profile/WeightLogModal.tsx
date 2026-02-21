@@ -44,7 +44,7 @@ export function WeightLogModal({
         </div>
         <div className="space-y-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] uppercase font-bold text-subtle">
+            <label className="text-[11px] uppercase font-bold text-subtle">
               Weight ({displayUnit})
             </label>
             <Input 
@@ -61,7 +61,7 @@ export function WeightLogModal({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] uppercase font-bold text-subtle">Date</label>
+            <label className="text-[11px] uppercase font-bold text-subtle">Date</label>
             <Input 
               type="date" 
               value={date} 

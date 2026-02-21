@@ -80,23 +80,23 @@ export function SwapExerciseModal({
                     <span className="font-semibold text-strong group-hover:text-[var(--color-primary-strong)]">{suggestion.name}</span>
                     <div className="flex items-center gap-2">
                       {!hasEquipment && (
-                        <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[var(--color-warning)] bg-[var(--color-warning)]/10 px-1.5 py-0.5 rounded">
+                        <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[var(--color-warning)] bg-[var(--color-warning)]/10 px-1.5 py-0.5 rounded">
                           <AlertTriangle size={10} />
                           No equipment
                         </span>
                       )}
-                      <span className="text-[10px] uppercase font-bold tracking-widest text-subtle">Match: {score}</span>
+                      <span className="text-[11px] uppercase font-bold tracking-widest text-subtle">Match: {score}</span>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{toMuscleLabel(suggestion.primaryMuscle ?? '')}</span>
+                    <span className="text-[11px] font-bold text-muted uppercase tracking-wider">{toMuscleLabel(suggestion.primaryMuscle ?? '')}</span>
                     {suggestion.movementPattern && (
-                      <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-surface text-subtle border border-border">
+                      <span className="text-[11px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded bg-surface text-subtle border border-border">
                         {suggestion.movementPattern}
                       </span>
                     )}
                     {suggestion.secondaryMuscles && suggestion.secondaryMuscles.length > 0 && (
-                      <span className="text-[10px] font-medium text-subtle/60 uppercase tracking-wider">
+                      <span className="text-[11px] font-medium text-subtle/60 uppercase tracking-wider">
                         + {suggestion.secondaryMuscles.map(m => toMuscleLabel(m)).join(', ')}
                       </span>
                     )}

@@ -166,7 +166,7 @@ export function EquipmentSettingsForm({ onSuccess, onError }: EquipmentSettingsF
               : 'Equipment preferences are saved.'}
           </p>
           {saveState === 'saved' ? (
-            <p className="text-[10px] text-accent font-medium">Saved</p>
+            <p className="text-[11px] text-accent font-medium">Saved</p>
           ) : null}
         </div>
       </Card>

@@ -14,12 +14,12 @@ type PageHeaderProps = {
 export function PageHeader({ eyebrow, title, description, actions, className }: PageHeaderProps) {
   return (
     <header className={cn('page-header', className)}>
-      <div className="space-y-2">
-        {eyebrow && <p className="text-[11px] uppercase tracking-[0.24em] text-subtle font-semibold">{eyebrow}</p>}
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-strong sm:text-4xl">{title}</h1>
-        {description && <p className="max-w-2xl text-sm text-muted sm:text-base">{description}</p>}
+      <div className="min-w-0 space-y-1.5">
+        {eyebrow && <p className="type-overline text-subtle">{eyebrow}</p>}
+        <h1 className="type-page-title text-strong">{title}</h1>
+        {description && <p className="type-body max-w-3xl text-muted">{description}</p>}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">{actions}</div> : null}
     </header>
   )
 }

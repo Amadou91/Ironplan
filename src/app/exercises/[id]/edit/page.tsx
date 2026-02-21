@@ -100,7 +100,7 @@ export default function EditWorkoutPage() {
   return (
     <div className="container mx-auto py-8 max-w-5xl">
       <div className="mb-10 flex flex-col items-center text-center">
-        <h1 className="text-3xl font-black tracking-tight text-strong uppercase">Edit Exercise</h1>
+        <h1 className="type-page-title text-strong">Edit Exercise</h1>
         <p className="text-muted mt-2 max-w-lg">Update existing exercise details and library parameters.</p>
         <div className="mt-6">
           <Link href="/exercises">

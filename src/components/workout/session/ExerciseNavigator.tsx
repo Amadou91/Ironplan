@@ -38,7 +38,7 @@ export function ExerciseNavigator({
             >
               <span className="flex items-center gap-2">
                 <span className={cn(
-                  'flex h-5 w-5 items-center justify-center rounded-md font-mono text-[10px] font-bold',
+                  'flex h-5 w-5 items-center justify-center rounded-md font-mono text-[11px] font-bold',
                   isActive ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-surface-muted)]'
                 )}>
                   {idx + 1}

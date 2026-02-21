@@ -98,18 +98,18 @@ export function AddExerciseModal({ onClose, onAdd, focus, style, inventory }: Ad
         <div className="flex items-center justify-between gap-2">
           <p className="font-semibold text-sm text-strong leading-snug">{exercise.name}</p>
           {!hasEquipment ? (
-            <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[var(--color-warning)] bg-[var(--color-warning)]/10 px-1.5 py-0.5 rounded">
+            <span className="shrink-0 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[var(--color-warning)] bg-[var(--color-warning)]/10 px-1.5 py-0.5 rounded">
               <AlertTriangle size={9} />
               Missing gear
             </span>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-          <span className="text-[10px] font-bold text-muted uppercase tracking-wider">
+          <span className="text-[11px] font-bold text-muted uppercase tracking-wider">
             {toMuscleLabel(exercise.primaryMuscle ?? '')}
           </span>
           {exercise.movementPattern ? (
-            <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--color-surface-subtle)] text-subtle border border-[var(--color-border)]">
+            <span className="text-[11px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--color-surface-subtle)] text-subtle border border-[var(--color-border)]">
               {exercise.movementPattern}
             </span>
           ) : null}

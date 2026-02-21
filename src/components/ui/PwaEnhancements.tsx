@@ -188,7 +188,7 @@ export function PwaEnhancements() {
               <WifiOff size={14} />
               Offline mode: keep logging. We will sync once reconnected.
             </span>
-            <Link href="/offline" className="rounded-md px-2 py-1 text-[10px] uppercase tracking-wider hover:bg-[var(--color-danger)]/10">
+            <Link href="/offline" className="rounded-md px-2 py-1 text-[11px] uppercase tracking-wider hover:bg-[var(--color-danger)]/10">
               Details
             </Link>
           </div>
@@ -197,7 +197,7 @@ export function PwaEnhancements() {
 
       {showWelcome && (
         <div className="fixed right-4 top-[calc(env(safe-area-inset-top)_+_0.75rem)] z-[var(--z-toast)] animate-fade-in rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-1.5 shadow-[var(--shadow-sm)] transition-opacity duration-500">
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
             App installed
           </span>
         </div>

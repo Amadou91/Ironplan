@@ -125,7 +125,7 @@ export function ConfirmDialog({
             </div>
             
             <div className="space-y-2">
-              <h2 id="confirm-dialog-title" className="text-xl font-black text-strong tracking-tight">{title}</h2>
+              <h2 id="confirm-dialog-title" className="text-xl font-semibold text-strong tracking-tight">{title}</h2>
               <p id="confirm-dialog-description" className="text-sm text-muted font-medium leading-relaxed">
                 {description}
               </p>

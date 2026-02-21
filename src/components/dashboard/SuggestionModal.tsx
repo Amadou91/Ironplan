@@ -50,7 +50,7 @@ export function SuggestionModal({
               <Brain className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-strong uppercase tracking-tight">AI Suggestion</h2>
+              <h2 className="text-xl font-semibold text-strong uppercase tracking-tight">AI Suggestion</h2>
               <p className="text-sm text-muted font-medium">Based on your recovery & history</p>
             </div>
           </div>
@@ -59,7 +59,7 @@ export function SuggestionModal({
         <div className="p-6 space-y-6">
           <div className="space-y-4">
              <div>
-                <h3 className="text-2xl font-black text-strong mb-2 capitalize">
+                <h3 className="text-2xl font-semibold text-strong mb-2 capitalize">
                   {suggestion.focus.map(f => toMuscleLabel(f)).join(' & ')}
                 </h3>
                 <div className="flex flex-wrap gap-2">
@@ -88,7 +88,7 @@ export function SuggestionModal({
           <Button 
             size="lg"
             onClick={() => onConfirm(suggestion)}
-            className="w-full h-14 rounded-xl font-black uppercase tracking-wider shadow-lg shadow-[var(--color-primary-soft)] text-lg"
+            className="w-full h-14 rounded-xl font-semibold uppercase tracking-wider shadow-lg shadow-[var(--color-primary-soft)] text-lg"
           >
             Accept & Configure <ArrowRight className="ml-2 h-5 w-5" />
           </Button>

@@ -122,16 +122,16 @@ export function Sidebar() {
             aria-label="Ironplan dashboard"
             className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-strong)] text-white shadow-md transition-transform hover:scale-105 active:scale-95"
           >
-            <span className="font-display text-sm font-bold">IP</span>
+            <span className="font-display text-sm font-semibold">IP</span>
           </Link>
         ) : (
           <Link href="/dashboard" className="flex flex-1 items-center gap-2 px-2 min-w-0">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-strong)] text-white shadow-md">
-              <span className="font-display text-sm font-bold">IP</span>
+              <span className="font-display text-sm font-semibold">IP</span>
             </div>
             <div className="min-w-0">
-              <p className="font-display text-base font-bold tracking-tight leading-none">Ironplan</p>
-              <p className="text-[9px] text-subtle font-medium mt-0.5 uppercase tracking-wider">Training OS</p>
+              <p className="font-display text-base font-semibold tracking-tight leading-none">Ironplan</p>
+              <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-subtle">Training OS</p>
             </div>
           </Link>
         )}
@@ -180,7 +180,7 @@ export function Sidebar() {
         {secondaryNavItems.length > 0 && (
           <div className="pt-4">
             {!isCollapsed && (
-              <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted/50">Explore</p>
+              <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted/60">Explore</p>
             )}
             <nav className="space-y-1" aria-label="Secondary navigation">
               {secondaryNavItems.map((item) => {
@@ -233,7 +233,7 @@ export function Sidebar() {
                 aria-label="Account menu"
                 className="flex w-full items-center justify-center rounded-xl p-2 transition-all hover:bg-[var(--color-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] text-sm font-bold select-none">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] text-sm font-semibold select-none">
                   {userInitial}
                 </span>
               </button>
@@ -247,14 +247,14 @@ export function Sidebar() {
                 aria-label="Account menu"
                 className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 transition-all hover:bg-[var(--color-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] text-sm font-bold select-none">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] text-sm font-semibold select-none">
                   {userInitial}
                 </span>
                 <span className="min-w-0 flex-1 text-left">
                   <span className="block truncate text-sm font-semibold text-strong leading-tight">
                     {user.email?.split('@')[0] ?? 'Member'}
                   </span>
-                  <span className="block truncate text-[10px] text-subtle">{user.email}</span>
+                  <span className="block truncate text-[11px] text-subtle">{user.email}</span>
                 </span>
               </button>
             )}
@@ -264,7 +264,7 @@ export function Sidebar() {
           <Link
             href="/auth/login"
             aria-label="Sign in"
-            className={`flex w-full items-center rounded-xl py-2.5 text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] ${
+            className={`flex w-full items-center rounded-xl py-2.5 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] ${
               isCollapsed
                 ? 'justify-center px-0 text-muted hover:bg-[var(--color-surface-muted)] hover:text-strong'
                 : 'gap-3 px-3 bg-[var(--color-primary)] text-white shadow-md hover:shadow-lg active:scale-[0.98]'

@@ -448,7 +448,7 @@ export default function LogPastWorkoutPage() {
                   </div>
                   {hasArmsFocus && (
                     <div className="mt-3 space-y-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-subtle">Arms target (optional)</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-subtle">Arms target (optional)</p>
                       <div className="grid grid-cols-2 gap-2">
                         {SESSION_ARM_FOCUS_OPTIONS.map((option) => {
                           const selected = armFocusTargets.includes(option.value)

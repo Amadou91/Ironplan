@@ -89,7 +89,7 @@ export function BodyMetricsForm({
             <div className="flex items-center justify-between">
               <label className="text-xs text-subtle">Weight ({displayUnit})</label>
               {isMissing('weight_lb') && (
-                <span className="text-[10px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
+                <span className="text-[11px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
               )}
             </div>
             <Input
@@ -110,10 +110,10 @@ export function BodyMetricsForm({
             <div className="flex items-center justify-between">
               <label className="text-xs text-subtle">Height</label>
               {isMissing('height_in') && (
-                <span className="text-[10px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
+                <span className="text-[11px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
               )}
             </div>
-            <div className="mt-1 grid grid-cols-2 gap-2 text-[10px]">
+            <div className="mt-1 grid grid-cols-2 gap-2 text-[11px]">
               <label className="flex flex-col gap-1">
                 <Input
                   type="text"
@@ -166,7 +166,7 @@ export function BodyMetricsForm({
             <div className="flex items-center justify-between">
               <label className="text-xs text-subtle">Birthdate</label>
               {isMissing('birthdate') && (
-                <span className="text-[10px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
+                <span className="text-[11px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
               )}
             </div>
             <Input
@@ -182,7 +182,7 @@ export function BodyMetricsForm({
             <div className="flex items-center justify-between">
               <label className="text-xs text-subtle">Sex</label>
               {isMissing('sex') && (
-                <span className="text-[10px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
+                <span className="text-[11px] font-semibold text-[var(--color-danger)] uppercase tracking-wide" aria-hidden="true">Required</span>
               )}
             </div>
             <Select
@@ -198,12 +198,12 @@ export function BodyMetricsForm({
               <option value="non_binary">Non-binary</option>
               <option value="prefer_not_to_say">Prefer not to say</option>
             </Select>
-            <p className="mt-1 text-[10px] text-subtle">Used for BMR estimates. Non-binary and prefer not to say use a neutral average formula.</p>
+            <p className="mt-1 text-[11px] text-subtle">Used for BMR estimates. Non-binary and prefer not to say use a neutral average formula.</p>
           </div>
         </div>
 
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-sm text-muted">
-          <p className="text-[10px] uppercase tracking-wider text-subtle">Profile insights</p>
+          <p className="text-[11px] uppercase tracking-wider text-subtle">Profile insights</p>
           <div className="mt-3 space-y-2">
             <p>Weight: <span className="text-strong">{displayWeight ? `${displayWeight} ${displayUnit}` : 'Add weight'}</span></p>
             <p>Height: <span className="text-strong">{metrics.heightIn ? formatHeightFromInches(metrics.heightIn) : 'Add height'}</span></p>
@@ -215,7 +215,7 @@ export function BodyMetricsForm({
         </div>
       </div>
       {lastUpdated && (
-        <p className="mt-3 text-[10px] text-subtle">Last updated {formatDateTime(lastUpdated)}</p>
+        <p className="mt-3 text-[11px] text-subtle">Last updated {formatDateTime(lastUpdated)}</p>
       )}
 
       <div className="mt-4 sm:hidden sticky bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-20 rounded-xl border border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_8%)] p-2 backdrop-blur">

@@ -30,7 +30,7 @@ export function ProfileSection({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-[var(--color-surface-subtle)] transition-colors"
+        className="flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors hover:bg-[var(--color-surface-subtle)] sm:px-5"
         aria-expanded={open}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -50,12 +50,12 @@ export function ProfileSection({
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-strong leading-tight">
+              <h2 className="type-subsection-title text-strong leading-tight">
                 {title}
               </h2>
               {isIncomplete && (
                 <span
-                  className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-[var(--color-warning-soft,#fef3c7)] text-[var(--color-warning-strong,#92400e)]"
+                  className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-[var(--color-warning-soft,#fef3c7)] text-[var(--color-warning-strong,#92400e)]"
                   aria-label={`${missingCount} field${missingCount === 1 ? '' : 's'} missing`}
                 >
                   {missingCount} missing
@@ -63,7 +63,7 @@ export function ProfileSection({
               )}
             </div>
             {description && (
-              <p className="text-xs text-subtle mt-0.5 leading-snug">{description}</p>
+              <p className="type-meta mt-0.5 text-subtle">{description}</p>
             )}
           </div>
         </div>
@@ -75,7 +75,7 @@ export function ProfileSection({
       </button>
 
       {open && (
-        <div className="border-t border-[var(--color-border)] p-5">
+        <div className="border-t border-[var(--color-border)] p-4 sm:p-5">
           {children}
         </div>
       )}
