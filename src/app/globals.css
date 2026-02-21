@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 :root {
+  --font-display: "Sora", "Avenir Next", "Segoe UI", sans-serif;
+  --font-body: "Manrope", "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", "Consolas", monospace;
+
   /* Base - Light Mode: Clean, High Contrast */
   --color-bg: oklch(98.5% 0.002 85);
   --color-bg-accent: oklch(97% 0.005 85);

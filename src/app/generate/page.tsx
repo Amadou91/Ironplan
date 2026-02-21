@@ -2,12 +2,17 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Sparkles, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
+
+const SessionSetupModal = dynamic(
+  () => import('@/components/dashboard/SessionSetupModal').then((mod) => mod.SessionSetupModal),
+  { ssr: false }
+)
 
 export default function GeneratePage() {
   const router = useRouter()

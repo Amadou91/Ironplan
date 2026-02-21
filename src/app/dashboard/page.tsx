@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Sparkles, X } from 'lucide-react'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { useSupabase } from '@/hooks/useSupabase'
@@ -14,8 +15,6 @@ import { Alert } from '@/components/ui/Alert'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
-import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
-import { SuggestionModal } from '@/components/dashboard/SuggestionModal'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
 import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
 import { useDashboardData } from '@/hooks/useDashboardData'
@@ -23,8 +22,19 @@ import { useWorkoutSuggestion } from '@/hooks/useWorkoutSuggestion'
 import type { WorkoutSuggestion } from '@/lib/suggestion-logic'
 import type { SessionRow } from '@/lib/transformers/progress-data'
 
+const SessionSetupModal = dynamic(
+  () => import('@/components/dashboard/SessionSetupModal').then((mod) => mod.SessionSetupModal),
+  { ssr: false }
+)
+
+const SuggestionModal = dynamic(
+  () => import('@/components/dashboard/SuggestionModal').then((mod) => mod.SuggestionModal),
+  { ssr: false }
+)
+
 export default function DashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = useSupabase()
   const activeSession = useWorkoutStore((state) => state.activeSession)
   const endSession = useWorkoutStore((state) => state.endSession)
@@ -35,6 +45,7 @@ export default function DashboardPage() {
   const [quickStartOpen, setQuickStartOpen] = useState(false)
   const [suggestionModalOpen, setSuggestionModalOpen] = useState(false)
   const [selectedSuggestion, setSelectedSuggestion] = useState<WorkoutSuggestion | null>(null)
+  const quickStartRequested = searchParams.get('quickStart') === '1'
 
   const {
     user,
@@ -121,6 +132,19 @@ export default function DashboardPage() {
 
   const greetingName = user?.email?.split('@')[0] || 'there'
   const recentSessions = sessions.slice(0, 3)
+
+  useEffect(() => {
+    if (!quickStartRequested) return
+    setQuickStartOpen(true)
+  }, [quickStartRequested])
+
+  const closeQuickStart = useCallback(() => {
+    setQuickStartOpen(false)
+    setSelectedSuggestion(null)
+    if (quickStartRequested) {
+      router.replace('/dashboard')
+    }
+  }, [quickStartRequested, router])
   if (userLoading || loading) {
     return (
       <div className="page-shell">
@@ -152,7 +176,7 @@ export default function DashboardPage() {
           eyebrow="Dashboard"
           title={`Welcome back, ${greetingName}`}
           actions={
-            <Button size="md" className="shadow-lg shadow-[var(--color-primary-soft)]" onClick={handleBeginWorkout}>
+            <Button size="md" className="w-full shadow-lg shadow-[var(--color-primary-soft)] sm:w-auto" onClick={handleBeginWorkout}>
               <Sparkles className="h-5 w-5 mr-2" /> Begin Workout
             </Button>
           }
@@ -170,17 +194,18 @@ export default function DashboardPage() {
                 <p className="text-lg font-bold text-[var(--color-primary-strong)]">Session in progress</p>
                 <p className="text-sm text-subtle font-medium">Finish your active session before starting another.</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto sm:flex-nowrap">
                 <Button 
                   variant="ghost" 
                   size="md" 
+                  className="min-h-11"
                   onClick={() => setCancelDialogOpen(true)}
                   disabled={cancelingSession}
                 >
                   <X className="h-4 w-4 mr-1" /> Cancel
                 </Button>
-                <Link href={resumeLink}>
-                  <Button variant="primary" size="md">
+                <Link href={resumeLink} className="w-full sm:w-auto">
+                  <Button variant="primary" size="md" className="w-full min-h-11">
                     Resume active session
                   </Button>
                 </Link>
@@ -224,10 +249,7 @@ export default function DashboardPage() {
 
         <SessionSetupModal
           isOpen={quickStartOpen}
-          onClose={() => {
-            setQuickStartOpen(false)
-            setSelectedSuggestion(null)
-          }}
+          onClose={closeQuickStart}
           templateTitle={selectedSuggestion ? "Suggested Workout" : "Begin Workout"}
           templateStyle={selectedSuggestion?.goal || "hypertrophy"}
           initialFocusAreas={selectedSuggestion?.focus}

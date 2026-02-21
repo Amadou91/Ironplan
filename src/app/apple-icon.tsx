@@ -17,7 +17,7 @@ export default function AppleIcon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(140deg, #110f1a 0%, #1c1530 50%, #2e1d4a 100%)',
+          background: 'linear-gradient(140deg, #ef6a1b 0%, #f59e0b 48%, #126145 100%)',
         }}
       >
         <div
@@ -28,9 +28,7 @@ export default function AppleIcon() {
             transform: 'rotate(-30deg)',
           }}
         >
-          {/* Left plate */}
           <div style={{ width: 30, height: 80, borderRadius: 8, background: 'rgba(255,255,255,0.95)' }} />
-          {/* Bar with orange accent */}
           <div
             style={{
               width: 38,
@@ -42,9 +40,8 @@ export default function AppleIcon() {
               justifyContent: 'center',
             }}
           >
-            <div style={{ width: 14, height: 3, borderRadius: 1.5, background: '#f97316' }} />
+            <div style={{ width: 14, height: 3, borderRadius: 1.5, background: '#166534' }} />
           </div>
-          {/* Right plate */}
           <div style={{ width: 30, height: 80, borderRadius: 8, background: 'rgba(255,255,255,0.95)' }} />
         </div>
       </div>

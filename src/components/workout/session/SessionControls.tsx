@@ -18,39 +18,41 @@ export function SessionControls({
   isFinishing
 }: SessionControlsProps) {
   return (
-    <div className="fixed bottom-0 inset-x-0 z-30 surface-elevated/90 backdrop-blur-md border-t border-[var(--color-border)] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,_0px))] pt-3">
-      <div className="flex items-center gap-2 max-w-3xl mx-auto">
-        {onFinish && (
+    <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom,_0px))] pt-3 sm:px-4">
+      <div className="mx-auto max-w-3xl rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_4%)] p-2.5 shadow-[var(--shadow-lg)] backdrop-blur-xl">
+        <div className="grid grid-cols-2 items-center gap-2 sm:flex">
+          {onFinish && (
+            <Button
+              variant="primary"
+              onClick={onFinish}
+              disabled={isFinishing}
+              className="min-h-12 flex-1 text-sm font-bold"
+            >
+              <CheckCircle2 size={18} />
+              <span className="truncate">{isFinishing ? 'Finishing…' : 'Finish workout'}</span>
+            </Button>
+          )}
+
           <Button
             variant="secondary"
-            onClick={onFinish}
-            disabled={isFinishing}
-            className="flex items-center justify-center gap-2 py-3 h-auto text-sm font-bold flex-1 min-w-0"
+            onClick={onAddExercise}
+            className="min-h-12 border-2 border-dashed text-sm font-bold sm:flex-1"
           >
-            <CheckCircle2 size={18} />
-            <span className="truncate">{isFinishing ? 'Finishing…' : 'Finish'}</span>
+            <Search size={18} />
+            <span className="truncate">Add Exercise</span>
           </Button>
-        )}
 
-        <Button
-          variant="outline"
-          onClick={onAddExercise}
-          className="flex items-center justify-center gap-2 py-3 h-auto text-sm font-bold border-dashed border-2 hover:bg-[var(--color-primary-soft)] flex-1 min-w-0"
-        >
-          <Search size={18} />
-          <span className="truncate">Add Exercise</span>
-        </Button>
-
-        {onReorder && (
-          <Button
-            variant="ghost"
-            onClick={onReorder}
-            className="flex items-center justify-center gap-1.5 py-3 h-auto text-subtle hover:text-strong shrink-0"
-          >
-            <ListFilter size={16} />
-            <span className="text-sm font-medium hidden sm:inline">Reorder</span>
-          </Button>
-        )}
+          {onReorder && (
+            <Button
+              variant="outline"
+              onClick={onReorder}
+              className="col-span-2 min-h-10 gap-1.5 text-xs font-semibold uppercase tracking-wider text-subtle sm:col-auto sm:min-h-12 sm:shrink-0 sm:text-sm sm:tracking-normal"
+            >
+              <ListFilter size={16} />
+              <span>Reorder</span>
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

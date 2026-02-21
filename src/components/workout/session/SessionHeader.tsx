@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Info } from 'lucide-react';
+import { CheckCircle2, CloudOff, Info, Loader2, RefreshCcw } from 'lucide-react';
 import type { WeightUnit } from '@/types/domain';
+import { formatSessionSyncLabel, getSessionCompletionPct, type SessionSyncStatus } from '@/lib/session-ui';
 
 interface SessionHeaderProps {
   name: string;
@@ -16,18 +17,14 @@ interface SessionHeaderProps {
     completedExercises: number;
     totalExercises: number;
   } | null;
-  /** Session body weight (read-only, set from readiness check) */
   sessionBodyWeight?: number | null;
   preferredUnit?: WeightUnit;
-  syncStatus?: {
-    state: 'pending' | 'synced' | 'error';
-    pending: number;
-    error: number;
-  } | null;
+  syncStatus?: SessionSyncStatus | null;
   errorMessage?: string | null;
-  /** Callback when 'Started at' label is clicked (to edit start time) */
+  isOnline?: boolean;
+  isRetryingSync?: boolean;
+  onRetrySync?: () => void | Promise<void>;
   onStartTimeClick?: () => void;
-  /** Callback when weight label is clicked (to edit body weight) */
   onWeightClick?: () => void;
 }
 
@@ -42,6 +39,9 @@ export function SessionHeader({
   preferredUnit = 'lb',
   syncStatus,
   errorMessage,
+  isOnline = true,
+  isRetryingSync = false,
+  onRetrySync,
   onStartTimeClick,
   onWeightClick,
 }: SessionHeaderProps) {
@@ -49,103 +49,123 @@ export function SessionHeader({
     const date = new Date(dateStr);
     const today = new Date();
     const isToday = date.toDateString() === today.toDateString();
-    
+
     if (isToday) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + 
-      ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   };
 
-  const syncLabel = (() => {
-    if (!syncStatus) return null
-    if (syncStatus.state === 'error') return `Sync error (${syncStatus.error})`
-    if (syncStatus.state === 'pending') return `Syncing (${syncStatus.pending})`
-    return 'Synced'
-  })()
+  const completionPct = progressSummary?.totalSets
+    ? getSessionCompletionPct(progressSummary)
+    : 0;
+
+  const { label: syncLabel, tone: syncTone } = formatSessionSyncLabel(syncStatus, isOnline);
+
+  const syncToneClass = syncTone === 'warning'
+    ? 'text-[var(--color-warning)]'
+    : syncTone === 'danger'
+      ? 'text-[var(--color-danger)]'
+      : syncTone === 'primary'
+        ? 'text-[var(--color-primary)]'
+        : 'text-[var(--color-success)]';
 
   return (
-    <div className="sticky top-[env(safe-area-inset-top,_0px)] z-20 surface-elevated p-4 backdrop-blur-md border-b border-[var(--color-border)]">
+    <div className="sticky top-[env(safe-area-inset-top,_0px)] z-20 surface-elevated border-b border-[var(--color-border)] p-4 backdrop-blur-md">
       <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-strong">{name}</h2>
-            <div 
-              className={`text-sm text-muted ${onStartTimeClick ? 'cursor-pointer hover:text-[var(--color-primary)] transition-colors' : ''}`}
-              onClick={onStartTimeClick}
-              role={onStartTimeClick ? 'button' : undefined}
-              tabIndex={onStartTimeClick ? 0 : undefined}
-              onKeyDown={onStartTimeClick ? (e) => e.key === 'Enter' && onStartTimeClick() : undefined}
-            >
-              Started at {formatStartedAt(startedAt)}
-              {onStartTimeClick && <span className="ml-1 text-xs text-muted">(edit)</span>}
-            </div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold text-strong">{name}</h2>
+            {onStartTimeClick ? (
+              <button
+                type="button"
+                onClick={onStartTimeClick}
+                className="mt-0.5 inline-flex items-center text-sm text-muted transition-colors hover:text-[var(--color-primary)]"
+              >
+                Started at {formatStartedAt(startedAt)}
+                <span className="ml-1 text-xs text-subtle">Edit</span>
+              </button>
+            ) : (
+              <p className="mt-0.5 text-sm text-muted">Started at {formatStartedAt(startedAt)}</p>
+            )}
           </div>
+
+          {onRetrySync && (!isOnline || syncStatus?.state === 'pending' || syncStatus?.state === 'error') ? (
+            <button
+              type="button"
+              onClick={() => void onRetrySync()}
+              disabled={!isOnline || isRetryingSync}
+              className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-2.5 text-xs font-semibold text-muted transition-colors hover:text-strong disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isRetryingSync ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+              Retry
+            </button>
+          ) : null}
         </div>
 
-        {(intensityLabel || minutesAvailable) && (
+        {(intensityLabel || minutesAvailable || typeof readinessScore === 'number') && (
           <div className="flex flex-wrap items-center gap-2 text-xs text-subtle">
             {intensityLabel && <span className="badge-neutral">Intensity: {intensityLabel}</span>}
-            {minutesAvailable && (
-              <span className="badge-neutral">{minutesAvailable} min plan</span>
-            )}
-            {typeof readinessScore === 'number' && (
-              <span className="badge-neutral">Readiness {readinessScore}</span>
-            )}
+            {minutesAvailable && <span className="badge-neutral">{minutesAvailable} min plan</span>}
+            {typeof readinessScore === 'number' && <span className="badge-neutral">Readiness {readinessScore}</span>}
           </div>
         )}
 
         {progressSummary && (
-          <div className="flex flex-wrap items-center gap-4 text-xs text-subtle">
-            <div className="flex items-center gap-2 uppercase tracking-wider font-bold">
-              <span>
-                {progressSummary.totalExercises} Exercises
-              </span>
-              <span>•</span>
-              <span>
-                {progressSummary.totalSets} Sets
-              </span>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <p className="font-semibold uppercase tracking-wider text-subtle">
+                {progressSummary.completedSets}/{progressSummary.totalSets} sets complete
+              </p>
+              <p className="font-semibold text-strong">{completionPct}%</p>
             </div>
-            {((sessionBodyWeight != null && sessionBodyWeight > 0) || onWeightClick) && (
-              <div 
-                className={`flex items-center gap-2 border-l border-[var(--color-border)] pl-4 ${onWeightClick ? 'cursor-pointer hover:text-[var(--color-primary)] transition-colors' : ''}`}
-                onClick={onWeightClick}
-                role={onWeightClick ? 'button' : undefined}
-                tabIndex={onWeightClick ? 0 : undefined}
-                onKeyDown={onWeightClick ? (e) => e.key === 'Enter' && onWeightClick() : undefined}
-              >
-                <span className="font-medium text-muted">Weight:</span>
-                <span className="font-semibold text-strong">
-                  {sessionBodyWeight != null && sessionBodyWeight > 0 ? (
-                    `${sessionBodyWeight} ${preferredUnit}`
-                  ) : (
-                    <span className="text-xs font-normal italic">Enter weight</span>
-                  )}
-                </span>
-                {onWeightClick && sessionBodyWeight != null && sessionBodyWeight > 0 && (
-                  <span className="text-xs text-muted">(edit)</span>
-                )}
-              </div>
-            )}
-            {syncLabel && (
-              <span
-                className={`badge-neutral ${
-                  syncStatus?.state === 'error'
-                    ? 'text-[var(--color-danger)]'
-                    : syncStatus?.state === 'pending'
-                      ? 'text-[var(--color-primary)]'
-                      : 'text-[var(--color-success)]'
-                }`}
-              >
-                {syncLabel}
+            <div className="h-2 overflow-hidden rounded-full bg-[var(--color-surface-muted)]" aria-hidden="true">
+              <div
+                className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-500"
+                style={{ width: `${completionPct}%` }}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-subtle">
+              <span className="font-medium">
+                {progressSummary.completedExercises}/{progressSummary.totalExercises} exercises started
               </span>
-            )}
+
+              {((sessionBodyWeight != null && sessionBodyWeight > 0) || onWeightClick) && (
+                onWeightClick ? (
+                  <button
+                    type="button"
+                    onClick={onWeightClick}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2 py-1 text-xs text-muted transition-colors hover:text-[var(--color-primary)]"
+                  >
+                    <span>Weight:</span>
+                    <span className="font-semibold text-strong">
+                      {sessionBodyWeight != null && sessionBodyWeight > 0
+                        ? `${sessionBodyWeight} ${preferredUnit}`
+                        : 'Add'}
+                    </span>
+                  </button>
+                ) : (
+                  <span className="font-medium">Weight: {sessionBodyWeight} {preferredUnit}</span>
+                )
+              )}
+
+              {syncLabel && (
+                <span className={`inline-flex items-center gap-1.5 font-semibold ${syncToneClass}`}>
+                  {!isOnline ? (
+                    <CloudOff className="h-3.5 w-3.5" />
+                  ) : syncStatus?.state === 'synced' ? (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  ) : null}
+                  {syncLabel}
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>
 
       {errorMessage && (
-        <div className="mt-3 alert-error px-3 py-2 text-xs flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+        <div className="alert-error mt-3 flex items-center gap-2 px-3 py-2 text-xs animate-in fade-in slide-in-from-top-1">
           <Info size={14} />
           {errorMessage}
         </div>

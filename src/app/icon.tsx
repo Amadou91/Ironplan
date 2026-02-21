@@ -17,7 +17,7 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(140deg, #110f1a 0%, #1c1530 50%, #2e1d4a 100%)',
+          background: 'linear-gradient(140deg, #ef6a1b 0%, #f59e0b 48%, #126145 100%)',
           borderRadius: 96,
         }}
       >
@@ -29,28 +29,23 @@ export default function Icon() {
             transform: 'rotate(-30deg)',
           }}
         >
-          {/* Left outer plate */}
-          <div style={{ width: 72, height: 210, borderRadius: 20, background: 'rgba(255,255,255,0.95)' }} />
-          {/* Left inner plate */}
-          <div style={{ width: 50, height: 168, borderRadius: 14, background: 'rgba(255,255,255,0.75)' }} />
-          {/* Bar with orange knurl accent */}
+          <div style={{ width: 72, height: 210, borderRadius: 20, background: 'rgba(255,255,255,0.96)' }} />
+          <div style={{ width: 50, height: 168, borderRadius: 14, background: 'rgba(255,255,255,0.78)' }} />
           <div
             style={{
               width: 64,
               height: 36,
               borderRadius: 6,
-              background: 'rgba(255,255,255,0.55)',
+              background: 'rgba(255,255,255,0.62)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <div style={{ width: 28, height: 6, borderRadius: 3, background: '#f97316' }} />
+            <div style={{ width: 28, height: 6, borderRadius: 3, background: '#166534' }} />
           </div>
-          {/* Right inner plate */}
-          <div style={{ width: 50, height: 168, borderRadius: 14, background: 'rgba(255,255,255,0.75)' }} />
-          {/* Right outer plate */}
-          <div style={{ width: 72, height: 210, borderRadius: 20, background: 'rgba(255,255,255,0.95)' }} />
+          <div style={{ width: 50, height: 168, borderRadius: 14, background: 'rgba(255,255,255,0.78)' }} />
+          <div style={{ width: 72, height: 210, borderRadius: 20, background: 'rgba(255,255,255,0.96)' }} />
         </div>
       </div>
     ),

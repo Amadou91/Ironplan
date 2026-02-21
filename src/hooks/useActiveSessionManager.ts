@@ -65,6 +65,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
 
     // Loading states
     syncStatus: setOps.syncStatus,
+    retrySync: setOps.retrySync,
     isUpdating: setOps.isUpdating,
 
     // Supabase client

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SessionHeader } from '@/components/workout/session/SessionHeader';
+import { ExerciseNavigator } from '@/components/workout/session/ExerciseNavigator';
 import { SessionControls } from '@/components/workout/session/SessionControls';
 import { ExerciseSessionCard } from '@/components/workout/ExerciseSessionCard';
 import { AddExerciseModal } from '@/components/workout/modals/AddExerciseModal';
@@ -42,7 +43,7 @@ export function ActiveSession({
     activeSession, errorMessage, setErrorMessage, preferredUnit, profileWeightLb,
     exerciseTargets, handleSetUpdate, handleAddSet, handleRemoveSet, replaceSessionExercise,
     handleRemoveExercise, addSessionExercise, handleReorderExercises,
-    resolvedInventory, exerciseLibrary, exerciseLibraryByName, syncStatus, isUpdating,
+    resolvedInventory, exerciseLibrary, exerciseLibraryByName, syncStatus, retrySync, isUpdating,
     supabase, handleBodyWeightUpdate, handleStartTimeUpdate
   } = useActiveSessionManager(sessionId, equipmentInventory);
 
@@ -55,7 +56,24 @@ export function ActiveSession({
   const [isEditingStartTime, setIsEditingStartTime] = useState(false);
   const [editStartTimeValue, setEditStartTimeValue] = useState('');
   const [collapsedExercises, setCollapsedExercises] = useState<Set<number>>(new Set());
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const [isRetryingSync, setIsRetryingSync] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.navigator.onLine;
+  });
   const exerciseRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
 
   const handleWeightEditClick = useCallback(() => {
     setEditWeightValue(activeSession?.bodyWeightLb?.toString() ?? '');
@@ -182,6 +200,22 @@ export function ActiveSession({
     return parts.join(' · ');
   }, [exerciseTargets]);
 
+  const handleSelectExercise = useCallback((index: number) => {
+    setCurrentExerciseIndex(index);
+    const target = exerciseRefs.current[index];
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const handleRetrySync = useCallback(async () => {
+    setIsRetryingSync(true);
+    try {
+      await retrySync();
+    } finally {
+      setIsRetryingSync(false);
+    }
+  }, [retrySync]);
+
   if (!activeSession && !errorMessage) return <div className="p-6 text-center text-muted">Loading session...</div>;
   if (!activeSession) return null;
 
@@ -199,14 +233,25 @@ export function ActiveSession({
         sessionBodyWeight={activeSession.bodyWeightLb}
         preferredUnit={preferredUnit}
         syncStatus={syncStatus}
+        isOnline={isOnline}
+        isRetryingSync={isRetryingSync}
+        onRetrySync={handleRetrySync}
         errorMessage={errorMessage}
         onStartTimeClick={onStartTimeChange ? handleStartTimeEditClick : undefined}
         onWeightClick={handleWeightEditClick}
       />
+      {activeSession.exercises.length > 1 && (
+        <ExerciseNavigator
+          exercises={activeSession.exercises}
+          currentIndex={currentExerciseIndex}
+          onSelect={handleSelectExercise}
+        />
+      )}
       <div className="space-y-6 !mt-6">
         {activeSession.exercises.map((exercise, exIdx) => {
           const isCollapsed = collapsedExercises.has(exIdx);
           const toggleCollapse = () => {
+            setCurrentExerciseIndex(exIdx);
             setCollapsedExercises(prev => {
               const next = new Set(prev);
               if (next.has(exIdx)) next.delete(exIdx);
@@ -216,7 +261,11 @@ export function ActiveSession({
           };
 
           return (
-            <div key={exIdx} ref={el => { exerciseRefs.current[exIdx] = el; }}>
+            <div
+              key={exIdx}
+              ref={el => { exerciseRefs.current[exIdx] = el; }}
+              onFocusCapture={() => setCurrentExerciseIndex(exIdx)}
+            >
               <ExerciseSessionCard
                 exercise={exercise}
                 exIdx={exIdx}

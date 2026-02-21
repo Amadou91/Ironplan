@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect } from 'react'
+import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { AppState } from '@/components/ui/AppState'
 
 export default function GlobalError({
   error,
@@ -15,12 +17,20 @@ export default function GlobalError({
   }, [error])
 
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-6 text-center">
-      <h2 className="text-xl font-bold text-[var(--color-text)]">Something went wrong</h2>
-      <p className="text-sm text-[var(--color-text-muted)]">
-        An unexpected error occurred. Please try again.
-      </p>
-      <Button onClick={reset}>Try Again</Button>
+    <div className="page-shell">
+      <div className="mx-auto flex min-h-[70dvh] w-full max-w-3xl items-center px-4">
+        <AppState
+          icon={<AlertTriangle className="h-6 w-6 text-[var(--color-danger)]" aria-hidden="true" />}
+          title="Something went wrong"
+          description="An unexpected error interrupted this screen. Retry now and continue where you left off."
+          actions={
+            <Button onClick={reset}>
+              <RotateCcw className="h-4 w-4" />
+              Retry
+            </Button>
+          }
+        />
+      </div>
     </div>
   )
 }

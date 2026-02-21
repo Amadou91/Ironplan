@@ -29,6 +29,7 @@ export function useSetOperations(
     persistSet,
     deleteSet,
     persistSessionBodyWeight,
+    retrySync,
     getSessionSyncStatus,
     isPersisting
   } = useSetPersistence()
@@ -238,6 +239,7 @@ export function useSetOperations(
     replaceSessionExercise,
     addSessionExercise,
     syncStatus,
+    retrySync,
     isUpdating: isUpdating || isPersisting
   }
 }

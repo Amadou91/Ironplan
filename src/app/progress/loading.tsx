@@ -2,10 +2,13 @@ import { Skeleton } from '@/components/ui/Skeleton'
 
 export default function ProgressLoading() {
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <Skeleton className="h-10 w-48" />
-      <Skeleton className="h-64 w-full" />
-      <Skeleton className="h-48 w-full" />
+    <div className="page-shell">
+      <div className="page-stack">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-44 w-full" />
+        <Skeleton className="h-80 w-full" />
+      </div>
     </div>
   )
 }

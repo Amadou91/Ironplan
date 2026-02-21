@@ -2,17 +2,23 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { Activity } from 'lucide-react'
+import { Activity, ClipboardX, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { SessionSetupModal } from '@/components/dashboard/SessionSetupModal'
+import { AppState } from '@/components/ui/AppState'
 import { useSupabase } from '@/hooks/useSupabase'
 import { toMuscleLabel } from '@/lib/muscle-utils'
 import { buildTemplateDisplayName } from '@/lib/workout-naming'
 import { useUser } from '@/hooks/useUser'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import type { FocusArea, PlanInput } from '@/types/domain'
+
+const SessionSetupModal = dynamic(
+  () => import('@/components/dashboard/SessionSetupModal').then((mod) => mod.SessionSetupModal),
+  { ssr: false }
+)
 
 type WorkoutTemplate = {
   id: string
@@ -86,8 +92,34 @@ export default function WorkoutDetailPage() {
       ? `/exercises/active?sessionId=${activeSession.id}&from=template`
       : '/dashboard'
 
-  if (loading) return <div className="page-shell p-10 text-center text-muted">Loading template...</div>
-  if (!template) return <div className="page-shell p-10 text-center text-muted">Template not found.</div>
+  if (loading) {
+    return (
+      <div className="page-shell">
+        <div className="mx-auto flex min-h-[70dvh] w-full max-w-3xl items-center px-4">
+          <AppState
+            icon={<Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />}
+            title="Loading template"
+            description="Fetching template details and recommended setup defaults."
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (!template) {
+    return (
+      <div className="page-shell">
+        <div className="mx-auto flex min-h-[70dvh] w-full max-w-3xl items-center px-4">
+          <AppState
+            icon={<ClipboardX className="h-6 w-6" aria-hidden="true" />}
+            title="Template not found"
+            description="This workout template is no longer available. Return to dashboard to start a new session."
+            actions={<Button onClick={() => router.push('/dashboard')}>Back to dashboard</Button>}
+          />
+        </div>
+      </div>
+    )
+  }
 
   const displayTitle = buildTemplateDisplayName({
     focus: template.focus,

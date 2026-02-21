@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next'
-import { JetBrains_Mono, Source_Sans_3, Space_Grotesk } from "next/font/google";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -7,24 +6,6 @@ import { RouteErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { AppShell } from "@/components/layout/AppShell";
 import { PwaEnhancements } from '@/components/ui/PwaEnhancements'
 import "./globals.css";
-
-const displayFont = Space_Grotesk({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const bodyFont = Source_Sans_3({
-  variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const monoFont = JetBrains_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ironplan.app'),
@@ -48,8 +29,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
   viewportFit: 'cover',
   interactiveWidget: 'resizes-content',
   themeColor: [
@@ -73,13 +54,13 @@ export default function RootLayout({
         {process.env.NODE_ENV === 'production' && (
           <script
             dangerouslySetInnerHTML={{ __html:
-              `if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'})`
+              `if('serviceWorker'in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'}).catch(function(){})})}`
             }}
           />
         )}
       </head>
       <body
-        className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} antialiased`}
+        className="antialiased"
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>

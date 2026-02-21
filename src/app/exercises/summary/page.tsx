@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { ClipboardX, Loader2, LogIn } from 'lucide-react'
 import { useSupabase } from '@/hooks/useSupabase'
 import { computeSetE1rm, computeSetTonnage } from '@/lib/session-metrics'
 import { computeSessionMetrics, type ReadinessSurvey } from '@/lib/training-metrics'
@@ -11,6 +12,7 @@ import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import { useUser } from '@/hooks/useUser'
 import { useUIStore } from '@/store/uiStore'
 import { Button } from '@/components/ui/Button'
+import { AppState } from '@/components/ui/AppState'
 import type { FocusArea, SessionGoal, Intensity, WeightUnit, MetricProfile, CompletionSnapshot } from '@/types/domain'
 import { SummaryHeader } from '@/components/workout/SummaryHeader'
 import { SessionHighlights } from '@/components/workout/SessionHighlights'
@@ -217,9 +219,54 @@ function WorkoutSummaryContent() {
     }
   }
 
-  if (loading) return <div className="page-shell p-10 text-center text-muted">Loading session summary...</div>
-  if (!user) return <div className="page-shell p-10 text-center text-muted"><p className="mb-4">Sign in to view your summary.</p><Button onClick={() => router.push('/auth/login')}>Sign in</Button></div>
-  if (!sessionId || !session || !sessionMetrics) return <div className="page-shell p-10 text-center text-muted"><p className="mb-4">Session summary unavailable.</p><Button onClick={() => router.push('/dashboard')}>Back to Dashboard</Button></div>
+  if (loading) {
+    return (
+      <div className="page-shell">
+        <div className="mx-auto flex min-h-[70dvh] w-full max-w-3xl items-center px-4">
+          <AppState
+            icon={<Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />}
+            title="Loading session summary"
+            description="Calculating workout metrics and readiness insights."
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="page-shell">
+        <div className="mx-auto flex min-h-[70dvh] w-full max-w-3xl items-center px-4">
+          <AppState
+            icon={<LogIn className="h-6 w-6" aria-hidden="true" />}
+            title="Sign in to view your summary"
+            description="Session analytics and performance insights are available after authentication."
+            actions={
+              <Button onClick={() => router.push('/auth/login')}>
+                <LogIn className="h-4 w-4" />
+                Sign in
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (!sessionId || !session || !sessionMetrics) {
+    return (
+      <div className="page-shell">
+        <div className="mx-auto flex min-h-[70dvh] w-full max-w-3xl items-center px-4">
+          <AppState
+            icon={<ClipboardX className="h-6 w-6" aria-hidden="true" />}
+            title="Session summary unavailable"
+            description="We could not load this workout summary. Return to dashboard and reopen the session from history."
+            actions={<Button onClick={() => router.push('/dashboard')}>Back to dashboard</Button>}
+          />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="page-shell">
@@ -242,7 +289,19 @@ function WorkoutSummaryContent() {
 
 export default function WorkoutSummaryPage() {
   return (
-    <Suspense fallback={<div className="page-shell p-10 text-center text-muted">Loading summary...</div>}>
+    <Suspense
+      fallback={
+        <div className="page-shell">
+          <div className="mx-auto flex min-h-[70dvh] w-full max-w-3xl items-center px-4">
+            <AppState
+              icon={<Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />}
+              title="Loading summary"
+              description="Preparing your session data."
+            />
+          </div>
+        </div>
+      }
+    >
       <WorkoutSummaryContent />
     </Suspense>
   )

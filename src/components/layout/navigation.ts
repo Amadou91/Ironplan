@@ -1,4 +1,4 @@
-import { LayoutDashboard, LineChart, LucideIcon } from 'lucide-react'
+import { LayoutDashboard, LineChart, LucideIcon, UserRound } from 'lucide-react'
 
 export type NavItem = {
   label: string
@@ -16,6 +16,11 @@ export const primaryNavItems: NavItem[] = [
     label: 'Progress',
     href: '/progress',
     icon: LineChart
+  },
+  {
+    label: 'Profile',
+    href: '/profile',
+    icon: UserRound
   }
 ]
 

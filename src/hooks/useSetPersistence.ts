@@ -141,6 +141,10 @@ export function useSetPersistence() {
     }
   }, [queue])
 
+  const retrySync = useCallback(async () => {
+    await queue.flushNow()
+  }, [queue])
+
   const persistSessionBodyWeight = useCallback(async (
     sessionId: string,
     weightLb: number | null
@@ -176,6 +180,7 @@ export function useSetPersistence() {
     persistSet,
     deleteSet,
     persistSessionBodyWeight,
+    retrySync,
     getSessionSyncStatus,
     isPersisting,
     lastError,

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -10,13 +11,25 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { TrainingStatusCard } from '@/components/progress/TrainingStatusCard'
 import { ProgressFilters } from '@/components/progress/ProgressFilters'
-import { SessionHistoryList } from '@/components/progress/SessionHistoryList'
 import { MetricCards } from '@/components/progress/MetricCards'
-import { ProgressCharts } from '@/components/progress/ProgressCharts'
 import { CoachFeed } from '@/components/progress/CoachFeed'
 import { useProgressMetrics } from '@/hooks/useProgressMetrics'
 import { useAcrVisibility } from '@/hooks/useAcrVisibility'
 import { buildFilterScopeSummary, generateCoachFeedInsights } from '@/lib/progress/coach-feed'
+
+const ProgressCharts = dynamic(
+  () => import('@/components/progress/ProgressCharts').then((mod) => mod.ProgressCharts),
+  {
+    loading: () => <Skeleton className="h-96 w-full" />
+  }
+)
+
+const SessionHistoryList = dynamic(
+  () => import('@/components/progress/SessionHistoryList').then((mod) => mod.SessionHistoryList),
+  {
+    loading: () => <Skeleton className="h-[28rem] w-full" />
+  }
+)
 
 export default function ProgressPage() {
   const router = useRouter()

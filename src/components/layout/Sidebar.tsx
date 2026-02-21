@@ -10,6 +10,7 @@ import { authStore, useAuthStore } from '@/store/authStore';
 import { primaryNavItems, secondaryNavItems } from '@/components/layout/navigation';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { UnitToggle } from '@/components/layout/UnitToggle';
+import { isNavRouteActive } from '@/lib/navigation';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -67,11 +68,6 @@ export function Sidebar() {
     await supabase.auth.signOut();
     router.replace('/auth/login');
   };
-
-  const isActive = (path: string) =>
-    pathname === path ||
-    (path !== '/' && pathname.startsWith(`${path}/`)) ||
-    (path === '/exercises' && pathname.startsWith('/workout/'));
 
   const userInitial = user?.email?.charAt(0).toUpperCase() ?? '?';
 
@@ -154,7 +150,7 @@ export function Sidebar() {
         <nav className="space-y-1" aria-label="Primary navigation">
           {primaryNavItems.map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.href);
+            const active = isNavRouteActive(pathname, item.href);
             const navLink = (
               <Link
                 href={item.href}
@@ -189,7 +185,7 @@ export function Sidebar() {
             <nav className="space-y-1" aria-label="Secondary navigation">
               {secondaryNavItems.map((item) => {
                 const Icon = item.icon;
-                const active = isActive(item.href);
+                const active = isNavRouteActive(pathname, item.href);
                 const navLink = (
                   <Link
                     href={item.href}

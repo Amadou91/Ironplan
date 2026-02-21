@@ -21,18 +21,35 @@ export function AppShell({ children }: AppShellProps) {
   const hideForFocusMode = pathname.startsWith('/exercises/') && pathname.includes('/active')
   const showShell =
     pathname !== '/' &&
+    pathname !== '/offline' &&
     !hideForFocusMode &&
     !HIDDEN_SHELL_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
   if (!showShell) {
-    return <div className="min-h-screen">{children}</div>
+    return (
+      <div className="min-h-screen">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-[var(--color-surface)] focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-strong"
+        >
+          Skip to content
+        </a>
+        <main id="main-content" className="min-h-screen">{children}</main>
+      </div>
+    )
   }
 
   return (
     <div className={`min-h-screen ${isStandalone ? '' : 'lg:flex'}`}>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-[var(--color-surface)] focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-strong"
+      >
+        Skip to content
+      </a>
       {!isStandalone && <Sidebar />}
       <div className="min-h-screen flex-1 min-w-0 bg-transparent">
-        <header className={`sticky top-[env(safe-area-inset-top,_0px)] z-[var(--z-nav)] flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_8%)] px-4 backdrop-blur [transform:translateZ(0)] ${isStandalone ? '' : 'lg:hidden'}`}>
+        <header className={`sticky top-[env(safe-area-inset-top,_0px)] z-[var(--z-nav)] flex h-16 items-center justify-between border-b border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-surface),transparent_8%)] px-4 backdrop-blur [transform:translateZ(0)] ${isStandalone ? '' : 'lg:hidden'}`} aria-label="App header">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]">
               <span className="font-display text-sm font-semibold">IP</span>
@@ -50,7 +67,7 @@ export function AppShell({ children }: AppShellProps) {
             </Link>
           </div>
         </header>
-        <main className={`min-h-screen ${isStandalone ? 'pb-28' : 'pb-28 lg:pb-10'}`}>
+        <main id="main-content" className={`min-h-screen ${isStandalone ? 'pb-28' : 'pb-28 lg:pb-10'}`}>
           <div className="app-container py-6 lg:py-8">
             {children}
           </div>
