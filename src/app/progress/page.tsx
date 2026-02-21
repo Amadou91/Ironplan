@@ -15,7 +15,11 @@ import { MetricCards } from '@/components/progress/MetricCards'
 import { CoachFeed } from '@/components/progress/CoachFeed'
 import { useProgressMetrics } from '@/hooks/useProgressMetrics'
 import { useAcrVisibility } from '@/hooks/useAcrVisibility'
-import { buildFilterScopeSummary, generateCoachFeedInsights } from '@/lib/progress/coach-feed'
+import {
+  buildActionScopeSummary,
+  buildFilterScopeSummary,
+  generateCoachFeedInsights
+} from '@/lib/progress/coach-feed'
 
 const ProgressCharts = dynamic(
   () => import('@/components/progress/ProgressCharts').then((mod) => mod.ProgressCharts),
@@ -41,7 +45,7 @@ export default function ProgressPage() {
     prMetrics, readinessAverages, readinessSeries, readinessComponents,
     readinessCorrelation, readinessTrendLine, volumeTrend, effortTrend,
     exerciseTrend, muscleBreakdown, bodyWeightData, sessionsPerWeek,
-    getSessionTitle, exerciseLibraryByName
+    getSessionTitle, exerciseLibraryByName, coachActionScope
   } = useProgressMetrics()
   const acrVisibility = useAcrVisibility()
   const showAcrOnProgress = acrVisibility === 'both'
@@ -61,45 +65,48 @@ export default function ProgressPage() {
   // would reset the mobileExpanded accordion state mid-interaction).
   const [hasFetchedOnce, setHasFetchedOnce] = useState(false)
   const [showDrilldown, setShowDrilldown] = useState(false)
-  if (!hasFetchedOnce && !userLoading && !loading) {
+  if (!hasFetchedOnce && !userLoading && !loading && !coachActionScope.loading) {
     setHasFetchedOnce(true)
   }
-  const isInitialLoad = !hasFetchedOnce && (userLoading || loading)
+  const isInitialLoad = !hasFetchedOnce && (userLoading || loading || coachActionScope.loading)
   const filterScope = useMemo(() => buildFilterScopeSummary({
     startDate,
     endDate,
     selectedMuscle,
     selectedExercise
   }), [startDate, endDate, selectedMuscle, selectedExercise])
+  const actionScope = useMemo(() => buildActionScopeSummary({
+    selectedMuscle,
+    selectedExercise,
+    timeHorizonLabel: coachActionScope.timeHorizonLabel
+  }), [coachActionScope.timeHorizonLabel, selectedExercise, selectedMuscle])
 
   const coachInsights = useMemo(() => generateCoachFeedInsights({
-    filteredSessionCount: filteredSessions.length,
-    sessionsPerWeek,
-    readinessScore: readinessAverages?.score ?? null,
-    avgEffort: aggregateMetrics.avgEffort,
-    hardSets: aggregateMetrics.hardSets,
+    filteredSessionCount: coachActionScope.filteredSessionCount,
+    sessionsPerWeek: coachActionScope.sessionsPerWeek,
+    readinessScore: coachActionScope.readinessScore,
+    avgEffort: coachActionScope.avgEffort,
+    hardSets: coachActionScope.hardSets,
     trainingLoadSummary: {
-      status: trainingLoadSummary.status,
-      loadRatio: trainingLoadSummary.loadRatio,
-      insufficientData: trainingLoadSummary.insufficientData,
-      isInitialPhase: trainingLoadSummary.isInitialPhase,
-      daysSinceLast: trainingLoadSummary.daysSinceLast
+      status: coachActionScope.trainingLoadSummary.status,
+      loadRatio: coachActionScope.trainingLoadSummary.loadRatio,
+      insufficientData: coachActionScope.trainingLoadSummary.insufficientData,
+      isInitialPhase: coachActionScope.trainingLoadSummary.isInitialPhase,
+      daysSinceLast: coachActionScope.trainingLoadSummary.daysSinceLast
     },
-    exerciseTrend,
-    muscleBreakdown
+    timeHorizonLabel: coachActionScope.timeHorizonLabel
   }), [
-    aggregateMetrics.avgEffort,
-    aggregateMetrics.hardSets,
-    exerciseTrend,
-    filteredSessions.length,
-    muscleBreakdown,
-    readinessAverages?.score,
-    sessionsPerWeek,
-    trainingLoadSummary.daysSinceLast,
-    trainingLoadSummary.insufficientData,
-    trainingLoadSummary.isInitialPhase,
-    trainingLoadSummary.loadRatio,
-    trainingLoadSummary.status
+    coachActionScope.avgEffort,
+    coachActionScope.filteredSessionCount,
+    coachActionScope.hardSets,
+    coachActionScope.readinessScore,
+    coachActionScope.sessionsPerWeek,
+    coachActionScope.timeHorizonLabel,
+    coachActionScope.trainingLoadSummary.daysSinceLast,
+    coachActionScope.trainingLoadSummary.insufficientData,
+    coachActionScope.trainingLoadSummary.isInitialPhase,
+    coachActionScope.trainingLoadSummary.loadRatio,
+    coachActionScope.trainingLoadSummary.status
   ])
 
   if (isInitialLoad) return (
@@ -176,7 +183,8 @@ export default function ProgressPage() {
 
           <CoachFeed
             insights={coachInsights}
-            scopeLabel={filterScope.label}
+            timeHorizonLabel={actionScope.parts[0]}
+            focusLabel={`${actionScope.parts[1]} • ${actionScope.parts[2]}`}
             drilldownVisible={showDrilldown}
             onToggleDrilldown={() => setShowDrilldown((prev) => !prev)}
           />

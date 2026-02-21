@@ -4,7 +4,7 @@
 
 ### IA zones (top to bottom)
 1. `ProgressFilters` (sticky controls that scope all analytics)
-2. `CoachFeed` (top 3 actionable insights, filter-scoped)
+2. `CoachFeed` (forward action panel, rolling 14-day horizon)
 3. Key summaries (`TrainingStatusCard` + `MetricCards`)
 4. Progressive drilldown (collapsed by default, expands to full charts + full session history)
 
@@ -24,28 +24,28 @@ ProgressPage
 ```
 
 ### IA intent
-- Reduce cognitive load: users land on 3 prioritized actions instead of all charts.
-- Increase actionability: each insight includes explicit action text and key metric.
+- Reduce cognitive load: users land on 1-2 forward actions instead of all charts.
+- Increase actionability: each insight includes what changed, why it matters now, and a concrete next step.
 - Preserve expert depth: full chart and history drilldown remains available below.
 
-## 2) Insight Generation Rules (Top 3)
+## 2) Insight Generation Rules (Forward Actions)
 
-Insights are generated from the same filtered dataset that powers summaries/charts/history.
-Rules produce categorized candidates with numeric priority; highest priority per category survives; top 3 overall render.
+Insights are generated from a dedicated rolling action horizon (`Last 14 days`).
+Date filters remain analytics-only for summary cards, charts, and history.
+Rules produce categorized candidates with numeric priority; highest priority per category survives; top 2 render.
 
 ### Primary rule categories
-- `load`: overreaching or undertraining from ACR status/ratio.
-- `readiness_effort`: mismatch between readiness and effort (e.g., low readiness + high effort).
-- `consistency`: low or strong sessions/week cadence.
-- `strength`: e1RM momentum positive or stagnating.
-- `muscle_balance`: dominant or under-dosed muscle groups from distribution/imbalance.
-- `recency`: long gap since last scoped session.
-- `no_data`: explicit no-data action when current filters return zero sessions.
+- `load-risk`: overreaching or undertraining from ACR status/ratio.
+- `recovery-mismatch`: mismatch between readiness and effort (e.g., low readiness + high effort).
+- `consistency-gap`: low sessions/week cadence.
+- `session-gap`: long gap since last session.
 
-### Tie-break and fallback
+### Tie-break and fallback states
 - Highest priority wins within each category.
-- Sorted descending by priority and clipped to exactly 3.
-- If fewer than 3 candidates, deterministic fallback insights are appended.
+- Sorted descending by priority and clipped to 2.
+- If no candidate exists:
+  - `insufficient-data` for empty horizon.
+  - `stable-on-track` when no urgent correction is needed.
 
 ## 3) Progressive Disclosure Behavior
 
@@ -61,17 +61,18 @@ Rules produce categorized candidates with numeric priority; highest priority per
 
 - Single source of truth remains in `useProgressMetrics` filter state.
 - `buildFilterScopeSummary` builds user-visible scope labels from those exact filters.
-- Coach feed, summaries, and drilldown all consume the same filtered data objects.
+- `buildActionScopeSummary` builds action panel labels from horizon + muscle + exercise focus.
+- Coach actions use rolling-horizon data; analytics summaries/charts/history use active date filters.
 - Drilldown header explicitly states that active filters are applied.
 
 ## 5) QA Checklist (Data Correctness + UX Regression)
 
 ### Data correctness
-- Top 3 insights always render exactly 3 cards.
+- Coach actions render 1-2 cards (or one explicit state card).
 - Overreaching scenarios prioritize load-risk insight above lower-priority items.
-- No-data filter scope yields explicit no-data insight.
+- Empty action horizon yields explicit insufficient-data insight.
 - Filter scope label reflects date, muscle, and exercise filters accurately.
-- Summary metrics match drilldown values under the same filters.
+- Action scope label reflects horizon, muscle, and exercise focus.
 
 ### UX/behavior
 - Progress page still supports sticky filters and reset behavior.

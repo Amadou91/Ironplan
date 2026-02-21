@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { RECENT_ACTIVITY_WINDOW_DAYS } from '@/constants/training'
 import { useStrengthMetrics } from './useStrengthMetrics'
 import { useRecoveryMetrics } from './useRecoveryMetrics'
-import { getNowET } from '@/lib/date-utils'
+import { formatDateForInput, getNowET } from '@/lib/date-utils'
 
 export const createPastRange = (days: number) => {
   const end = getNowET()
@@ -20,8 +21,28 @@ export function useProgressMetrics() {
   const [selectedMuscle, setSelectedMuscle] = useState('all')
   const [selectedExercise, setSelectedExercise] = useState('all')
 
+  const coachActionWindow = useMemo(() => {
+    const { start, end } = createPastRange(RECENT_ACTIVITY_WINDOW_DAYS)
+    return {
+      startDate: formatDateForInput(start),
+      endDate: formatDateForInput(end),
+      timeHorizonLabel: `Last ${RECENT_ACTIVITY_WINDOW_DAYS} days`
+    }
+  }, [])
+
   const strength = useStrengthMetrics({ startDate, endDate, selectedMuscle, selectedExercise })
   const recovery = useRecoveryMetrics({ startDate, endDate, sessions: strength.sessions })
+  const coachStrength = useStrengthMetrics({
+    startDate: coachActionWindow.startDate,
+    endDate: coachActionWindow.endDate,
+    selectedMuscle,
+    selectedExercise
+  })
+  const coachRecovery = useRecoveryMetrics({
+    startDate: coachActionWindow.startDate,
+    endDate: coachActionWindow.endDate,
+    sessions: coachStrength.sessions
+  })
 
   return {
     ...strength,
@@ -41,6 +62,22 @@ export function useProgressMetrics() {
     selectedMuscle,
     setSelectedMuscle,
     selectedExercise,
-    setSelectedExercise
+    setSelectedExercise,
+    coachActionScope: {
+      loading: coachStrength.loading,
+      timeHorizonLabel: coachActionWindow.timeHorizonLabel,
+      filteredSessionCount: coachStrength.filteredSessions.length,
+      sessionsPerWeek: coachStrength.sessionsPerWeek,
+      readinessScore: coachRecovery.readinessAverages?.score ?? null,
+      avgEffort: coachStrength.aggregateMetrics.avgEffort,
+      hardSets: coachStrength.aggregateMetrics.hardSets,
+      trainingLoadSummary: {
+        status: coachStrength.trainingLoadSummary.status,
+        loadRatio: coachStrength.trainingLoadSummary.loadRatio,
+        insufficientData: coachStrength.trainingLoadSummary.insufficientData,
+        isInitialPhase: coachStrength.trainingLoadSummary.isInitialPhase,
+        daysSinceLast: coachStrength.trainingLoadSummary.daysSinceLast
+      }
+    }
   }
 }

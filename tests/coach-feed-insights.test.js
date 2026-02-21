@@ -56,7 +56,7 @@ function loadTsModule(modulePath) {
 }
 
 const coachFeedModule = loadTsModule(join(__dirname, '../src/lib/progress/coach-feed.ts'))
-const { generateCoachFeedInsights, buildFilterScopeSummary } = coachFeedModule
+const { generateCoachFeedInsights, buildActionScopeSummary, buildFilterScopeSummary } = coachFeedModule
 
 function createBaseInput() {
   return {
@@ -65,28 +65,18 @@ function createBaseInput() {
     readinessScore: 68,
     avgEffort: 6.8,
     hardSets: 42,
+    timeHorizonLabel: 'Last 14 days',
     trainingLoadSummary: {
       status: 'balanced',
       loadRatio: 1.05,
       insufficientData: false,
       isInitialPhase: false,
       daysSinceLast: 1.2
-    },
-    exerciseTrend: [
-      { e1rm: 210, trend: 205, momentum: null },
-      { e1rm: 215, trend: 208, momentum: 0.12 },
-      { e1rm: 218, trend: 210, momentum: 0.14 },
-      { e1rm: 220, trend: 212, momentum: 0.16 }
-    ],
-    muscleBreakdown: [
-      { muscle: 'Back', relativePct: 26, imbalanceIndex: 142, daysPerWeek: 2.1 },
-      { muscle: 'Chest', relativePct: 11, imbalanceIndex: 65, daysPerWeek: 0.8 },
-      { muscle: 'Legs', relativePct: 24, imbalanceIndex: 102, daysPerWeek: 1.9 }
-    ]
+    }
   }
 }
 
-test('generateCoachFeedInsights returns exactly 3 items with highest priority first', () => {
+test('generateCoachFeedInsights returns up to two highest-priority forward actions', () => {
   const insights = generateCoachFeedInsights({
     ...createBaseInput(),
     readinessScore: 32,
@@ -100,25 +90,43 @@ test('generateCoachFeedInsights returns exactly 3 items with highest priority fi
     }
   })
 
-  assert.equal(insights.length, 3)
+  assert.equal(insights.length, 2)
   assert.equal(insights[0].id, 'overreaching-load')
   assert.ok(insights.some((insight) => insight.id === 'high-effort-low-readiness'))
+  assert.equal(insights[0].timeHorizonLabel, 'Last 14 days')
 })
 
-test('generateCoachFeedInsights handles no-data scopes with actionable fallback insights', () => {
+test('generateCoachFeedInsights returns explicit insufficient-data state when no sessions exist in horizon', () => {
   const insights = generateCoachFeedInsights({
     ...createBaseInput(),
     filteredSessionCount: 0,
     sessionsPerWeek: 0,
     readinessScore: null,
-    avgEffort: null,
-    muscleBreakdown: [],
-    exerciseTrend: []
+    avgEffort: null
   })
 
-  assert.equal(insights.length, 3)
-  assert.equal(insights[0].id, 'no-data')
-  assert.ok(insights.some((insight) => insight.id === 'baseline-data-quality'))
+  assert.equal(insights.length, 1)
+  assert.equal(insights[0].id, 'insufficient-data')
+  assert.equal(insights[0].confidence, 'low')
+})
+
+test('generateCoachFeedInsights returns stable-on-track when there are no urgent corrections', () => {
+  const insights = generateCoachFeedInsights({
+    ...createBaseInput(),
+    readinessScore: 64,
+    avgEffort: 6.4,
+    trainingLoadSummary: {
+      status: 'balanced',
+      loadRatio: 1.01,
+      insufficientData: false,
+      isInitialPhase: false,
+      daysSinceLast: 1
+    }
+  })
+
+  assert.equal(insights.length, 1)
+  assert.equal(insights[0].id, 'stable-on-track')
+  assert.equal(insights[0].confidence, 'high')
 })
 
 test('buildFilterScopeSummary produces coherent scope labels for active filters', () => {
@@ -134,4 +142,17 @@ test('buildFilterScopeSummary produces coherent scope labels for active filters'
   assert.equal(summary.parts[1], 'Back')
   assert.equal(summary.parts[2], 'Barbell Row')
   assert.equal(summary.label, '2026-01-01 to 2026-02-01 • Back • Barbell Row')
+})
+
+test('buildActionScopeSummary composes horizon + muscle + exercise labels', () => {
+  const summary = buildActionScopeSummary({
+    selectedMuscle: 'back',
+    selectedExercise: 'all',
+    timeHorizonLabel: 'Last 14 days'
+  })
+
+  assert.equal(summary.parts[0], 'Last 14 days')
+  assert.equal(summary.parts[1], 'Back')
+  assert.equal(summary.parts[2], 'All exercises')
+  assert.equal(summary.label, 'Last 14 days • Back • All exercises')
 })

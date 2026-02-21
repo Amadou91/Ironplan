@@ -8,7 +8,8 @@ import type { CoachInsight } from '@/lib/progress/coach-feed'
 
 type CoachFeedProps = {
   insights: CoachInsight[]
-  scopeLabel: string
+  timeHorizonLabel: string
+  focusLabel: string
   drilldownVisible: boolean
   onToggleDrilldown: () => void
 }
@@ -40,9 +41,16 @@ const TONE_STYLES: Record<CoachInsight['tone'], { badge: string; border: string;
   }
 }
 
+const CONFIDENCE_STYLES: Record<CoachInsight['confidence'], string> = {
+  high: 'text-[var(--color-success-strong)]',
+  medium: 'text-[var(--color-primary-strong)]',
+  low: 'text-[var(--color-warning-strong,#92400e)]'
+}
+
 export function CoachFeed({
   insights,
-  scopeLabel,
+  timeHorizonLabel,
+  focusLabel,
   drilldownVisible,
   onToggleDrilldown
 }: CoachFeedProps) {
@@ -51,18 +59,24 @@ export function CoachFeed({
       <div className="border-b border-[var(--color-border)] px-6 py-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <h2 className="text-xl font-black tracking-tight text-strong uppercase">Coach Feed</h2>
-            <p className="text-xs font-bold uppercase tracking-widest text-subtle">Top 3 actions for this scope</p>
+            <h2 className="text-xl font-black tracking-tight text-strong uppercase">Action Plan</h2>
+            <p className="text-xs font-bold uppercase tracking-widest text-subtle">Forward actions from recent training</p>
           </div>
-          <span className="inline-flex items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-subtle">
-            {scopeLabel}
-          </span>
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            <span className="inline-flex items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-subtle">
+              {timeHorizonLabel}
+            </span>
+            <span className="inline-flex items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-subtle">
+              {focusLabel}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 px-6 py-5 md:grid-cols-3">
+      <div className="grid gap-4 px-6 py-5 md:grid-cols-2">
         {insights.map((insight) => {
           const tone = TONE_STYLES[insight.tone]
+          const confidenceText = CONFIDENCE_STYLES[insight.confidence]
           return (
             <article
               key={insight.id}
@@ -72,18 +86,22 @@ export function CoachFeed({
                 <span className={`inline-flex rounded-md border px-2 py-1 text-[10px] font-black uppercase tracking-widest ${tone.badge}`}>
                   {tone.label}
                 </span>
-                <span className="text-[10px] font-black uppercase tracking-wider text-subtle">{insight.metric}</span>
+                <span className={`text-[10px] font-black uppercase tracking-wider ${confidenceText}`}>
+                  {insight.confidence} confidence
+                </span>
               </div>
               <h3 className="text-sm font-black uppercase tracking-wide text-strong">{insight.title}</h3>
               <p className="mt-2 text-sm text-subtle">{insight.summary}</p>
-              <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${tone.text}`}>Action: {insight.action}</p>
+              <p className="mt-2 text-xs font-semibold text-subtle">Why now: {insight.whyNow}</p>
+              <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${tone.text}`}>Next: {insight.nextStep}</p>
+              <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-subtle">{insight.metric}</p>
             </article>
           )
         })}
       </div>
 
       <div className="flex items-center justify-between border-t border-[var(--color-border)] px-6 py-4">
-        <p className="text-xs text-subtle">Summaries and drilldown use the same active filters.</p>
+        <p className="text-xs text-subtle">Actions use recent data. Drilldown charts follow your selected date filters.</p>
         <Button type="button" variant="secondary" onClick={onToggleDrilldown} className="h-10 px-4 text-xs font-black uppercase tracking-widest">
           {drilldownVisible ? 'Hide drilldown' : 'Show full drilldown'}
           {drilldownVisible ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />}
