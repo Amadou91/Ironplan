@@ -100,7 +100,7 @@ export default function ProgressPage() {
         {error ? <Alert variant="error">{error}</Alert> : null}
         
         <div className="grid grid-cols-1 gap-6">
-          <div className="sticky top-[calc(0.5rem+env(safe-area-inset-top,0px))] z-40 transition-all duration-500 sm:top-4 lg:top-6">
+          <div className="sticky top-[calc(0.5rem+env(safe-area-inset-top,0px))] z-40 sm:top-4 lg:top-6">
             <ProgressFilters 
               startDate={startDate} 
               setStartDate={setStartDate} 
