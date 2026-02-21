@@ -20,9 +20,7 @@ export const useUIStore = create<UIState>()(
     {
       name: 'ironplan-ui-settings',
       version: 1,
-      migrate: (persistedState: any, version: number) => {
-        return persistedState as UIState;
-      },
+      migrate: (persistedState: unknown) => persistedState as UIState,
     }
   )
 );

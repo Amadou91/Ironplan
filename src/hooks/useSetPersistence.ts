@@ -74,8 +74,12 @@ export function useSetPersistence() {
   }, [])
 
   const getSessionSyncStatus = useCallback((sessionId?: string | null): SessionSetSyncStatus => {
-    if (sessionId && queueSnapshot.sessions[sessionId]) {
-      return queueSnapshot.sessions[sessionId]
+    if (sessionId) {
+      return queueSnapshot.sessions[sessionId] ?? {
+        state: 'synced',
+        pending: 0,
+        error: 0
+      }
     }
     return {
       state: queueSnapshot.state,

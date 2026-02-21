@@ -40,9 +40,7 @@ export const createAuthStore = (storage?: StateStorage) =>
         version: 1,
         storage: storage ? createJSONStorage(() => storage) : undefined,
         partialize: (state) => ({ user: state.user }),
-        migrate: (persistedState: any, version: number) => {
-          return persistedState as AuthState
-        }
+        migrate: (persistedState: unknown) => persistedState as AuthState
       }
     )
   )

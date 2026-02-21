@@ -293,6 +293,37 @@ test('Queued local set is replayed on refresh before first successful sync', asy
   assert.equal(hydrated.exercises[0].sets[0].weight, 95)
 })
 
+test('SetOperationQueue does not endlessly retry non-retryable failures', async () => {
+  const store = new InMemorySetOperationStore()
+  const calls = []
+
+  const queue = new SetOperationQueue(
+    store,
+    async (op) => {
+      calls.push(op)
+      return { success: false, retryable: false, error: 'constraint violation' }
+    },
+    { isOnline: () => true, now: () => 0, baseBackoffMs: 10, maxBackoffMs: 50 }
+  )
+
+  await queue.enqueueUpsert({
+    setId: 'set-invalid',
+    sessionId: 'session-invalid',
+    sessionExerciseId: 'exercise-invalid',
+    payload: { ...basePayload, session_exercise_id: 'exercise-invalid', reps: -1 }
+  })
+
+  await queue.flushNow()
+  await queue.flushNow()
+
+  assert.equal(calls.length, 1)
+  const queued = await store.loadAll()
+  assert.equal(queued.length, 1)
+  assert.equal(queued[0].lastError, 'constraint violation')
+  assert.equal(queued[0].nextRetryAt, Number.POSITIVE_INFINITY)
+  assert.equal(queue.getSnapshot().state, 'error')
+})
+
 test('applyQueuedSetMutations replays pending set updates/additions over hydrated session data', () => {
   const session = {
     id: 'session-1',

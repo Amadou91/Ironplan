@@ -156,13 +156,7 @@ export const useWorkoutStore = create<WorkoutState>()(
     {
       name: 'ironplan-active-session',
       version: 1,
-      migrate: (persistedState: any, version: number) => {
-        if (version === 0) {
-          // Handle migration from version 0 if needed
-          return persistedState as WorkoutState;
-        }
-        return persistedState as WorkoutState;
-      },
+      migrate: (persistedState: unknown) => persistedState as WorkoutState,
     }
   )
 );

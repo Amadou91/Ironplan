@@ -48,8 +48,7 @@ export type MetricsSession = {
 export const isSetE1rmEligible = (
   _sessionGoal?: SessionGoal | null,
   exerciseEligible?: boolean | null,
-  set?: MetricsSet | null,
-  _movementPattern?: string | null
+  set?: MetricsSet | null
 ): boolean => {
   // Strict eligibility is backed by explicit catalog metadata.
   if (exerciseEligible !== true) return false
@@ -201,8 +200,9 @@ export const computeSetE1rm = (
   exerciseEligible?: boolean | null,
   movementPattern?: string | null
 ) => {
+  void movementPattern
   if (!isE1rmEligibleProfile(set.metricProfile)) return null
-  if (!isSetE1rmEligible(sessionGoal, exerciseEligible, set, movementPattern)) return null
+  if (!isSetE1rmEligible(sessionGoal, exerciseEligible, set)) return null
   if (!isValidNumber(set.reps) || !isValidNumber(set.weight)) return null
   const totalWeight = getTotalWeight(set.weight, set.loadType, set.implementCount)
   if (!Number.isFinite(totalWeight) || totalWeight <= 0 || set.reps <= 0) return null

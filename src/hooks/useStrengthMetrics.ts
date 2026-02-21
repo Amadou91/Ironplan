@@ -31,8 +31,7 @@ import { SESSION_PAGE_SIZE, CHRONIC_LOAD_WINDOW_DAYS, MS_PER_DAY } from '@/const
 import { safeParseArray, sessionRowSchema } from '@/lib/validation/schemas'
 import type { WeightUnit, MetricProfile } from '@/types/domain'
 import { formatDateInET, getUTCDateRangeFromET } from '@/lib/date-utils'
-import { getTrainingLoadSummaryAction } from '@/app/progress/training-load-actions'
-import type { TrainingLoadSummary } from '@/lib/training-metrics'
+import { summarizeTrainingLoad, type TrainingLoadSummary } from '@/lib/training-metrics'
 
 const DEFAULT_TRAINING_LOAD_SUMMARY: TrainingLoadSummary = {
   acuteLoad: 0,
@@ -62,7 +61,6 @@ export function useStrengthMetrics(options: {
   const [error, setError] = useState<string | null>(null)
   const [sessionPage, setSessionPage] = useState(0)
   const [hasMoreSessions, setHasMoreSessions] = useState(true)
-  const [trainingLoadSummary, setTrainingLoadSummary] = useState<TrainingLoadSummary>(DEFAULT_TRAINING_LOAD_SUMMARY)
 
   const { catalog } = useExerciseCatalog()
   const exerciseLibraryByName = useMemo(
@@ -148,32 +146,6 @@ export function useStrengthMetrics(options: {
     loadSessions()
   }, [ensureSession, supabase, user, userLoading, startDate, endDate, sessionPage])
 
-  useEffect(() => {
-    if (!userLoading && !user) {
-      setTrainingLoadSummary(DEFAULT_TRAINING_LOAD_SUMMARY)
-    }
-  }, [user, userLoading])
-
-  useEffect(() => {
-    if (userLoading || !user) return
-    let cancelled = false
-
-    const loadTrainingSummary = async () => {
-      const result = await getTrainingLoadSummaryAction()
-      if (cancelled) return
-      if (result.success && result.data) {
-        setTrainingLoadSummary(result.data)
-      } else {
-        setTrainingLoadSummary(DEFAULT_TRAINING_LOAD_SUMMARY)
-      }
-    }
-
-    void loadTrainingSummary()
-    return () => {
-      cancelled = true
-    }
-  }, [user, userLoading, sessions.length])
-
   const filteredSessions = useMemo(() => {
     const seenIds = new Set<string>()
     return sessions.filter((session) => {
@@ -213,6 +185,34 @@ export function useStrengthMetrics(options: {
     )
     return selectedMuscle === 'all' ? sets : sets.filter(set => isMuscleMatch(selectedMuscle, set.primaryMuscle, set.secondaryMuscles))
   }, [filteredSessions, getSessionTitle, selectedMuscle, selectedExercise, exerciseLibraryByName])
+
+  const trainingLoadSummary = useMemo<TrainingLoadSummary>(() => {
+    if (!allSets.length) return DEFAULT_TRAINING_LOAD_SUMMARY
+
+    const sessionEndedAt = new Map(filteredSessions.map((session) => [session.id, session.ended_at ?? null]))
+    const groupedSessions = new Map<string, {
+      startedAt: string
+      endedAt: string | null
+      sets: ReturnType<typeof mapSetLikeToMetricsSet>[]
+    }>()
+
+    allSets.forEach((set) => {
+      const existing = groupedSessions.get(set.sessionId)
+      const mappedSet = mapSetLikeToMetricsSet(set)
+      if (existing) {
+        existing.sets.push(mappedSet)
+        return
+      }
+
+      groupedSessions.set(set.sessionId, {
+        startedAt: set.startedAt,
+        endedAt: sessionEndedAt.get(set.sessionId) ?? null,
+        sets: [mappedSet]
+      })
+    })
+
+    return summarizeTrainingLoad(Array.from(groupedSessions.values()))
+  }, [allSets, filteredSessions])
 
   const aggregateMetrics = useMemo(() => {
     const metricSets = allSets.map((set) => mapSetLikeToMetricsSet(set))

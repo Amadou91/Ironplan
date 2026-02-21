@@ -355,6 +355,7 @@ export class SetOperationQueue {
   private getNextRetryAt() {
     let next: number | null = null
     for (const operation of this.operations.values()) {
+      if (!Number.isFinite(operation.nextRetryAt)) continue
       if (next === null || operation.nextRetryAt < next) {
         next = operation.nextRetryAt
       }
@@ -421,12 +422,13 @@ export class SetOperationQueue {
         }
 
         const attempts = due.attempts + 1
-        const retryDelay = result.retryable ? this.computeBackoffMs(attempts) : this.maxBackoffMs
+        const retryDelay = result.retryable ? this.computeBackoffMs(attempts) : null
+        const nextRetryAt = retryDelay === null ? Number.POSITIVE_INFINITY : this.now() + retryDelay
         const failed: QueuedSetOperation = {
           ...due,
           attempts,
           lastError: result.error,
-          nextRetryAt: this.now() + retryDelay,
+          nextRetryAt,
           updatedAt: this.now()
         }
         await this.store.put(failed)
