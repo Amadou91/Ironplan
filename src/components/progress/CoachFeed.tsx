@@ -1,17 +1,13 @@
 'use client'
 
 import React from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
 import type { CoachInsight } from '@/lib/progress/coach-feed'
 
 type CoachFeedProps = {
   insights: CoachInsight[]
   timeHorizonLabel: string
   focusLabel: string
-  drilldownVisible: boolean
-  onToggleDrilldown: () => void
 }
 
 const TONE_STYLES: Record<CoachInsight['tone'], { badge: string; border: string; text: string; label: string }> = {
@@ -50,10 +46,10 @@ const CONFIDENCE_STYLES: Record<CoachInsight['confidence'], string> = {
 export function CoachFeed({
   insights,
   timeHorizonLabel,
-  focusLabel,
-  drilldownVisible,
-  onToggleDrilldown
+  focusLabel
 }: CoachFeedProps) {
+  const isSingleInsight = insights.length === 1
+
   return (
     <Card className="glass-panel border-[var(--color-border)]">
       <div className="border-b border-[var(--color-border)] px-6 py-5">
@@ -73,16 +69,16 @@ export function CoachFeed({
         </div>
       </div>
 
-      <div className="grid gap-4 px-6 py-5 md:grid-cols-2">
+      <div className={`grid gap-4 px-6 py-5 ${isSingleInsight ? 'grid-cols-1' : 'md:grid-cols-2'}`}>
         {insights.map((insight) => {
           const tone = TONE_STYLES[insight.tone]
           const confidenceText = CONFIDENCE_STYLES[insight.confidence]
           return (
             <article
               key={insight.id}
-              className={`rounded-xl border border-[var(--color-border)] border-t-4 bg-[var(--color-surface-subtle)] p-4 ${tone.border}`}
+              className={`rounded-xl border border-[var(--color-border)] border-t-4 bg-[var(--color-surface-subtle)] p-4 text-left ${tone.border}`}
             >
-              <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                 <span className={`inline-flex rounded-md border px-2 py-1 text-[10px] font-black uppercase tracking-widest ${tone.badge}`}>
                   {tone.label}
                 </span>
@@ -90,22 +86,18 @@ export function CoachFeed({
                   {insight.confidence} confidence
                 </span>
               </div>
-              <h3 className="text-sm font-black uppercase tracking-wide text-strong">{insight.title}</h3>
-              <p className="mt-2 text-sm text-subtle">{insight.summary}</p>
-              <p className="mt-2 text-xs font-semibold text-subtle">Why now: {insight.whyNow}</p>
-              <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${tone.text}`}>Next: {insight.nextStep}</p>
-              <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-subtle">{insight.metric}</p>
+              <h3 className="text-sm font-black uppercase tracking-wide text-strong [overflow-wrap:anywhere]">{insight.title}</h3>
+              <p className="mt-2 text-sm text-subtle [overflow-wrap:anywhere]">{insight.summary}</p>
+              <p className="mt-2 text-xs font-semibold text-subtle [overflow-wrap:anywhere]">Why now: {insight.whyNow}</p>
+              <p className={`mt-3 text-xs font-bold uppercase tracking-wide [overflow-wrap:anywhere] ${tone.text}`}>Next: {insight.nextStep}</p>
+              <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-subtle [overflow-wrap:anywhere]">{insight.metric}</p>
             </article>
           )
         })}
       </div>
 
-      <div className="flex items-center justify-between border-t border-[var(--color-border)] px-6 py-4">
-        <p className="text-xs text-subtle">Actions use recent data. Drilldown charts follow your selected date filters.</p>
-        <Button type="button" variant="secondary" onClick={onToggleDrilldown} className="h-10 px-4 text-xs font-black uppercase tracking-widest">
-          {drilldownVisible ? 'Hide drilldown' : 'Show full drilldown'}
-          {drilldownVisible ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />}
-        </Button>
+      <div className="border-t border-[var(--color-border)] px-6 py-4">
+        <p className="text-xs text-subtle">Actions use recent data.</p>
       </div>
     </Card>
   )
