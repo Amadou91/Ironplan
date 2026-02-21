@@ -496,6 +496,7 @@ input::placeholder, textarea::placeholder {
     padding: 0.65rem 0.9rem;
     font-size: 16px !important;
     font-weight: var(--weight-medium);
+    line-height: 1.2;
     color: var(--color-input-text);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     appearance: none;

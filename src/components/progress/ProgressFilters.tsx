@@ -252,7 +252,7 @@ export function ProgressFilters({
                 <select
                   value={selectedMuscle}
                   onChange={(e) => setSelectedMuscle(e.target.value)}
-                  className="input-base h-11 text-[15px] font-medium"
+                  className="input-base min-h-11 text-[15px] font-medium"
                 >
                   <option value="all">All Groups</option>
                   {MUSCLE_PRESETS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
@@ -264,7 +264,7 @@ export function ProgressFilters({
                 <select
                   value={selectedExercise}
                   onChange={(e) => setSelectedExercise(e.target.value)}
-                  className="input-base h-11 text-[15px] font-medium"
+                  className="input-base min-h-11 text-[15px] font-medium"
                 >
                   <option value="all">All Exercises</option>
                   {exerciseOptions.map(e => <option key={e} value={e}>{e}</option>)}
@@ -316,7 +316,7 @@ export function ProgressFilters({
             <select
               value={selectedMuscle}
               onChange={(e) => setSelectedMuscle(e.target.value)}
-              className="input-base h-11 bg-white/50 text-[15px] font-medium"
+              className="input-base min-h-11 bg-white/50 text-[15px] font-medium"
             >
               <option value="all">All Groups</option>
               {MUSCLE_PRESETS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
@@ -328,7 +328,7 @@ export function ProgressFilters({
             <select
               value={selectedExercise}
               onChange={(e) => setSelectedExercise(e.target.value)}
-              className="input-base h-11 bg-white/50 text-[15px] font-medium"
+              className="input-base min-h-11 bg-white/50 text-[15px] font-medium"
             >
               <option value="all">All Exercises</option>
               {exerciseOptions.map(e => <option key={e} value={e}>{e}</option>)}
