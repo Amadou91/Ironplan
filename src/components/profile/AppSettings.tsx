@@ -105,7 +105,7 @@ export function AppSettings({ onSuccess, onError }: AppSettingsProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="grid grid-cols-1 gap-6 pb-[calc(env(safe-area-inset-bottom)+8rem)] md:pb-0">
       <Card className="p-6">
         <div className="flex items-center gap-3">
           <Ruler className="h-5 w-5 text-accent" />

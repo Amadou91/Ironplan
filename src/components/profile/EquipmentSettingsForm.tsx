@@ -116,7 +116,7 @@ export function EquipmentSettingsForm({ onSuccess, onError }: EquipmentSettingsF
   ].filter(Boolean)
 
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="grid grid-cols-1 gap-6 pb-[calc(env(safe-area-inset-bottom)+8rem)] md:pb-0">
       <Card className="p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">

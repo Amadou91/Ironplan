@@ -163,8 +163,13 @@ export function SessionHistoryList({
 
   const listContent = (
     <>
-      <div className={`flex flex-wrap items-center gap-3 border-b border-[var(--color-border)] px-6 ${embedded ? 'justify-end py-4' : 'justify-between py-5'}`}>
-        {!embedded && (
+      <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-6 ${embedded ? 'py-4' : 'py-5'}`}>
+        {embedded ? (
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-subtle">Session history tools</p>
+            <p className="mt-1 text-xs text-subtle">Most recent first. Expand any session to review full set details.</p>
+          </div>
+        ) : (
           <div className="min-w-0">
             <h2 className="text-xl font-black text-strong tracking-tight uppercase">Session Logs</h2>
             <p className="mt-1 text-xs font-bold uppercase tracking-widest text-subtle">Review your historical data</p>

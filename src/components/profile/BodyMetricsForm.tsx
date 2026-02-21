@@ -67,7 +67,7 @@ export function BodyMetricsForm({
     : null
 
   return (
-    <Card className="p-6">
+    <Card className="p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom)+8rem)] sm:pb-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-strong">Body metrics</h2>
