@@ -35,6 +35,7 @@ interface SessionHistoryListProps {
   onImportSuccess?: () => void
   showActions?: boolean
   showImportExport?: boolean
+  embedded?: boolean
 }
 
 export function SessionHistoryList({
@@ -48,7 +49,8 @@ export function SessionHistoryList({
   loading,
   onImportSuccess,
   showActions = true,
-  showImportExport = true
+  showImportExport = true,
+  embedded = false
 }: SessionHistoryListProps) {
   const supabase = useSupabase()
   const { displayUnit } = useUIStore()
@@ -159,218 +161,233 @@ export function SessionHistoryList({
   const metricBadgeBaseClass =
     'inline-flex h-7 items-center rounded-lg px-2.5 py-0 text-xs leading-none font-black uppercase tracking-wider whitespace-nowrap shadow-sm'
 
-  return (
+  const listContent = (
     <>
-      <Card className="glass-panel">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-6 py-5">
+      <div className={`flex flex-wrap items-center gap-3 border-b border-[var(--color-border)] px-6 ${embedded ? 'justify-end py-4' : 'justify-between py-5'}`}>
+        {!embedded && (
           <div className="min-w-0">
             <h2 className="text-xl font-black text-strong tracking-tight uppercase">Session Logs</h2>
-            <p className="text-xs font-bold text-subtle uppercase tracking-widest mt-1">Review your historical data</p>
+            <p className="mt-1 text-xs font-bold uppercase tracking-widest text-subtle">Review your historical data</p>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            {showImportExport && onImportSuccess && <SessionHistoryToolbar onImportSuccess={onImportSuccess} />}
-            <span className="flex-shrink-0 text-xs font-black text-subtle/60 uppercase tracking-widest bg-[var(--color-surface-muted)] px-3 py-1 rounded-lg border border-[var(--color-border)]">{sessions.length} session(s)</span>
-          </div>
+        )}
+        <div className="flex items-center gap-2 sm:gap-4">
+          {showImportExport && onImportSuccess && <SessionHistoryToolbar onImportSuccess={onImportSuccess} />}
+          <span className="flex-shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-1 text-xs font-black uppercase tracking-widest text-subtle/60">
+            {sessions.length} session(s)
+          </span>
         </div>
-        <div className="divide-y divide-[var(--color-border)]/50">
-          {sessions.length === 0 ? (
-            <div className="p-10 text-center text-sm text-muted font-medium italic">No sessions logged for this range yet.</div>
-          ) : (
-            sessions.map((session) => {
-              const totals = getSessionTotals(session)
-              const isExpanded = Boolean(expandedSessions[session.id])
-              return (
-                <div key={session.id} className="space-y-5 p-6 transition-all hover:bg-[var(--color-surface-subtle)]/40 group">
-                  <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(16rem,1.2fr)_minmax(0,1.7fr)_auto] lg:items-center lg:gap-4">
-                    <div className="space-y-1.5 lg:min-w-[16rem]">
-                      <p className="text-base font-black text-strong tracking-tight group-hover:text-[var(--color-primary)] transition-colors">{formatSessionDisplayTitle(getSessionTitle(session), session.started_at, session.ended_at)}</p>
-                      <div className="flex flex-wrap items-center gap-2.5 text-xs font-bold text-subtle uppercase tracking-wider">
-                        <span className="text-strong opacity-80">{formatDateTime(session.started_at)}</span>
-                        {session.body_weight_lb && (
-                          <>
-                            <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-border-strong)] opacity-30" />
-                            <span>{isKg ? Math.round(session.body_weight_lb * KG_PER_LB * 10) / 10 : session.body_weight_lb} {displayUnit} BW</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:gap-2">
-                      <span className={`${metricBadgeBaseClass} border border-[var(--color-border)] bg-[var(--color-bg)] text-subtle/80`}>{totals.exercises} exercises</span>
-                      <span className={`${metricBadgeBaseClass} border border-[var(--color-border)] bg-[var(--color-bg)] text-subtle/80`}>{totals.sets} sets</span>
-                      <span className={`${metricBadgeBaseClass} border border-[var(--color-border)] bg-[var(--color-bg)] text-subtle/80`}>{Math.round(isKg ? totals.volume * KG_PER_LB : totals.volume).toLocaleString()} {displayUnit} vol</span>
-                      <span className={`${metricBadgeBaseClass} border border-[var(--color-primary-border)]/30 bg-[var(--color-primary-soft)]/30 text-[var(--color-primary-strong)]`}>{Math.round(totals.workload).toLocaleString()} load</span>
-                      <span className={`${metricBadgeBaseClass} border border-[var(--color-success-border)] bg-[var(--color-success-soft)] text-[var(--color-success-strong)]`}>{totals.hardSets} hard sets</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-                      {showActions && (
-                        <Link href={`/sessions/${session.id}/edit`}>
-                          <Button variant="outline" className="h-10 px-4 text-xs font-black uppercase tracking-widest border-2">Edit</Button>
-                        </Link>
-                      )}
-                      <Button
-                        type="button"
-                        onClick={() => handleToggleSession(session.id)}
-                        className="h-10 px-4 text-xs font-black uppercase tracking-widest"
-                        variant="secondary"
-                      >
-                        {isExpanded ? 'Hide' : 'Details'}
-                      </Button>
-                      {showActions && (
-                        <Button
-                          type="button"
-                          onClick={() => setSessionToDelete(session)}
-                          className="h-10 w-10 p-0 border-2 border-[var(--color-danger-border)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
-                          variant="outline"
-                          disabled={Boolean(deletingSessionIds[session.id])}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+      </div>
+      <div className="divide-y divide-[var(--color-border)]/50">
+        {sessions.length === 0 ? (
+          <div className="p-10 text-center text-sm text-muted font-medium italic">No sessions logged for this range yet.</div>
+        ) : (
+          sessions.map((session) => {
+            const totals = getSessionTotals(session)
+            const isExpanded = Boolean(expandedSessions[session.id])
+            return (
+              <div key={session.id} className="space-y-5 p-6 transition-all hover:bg-[var(--color-surface-subtle)]/40 group">
+                <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(16rem,1.2fr)_minmax(0,1.7fr)_auto] lg:items-center lg:gap-4">
+                  <div className="space-y-1.5 lg:min-w-[16rem]">
+                    <p className="text-base font-black text-strong tracking-tight group-hover:text-[var(--color-primary)] transition-colors">{formatSessionDisplayTitle(getSessionTitle(session), session.started_at, session.ended_at)}</p>
+                    <div className="flex flex-wrap items-center gap-2.5 text-xs font-bold text-subtle uppercase tracking-wider">
+                      <span className="text-strong opacity-80">{formatDateTime(session.started_at)}</span>
+                      {session.body_weight_lb && (
+                        <>
+                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-border-strong)] opacity-30" />
+                          <span>{isKg ? Math.round(session.body_weight_lb * KG_PER_LB * 10) / 10 : session.body_weight_lb} {displayUnit} BW</span>
+                        </>
                       )}
                     </div>
                   </div>
-                  {isExpanded && (
-                    <div className="space-y-4 pt-4 border-t border-[var(--color-border)]/30 animate-in slide-in-from-top-4 duration-300">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {session.session_exercises.map((exercise) => {
-                          // Calculate exercise totals using canonical functions
-                          let exerciseTonnage = 0
-                          let exerciseLoad = 0
-                          const completedSets = (exercise.sets ?? []).filter(s => s.completed !== false)
-                          const sortedSets = [...completedSets].sort((a, b) => {
-                            const aNum = typeof a.set_number === 'number' ? a.set_number : Number.MAX_SAFE_INTEGER
-                            const bNum = typeof b.set_number === 'number' ? b.set_number : Number.MAX_SAFE_INTEGER
-                            if (aNum !== bNum) return aNum - bNum
-                            const aTime = a.performed_at ? new Date(a.performed_at).getTime() : Number.MAX_SAFE_INTEGER
-                            const bTime = b.performed_at ? new Date(b.performed_at).getTime() : Number.MAX_SAFE_INTEGER
-                            return aTime - bTime
-                          })
-                          
-                          const setMetrics = sortedSets.map((set) => {
-                            const setData = {
-                              metricProfile: exercise.metric_profile ?? undefined,
-                              reps: set.reps ?? null,
-                              weight: set.weight ?? null,
-                              implementCount: set.implement_count ?? null,
-                              loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
-                              weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
-                              rpe: typeof set.rpe === 'number' ? set.rpe : null,
-                              rir: typeof set.rir === 'number' ? set.rir : null,
-                              durationSeconds: set.duration_seconds ?? null
-                            }
-                            const tonnage = computeSetTonnage(setData)
-                            const load = computeSetLoad(setData)
-                            exerciseTonnage += tonnage
-                            exerciseLoad += load
-                            return { set, tonnage, load }
-                          })
-                          
-                          const displayTonnage = Math.round(isKg ? exerciseTonnage * KG_PER_LB : exerciseTonnage)
-                          const displayLoad = Math.round(exerciseLoad)
-                          
-                          return (
-                          <div key={exercise.id} className="surface-card-muted p-5 rounded-2xl border border-[var(--color-border)] transition-all hover:bg-[var(--color-surface-muted)]/50">
-                            <p className="text-sm font-black text-strong uppercase tracking-tight mb-2">{exercise.exercise_name}</p>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-xs font-bold uppercase tracking-widest text-subtle/70">
-                              <p>Primary: <span className="text-strong">{exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'N/A'}</span></p>
-                              {exercise.secondary_muscles && exercise.secondary_muscles.length > 0 && (
-                                <p>Secondary: <span className="text-strong">{exercise.secondary_muscles.map((muscle: string) => toMuscleLabel(muscle)).join(', ')}</span></p>
-                              )}
-                            </div>
-                            {/* Exercise Totals */}
-                            <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-[var(--color-border)]/30">
-                              <span className="inline-flex items-center rounded-md bg-[var(--color-bg)] px-2 py-0.5 text-xs font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)]">
-                                {displayTonnage.toLocaleString()} {displayUnit} vol
-                              </span>
-                              <span className="inline-flex items-center rounded-md bg-[var(--color-primary-soft)]/30 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-[var(--color-primary-strong)] border border-[var(--color-primary-border)]/30">
-                                {displayLoad.toLocaleString()} load
-                              </span>
-                              <span className="text-xs font-bold text-subtle/50 uppercase tracking-wider ml-auto">
-                                {completedSets.length} set{completedSets.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                            {/* Per-Set Breakdown */}
-                            <div className="space-y-1.5">
-                              {setMetrics.map(({ set, tonnage, load }) => {
-                                const totalLabel = formatTotalWeightLabel({
-                                  weight: set.weight ?? null,
-                                  weightUnit: (set.weight_unit as WeightUnit) || 'lb',
-                                  displayUnit,
-                                  loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
-                                  implementCount: set.implement_count ?? null
-                                });
-                                
-                                const setTonnageDisplay = Math.round(isKg ? tonnage * KG_PER_LB : tonnage)
-                                const setLoadDisplay = Math.round(load)
-                                const hasDuration = typeof set.duration_seconds === 'number' && set.duration_seconds > 0
-                                
-                                return (
-                                  <div key={set.id} className="rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-subtle)]/30 px-2.5 py-2 transition-colors hover:border-[var(--color-border)]">
-                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                      {/* Set number */}
-                                      <span className="text-xs font-black uppercase tracking-widest text-subtle/50 w-12 shrink-0">Set {set.set_number ?? '?'}</span>
-                                      
-                                      {/* Inputs: weight × reps or duration */}
-                                      <div className="text-sm font-bold text-strong flex-1 min-w-0">
-                                        {totalLabel ? (
-                                          <>
-                                            {totalLabel} <span className="text-subtle/40 mx-0.5">×</span> {set.reps ?? 0}
-                                          </>
-                                        ) : hasDuration ? (
-                                          <span className="text-subtle">{Math.round(set.duration_seconds! / 60)}min</span>
-                                        ) : (
-                                          <span className="text-subtle/50 italic">No load data</span>
-                                        )}
-                                        {/* RPE/RIR inline */}
-                                        {(typeof set.rpe === 'number' || typeof set.rir === 'number') && (
-                                          <span className="ml-1.5 text-xs font-medium text-subtle/60">
-                                            {typeof set.rpe === 'number' ? `@${set.rpe}` : ''}
-                                            {typeof set.rir === 'number' ? `RIR${set.rir}` : ''}
-                                          </span>
-                                        )}
-                                      </div>
-                                      
-                                      {/* Per-set computed values */}
-                                      <div className="flex items-center gap-2 shrink-0">
-                                        {setTonnageDisplay > 0 && (
-                                          <span className="text-xs font-bold text-subtle/70 tabular-nums">
-                                            {setTonnageDisplay.toLocaleString()} {displayUnit}
-                                          </span>
-                                        )}
-                                        {setLoadDisplay > 0 && (
-                                          <span className="text-xs font-bold text-[var(--color-primary)] tabular-nums">
-                                            {setLoadDisplay.toLocaleString()} ld
-                                          </span>
-                                        )}
-                                      </div>
+                  <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:gap-2">
+                    <span className={`${metricBadgeBaseClass} border border-[var(--color-border)] bg-[var(--color-bg)] text-subtle/80`}>{totals.exercises} exercises</span>
+                    <span className={`${metricBadgeBaseClass} border border-[var(--color-border)] bg-[var(--color-bg)] text-subtle/80`}>{totals.sets} sets</span>
+                    <span className={`${metricBadgeBaseClass} border border-[var(--color-border)] bg-[var(--color-bg)] text-subtle/80`}>{Math.round(isKg ? totals.volume * KG_PER_LB : totals.volume).toLocaleString()} {displayUnit} vol</span>
+                    <span className={`${metricBadgeBaseClass} border border-[var(--color-primary-border)]/30 bg-[var(--color-primary-soft)]/30 text-[var(--color-primary-strong)]`}>{Math.round(totals.workload).toLocaleString()} load</span>
+                    <span className={`${metricBadgeBaseClass} border border-[var(--color-success-border)] bg-[var(--color-success-soft)] text-[var(--color-success-strong)]`}>{totals.hardSets} hard sets</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+                    {showActions && (
+                      <Link href={`/sessions/${session.id}/edit`}>
+                        <Button variant="outline" className="h-10 px-4 text-xs font-black uppercase tracking-widest border-2">Edit</Button>
+                      </Link>
+                    )}
+                    <Button
+                      type="button"
+                      onClick={() => handleToggleSession(session.id)}
+                      className="h-10 px-4 text-xs font-black uppercase tracking-widest"
+                      variant="secondary"
+                    >
+                      {isExpanded ? 'Hide' : 'Details'}
+                    </Button>
+                    {showActions && (
+                      <Button
+                        type="button"
+                        onClick={() => setSessionToDelete(session)}
+                        className="h-10 w-10 p-0 border-2 border-[var(--color-danger-border)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
+                        variant="outline"
+                        disabled={Boolean(deletingSessionIds[session.id])}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {isExpanded && (
+                  <div className="space-y-4 pt-4 border-t border-[var(--color-border)]/30 animate-in slide-in-from-top-4 duration-300">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {session.session_exercises.map((exercise) => {
+                        // Calculate exercise totals using canonical functions
+                        let exerciseTonnage = 0
+                        let exerciseLoad = 0
+                        const completedSets = (exercise.sets ?? []).filter(s => s.completed !== false)
+                        const sortedSets = [...completedSets].sort((a, b) => {
+                          const aNum = typeof a.set_number === 'number' ? a.set_number : Number.MAX_SAFE_INTEGER
+                          const bNum = typeof b.set_number === 'number' ? b.set_number : Number.MAX_SAFE_INTEGER
+                          if (aNum !== bNum) return aNum - bNum
+                          const aTime = a.performed_at ? new Date(a.performed_at).getTime() : Number.MAX_SAFE_INTEGER
+                          const bTime = b.performed_at ? new Date(b.performed_at).getTime() : Number.MAX_SAFE_INTEGER
+                          return aTime - bTime
+                        })
+                        
+                        const setMetrics = sortedSets.map((set) => {
+                          const setData = {
+                            metricProfile: exercise.metric_profile ?? undefined,
+                            reps: set.reps ?? null,
+                            weight: set.weight ?? null,
+                            implementCount: set.implement_count ?? null,
+                            loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
+                            weightUnit: (set.weight_unit as 'lb' | 'kg' | null) ?? null,
+                            rpe: typeof set.rpe === 'number' ? set.rpe : null,
+                            rir: typeof set.rir === 'number' ? set.rir : null,
+                            durationSeconds: set.duration_seconds ?? null
+                          }
+                          const tonnage = computeSetTonnage(setData)
+                          const load = computeSetLoad(setData)
+                          exerciseTonnage += tonnage
+                          exerciseLoad += load
+                          return { set, tonnage, load }
+                        })
+                        
+                        const displayTonnage = Math.round(isKg ? exerciseTonnage * KG_PER_LB : exerciseTonnage)
+                        const displayLoad = Math.round(exerciseLoad)
+                        
+                        return (
+                        <div key={exercise.id} className="surface-card-muted p-5 rounded-2xl border border-[var(--color-border)] transition-all hover:bg-[var(--color-surface-muted)]/50">
+                          <p className="text-sm font-black text-strong uppercase tracking-tight mb-2">{exercise.exercise_name}</p>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-xs font-bold uppercase tracking-widest text-subtle/70">
+                            <p>Primary: <span className="text-strong">{exercise.primary_muscle ? toMuscleLabel(exercise.primary_muscle) : 'N/A'}</span></p>
+                            {exercise.secondary_muscles && exercise.secondary_muscles.length > 0 && (
+                              <p>Secondary: <span className="text-strong">{exercise.secondary_muscles.map((muscle: string) => toMuscleLabel(muscle)).join(', ')}</span></p>
+                            )}
+                          </div>
+                          {/* Exercise Totals */}
+                          <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-[var(--color-border)]/30">
+                            <span className="inline-flex items-center rounded-md bg-[var(--color-bg)] px-2 py-0.5 text-xs font-black uppercase tracking-wider text-subtle/80 border border-[var(--color-border)]">
+                              {displayTonnage.toLocaleString()} {displayUnit} vol
+                            </span>
+                            <span className="inline-flex items-center rounded-md bg-[var(--color-primary-soft)]/30 px-2 py-0.5 text-xs font-black uppercase tracking-wider text-[var(--color-primary-strong)] border border-[var(--color-primary-border)]/30">
+                              {displayLoad.toLocaleString()} load
+                            </span>
+                            <span className="text-xs font-bold text-subtle/50 uppercase tracking-wider ml-auto">
+                              {completedSets.length} set{completedSets.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          {/* Per-Set Breakdown */}
+                          <div className="space-y-1.5">
+                            {setMetrics.map(({ set, tonnage, load }) => {
+                              const totalLabel = formatTotalWeightLabel({
+                                weight: set.weight ?? null,
+                                weightUnit: (set.weight_unit as WeightUnit) || 'lb',
+                                displayUnit,
+                                loadType: (set.load_type as 'total' | 'per_implement' | null) ?? null,
+                                implementCount: set.implement_count ?? null
+                              });
+                              
+                              const setTonnageDisplay = Math.round(isKg ? tonnage * KG_PER_LB : tonnage)
+                              const setLoadDisplay = Math.round(load)
+                              const hasDuration = typeof set.duration_seconds === 'number' && set.duration_seconds > 0
+                              
+                              return (
+                                <div key={set.id} className="rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-subtle)]/30 px-2.5 py-2 transition-colors hover:border-[var(--color-border)]">
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    {/* Set number */}
+                                    <span className="text-xs font-black uppercase tracking-widest text-subtle/50 w-12 shrink-0">Set {set.set_number ?? '?'}</span>
+                                    
+                                    {/* Inputs: weight × reps or duration */}
+                                    <div className="text-sm font-bold text-strong flex-1 min-w-0">
+                                      {totalLabel ? (
+                                        <>
+                                          {totalLabel} <span className="text-subtle/40 mx-0.5">×</span> {set.reps ?? 0}
+                                        </>
+                                      ) : hasDuration ? (
+                                        <span className="text-subtle">{Math.round(set.duration_seconds! / 60)}min</span>
+                                      ) : (
+                                        <span className="text-subtle/50 italic">No load data</span>
+                                      )}
+                                      {/* RPE/RIR inline */}
+                                      {(typeof set.rpe === 'number' || typeof set.rir === 'number') && (
+                                        <span className="ml-1.5 text-xs font-medium text-subtle/60">
+                                          {typeof set.rpe === 'number' ? `@${set.rpe}` : ''}
+                                          {typeof set.rir === 'number' ? `RIR${set.rir}` : ''}
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Per-set computed values */}
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      {setTonnageDisplay > 0 && (
+                                        <span className="text-xs font-bold text-subtle/70 tabular-nums">
+                                          {setTonnageDisplay.toLocaleString()} {displayUnit}
+                                        </span>
+                                      )}
+                                      {setLoadDisplay > 0 && (
+                                        <span className="text-xs font-bold text-[var(--color-primary)] tabular-nums">
+                                          {setLoadDisplay.toLocaleString()} ld
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
-                                );
-                              })}
-                            </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        )})}
-                      </div>
+                        </div>
+                      )})}
                     </div>
-                  )}
-                </div>
-              )
-            })
-          )}
-        </div>
-        {hasMore && (
-          <div className="border-t border-[var(--color-border)] px-6 py-6 text-center">
-            <Button
-              variant="secondary"
-              onClick={onLoadMore}
-              disabled={loading}
-              className="h-12 px-10 text-xs font-black uppercase tracking-widest shadow-sm transition-all active:scale-95"
-            >
-              {loading ? 'Loading...' : 'Load more sessions'}
-            </Button>
-          </div>
+                  </div>
+                )}
+              </div>
+            )
+          })
         )}
-      </Card>
+      </div>
+      {hasMore && (
+        <div className="border-t border-[var(--color-border)] px-6 py-6 text-center">
+          <Button
+            variant="secondary"
+            onClick={onLoadMore}
+            disabled={loading}
+            className="h-12 px-10 text-xs font-black uppercase tracking-widest shadow-sm transition-all active:scale-95"
+          >
+            {loading ? 'Loading...' : 'Load more sessions'}
+          </Button>
+        </div>
+      )}
+    </>
+  )
 
+  return (
+    <>
+      {embedded ? (
+        <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+          {listContent}
+        </div>
+      ) : (
+        <Card className="glass-panel">
+          {listContent}
+        </Card>
+      )}
       {showActions && (
         <ConfirmDialog
           isOpen={Boolean(sessionToDelete)}

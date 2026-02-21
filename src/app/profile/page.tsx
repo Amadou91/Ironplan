@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
 import { useSupabase } from '@/hooks/useSupabase'
@@ -18,6 +19,14 @@ import { DeveloperToolsPanel } from '@/components/profile/DeveloperToolsPanel'
 import { normalizePreferences } from '@/lib/preferences'
 import { isDeveloperToolsUser } from '@/lib/developer-access'
 import { validateProfileCompletion, type ProfileSnapshot } from '@/lib/profile-validation'
+import { useStrengthMetrics } from '@/hooks/useStrengthMetrics'
+
+const SessionHistoryList = dynamic(
+  () => import('@/components/progress/SessionHistoryList').then((mod) => mod.SessionHistoryList),
+  {
+    loading: () => <Skeleton className="h-[28rem] w-full" />
+  }
+)
 
 /** Per-section missing-field counts. null = not yet loaded. */
 type SectionCompletion = { metrics: number | null; equipment: number | null }
@@ -30,6 +39,15 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [completion, setCompletion] = useState<SectionCompletion>({ metrics: null, equipment: null })
+  const {
+    sessions: historySessions,
+    setSessions: setHistorySessions,
+    setSessionPage: setHistorySessionPage,
+    hasMoreSessions: historyHasMore,
+    getSessionTitle: getHistorySessionTitle,
+    exerciseLibraryByName: historyExerciseLibraryByName,
+    loading: historyLoading
+  } = useStrengthMetrics()
 
   const devToolsEnabled = isDeveloperToolsUser(user?.email)
 
@@ -91,6 +109,10 @@ export default function ProfilePage() {
     setSuccess(null)
     setTimeout(() => setError(null), 5000)
   }
+  const handleImportSuccess = useCallback(() => {
+    setHistorySessions([])
+    setHistorySessionPage(0)
+  }, [setHistorySessions, setHistorySessionPage])
 
   if (userLoading) {
     return (
@@ -148,6 +170,25 @@ export default function ProfilePage() {
             defaultOpen={false}
           >
             <EquipmentSettingsForm onSuccess={handleSuccess} onError={handleError} />
+          </ProfileSection>
+
+          <ProfileSection
+            title="Previous sessions"
+            description="Session history, edits, and imports."
+            defaultOpen={false}
+          >
+            <SessionHistoryList
+              sessions={historySessions}
+              exerciseLibraryByName={historyExerciseLibraryByName}
+              getSessionTitle={getHistorySessionTitle}
+              hasMore={historyHasMore}
+              onLoadMore={() => setHistorySessionPage((p) => p + 1)}
+              onDeleteSuccess={(id) => setHistorySessions((prev) => prev.filter((s) => s.id !== id))}
+              onError={handleError}
+              loading={historyLoading}
+              onImportSuccess={handleImportSuccess}
+              embedded
+            />
           </ProfileSection>
 
           {devToolsEnabled ? (

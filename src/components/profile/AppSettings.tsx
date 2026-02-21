@@ -110,7 +110,7 @@ export function AppSettings({ onSuccess, onError }: AppSettingsProps) {
         <div className="flex items-center gap-3">
           <Ruler className="h-5 w-5 text-accent" />
           <div>
-            <h2 className="text-sm font-semibold text-strong">Units</h2>
+            <h2 className="text-base font-semibold text-strong">Units</h2>
             <p className="text-xs text-subtle">Choose your preferred measurement system.</p>
           </div>
         </div>

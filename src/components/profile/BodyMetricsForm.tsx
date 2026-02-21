@@ -69,9 +69,9 @@ export function BodyMetricsForm({
   return (
     <Card className="p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-strong">Body Metrics</h2>
-          <p className="text-sm text-muted">These values power BMI, BMR, and training metrics.</p>
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold text-strong">Body metrics</h2>
+          <p className="text-xs text-subtle">Used to calculate BMI, BMR, and training metrics.</p>
         </div>
         <Button
           size="sm"

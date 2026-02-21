@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSupabase } from '@/hooks/useSupabase'
 import { useUser } from '@/hooks/useUser'
@@ -23,17 +23,20 @@ type DevAction = {
 export function DeveloperToolsPanel({ onSuccess, onError }: DeveloperToolsPanelProps) {
   const supabase = useSupabase()
   const { user } = useUser()
+  const actionInFlightRef = useRef(false)
 
   const [devActionState, setDevActionState] = useState<'idle' | 'seeding' | 'clearing'>('idle')
   const [devActionMessage, setDevActionMessage] = useState<string | null>(null)
   const [confirmDevAction, setConfirmDevAction] = useState<DevAction | null>(null)
 
   const executeSeedData = async () => {
-    if (!user || devActionState !== 'idle') {
+    if (!user) {
       onError?.('You are not allowed to use developer tools.')
       return
     }
+    if (actionInFlightRef.current) return
 
+    actionInFlightRef.current = true
     setDevActionState('seeding')
     setDevActionMessage(null)
 
@@ -49,16 +52,19 @@ export function DeveloperToolsPanel({ onSuccess, onError }: DeveloperToolsPanelP
       console.error('Failed to seed dev data', error)
       onError?.('Unable to seed dev data.')
     } finally {
+      actionInFlightRef.current = false
       setDevActionState('idle')
     }
   }
 
   const executeClearSeededData = async () => {
-    if (!user || devActionState !== 'idle') {
+    if (!user) {
       onError?.('You are not allowed to use developer tools.')
       return
     }
+    if (actionInFlightRef.current) return
 
+    actionInFlightRef.current = true
     setDevActionState('clearing')
     setDevActionMessage(null)
 
@@ -75,17 +81,18 @@ export function DeveloperToolsPanel({ onSuccess, onError }: DeveloperToolsPanelP
       console.error('Failed to clear dev data', error)
       onError?.('Unable to clear dev data.')
     } finally {
+      actionInFlightRef.current = false
       setDevActionState('idle')
     }
   }
 
   const handleConfirmAction = async () => {
-    if (!confirmDevAction) return
-
-    if (confirmDevAction.type === 'seed') await executeSeedData()
-    if (confirmDevAction.type === 'clear') await executeClearSeededData()
-
+    if (!confirmDevAction || actionInFlightRef.current) return
+    const action = confirmDevAction
     setConfirmDevAction(null)
+
+    if (action.type === 'seed') await executeSeedData()
+    if (action.type === 'clear') await executeClearSeededData()
   }
 
   return (
@@ -113,7 +120,7 @@ export function DeveloperToolsPanel({ onSuccess, onError }: DeveloperToolsPanelP
             title: 'Seed Dev Data',
             description: 'This will insert a batch of simulated workout data for your account. You can clear it later.'
           })}
-          disabled={devActionState !== 'idle'}
+          disabled={devActionState !== 'idle' || actionInFlightRef.current}
         >
           {devActionState === 'seeding' ? 'Seeding...' : 'Seed dev data'}
         </Button>
@@ -126,7 +133,7 @@ export function DeveloperToolsPanel({ onSuccess, onError }: DeveloperToolsPanelP
             title: 'Clear Dev Data',
             description: 'This will delete all seeded workout templates and sessions for your account. This cannot be undone.'
           })}
-          disabled={devActionState !== 'idle'}
+          disabled={devActionState !== 'idle' || actionInFlightRef.current}
         >
           {devActionState === 'clearing' ? 'Clearing...' : 'Clear seeded data'}
         </Button>
