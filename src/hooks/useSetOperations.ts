@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { useSetPersistence } from '@/hooks/useSetPersistence'
 import { convertWeight, roundWeight } from '@/lib/units'
@@ -25,9 +25,14 @@ export function useSetOperations(
     addSessionExercise
   } = useWorkoutStore()
 
-  const { persistSet, deleteSet, persistSessionBodyWeight, isPersisting } = useSetPersistence()
+  const {
+    persistSet,
+    deleteSet,
+    persistSessionBodyWeight,
+    getSessionSyncStatus,
+    isPersisting
+  } = useSetPersistence()
   const [isUpdating, setIsUpdating] = useState(false)
-  const creationPromises = useRef<Map<string, Promise<string | undefined>>>(new Map())
 
   const handleSetUpdate = useCallback(async (
     exIdx: number, setIdx: number, field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]
@@ -41,31 +46,19 @@ export function useSetOperations(
     updateSet(exIdx, setIdx, field, value)
     setIsUpdating(true)
     try {
-      let targetSetId = currentSet.id
-      if (targetSetId.startsWith('temp-') && creationPromises.current.has(targetSetId)) {
-        const realId = await creationPromises.current.get(targetSetId)
-        if (realId) targetSetId = realId
+      const nextSet = {
+        ...currentSet,
+        [field]: value,
+        performedAt: currentSet.performedAt ?? new Date().toISOString()
       }
-      const nextSet = { ...currentSet, [field]: value, id: targetSetId }
-      let result
-      if (targetSetId.startsWith('temp-')) {
-        const promise = persistSet(exercise, nextSet).then(res => res.id)
-        creationPromises.current.set(targetSetId, promise)
-        const newId = await promise
-        creationPromises.current.delete(targetSetId)
-        if (newId) {
-          updateSet(exIdx, setIdx, 'id', newId)
-          result = { success: true, id: newId, performedAt: nextSet.performedAt }
-        } else {
-          result = { success: false, error: 'Failed to create set' }
-        }
-      } else {
-        result = await persistSet(exercise, nextSet)
-      }
+      const result = await persistSet(exercise, nextSet)
       if (!result.success) {
         updateSet(exIdx, setIdx, field, previousValue)
         setErrorMessage(result.error ?? 'Failed to save changes. Please try again.')
         return
+      }
+      if (result.id && result.id !== currentSet.id) {
+        updateSet(exIdx, setIdx, 'id', result.id)
       }
       if (result.performedAt && result.performedAt !== currentSet.performedAt) {
         updateSet(exIdx, setIdx, 'performedAt', result.performedAt)
@@ -153,13 +146,13 @@ export function useSetOperations(
     if (!exercise) return
     const set = exercise.sets[setIdx]
     if (!set) return
-    // Delete from DB first (skip for temp/unsaved sets)
-    if (set.id && !set.id.startsWith('temp-')) {
-      const result = await deleteSet(set.id)
-      if (!result.success) {
-        setErrorMessage(result.error ?? 'Failed to delete set.')
-        return
-      }
+    const result = await deleteSet(set.id, {
+      sessionId: activeSession.id,
+      sessionExerciseId: exercise.id
+    })
+    if (!result.success) {
+      setErrorMessage(result.error ?? 'Failed to delete set.')
+      return
     }
     removeSet(exIdx, setIdx)
   }, [activeSession, deleteSet, removeSet, setErrorMessage])
@@ -168,8 +161,8 @@ export function useSetOperations(
     if (!activeSession) return
     const exercise = activeSession.exercises[exerciseIndex]
     if (!exercise) return
-    // Delete from DB (cascade will remove child sets)
-    if (exercise.id && !exercise.id.startsWith('temp-')) {
+    // Delete exercise from DB first (cascade removes existing server-side sets).
+    if (exercise.id) {
       const { error } = await supabase
         .from('session_exercises')
         .delete()
@@ -179,8 +172,16 @@ export function useSetOperations(
         return
       }
     }
+    await Promise.all(
+      exercise.sets.map((set) => deleteSet(set.id, {
+        sessionId: activeSession.id,
+        sessionExerciseId: exercise.id
+      }))
+    )
     removeSessionExercise(exerciseIndex)
-  }, [activeSession, supabase, removeSessionExercise, setErrorMessage])
+  }, [activeSession, supabase, removeSessionExercise, setErrorMessage, deleteSet])
+
+  const syncStatus = getSessionSyncStatus(activeSession?.id)
 
   return {
     handleSetUpdate,
@@ -194,6 +195,7 @@ export function useSetOperations(
     updateSet,
     replaceSessionExercise,
     addSessionExercise,
+    syncStatus,
     isUpdating: isUpdating || isPersisting
   }
 }

@@ -1,8 +1,9 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSupabase } from '@/hooks/useSupabase'
 import type { SessionExercise, WorkoutSet } from '@/types/domain'
+import { getSetOperationQueue, type SetQueueSnapshot, type SetSyncState } from '@/lib/local-first/set-operation-queue'
 
 type SetPayload = {
   session_exercise_id: string
@@ -31,14 +32,24 @@ export type PersistSetResult = {
   error?: string
 }
 
+export type SessionSetSyncStatus = {
+  state: SetSyncState
+  pending: number
+  error: number
+}
+
 /**
  * Hook for persisting workout sets to the database.
- * Handles both insert (new sets) and update (existing sets) operations.
+ * Uses a durable local-first queue to survive refresh/crash and flaky network.
  */
 export function useSetPersistence() {
-  const [isPersisting, setIsPersisting] = useState(false)
-  const [lastError, setLastError] = useState<string | null>(null)
+  const [isDirectPersisting, setIsDirectPersisting] = useState(false)
+  const [directError, setDirectError] = useState<string | null>(null)
   const supabase = useSupabase()
+  const queue = useMemo(() => getSetOperationQueue(supabase), [supabase])
+  const [queueSnapshot, setQueueSnapshot] = useState<SetQueueSnapshot>(() => queue.getSnapshot())
+
+  useEffect(() => queue.subscribe(setQueueSnapshot), [queue])
 
   const buildSetPayload = useCallback((exercise: SessionExercise, set: WorkoutSet): SetPayload => {
     return {
@@ -62,6 +73,17 @@ export function useSetPersistence() {
     }
   }, [])
 
+  const getSessionSyncStatus = useCallback((sessionId?: string | null): SessionSetSyncStatus => {
+    if (sessionId && queueSnapshot.sessions[sessionId]) {
+      return queueSnapshot.sessions[sessionId]
+    }
+    return {
+      state: queueSnapshot.state,
+      pending: queueSnapshot.pending,
+      error: queueSnapshot.error
+    }
+  }, [queueSnapshot])
+
   const persistSet = useCallback(async (
     exercise: SessionExercise,
     set: WorkoutSet
@@ -70,84 +92,61 @@ export function useSetPersistence() {
       return { success: false, error: 'Exercise ID is required' }
     }
 
-    setIsPersisting(true)
-    setLastError(null)
-
     try {
       const payload = buildSetPayload(exercise, set)
-      const isNewSet = !set.id || set.id.startsWith('temp-')
+      const setId = set.id && !set.id.startsWith('temp-') ? set.id : crypto.randomUUID()
+      const sessionId = exercise.sessionId
 
-      if (isNewSet) {
-        const { data, error } = await supabase
-          .from('sets')
-          .insert(payload)
-          .select('id, performed_at')
-          .single()
+      await queue.enqueueUpsert({
+        setId,
+        sessionId,
+        sessionExerciseId: exercise.id,
+        payload
+      })
 
-        if (error) {
-          setLastError(error.message)
-          return { success: false, error: error.message }
-        }
-
-        return {
-          success: true,
-          id: data.id,
-          performedAt: data.performed_at
-        }
-      } else {
-        const { error } = await supabase
-          .from('sets')
-          .update(payload)
-          .eq('id', set.id)
-
-        if (error) {
-          setLastError(error.message)
-          return { success: false, error: error.message }
-        }
-
-        return { success: true }
+      return {
+        success: true,
+        id: setId,
+        performedAt: payload.performed_at
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error persisting set'
-      setLastError(message)
+      setDirectError(message)
       return { success: false, error: message }
-    } finally {
-      setIsPersisting(false)
     }
-  }, [buildSetPayload, supabase])
+  }, [buildSetPayload, queue])
 
-  const deleteSet = useCallback(async (setId: string): Promise<PersistSetResult> => {
-    if (!setId || setId.startsWith('temp-')) {
-      return { success: true } // Nothing to delete
-    }
-
-    setIsPersisting(true)
-    setLastError(null)
+  const deleteSet = useCallback(async (
+    setId: string,
+    context?: { sessionId: string; sessionExerciseId: string }
+  ): Promise<PersistSetResult> => {
+    if (!setId) return { success: true }
 
     try {
-      const { error } = await supabase.from('sets').delete().eq('id', setId)
-
-      if (error) {
-        setLastError(error.message)
-        return { success: false, error: error.message }
+      if (context?.sessionId && context.sessionExerciseId) {
+        await queue.enqueueDelete({
+          setId,
+          sessionId: context.sessionId,
+          sessionExerciseId: context.sessionExerciseId
+        })
+      } else {
+        await queue.cancelSet(setId)
       }
 
       return { success: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error deleting set'
-      setLastError(message)
+      setDirectError(message)
       return { success: false, error: message }
-    } finally {
-      setIsPersisting(false)
     }
-  }, [supabase])
+  }, [queue])
 
   const persistSessionBodyWeight = useCallback(async (
     sessionId: string,
     weightLb: number | null
   ): Promise<PersistSetResult> => {
-    setIsPersisting(true)
-    setLastError(null)
+    setIsDirectPersisting(true)
+    setDirectError(null)
 
     try {
       const { error } = await supabase
@@ -156,26 +155,30 @@ export function useSetPersistence() {
         .eq('id', sessionId)
 
       if (error) {
-        setLastError(error.message)
+        setDirectError(error.message)
         return { success: false, error: error.message }
       }
 
       return { success: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error updating body weight'
-      setLastError(message)
+      setDirectError(message)
       return { success: false, error: message }
     } finally {
-      setIsPersisting(false)
+      setIsDirectPersisting(false)
     }
   }, [supabase])
+
+  const isPersisting = isDirectPersisting || queueSnapshot.isFlushing
+  const lastError = directError ?? queueSnapshot.lastError
 
   return {
     persistSet,
     deleteSet,
     persistSessionBodyWeight,
+    getSessionSyncStatus,
     isPersisting,
     lastError,
-    clearError: () => setLastError(null)
+    clearError: () => setDirectError(null)
   }
 }

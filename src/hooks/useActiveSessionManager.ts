@@ -63,6 +63,7 @@ export function useActiveSessionManager(sessionId?: string | null, equipmentInve
     exerciseLibraryByName,
 
     // Loading states
+    syncStatus: setOps.syncStatus,
     isUpdating: setOps.isUpdating,
 
     // Supabase client

@@ -12,6 +12,7 @@ import { adaptPrescription } from '@/lib/generator/adaptation'
 import { useExerciseCatalog } from '@/hooks/useExerciseCatalog'
 import { mapSessionPayload } from '@/lib/session-mapper'
 import type { SessionPayload } from '@/lib/session-mapper'
+import { applyQueuedSetMutations, getSetOperationQueue } from '@/lib/local-first/set-operation-queue'
 import type { Goal, Intensity, PlanInput } from '@/types/domain'
 import type { ExerciseHistoryPoint } from '@/lib/session-history'
 
@@ -112,7 +113,10 @@ export function useSessionData(sessionId?: string | null) {
       const validated = safeParseSingle(sessionQueryResultSchema, data, 'session fetch')
       if (!validated) { setErrorMessage('Session data format is invalid.'); return }
       if (validated.status && validated.status !== 'in_progress') { setErrorMessage('This session is no longer active.'); return }
-      startSession(mapAndSetBodyWeight(validated as SessionPayload))
+      const remoteSession = mapAndSetBodyWeight(validated as SessionPayload)
+      const queue = getSetOperationQueue(supabase)
+      const pendingOperations = await queue.getPendingOperationsForSession(sessionId)
+      startSession(applyQueuedSetMutations(remoteSession, pendingOperations))
     }
     load()
     return () => { cancelled = true }

@@ -42,7 +42,7 @@ export function ActiveSession({
     activeSession, errorMessage, setErrorMessage, preferredUnit, profileWeightLb,
     exerciseTargets, handleSetUpdate, addSet, handleRemoveSet, replaceSessionExercise,
     handleRemoveExercise, addSessionExercise, handleReorderExercises,
-    resolvedInventory, exerciseLibrary, exerciseLibraryByName, isUpdating,
+    resolvedInventory, exerciseLibrary, exerciseLibraryByName, syncStatus, isUpdating,
     supabase, handleBodyWeightUpdate, handleStartTimeUpdate
   } = useActiveSessionManager(sessionId, equipmentInventory);
 
@@ -198,6 +198,7 @@ export function ActiveSession({
         }}
         sessionBodyWeight={activeSession.bodyWeightLb}
         preferredUnit={preferredUnit}
+        syncStatus={syncStatus}
         errorMessage={errorMessage}
         onStartTimeClick={onStartTimeChange ? handleStartTimeEditClick : undefined}
         onWeightClick={handleWeightEditClick}

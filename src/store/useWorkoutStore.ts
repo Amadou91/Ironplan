@@ -87,7 +87,7 @@ export const useWorkoutStore = create<WorkoutState>()(
         
         const initial = options?.initialValues ?? {};
         const newSet: WorkoutSet = {
-          id: `temp-${crypto.randomUUID()}`,
+          id: crypto.randomUUID(),
           setNumber: exercise.sets.length + 1,
           reps: initial.reps ?? '',
           weight: initial.weight ?? (typeof defaultWeight === 'number' ? defaultWeight : ''),

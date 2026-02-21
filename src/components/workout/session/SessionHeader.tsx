@@ -19,6 +19,11 @@ interface SessionHeaderProps {
   /** Session body weight (read-only, set from readiness check) */
   sessionBodyWeight?: number | null;
   preferredUnit?: WeightUnit;
+  syncStatus?: {
+    state: 'pending' | 'synced' | 'error';
+    pending: number;
+    error: number;
+  } | null;
   errorMessage?: string | null;
   /** Callback when 'Started at' label is clicked (to edit start time) */
   onStartTimeClick?: () => void;
@@ -35,6 +40,7 @@ export function SessionHeader({
   progressSummary,
   sessionBodyWeight,
   preferredUnit = 'lb',
+  syncStatus,
   errorMessage,
   onStartTimeClick,
   onWeightClick,
@@ -50,6 +56,13 @@ export function SessionHeader({
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + 
       ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+
+  const syncLabel = (() => {
+    if (!syncStatus) return null
+    if (syncStatus.state === 'error') return `Sync error (${syncStatus.error})`
+    if (syncStatus.state === 'pending') return `Syncing (${syncStatus.pending})`
+    return 'Synced'
+  })()
 
   return (
     <div className="sticky top-[env(safe-area-inset-top,_0px)] z-20 surface-elevated p-4 backdrop-blur-md border-b border-[var(--color-border)]">
@@ -113,6 +126,19 @@ export function SessionHeader({
                   <span className="text-xs text-muted">(edit)</span>
                 )}
               </div>
+            )}
+            {syncLabel && (
+              <span
+                className={`badge-neutral ${
+                  syncStatus?.state === 'error'
+                    ? 'text-[var(--color-danger)]'
+                    : syncStatus?.state === 'pending'
+                      ? 'text-[var(--color-primary)]'
+                      : 'text-[var(--color-success)]'
+                }`}
+              >
+                {syncLabel}
+              </span>
             )}
           </div>
         )}
