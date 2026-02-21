@@ -65,6 +65,16 @@ const {
   applyQueuedSetMutations
 } = queueModule
 
+async function waitFor(condition, timeoutMs = 1_000) {
+  const startedAt = Date.now()
+  while (!condition()) {
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error('Timed out waiting for condition')
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
+}
+
 const basePayload = {
   session_exercise_id: 'exercise-1',
   set_number: 1,
@@ -185,6 +195,102 @@ test('SetOperationQueue resumes persisted operations after queue re-instantiatio
   assert.equal(replayed.length, 1)
   assert.equal(replayed[0].setId, 'set-resume')
   assert.equal((await store.loadAll()).length, 0)
+})
+
+test('SetOperationQueue keeps latest write when an older in-flight op resolves later', async () => {
+  const store = new InMemorySetOperationStore()
+  const calls = []
+  let releaseFirstCall = null
+
+  const queue = new SetOperationQueue(
+    store,
+    async (op) => {
+      calls.push(op)
+      if (calls.length === 1) {
+        await new Promise((resolve) => { releaseFirstCall = resolve })
+      }
+      return { success: true }
+    },
+    { isOnline: () => true }
+  )
+
+  await queue.enqueueUpsert({
+    setId: 'set-race',
+    sessionId: 'session-race',
+    sessionExerciseId: 'exercise-race',
+    payload: { ...basePayload, session_exercise_id: 'exercise-race', reps: 8 }
+  })
+
+  const firstFlush = queue.flushNow()
+  await waitFor(() => calls.length === 1)
+
+  await queue.enqueueUpsert({
+    setId: 'set-race',
+    sessionId: 'session-race',
+    sessionExerciseId: 'exercise-race',
+    payload: { ...basePayload, session_exercise_id: 'exercise-race', reps: 12 }
+  })
+
+  const queuedBeforeRelease = await store.loadAll()
+  assert.equal(queuedBeforeRelease.length, 1)
+  assert.equal(queuedBeforeRelease[0].payload.reps, 12)
+  assert.notEqual(queuedBeforeRelease[0].opId, calls[0].opId)
+  assert.ok(releaseFirstCall)
+
+  releaseFirstCall()
+  await firstFlush
+
+  assert.equal(calls.length, 2)
+  assert.equal(calls[0].payload.reps, 8)
+  assert.equal(calls[1].payload.reps, 12)
+  assert.equal((await store.loadAll()).length, 0)
+})
+
+test('Queued local set is replayed on refresh before first successful sync', async () => {
+  const store = new InMemorySetOperationStore()
+  const queueBeforeRefresh = new SetOperationQueue(
+    store,
+    async () => ({ success: true }),
+    { isOnline: () => false }
+  )
+
+  await queueBeforeRefresh.enqueueUpsert({
+    setId: 'set-offline',
+    sessionId: 'session-refresh',
+    sessionExerciseId: 'exercise-refresh',
+    payload: { ...basePayload, session_exercise_id: 'exercise-refresh', set_number: 1, reps: 6, weight: 95 }
+  })
+
+  const queueAfterRefresh = new SetOperationQueue(
+    store,
+    async () => ({ success: true }),
+    { isOnline: () => false }
+  )
+
+  const pending = await queueAfterRefresh.getPendingOperationsForSession('session-refresh')
+  const remoteSession = {
+    id: 'session-refresh',
+    userId: 'user-1',
+    name: 'Push Day',
+    startedAt: '2026-02-20T09:00:00.000Z',
+    exercises: [
+      {
+        id: 'exercise-refresh',
+        sessionId: 'session-refresh',
+        name: 'Press',
+        primaryMuscle: 'Chest',
+        secondaryMuscles: [],
+        sets: [],
+        orderIndex: 0
+      }
+    ]
+  }
+
+  const hydrated = applyQueuedSetMutations(remoteSession, pending)
+  assert.equal(hydrated.exercises[0].sets.length, 1)
+  assert.equal(hydrated.exercises[0].sets[0].id, 'set-offline')
+  assert.equal(hydrated.exercises[0].sets[0].reps, 6)
+  assert.equal(hydrated.exercises[0].sets[0].weight, 95)
 })
 
 test('applyQueuedSetMutations replays pending set updates/additions over hydrated session data', () => {

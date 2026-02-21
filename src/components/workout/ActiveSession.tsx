@@ -40,7 +40,7 @@ export function ActiveSession({
 }: ActiveSessionProps) {
   const {
     activeSession, errorMessage, setErrorMessage, preferredUnit, profileWeightLb,
-    exerciseTargets, handleSetUpdate, addSet, handleRemoveSet, replaceSessionExercise,
+    exerciseTargets, handleSetUpdate, handleAddSet, handleRemoveSet, replaceSessionExercise,
     handleRemoveExercise, addSessionExercise, handleReorderExercises,
     resolvedInventory, exerciseLibrary, exerciseLibraryByName, syncStatus, isUpdating,
     supabase, handleBodyWeightUpdate, handleStartTimeUpdate
@@ -226,11 +226,16 @@ export function ActiveSession({
                 onRemove={() => setExerciseToRemove(exIdx)}
                 onSetUpdate={(setIdx, field, value) => handleSetUpdate(exIdx, setIdx, field, value)}
                 onRemoveSet={(setIdx) => handleRemoveSet(exIdx, setIdx)}
-                onAddSet={() => addSet(exIdx, preferredUnit, null, isDumbbellExercise(exercise) ? { loadType: 'per_implement', implementCount: 2 } : undefined)}
+                onAddSet={() => {
+                  void handleAddSet(
+                    exIdx,
+                    isDumbbellExercise(exercise) ? { loadType: 'per_implement', implementCount: 2 } : undefined
+                  )
+                }}
                 onCopyLastSet={() => {
                   const lastSet = exercise.sets[exercise.sets.length - 1];
                   if (!lastSet) return;
-                  addSet(exIdx, preferredUnit, null, {
+                  void handleAddSet(exIdx, {
                     loadType: lastSet.loadType || (isDumbbellExercise(exercise) ? 'per_implement' : undefined),
                     implementCount: typeof lastSet.implementCount === 'number' ? lastSet.implementCount : (isDumbbellExercise(exercise) ? 2 : undefined),
                     initialValues: {

@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react'
 import { useWorkoutStore } from '@/store/useWorkoutStore'
 import { useSetPersistence } from '@/hooks/useSetPersistence'
 import { convertWeight, roundWeight } from '@/lib/units'
-import type { WorkoutSession, WorkoutSet } from '@/types/domain'
+import type { LoadType, WorkoutSession, WorkoutSet } from '@/types/domain'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
@@ -33,6 +33,12 @@ export function useSetOperations(
     isPersisting
   } = useSetPersistence()
   const [isUpdating, setIsUpdating] = useState(false)
+
+  type AddSetOptions = {
+    loadType?: LoadType
+    implementCount?: number | null
+    initialValues?: Partial<WorkoutSet>
+  }
 
   const handleSetUpdate = useCallback(async (
     exIdx: number, setIdx: number, field: keyof WorkoutSet, value: WorkoutSet[keyof WorkoutSet]
@@ -71,6 +77,41 @@ export function useSetOperations(
       setIsUpdating(false)
     }
   }, [activeSession, persistSet, updateSet, setErrorMessage])
+
+  const handleAddSet = useCallback(async (
+    exIdx: number,
+    options?: AddSetOptions
+  ) => {
+    if (!activeSession) return null
+    const exercise = activeSession.exercises[exIdx]
+    if (!exercise) return null
+
+    const createdSet = addSet(exIdx, preferredUnit, null, options)
+    if (!createdSet) return null
+
+    const createdSetIdx = exercise.sets.length
+    setIsUpdating(true)
+    try {
+      const result = await persistSet(exercise, createdSet)
+      if (!result.success) {
+        setErrorMessage(result.error ?? 'Failed to queue new set for sync. Changes stay local.')
+        return createdSet
+      }
+      if (result.id && result.id !== createdSet.id) {
+        updateSet(exIdx, createdSetIdx, 'id', result.id)
+      }
+      if (result.performedAt && result.performedAt !== createdSet.performedAt) {
+        updateSet(exIdx, createdSetIdx, 'performedAt', result.performedAt)
+      }
+      return createdSet
+    } catch (error) {
+      console.error('handleAddSet error:', error)
+      setErrorMessage('Unable to queue this set. Changes stay local for now.')
+      return createdSet
+    } finally {
+      setIsUpdating(false)
+    }
+  }, [activeSession, addSet, preferredUnit, persistSet, setErrorMessage, updateSet])
 
   const togglePreferredUnit = useCallback(() => {
     const nextUnit = preferredUnit === 'lb' ? 'kg' : 'lb'
@@ -184,6 +225,7 @@ export function useSetOperations(
   const syncStatus = getSessionSyncStatus(activeSession?.id)
 
   return {
+    handleAddSet,
     handleSetUpdate,
     handleBodyWeightUpdate,
     handleStartTimeUpdate,

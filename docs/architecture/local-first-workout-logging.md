@@ -25,7 +25,7 @@
 
 ### Queue Lifecycle
 1. UI updates local state immediately (optimistic and local-first).
-2. Set write/delete enqueues durable op in IndexedDB.
+2. New set creation, edits, and deletes enqueue durable ops in IndexedDB immediately.
 3. Queue attempts flush when online/visible.
 4. On success: op is removed.
 5. On failure: op is retained and retried with exponential backoff + jitter.
